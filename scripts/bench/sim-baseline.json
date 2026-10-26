@@ -1,0 +1,58 @@
+{
+  "machine": "Intel(R) Xeon(R) Processor @ 2.80GHz x4, linux x64, node v22.22.0",
+  "recorded": "2026-10-23",
+  "results": [
+    {
+      "scenario": "single",
+      "systems": "core",
+      "ticks": 1800,
+      "meanMs": 2.53,
+      "p50": 2.16,
+      "p95": 4.547,
+      "p99": 5.632,
+      "max": 11.219,
+      "agentsMean": 430,
+      "machine": "Intel(R) Xeon(R) Processor @ 2.10GHz x4, linux x64, node v22.22.0",
+      "recorded": "2026-10-22"
+    },
+    {
+      "scenario": "multi",
+      "systems": "core",
+      "ticks": 1800,
+      "meanMs": 5.335,
+      "p50": 5.327,
+      "p95": 8.153,
+      "p99": 9.267,
+      "max": 101.355,
+      "agentsMean": 1024,
+      "machine": "Intel(R) Xeon(R) Processor @ 2.10GHz x4, linux x64, node v22.22.0",
+      "recorded": "2026-10-22"
+    },
+    {
+      "scenario": "single",
+      "systems": "game",
+      "ticks": 1800,
+      "meanMs": 15.773,
+      "p50": 14.844,
+      "p95": 23.751,
+      "p99": 29.542,
+      "max": 249.543,
+      "agentsMean": 432,
+      "machine": "Intel(R) Xeon(R) Processor @ 2.80GHz x4, linux x64, node v22.22.0",
+      "recorded": "2026-10-23"
+    },
+    {
+      "scenario": "multi",
+      "systems": "game",
+      "ticks": 1800,
+      "meanMs": 211.243,
+      "p50": 206.752,
+      "p95": 262.977,
+      "p99": 301.342,
+      "max": 494.785,
+      "agentsMean": 1024,
+      "machine": "Intel(R) Xeon(R) Processor @ 2.80GHz x4, linux x64, node v22.22.0",
+      "recorded": "2026-10-23"
+    }
+  ]
+}

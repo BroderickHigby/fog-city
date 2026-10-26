@@ -3,21 +3,37 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="data:," />
     <title>Fog City</title>
     <style>
       html, body { margin: 0; height: 100%; background: #10141a; overflow: hidden; }
       #game { position: fixed; inset: 0; }
+      #game canvas { display: block; width: 100%; height: 100%; touch-action: none; }
       #hud {
         position: fixed; left: 12px; top: 10px; z-index: 2;
         font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
         color: #e9edf2; background: rgba(12, 15, 20, 0.62);
         padding: 6px 9px; border-radius: 3px; pointer-events: none; white-space: pre;
       }
+      #compass {
+        position: fixed; left: 50%; top: 10px; z-index: 2; width: 300px; height: 34px;
+        margin-left: -150px; overflow: hidden; pointer-events: none;
+        background: rgba(12, 15, 20, 0.55); border-radius: 3px;
+        font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace; color: #e9edf2;
+        -webkit-mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+        mask-image: linear-gradient(90deg, transparent, #000 18%, #000 82%, transparent);
+      }
+      #compass .strip { position: absolute; left: 150px; top: 6px; height: 14px; will-change: transform; }
+      #compass .tick { position: absolute; transform: translateX(-50%); opacity: 0.6; }
+      #compass .tick.major { opacity: 1; font-weight: 700; }
+      #compass .needle { position: absolute; left: 149px; top: 0; width: 2px; height: 5px; background: #ffb35c; }
+      #compass .label { position: absolute; left: 0; right: 0; bottom: 3px; text-align: center; font-size: 10px; opacity: 0.8; }
     </style>
   </head>
   <body>
     <div id="game"></div>
     <div id="hud">loading…</div>
+    <div id="compass" aria-hidden="true"><div class="needle"></div><div class="strip"></div><div class="label"></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

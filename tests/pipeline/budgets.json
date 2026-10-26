@@ -1,0 +1,17 @@
+{
+  "$comment": "Size and complexity budgets for the shipped world (docs/roadmap.md: a territory step does not merge while any budget test fails; docs/design.md decision log 2026-10-20: plain git, compressed). Bytes are on-disk file sizes. Checked by tests/pipeline/budgets.test.ts for every world under public/tiles/ that has a manifest, except the hand-made dev worlds.",
+  "worlds": {
+    "sf": {
+      "tileGlbMaxBytes": 1500000,
+      "tileColliderJsonMaxBytes": 1500000,
+      "worldTotalMaxBytes": 300000000,
+      "tileGlbTotalMaxBytes": 150000000,
+      "tileColliderJsonTotalMaxBytes": 100000000,
+      "bootColliderMaxBytes": 15000000,
+      "farTotalMaxBytes": 15000000,
+      "farMaxCells": 40,
+      "farMaxTriangles": 600000,
+      "layerMaxBytes": 15000000
+    }
+  }
+}

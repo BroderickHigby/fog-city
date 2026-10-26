@@ -1,0 +1,5884 @@
+{
+ "version": 1,
+ "status": "subtitles-only",
+ "hold": "Voice generation is held: the ElevenLabs account is on the free tier, which grants no commercial licence, so its output cannot ship in a distributed game. Upgrade to any paid tier, then run `node scripts/audio/generate-voices.ts --generate`. Until then every mission line plays as timed subtitles.",
+ "settings": {
+  "modelId": "eleven_multilingual_v2",
+  "stability": 0.45,
+  "similarityBoost": 0.75,
+  "style": 0.35,
+  "useSpeakerBoost": true,
+  "outputFormat": "mp3_44100_128"
+ },
+ "speakers": {
+  "cofounder": {
+   "name": "Your cofounder",
+   "voiced": true,
+   "voiceId": "FGY2WhTYpPnrIDTdsKH5",
+   "voiceName": "Laura",
+   "why": "Sunny, quirky, a little sassy: the deadpan-cheerful cofounder who texts in lowercase and never panics on camera."
+  },
+  "dispatch": {
+   "name": "Dispatcher",
+   "voiced": true,
+   "voiceId": "SAz9YHcvj6GT2YYXdXww",
+   "voiceName": "River",
+   "why": "Calm, neutral, informative: BotBounty's dispatcher bot, unbothered by anything."
+  },
+  "host": {
+   "name": "Desk host",
+   "voiced": true,
+   "voiceId": "cgSgspJ2msm6clMCkdW9",
+   "voiceName": "Jessica",
+   "why": "Bright, playful coworking host selling hot desks with total sincerity."
+  },
+  "slotsworth": {
+   "name": "Slotsworth",
+   "voiced": true,
+   "voiceId": "onwK4e9ZLuTAKqWW03F9",
+   "voiceName": "Daniel",
+   "why": "Formal British broadcaster: Ramen's AI scheduling agent, far too grand for calendar invites."
+  },
+  "philosopher": {
+   "name": "The Philosopher",
+   "voiced": true,
+   "voiceId": "pqHfZKP75CvOlQylNhV4",
+   "voiceName": "Bill",
+   "why": "Wise, mature, unhurried: the VC partner who asks what your startup means."
+  },
+  "metrics": {
+   "name": "The Metrics One",
+   "voiced": true,
+   "voiceId": "pNInz6obpgDQGcFmaJgB",
+   "voiceName": "Adam",
+   "why": "Brash, firm tenor: the partner who only wants the numbers."
+  },
+  "vibes": {
+   "name": "The Vibes Partner",
+   "voiced": true,
+   "voiceId": "IKne3meq5aSn9XLyUdCD",
+   "voiceName": "Charlie",
+   "why": "Hyped, energetic: the partner who invests on vibes."
+  },
+  "frontDesk": {
+   "name": "Front Desk",
+   "voiced": true,
+   "voiceId": "XrExE9yKIg1WjnnlVkGX",
+   "voiceName": "Matilda",
+   "why": "Upbeat professional alto for Ramen's lobby robot."
+  },
+  "player": {
+   "name": "You",
+   "voiced": true,
+   "voiceId": "iP95p4xoKVk53GoZ742B",
+   "voiceName": "Chris",
+   "why": "Charming, down-to-earth adult male, matching the generic avatar (Rocketbox Male_Adult_01): the player's GTA-style inner voice, saying what to do and where, distinct from the cofounder's phone lines."
+  }
+ },
+ "lines": [
+  {
+   "missionId": "hot-desk",
+   "stepId": "arrive",
+   "id": "hot-desk.arrive.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones. only the bad ones, ideally",
+   "hash": "b9d1b510a089038690197229aab81b0be3a87493fd0deca357a385ce6b0e0720",
+   "file": null,
+   "durationS": 8.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.6,
+     "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones."
+    },
+    {
+     "startS": 6.6,
+     "endS": 8.8,
+     "text": "only the bad ones, ideally"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "arrive",
+   "id": "hot-desk.arrive.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bad robots look exactly like good ones. watch what they DO",
+   "hash": "e03b6746a2d776edc114fe404262437de56c40da3fcceadde1f00b84ed07a83e",
+   "file": null,
+   "durationS": 4.49,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.49,
+     "text": "bad robots look exactly like good ones. watch what they DO"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "snatch",
+   "id": "hot-desk.snatch.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "see the footman following the other one? 2 metres behind, every turn. and its bag is empty. that's not normal",
+   "hash": "fb331e134cb71d4496073af8ce72a54773273da64222fca37e7e5efd35cbb3b6",
+   "file": null,
+   "durationS": 8.19,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.03,
+     "text": "see the footman following the other one?"
+    },
+    {
+     "startS": 3.03,
+     "endS": 8.19,
+     "text": "2 metres behind, every turn. and its bag is empty. that's not normal"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "watch",
+   "id": "hot-desk.watch.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "hold your aim on it without spraying. that's Watch. look at its trail",
+   "hash": "5b232e4138fedb16c93f9a89aeb865d695756b231e4caf4161fbd89f5f87143c",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "hold your aim on it without spraying. that's Watch. look at its trail"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melt",
+   "id": "hot-desk.melt.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "it took the groceries!! spray it. hydrant's right there if you run out",
+   "hash": "f44c01d2bc5751e931b8b691c069ea091d3491bdff115c4c418f29f5e4e40ae9",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.62,
+     "text": "it took the groceries!! spray it."
+    },
+    {
+     "startS": 2.62,
+     "endS": 5.47,
+     "text": "hydrant's right there if you run out"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melted",
+   "id": "hot-desk.melted.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "first melt!!! it'll be restored from backup. some memories may be lost. not ours",
+   "hash": "7838abccd937e8521f2086bf36c199ddad1a7aab1a1adfa954c638317ee46f07",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.09,
+     "text": "first melt!!! it'll be restored from backup. some memories may be lost. not ours"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "melted",
+   "id": "hot-desk.melted.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "ok your desk is on Montgomery St. they give it away if you're late. go go go",
+   "hash": "752bc387b5cde1615c4fd28c780d7ea16ac97672a136e97f2290dfbaa50a61e5",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "ok your desk is on Montgomery St."
+    },
+    {
+     "startS": 3.01,
+     "endS": 6.84,
+     "text": "they give it away if you're late. go go go"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "to-desk",
+   "id": "hot-desk.to-desk.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Hi! We're holding your desk for five minutes. After that it goes to the next founder on the waitlist.",
+   "hash": "db959335b73f983eac1a5013a0aafc11b484b2398827ec683e3f7e86e6be03d7",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.47,
+     "text": "Hi! We're holding your desk for five minutes."
+    },
+    {
+     "startS": 3.47,
+     "endS": 7.7,
+     "text": "After that it goes to the next founder on the waitlist."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "signup",
+   "id": "hot-desk.signup.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Welcome! One question before I hand you a lanyard: what are you building?",
+   "hash": "be1ea351cc11c7de605846e54651a2c036c7d88cc1957f542e62b038b4bf38e3",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.47,
+     "text": "Welcome! One question before I hand you a lanyard: what are you building?"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "signup",
+   "id": "hot-desk.signup.line1",
+   "kind": "line",
+   "speaker": "host",
+   "text": "Love it. Love it. You're desk 14. Your stuff goes in a locker; there's no garage, sorry.",
+   "hash": "88083f9829f3e515abef21c857450c30df10d35ddf59b0ab38a1637656a9c608",
+   "file": null,
+   "durationS": 7.32,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.78,
+     "text": "Love it. Love it. You're desk 14."
+    },
+    {
+     "startS": 2.78,
+     "endS": 7.32,
+     "text": "Your stuff goes in a locker; there's no garage, sorry."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "spot",
+   "id": "hot-desk.spot.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "also a robotaxi is parked in your spot. cone it. robotaxis stop dead for a cone on the hood. it's harmless",
+   "hash": "4bcd741602ebcb18bfc7a839f20e5a6d178381a03e0fc98aa7fc8d9bb14f91da",
+   "file": null,
+   "durationS": 8.44,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.86,
+     "text": "also a robotaxi is parked in your spot. cone it."
+    },
+    {
+     "startS": 3.86,
+     "endS": 8.44,
+     "text": "robotaxis stop dead for a cone on the hood. it's harmless"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "moved-in",
+   "id": "hot-desk.moved-in.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "And you've coned a robotaxi on day one. You're going to fit right in.",
+   "hash": "2a9536d32999fdb4ba736cdd3f3ea2657859d6a85371d712aab9b6b42f353380",
+   "file": null,
+   "durationS": 5.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.29,
+     "text": "And you've coned a robotaxi on day one."
+    },
+    {
+     "startS": 3.29,
+     "endS": 5.73,
+     "text": "You're going to fit right in."
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "moved-in",
+   "id": "hot-desk.moved-in.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we have a desk!!! and a startup!!! and 18 months of runway. that's basically forever",
+   "hash": "203fe3040ceb2de947234d26cfffe18fda91592fc4130dc4fb36d0378d65d581",
+   "file": null,
+   "durationS": 6.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.7,
+     "text": "we have a desk!!! and a startup!!! and 18 months of runway. that's basically forever"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "got-away",
+   "id": "hot-desk.got-away.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "it got away with the groceries. it's fine. it's not fine. try again?",
+   "hash": "ee51c8035a69464ec43f54eb4faa035d8f99b56987191d27e52b17b635163718",
+   "file": null,
+   "durationS": 5.59,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.59,
+     "text": "it got away with the groceries. it's fine. it's not fine. try again?"
+    }
+   ]
+  },
+  {
+   "missionId": "hot-desk",
+   "stepId": "late",
+   "id": "hot-desk.late.line0",
+   "kind": "line",
+   "speaker": "host",
+   "text": "So sorry, the desk went to a founder building an app for ordering desks. Next opening is in a minute!",
+   "hash": "c63ab8fb3005df767736d971b55686f32ecae3633836bbb1e965dedd3433df74",
+   "file": null,
+   "durationS": 8.07,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.81,
+     "text": "So sorry, the desk went to a founder building an app for ordering desks."
+    },
+    {
+     "startS": 5.81,
+     "endS": 8.07,
+     "text": "Next opening is in a minute!"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "posting",
+   "id": "spill.posting.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "BotBounty dispatch. One posting near the Embarcadero at Mission St: a Footman, crew of three. Pays on melt.",
+   "hash": "ab31d6b3feaaf545c23c92515c647b2e4968856f7efcf2425fb6c15e53996a00",
+   "file": null,
+   "durationS": 7.57,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.36,
+     "text": "BotBounty dispatch."
+    },
+    {
+     "startS": 1.36,
+     "endS": 7.57,
+     "text": "One posting near the Embarcadero at Mission St: a Footman, crew of three. Pays on melt."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "posting",
+   "id": "spill.posting.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bot check beta is on your phone now. it's 97% confident about everything. that's a joke. it's also true",
+   "hash": "cb8d6de431aab3634302e38a230c8e77c6b97d28682ddaa5cd5094dcc064b4e2",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.72,
+     "text": "bot check beta is on your phone now."
+    },
+    {
+     "startS": 2.72,
+     "endS": 7.7,
+     "text": "it's 97% confident about everything. that's a joke. it's also true"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "crew",
+   "id": "spill.crew.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Posted robot is in the area. Last seen near the promenade. Tell: tails a good Footman.",
+   "hash": "2570208fb084fb79d7cb72d89aeba2683e9a645b26ab07c4a13d45ac72791b77",
+   "file": null,
+   "durationS": 6.71,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.21,
+     "text": "Posted robot is in the area."
+    },
+    {
+     "startS": 2.21,
+     "endS": 6.71,
+     "text": "Last seen near the promenade. Tell: tails a good Footman."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "scan",
+   "id": "spill.scan.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "if it says 98% that means nothing. if it walks like a bad robot that means something",
+   "hash": "f89b138b7221d9728ab9e005ae7268a042f569f1f800c68c85f6bf864dfa882a",
+   "file": null,
+   "durationS": 6.72,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.75,
+     "text": "if it says 98% that means nothing."
+    },
+    {
+     "startS": 2.75,
+     "endS": 6.72,
+     "text": "if it walks like a bad robot that means something"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "converge",
+   "id": "spill.converge.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Heads up: the rest of the crew is converging. A Moat Labs van has been dispatched from the depot.",
+   "hash": "0bd58151ef6c51334e3e460122d135b9aaa2974634e7606eecd2b6d9d7124bc2",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "Heads up: the rest of the crew is converging."
+    },
+    {
+     "startS": 3.61,
+     "endS": 7.7,
+     "text": "A Moat Labs van has been dispatched from the depot."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "escape",
+   "id": "spill.escape.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "ok now LEAVE. fog, traffic, car wash, anything. they can't follow what they can't see",
+   "hash": "7108a1c3d8432dbaff4c2a67cac9cde4cfaa116d45a6cfa4eb00ed63a6c049a2",
+   "file": null,
+   "durationS": 6.46,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "ok now LEAVE. fog, traffic, car wash, anything."
+    },
+    {
+     "startS": 3.61,
+     "endS": 6.46,
+     "text": "they can't follow what they can't see"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "paid",
+   "id": "spill.paid.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Bounty confirmed. Payment sent. Revenue extends runway.",
+   "hash": "a10958b4fc0d64688115d02b04510b19fe8e53b3a08289da4def742967fdc901",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Bounty confirmed. Payment sent. Revenue extends runway."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "paid",
+   "id": "spill.paid.line1",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we're profitable!!! for one afternoon!!! buy a better nozzle",
+   "hash": "56dd9f4f89ae901d88b60d1bb9106b0f6b381c49ba46d0ae551fb5548daacef6",
+   "file": null,
+   "durationS": 4.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.35,
+     "text": "we're profitable!!! for one afternoon!!! buy a better nozzle"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "scattered",
+   "id": "spill.scattered.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "The crew has scattered. The posting will be renewed shortly.",
+   "hash": "d516ad141af85e7f7ff271f830d724a16297eb4d2e8fde5259778b6872b86401",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "The crew has scattered. The posting will be renewed shortly."
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "cornered",
+   "id": "spill.cornered.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "they kept finding you. next time head for the fog, or the car wash on the way",
+   "hash": "ff0f2352da815c1481757d7d0cbb49a0ea8bd01d4642511543115eb908ee6eac",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.84,
+     "text": "they kept finding you. next time head for the fog, or the car wash on the way"
+    }
+   ]
+  },
+  {
+   "missionId": "spill",
+   "stepId": "cold",
+   "id": "spill.cold.line0",
+   "kind": "line",
+   "speaker": "dispatch",
+   "text": "Posting expired. Another will be along. They always are.",
+   "hash": "a2c5e4947c720695038947de6d66bf893d970f60771f379d2ebf140f6ec09abc",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Posting expired. Another will be along. They always are."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "start",
+   "id": "launch-day.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bot check 1.0 is live! the launch is in the square. we have two users if we count us.",
+   "hash": "1d55e5a430b935e6d9c1b6aee84e7056325aa69c221687b013969a750cccf882",
+   "file": null,
+   "durationS": 7.82,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.75,
+     "text": "bot check 1.0 is live! the launch is in the square."
+    },
+    {
+     "startS": 4.75,
+     "endS": 7.82,
+     "text": "we have two users if we count us."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "stage",
+   "id": "launch-day.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "one has an empty bag. one has a full bag and a light that flickers. watch before you scan.",
+   "hash": "a1104abd93ffb327ba4e4e8bb07e24bf49df546942cda4c5879e1e0758aedf33",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 7.7,
+     "text": "one has an empty bag. one has a full bag and a light that flickers. watch before you scan."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "pivot",
+   "id": "launch-day.pivot.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "new positioning: same startup, now with reasons. \"98%\" is a number, not a witness.",
+   "hash": "d2378e38152baa6c00faeb08ab5588c949543920ccb942f7f5a48e91a52ea824",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.61,
+     "text": "new positioning: same startup, now with reasons."
+    },
+    {
+     "startS": 3.61,
+     "endS": 6.09,
+     "text": "\"98%\" is a number, not a witness."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "complete",
+   "id": "launch-day.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "scanner tier 2 is ready. it gives more detail, not permission to stop thinking.",
+   "hash": "6ce6daa7ab95c458c836dc1ea792310888764f844d270bb460a74a892269a0df",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "scanner tier 2 is ready. it gives more detail, not permission to stop thinking."
+    }
+   ]
+  },
+  {
+   "missionId": "launch-day",
+   "stepId": "retry",
+   "id": "launch-day.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the launch can wait. the harmless courier cannot. reset and follow the evidence.",
+   "hash": "8d6e850f1bea9dca2e72e60776ac78b451627f73935b375e3772218944564d8a",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.39,
+     "text": "the launch can wait. the harmless courier cannot."
+    },
+    {
+     "startS": 3.39,
+     "endS": 5.47,
+     "text": "reset and follow the evidence."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "start",
+   "id": "demoed-correctly.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "your startup is on that billboard. and the bus. our distribution strategy is now traffic.",
+   "hash": "1f7de6576d78de71b636f90ad4ab08ce5c3792b5ab4915e9711eee550552bf4f",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.32,
+     "text": "your startup is on that billboard. and the bus."
+    },
+    {
+     "startS": 3.32,
+     "endS": 6.22,
+     "text": "our distribution strategy is now traffic."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "drive",
+   "id": "demoed-correctly.drive.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the partners are ready. find a legal space before you prove product-market fit.",
+   "hash": "4deae9de1b5e8709366423c7198bda5d8079cdc6ee04eca75f122f15a7c771f6",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "the partners are ready. find a legal space before you prove product-market fit."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "If the large platforms copy the feature, what remains?",
+   "questionId": "interviewfeature",
+   "hash": "fc16b039dd55cdfd382792c8a3c6d5d6756c1f287d96624ae7856908c7ca34cc",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "If the large platforms copy the feature, what remains?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.workflow.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A reason to stay that does not fit on a release note.",
+   "questionId": "interviewfeature",
+   "answerId": "workflow",
+   "hash": "d0e9e1301242c151014a3cf60f53009549d12b24197e4463398c13edf729aa16",
+   "file": null,
+   "durationS": 4.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.86,
+     "text": "A reason to stay that does not fit on a release note."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.faster.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Speed is an activity. What will it accumulate?",
+   "questionId": "interviewfeature",
+   "answerId": "faster",
+   "hash": "1011287ce8e469659eb509d753b1ffb0e4d9e8c0c901e7d713421f51e2ffc6eb",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Speed is an activity. What will it accumulate?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewfeature.honest.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A small honest question can become a useful company.",
+   "questionId": "interviewfeature",
+   "answerId": "honest",
+   "hash": "cdd643be71fcdc98910b30ad7607b67b03e28df330ded25e500db01449b65869",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "A small honest question can become a useful company."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "What would convince you this idea is wrong?",
+   "questionId": "interviewproof",
+   "hash": "2b3de0231a2cbd50ea26fb1bb29daf5f249c5ff52ee8f7bfd554b942351575d3",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "What would convince you this idea is wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.test.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A belief with an exit door. Encouraging.",
+   "questionId": "interviewproof",
+   "answerId": "test",
+   "hash": "920164266896ce4ad88c8f7010be677218981148a93392df6dabe32100a7a3ee",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "A belief with an exit door. Encouraging."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.faith.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Then this is a faith round. We do not lead those.",
+   "questionId": "interviewproof",
+   "answerId": "faith",
+   "hash": "e1c9bef2828675f9fd41b12ece8e97c9d0e36c082f5a7e017be29a97a9b2f9e8",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "Then this is a faith round. We do not lead those."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-philosopher",
+   "id": "demoed-correctly.pitch-philosopher.interviewproof.price.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Good. Do not discount away the answer.",
+   "questionId": "interviewproof",
+   "answerId": "price",
+   "hash": "22e594a0b28e560613974edaee2ac746d0ac4475bdf2448186081a28c6209374",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Good. Do not discount away the answer."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "Explain the demo without explaining the architecture.",
+   "questionId": "interviewstory",
+   "hash": "0e57c6412a7b2f2336241f906a4a07b5b26a222c28a7d3d20f059f6a659c5c3b",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Explain the demo without explaining the architecture."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.job.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture the person and the Tuesday.",
+   "questionId": "interviewstory",
+   "answerId": "job",
+   "hash": "2bdff199a7eeb497d2503e3771d7148ab93721f4ddf33659792aee7714b09e6f",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "I can picture the person and the Tuesday."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.stack.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture a diagram arguing with another diagram.",
+   "questionId": "interviewstory",
+   "answerId": "stack",
+   "hash": "9c5d238ab9f061496b755dd9c76eb00af715c9bf1bb20ca54c472e51a59a962a",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "I can picture a diagram arguing with another diagram."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewstory.small.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Excellent. The room has one attention span.",
+   "questionId": "interviewstory",
+   "answerId": "small",
+   "hash": "bd621de1782de6f08f2aab546b228891776d900920b30c5cc65a9bf86685a55a",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Excellent. The room has one attention span."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "What happens when it is confidently wrong?",
+   "questionId": "interviewfailure",
+   "hash": "60ba9f21edf73ec14a9b421fa5c5f9810fbb3f42af48502638ce4bcf877ad0df",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "What happens when it is confidently wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.review.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The correction is part of the product. Keep it visible.",
+   "questionId": "interviewfailure",
+   "answerId": "review",
+   "hash": "5eadc9225787c38806ad45d3cdbc30d3219800676699a11b8d63974073f76685",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "The correction is part of the product. Keep it visible."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.hide.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The number was not the problem I was asking about.",
+   "questionId": "interviewfailure",
+   "answerId": "hide",
+   "hash": "1b3823a25b87088679c465b2756771c2ff8264ffb406d3facd7b03c562f5cd39",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "The number was not the problem I was asking about."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-vibes",
+   "id": "demoed-correctly.pitch-vibes.interviewfailure.manual.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "An unglamorous landing is still a landing.",
+   "questionId": "interviewfailure",
+   "answerId": "manual",
+   "hash": "bda75196270d2a636d84bd7e7577b756364549bd71ff12f212c9d9be350c1000",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "An unglamorous landing is still a landing."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "What did your first customers do the second week?",
+   "questionId": "interviewretention",
+   "hash": "6157c24dfd8fb90ed7b4392ee3e1ff58bd274a2135a2b1cf5937eadc5174f48b",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "What did your first customers do the second week?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.cohort.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A cohort and a denominator. We can have a conversation.",
+   "questionId": "interviewretention",
+   "answerId": "cohort",
+   "hash": "eb124f5adfe1237491dff8f7d8dd9f3b5ce907806f3ab8078d308d89ea48ad4e",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A cohort and a denominator. We can have a conversation."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.users.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A sign-up is a hello. I asked whether they stayed.",
+   "questionId": "interviewretention",
+   "answerId": "users",
+   "hash": "9114b604ecb9fe84449df4a49c6e8fdcaedda4640321cab007f9e1f8ff021eaa",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A sign-up is a hello. I asked whether they stayed."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewretention.destiny.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Please put inevitable in the forecast, not the actuals.",
+   "questionId": "interviewretention",
+   "answerId": "destiny",
+   "hash": "53d01aa27a2039d04f5802b17eb72b94b8e4a8c25e50eac0146fbaf900ecba4d",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Please put inevitable in the forecast, not the actuals."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "Who can say yes to buying this?",
+   "questionId": "interviewbuyer",
+   "hash": "e99badf519f148f4ebb151905550efcde167392441808f9767a8eed4104ef99d",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Who can say yes to buying this?"
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.owner.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A buyer close enough to the problem to recognise it.",
+   "questionId": "interviewbuyer",
+   "answerId": "owner",
+   "hash": "cd307833db279e61ba6e497eb5429230cead9d5c7222a279cfe15adc6e9db3b1",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "A buyer close enough to the problem to recognise it."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.everyone.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "That is a distribution problem disguised as a market.",
+   "questionId": "interviewbuyer",
+   "answerId": "everyone",
+   "hash": "9033b29257fa5beda0feba9de434319452a82b081146b78968a7866a103e94e3",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "That is a distribution problem disguised as a market."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "pitch-metrics",
+   "id": "demoed-correctly.pitch-metrics.interviewbuyer.unknown.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Good. Bring the calls, including the uncomfortable one.",
+   "questionId": "interviewbuyer",
+   "answerId": "unknown",
+   "hash": "73558b0ef7a83c7b82493d605cdd81ad25c561d6c13231558721ab0c6230cae8",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Good. Bring the calls, including the uncomfortable one."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "demo-stage",
+   "id": "demoed-correctly.demo-stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "three robots, one bad. the partners stay behind the rope. observation first, water second.",
+   "hash": "4368de22cd8b7e903fb961307d3ca3b20d442e916ad1325fabcbffc1b6f9b0e4",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.9,
+     "text": "three robots, one bad. the partners stay behind the rope."
+    },
+    {
+     "startS": 3.9,
+     "endS": 6.09,
+     "text": "observation first, water second."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "term-sheet",
+   "id": "demoed-correctly.term-sheet.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "We are in. Please let us announce it first; our post is already drafted.",
+   "hash": "d796ecc6708eae6a302963949dd6017f848a0c269ee22c7d2256f25b8f193021",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "We are in. Please let us announce it first; our post is already drafted."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "follow-up",
+   "id": "demoed-correctly.follow-up.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Useful demo. Send weekly numbers, including the weeks they go down.",
+   "hash": "6742665150e0d3b15ba03bd67b62c1b51ad0f10b96ecfeefa0f781157950a858",
+   "file": null,
+   "durationS": 4.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.73,
+     "text": "Useful demo. Send weekly numbers, including the weeks they go down."
+    }
+   ]
+  },
+  {
+   "missionId": "demoed-correctly",
+   "stepId": "practice",
+   "id": "demoed-correctly.practice.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Strong energy. Bring clearer evidence next time. Office Hours open again tomorrow.",
+   "hash": "267a7a5721873e21e12f0636ec37015e1d29c8dd6a2dfca0ecac1d7286e78602",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.02,
+     "text": "Strong energy. Bring clearer evidence next time."
+    },
+    {
+     "startS": 3.02,
+     "endS": 5.1,
+     "text": "Office Hours open again tomorrow."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "start",
+   "id": "demo-day.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "great news: the demo is live. bad news: moat labs pushed an update to the guest list.",
+   "hash": "66dd39bd4508ef1f42079fa8a62af0907a8e1a51150e34cf300ca2593c22aa63",
+   "file": null,
+   "durationS": 7.08,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.44,
+     "text": "great news: the demo is live."
+    },
+    {
+     "startS": 2.44,
+     "endS": 7.08,
+     "text": "bad news: moat labs pushed an update to the guest list."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "stage",
+   "id": "demo-day.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the good one is still resisting the update. break the link before you clear the stage.",
+   "hash": "6715ced8ffd29d0fe7f02b5fbc0c53c0144a85404fc476cc1a940c7ef1895ce5",
+   "file": null,
+   "durationS": 6.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.27,
+     "text": "the good one is still resisting the update."
+    },
+    {
+     "startS": 3.27,
+     "endS": 6.47,
+     "text": "break the link before you clear the stage."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "attention",
+   "id": "demo-day.attention.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "five stars. apparently public incident response counts as a pitch.",
+   "hash": "f24dfe558777f58e0483ec52d323b0c9b8c0b7195c4b5ca100a2b2bc41bab538",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "five stars. apparently public incident response counts as a pitch."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "complete",
+   "id": "demo-day.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the investors wrote \"handles pressure\". nobody wrote down who caused it.",
+   "hash": "3a732cce86613a1949a9070b07efb0201d14034a1c31a11ce8068be6a35e4c6f",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.53,
+     "text": "the investors wrote \"handles pressure\"."
+    },
+    {
+     "startS": 2.53,
+     "endS": 4.61,
+     "text": "nobody wrote down who caused it."
+    }
+   ]
+  },
+  {
+   "missionId": "demo-day",
+   "stepId": "retry",
+   "id": "demo-day.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the venue can reset the demo. your calendar has already reset the meeting.",
+   "hash": "89413a620e70082c6f9cc48029827caf3005a455b4624b64dcda53022de5cc27",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.13,
+     "text": "the venue can reset the demo."
+    },
+    {
+     "startS": 2.13,
+     "endS": 5.35,
+     "text": "your calendar has already reset the meeting."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "start",
+   "id": "fleet-week.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "fleet week. the meeting room is a picnic blanket and the mute button is the sky.",
+   "hash": "2d98bb2c4c6456dcc02522702f098df51a26c958243f996b2beb057e88284d5b",
+   "file": null,
+   "durationS": 6.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.47,
+     "text": "fleet week. the meeting room is a picnic blanket and the mute button is the sky."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "stage",
+   "id": "fleet-week.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the footman took our car. our car! cone through the window; it stops the vehicle.",
+   "hash": "97ac8700aaa628c7ab5e0ee6e7931885e14fa897b66a1a216e203f5b7bc344a1",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.69,
+     "text": "the footman took our car. our car!"
+    },
+    {
+     "startS": 2.69,
+     "endS": 6.34,
+     "text": "cone through the window; it stops the vehicle."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "chase",
+   "id": "fleet-week.chase.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked car along Marina Blvd. pedestrians have right of way.",
+   "hash": "e0a831e5d2a8878aaa8e669a9cd2c2b226cc4508b72c61768879faa202af7b42",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.85,
+     "text": "follow the marked car along Marina Blvd."
+    },
+    {
+     "startS": 2.85,
+     "endS": 4.98,
+     "text": "pedestrians have right of way."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "complete",
+   "id": "fleet-week.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "car recovered. the partner called it a memorable product demonstration.",
+   "hash": "24ca3b7dbe6b4c307552b3ffa3d7be5b01b3d38f80d7e0d3528e9cc1aeaec60e",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "car recovered. the partner called it a memorable product demonstration."
+    }
+   ]
+  },
+  {
+   "missionId": "fleet-week",
+   "stepId": "retry",
+   "id": "fleet-week.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "we can do another pass. the pilots were going to anyway.",
+   "hash": "b13e1590a9ef86059f22eeabfb8694b60e5e65f554e4d69f7dffe748d97ea694",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "we can do another pass. the pilots were going to anyway."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "start",
+   "id": "hill-climb.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "same stolen cars. same empty bags. different pitch deck. the ring is using the hills.",
+   "hash": "25fb5fd17b298755624d2d97def1084d2fbd55dd09e2b7eb97d910bd0054228c",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.23,
+     "text": "same stolen cars. same empty bags. different pitch deck."
+    },
+    {
+     "startS": 4.23,
+     "endS": 6.34,
+     "text": "the ring is using the hills."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "stage",
+   "id": "hill-climb.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "watch the footman that checks every parked car and never opens its delivery bag.",
+   "hash": "446aa25ace11846873bcd5c9b6460f49f617e58fe9efb52789861692a620a24b",
+   "file": null,
+   "durationS": 5.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.61,
+     "text": "watch the footman that checks every parked car and never opens its delivery bag."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "crooked",
+   "id": "hill-climb.crooked.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked route down Lombard. brake before each turn; the shortcut is not faster.",
+   "hash": "7d92050b3a7108a1d3d6f1260f648581fdcf42efe3f1aa2b453a890a3c295564",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.62,
+     "text": "follow the marked route down Lombard."
+    },
+    {
+     "startS": 2.62,
+     "endS": 6.22,
+     "text": "brake before each turn; the shortcut is not faster."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "complete",
+   "id": "hill-climb.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the ring is stopped. our burn rate now includes handbrake maintenance.",
+   "hash": "44f596762f87f48027e09ffd4aac8a7c5038cb98e6665f8219af9dfce5b399ed",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "the ring is stopped. our burn rate now includes handbrake maintenance."
+    }
+   ]
+  },
+  {
+   "missionId": "hill-climb",
+   "stepId": "retry",
+   "id": "hill-climb.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the cable car runs again. so does this plan.",
+   "hash": "b71a6ed977cc70ef47956d1c95e4e3a27a800b2915a207b2c0b77548d8d193b4",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "the cable car runs again. so does this plan."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "start",
+   "id": "acqui-hire-offer.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "moat labs wants to acquire us. their due diligence form asks for our passwords. we have a different form.",
+   "hash": "8e3220eba024874aaa093e84f9acfffbb20d216c52c6ca1996d288c21cd2fc15",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.22,
+     "text": "moat labs wants to acquire us."
+    },
+    {
+     "startS": 2.22,
+     "endS": 7.7,
+     "text": "their due diligence form asks for our passwords. we have a different form."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "complete",
+   "id": "acqui-hire-offer.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "offer declined. we kept the server map and our vesting schedule.",
+   "hash": "2e44a1d80ef191ac2662e5631e66990eddb1d2c85558b5fb99d1fab9993bce2e",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "offer declined. we kept the server map and our vesting schedule."
+    }
+   ]
+  },
+  {
+   "missionId": "acqui-hire-offer",
+   "stepId": "retry",
+   "id": "acqui-hire-offer.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "connection dropped. the van is still ours. try a less memorable route.",
+   "hash": "cbe5eea261c3cc6ae935ddbe6763d575deb61c8abad7075f3cae019087b131b1",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "connection dropped. the van is still ours. try a less memorable route."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "start",
+   "id": "marine-layer.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the fog is coming in. the fleet keeps its distance from water and from weather it cannot monetise.",
+   "hash": "a29df508886347546181aca0d77ef8686857faa5742e5379a8ae34ceb51761d0",
+   "file": null,
+   "durationS": 7.21,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.56,
+     "text": "the fog is coming in."
+    },
+    {
+     "startS": 1.56,
+     "endS": 7.21,
+     "text": "the fleet keeps its distance from water and from weather it cannot monetise."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "stage",
+   "id": "marine-layer.stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "bring the fleet west. keep moving on the marked route and leave the beachgoers out of it.",
+   "hash": "d6dd70913a05ff873f3d116ef71de6c51cb56fbe693b11f17a80af577ca48ce1",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.84,
+     "text": "bring the fleet west. keep moving on the marked route and leave the beachgoers out of it."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "news",
+   "id": "marine-layer.news.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "radio says a former founder is out and planning a comeback. the fog has a silhouette now.",
+   "hash": "e81d7a01ef57ed559a0178b0e37a8fdb7b0c432eda4e313595194beb4dd4fbca",
+   "file": null,
+   "durationS": 6.84,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.59,
+     "text": "radio says a former founder is out and planning a comeback."
+    },
+    {
+     "startS": 4.59,
+     "endS": 6.84,
+     "text": "the fog has a silhouette now."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "complete",
+   "id": "marine-layer.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the fleet lost the route. the fog declined to provide a quarterly forecast.",
+   "hash": "ce5b6449a34b421147f71468f84da5b7a13e5d1987f82694136c2afb2c1d73dc",
+   "file": null,
+   "durationS": 5.35,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.35,
+     "text": "the fleet lost the route. the fog declined to provide a quarterly forecast."
+    }
+   ]
+  },
+  {
+   "missionId": "marine-layer",
+   "stepId": "retry",
+   "id": "marine-layer.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "too much daylight, too little distance. wait for the layer and try again.",
+   "hash": "df36b282d202ae73da0955848a6290472a4abb567af21117454ca16534b1f21d",
+   "file": null,
+   "durationS": 5.47,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.96,
+     "text": "too much daylight, too little distance."
+    },
+    {
+     "startS": 2.96,
+     "endS": 5.47,
+     "text": "wait for the layer and try again."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "start",
+   "id": "comeback-round.start.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "that is not a new skyline. that is a demo made out of other demos.",
+   "hash": "a85f5b1ed9318c5e0f45628f4dfb4ccfe35970ba588aed5694f77c14e2fead6b",
+   "file": null,
+   "durationS": 6.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.1,
+     "text": "that is not a new skyline. that is a demo made out of other demos."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "waterfront",
+   "id": "comeback-round.waterfront.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the waterfront route as the assembly stops to pitch the city.",
+   "hash": "021b7603a2525cbacdb559e6f9449496e08e21872947fc87f883f4f5af61aef9",
+   "file": null,
+   "durationS": 4.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.86,
+     "text": "follow the waterfront route as the assembly stops to pitch the city."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "bridge",
+   "id": "comeback-round.bridge.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "follow the marked approach. the remaining robots are holding up the demonstration.",
+   "hash": "5fb0cc87e2a4e53dd2042b9d8020d680149f3658aa5c0bc893250988c7de8b98",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.98,
+     "text": "follow the marked approach. the remaining robots are holding up the demonstration."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "complete",
+   "id": "comeback-round.complete.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the demo was held together by other people's work. the robots are home. the clock can just tell time.",
+   "hash": "2b69445ea35e78059207917948ab124b356ef80667fb3e089269ae310bb9cb25",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.47,
+     "text": "the demo was held together by other people's work. the robots are home."
+    },
+    {
+     "startS": 5.47,
+     "endS": 7.7,
+     "text": "the clock can just tell time."
+    }
+   ]
+  },
+  {
+   "missionId": "comeback-round",
+   "stepId": "retry",
+   "id": "comeback-round.retry.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "the boat is ready for another pass. the city is waiting for the short version.",
+   "hash": "e0699689197686d0a0133c1476e667592653e6385a6c4106d82780839bd76aa9",
+   "file": null,
+   "durationS": 6.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.77,
+     "text": "the boat is ready for another pass."
+    },
+    {
+     "startS": 2.77,
+     "endS": 6.1,
+     "text": "the city is waiting for the short version."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Hi! Slotsworth here, Ramen's scheduling agent. Great news: your partner meeting moved up.",
+   "hash": "009efab5cdccf11128d568b10a6925e360e10dcb49f09cbedac003a148f3d304",
+   "file": null,
+   "durationS": 5.71,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.98,
+     "text": "Hi! Slotsworth here, Ramen's scheduling agent."
+    },
+    {
+     "startS": 2.98,
+     "endS": 5.71,
+     "text": "Great news: your partner meeting moved up."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!",
+   "hash": "c8c00bca297261cf2832e4bfbfb324578be2cd5b9b859fb80dd6b318703d238d",
+   "file": null,
+   "durationS": 6.34,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.34,
+     "text": "It's now at ten. It is nine fifty-one. I accepted on your behalf. You're welcome!"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line2",
+   "kind": "line",
+   "speaker": "player",
+   "text": "Ten? As in nine minutes from now?",
+   "hash": "7abf4411e92710ee4ec1ec4626f8ad6e8b86bc882b8ddf63de4c04620fcde689",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Ten? As in nine minutes from now?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "call",
+   "id": "ramen-pitch.call.line3",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "The partners have a hard stop at ten fifteen for a panel about hard stops. The Ramen house, Pier 70, Dogpatch. See you there!",
+   "hash": "597c97e4f72e56153383ed58714ae1479c87940ed6da73059e1e09c476a4f558",
+   "file": null,
+   "durationS": 9.79,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.84,
+     "text": "The partners have a hard stop at ten fifteen for a panel about hard stops."
+    },
+    {
+     "startS": 5.84,
+     "endS": 9.79,
+     "text": "The Ramen house, Pier 70, Dogpatch. See you there!"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "drive",
+   "id": "ramen-pitch.drive.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Reminder: the partners don't wait. They post threads about people who make them wait.",
+   "hash": "033348750ef1a4e9a07b9e39c92e6150f39a5bb5cad5c5634d65212bb994a51f",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.37,
+     "text": "Reminder: the partners don't wait."
+    },
+    {
+     "startS": 2.37,
+     "endS": 5.85,
+     "text": "They post threads about people who make them wait."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "lobby",
+   "id": "ramen-pitch.lobby.line0",
+   "kind": "line",
+   "speaker": "frontDesk",
+   "text": "Welcome to Ramen. The partners are finishing a podcast. It's about patience.",
+   "hash": "1091a3e0a7caa13fb688d1977d7155eca004419071a0d57665cc4e483cc97dde",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "Welcome to Ramen. The partners are finishing a podcast. It's about patience."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "lobby",
+   "id": "ramen-pitch.lobby.line1",
+   "kind": "line",
+   "speaker": "frontDesk",
+   "text": "Kombucha is on tap. It's also on the cap table.",
+   "hash": "b2bdbd8d02101d0e66562dac4dd3cc5f7be20634121397bb2b677ff58c52f2e4",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Kombucha is on tap. It's also on the cap table."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.intro0",
+   "kind": "intro",
+   "speaker": "vibes",
+   "text": "Love the energy. We've got eleven minutes and the light in here is perfect, so let's go.",
+   "hash": "a6388aee6a794513a685731b5766e31716442fdc95023a65526ea0aa97a7763a",
+   "file": null,
+   "durationS": 6.96,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.96,
+     "text": "Love the energy. We've got eleven minutes and the light in here is perfect, so let's go."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.intro1",
+   "kind": "intro",
+   "speaker": "philosopher",
+   "text": "Before we begin, a question I ask everyone. Then another one.",
+   "hash": "377fead6b5bfc05afb3904b0648708564939f2e5650231ef0342bceddc269ce3",
+   "file": null,
+   "durationS": 4.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.73,
+     "text": "Before we begin, a question I ask everyone. Then another one."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "So. What's your moat?",
+   "questionId": "moat",
+   "hash": "b725dae827d5eeb390ce06faf4be9588dd6d69cc695a7026c2eda5f38823c53a",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "So. What's your moat?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.network.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Ah. A moat made of people. I've seen worse moats. I've seen a moat made of robots.",
+   "questionId": "moat",
+   "answerId": "network",
+   "hash": "28193586e5ff4416558afc9f8325233e3611424efb0bc44583c5a7441da04afd",
+   "file": null,
+   "durationS": 7.08,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.28,
+     "text": "Ah. A moat made of people. I've seen worse moats."
+    },
+    {
+     "startS": 4.28,
+     "endS": 7.08,
+     "text": "I've seen a moat made of robots."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.speed.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Speed isn't a moat. It's a puddle. I'm going to think about that all week.",
+   "questionId": "moat",
+   "answerId": "speed",
+   "hash": "2ff98f44c1d84cac48663d630b099246f1482c5d51e4dd8aeab2d50be7dc25ce",
+   "file": null,
+   "durationS": 6.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.9,
+     "text": "Speed isn't a moat. It's a puddle."
+    },
+    {
+     "startS": 2.9,
+     "endS": 6.22,
+     "text": "I'm going to think about that all week."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.moat.slide.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Slide nine is a photo of an actual moat. There's a swan.",
+   "questionId": "moat",
+   "answerId": "slide",
+   "hash": "e1f57b31a1e22318c118a50a982efa7dc1fb8cb68ae2f2cdea33d293f9ea2dd0",
+   "file": null,
+   "durationS": 4.98,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.98,
+     "text": "Slide nine is a photo of an actual moat. There's a swan."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "Is it a company, or is it a feature?",
+   "questionId": "justAFeature",
+   "hash": "e3bbbaf25c8580518a477f18c416201a4f64892e661717fdb9c357ac9e24133b",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Is it a company, or is it a feature?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.email.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Bold. That's a whole seminar. Possibly a book.",
+   "questionId": "justAFeature",
+   "answerId": "email",
+   "hash": "6e644e4a6a4043a1a84a61da2c25542ca8cba3eb2013a4ce48d78af0afdda598",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Bold. That's a whole seminar. Possibly a book."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.waitlist.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A waitlist is a feature with ambition. I'll allow it.",
+   "questionId": "justAFeature",
+   "answerId": "waitlist",
+   "hash": "14aac5a500abe02cf8b53b1036e76f9222af178e747aea60530ddff067df99b8",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A waitlist is a feature with ambition. I'll allow it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-philosopher",
+   "id": "ramen-pitch.pitch-philosopher.justAFeature.platform.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Ah. Honesty. We have a portfolio company for that. It's also struggling.",
+   "questionId": "justAFeature",
+   "answerId": "platform",
+   "hash": "4a17824596c5665ec9bb3081b1e44f729251f4ad3f03325e47eb14859d09444c",
+   "file": null,
+   "durationS": 5.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.22,
+     "text": "Ah. Honesty. We have a portfolio company for that. It's also struggling."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "Why now?",
+   "questionId": "whyNow",
+   "hash": "88730005f8c2eab94f56ec0139674f91e110f17f6345cab2af6632bd31bc31d5",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Why now?"
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.window.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "A closing window. I can feel it closing. That's a good feeling.",
+   "questionId": "whyNow",
+   "answerId": "window",
+   "hash": "f0e735fad8fed45f0852e4aaca9dedec191b8e2301984e118dd2d03bf4acc02c",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "A closing window. I can feel it closing. That's a good feeling."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.robotaxis.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Mine still circles my office. I think it's lonely. Great vibe, though.",
+   "questionId": "whyNow",
+   "answerId": "robotaxis",
+   "hash": "a551ed6fe678701bb74e728f5ab85754775689e9d738c3149838c5cbfbb4efd3",
+   "file": null,
+   "durationS": 5.22,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.22,
+     "text": "Mine still circles my office. I think it's lonely. Great vibe, though."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-vibes",
+   "id": "ramen-pitch.pitch-vibes.whyNow.bar.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Candid. Too candid. The room just got colder.",
+   "questionId": "whyNow",
+   "answerId": "bar",
+   "hash": "76dba18819ba11e6cdfa124ac573ef241f508d753b21040cc0be9b261b6b5d49",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Candid. Too candid. The room just got colder."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "What does traction look like? Weekly, please.",
+   "questionId": "traction",
+   "hash": "d7a493bfb268792af74d602b6688eb35c4d66a04ec15feaa837db90c4a650809",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "What does traction look like? Weekly, please."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.waitlist.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Some is a number. I'll take it. Send it to me weekly.",
+   "questionId": "traction",
+   "answerId": "waitlist",
+   "hash": "c6f662173348e2a102ee60787ed096649872bb71906e5b8177880f46b8802943",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.1,
+     "text": "Some is a number. I'll take it. Send it to me weekly."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.revenue.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Revenue? In this economy? Weird. Interesting. Mostly weird.",
+   "questionId": "traction",
+   "answerId": "revenue",
+   "hash": "78985b61c1de33ea2bc73fd99b3c4cd3b32c23e0c6486bd4516d2b9ab4b6ae5c",
+   "file": null,
+   "durationS": 3.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.86,
+     "text": "Revenue? In this economy? Weird. Interesting. Mostly weird."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "pitch-metrics",
+   "id": "ramen-pitch.pitch-metrics.traction.views.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Views are a vibe. Vibes aren't a metric. Don't tell him I said that.",
+   "questionId": "traction",
+   "answerId": "views",
+   "hash": "2cb2049c94a95c958b2a9a71ed1aed9bd44853017499b5d99c8cd125015f1dbc",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "Views are a vibe. Vibes aren't a metric. Don't tell him I said that."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "funded",
+   "id": "ramen-pitch.funded.line0",
+   "kind": "line",
+   "speaker": "philosopher",
+   "text": "We're in. Don't tell anyone until we've posted about it.",
+   "hash": "98047cb80ca5accf63837d5b8888d06a05ad6001e5a10a05481bdd130569b701",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "We're in. Don't tell anyone until we've posted about it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "funded",
+   "id": "ramen-pitch.funded.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "Congratulations! I booked your billboard on the Embarcadero. And a nap. Both start Monday.",
+   "hash": "4ab1870b504f303407ba012346154530da3e4e8924c1cbc2ef1821e7a7d3e1db",
+   "file": null,
+   "durationS": 5.97,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.97,
+     "text": "Congratulations! I booked your billboard on the Embarcadero. And a nap. Both start Monday."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "traction",
+   "id": "ramen-pitch.traction.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "We love it. We're out. Come back with traction.",
+   "hash": "661e7c3c8a172b3f304b053eaeab0993a2fedb83a320bb6ce00dabe8af9cbad5",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "We love it. We're out. Come back with traction."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "traction",
+   "id": "ramen-pitch.traction.line1",
+   "kind": "line",
+   "speaker": "vibes",
+   "text": "Genuinely great energy, though. Keep that. Lose the rest.",
+   "hash": "9095430fb90ce77f762da6067651b3c9f2dd3a6369140f48ed4daf0c04486862",
+   "file": null,
+   "durationS": 4.11,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.11,
+     "text": "Genuinely great energy, though. Keep that. Lose the rest."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "missed",
+   "id": "ramen-pitch.missed.line0",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "The partners waited ninety seconds, then recorded an episode about founders who are late. You're the hero of it.",
+   "hash": "ac86511ecf7724e6a40c7e4e08fe0c91cee5eb8a14d70bc286da51065db88c08",
+   "file": null,
+   "durationS": 7.7,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 6.17,
+     "text": "The partners waited ninety seconds, then recorded an episode about founders who are late."
+    },
+    {
+     "startS": 6.17,
+     "endS": 7.7,
+     "text": "You're the hero of it."
+    }
+   ]
+  },
+  {
+   "missionId": "ramen-pitch",
+   "stepId": "missed",
+   "id": "ramen-pitch.missed.line1",
+   "kind": "line",
+   "speaker": "slotsworth",
+   "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably.",
+   "hash": "af342c093a6177dd3adb756d55d29b696dd9721ee347c28db430e388879c388c",
+   "file": null,
+   "durationS": 4.11,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.11,
+     "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.great-highway-at-judah-street.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Great Highway at Judah Street.",
+   "hash": "84c7cead5615846e338675cb7a8d5ade9c2f3c760066894ae87a72ef1d5dddb6",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to Great Highway at Judah Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.great-highway-at-judah-street.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Great Highway at Judah Street. Let's move.",
+   "hash": "11f046c5691ecf72b78326655c35b519d35ddecec78c9435e290d4eb49c41e46",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Great Highway at Judah Street. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.great-highway-at-judah-street.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Great Highway at Judah Street, and fast.",
+   "hash": "b0adbffd30165952f516c176b9485ebdf70207bcf362b0c68c8a6684e63fc8e2",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. Great Highway at Judah Street, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.great-highway-at-judah-street.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Great Highway at Judah Street, go go go.",
+   "hash": "6027c306cd25fbee611f91051983079e876ffd5f614ebb0b85351d98c3362078",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. Great Highway at Judah Street, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.great-highway-at-judah-street.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Great Highway at Judah Street, now.",
+   "hash": "38a24f65b2b4fe97902e5b158a5b9242eb709a63b2fd1a82997e1bb2dfcb1213",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. Great Highway at Judah Street, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.great-highway-at-judah-street.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Great Highway at Judah Street.",
+   "hash": "c9c33103b6e372c5472a2e2fca3f99a5de473a55e0b7ff00b7c0be7c348767b7",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: Great Highway at Judah Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.great-highway-at-judah-street.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Great Highway at Judah Street.",
+   "hash": "2a6d0ed6fd73e57d245c6bd0690c3548399a0592e46915b69512fa7ce4e76590",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by Great Highway at Judah Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.great-highway-at-judah-street.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Great Highway at Judah Street.",
+   "hash": "500fe2122cfc6b4b1303b92fea585f7d6cc4ea182826510d98688bba37a7d9de",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to Great Highway at Judah Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.great-highway-at-judah-street.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Great Highway at Judah Street. Focus.",
+   "hash": "6813203fea031847057ea3d62c123f81d14aa4f478037daa3f1625235e44f5f1",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Great Highway at Judah Street. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.hyde-street-near-union-street.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Hyde Street near Union Street.",
+   "hash": "c6870a3765847c2b77c696aa32a8c026449ac2e658df331314f3fdc302b1557b",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to Hyde Street near Union Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.hyde-street-near-union-street.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Hyde Street near Union Street. Let's move.",
+   "hash": "6c023398865f20ecd534d242191cac8e277269b31df21d0eab8944ec38236347",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Hyde Street near Union Street. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.hyde-street-near-union-street.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Hyde Street near Union Street, and fast.",
+   "hash": "1b4210738a51320ce418654fc03452fc264c88d933f7c8ea8dfc2e1d407c94b2",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. Hyde Street near Union Street, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.hyde-street-near-union-street.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Hyde Street near Union Street, go go go.",
+   "hash": "e368f271baf484605c3d1e2d3baf99cd2c19c5b82c9b1dadac86a1cdb8d5704e",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. Hyde Street near Union Street, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.hyde-street-near-union-street.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Hyde Street near Union Street, now.",
+   "hash": "044d4d03e15440416aa9e84010473f754f7e85004b84b775064c7cac91db8da1",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. Hyde Street near Union Street, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.hyde-street-near-union-street.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Hyde Street near Union Street.",
+   "hash": "61aa54bf99275db88d5991ceea29c493faef699074748c58fa89819135d9aed2",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: Hyde Street near Union Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.hyde-street-near-union-street.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Hyde Street near Union Street.",
+   "hash": "c07857585503c78dabe7931949f3007abe66bbf09784ff637f82682eba0548de",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by Hyde Street near Union Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.hyde-street-near-union-street.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Hyde Street near Union Street.",
+   "hash": "5f7cd279894f7729ebc38de21c5de41b7d2c7eba9321cf9767155b3a5019dffd",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to Hyde Street near Union Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.hyde-street-near-union-street.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Hyde Street near Union Street. Focus.",
+   "hash": "99e534c79322309643905e079f84b58d975d546a8430f52740a4c3654f62a481",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Hyde Street near Union Street. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-boulevard-at-laguna-street.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Marina Boulevard at Laguna Street.",
+   "hash": "4850f585d474d63b07fc6effddd2fda21ff38ed785aeafce50c0c6a28d5f728a",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to Marina Boulevard at Laguna Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-boulevard-at-laguna-street.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Marina Boulevard at Laguna Street. Let's move.",
+   "hash": "20d01ea958385a8972dbdbf7815e422cb2bdff4ccc5cd079518ce0cc25aa18c0",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Marina Boulevard at Laguna Street. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-boulevard-at-laguna-street.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Marina Boulevard at Laguna Street, and fast.",
+   "hash": "7ce7ec227bb9c8ed950f0361740271630fb4514ba9de6d2e557f8973e71447a7",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. Marina Boulevard at Laguna Street, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.marina-boulevard-at-laguna-street.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Marina Boulevard at Laguna Street, go go go.",
+   "hash": "34e605020ff3b83366941f92b9d977e8698caa703929d98d314fc6807a8b2b6d",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. Marina Boulevard at Laguna Street, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.marina-boulevard-at-laguna-street.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Marina Boulevard at Laguna Street, now.",
+   "hash": "354f4dc5b0383d74582cbed5b257cb74cadefd6b4578df0c6219e0fcdec988fd",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. Marina Boulevard at Laguna Street, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.marina-boulevard-at-laguna-street.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Marina Boulevard at Laguna Street.",
+   "hash": "0f2273e1c3e32df5fb0a5c5cd03760e05720db502dc50c185612f49fa8caa10f",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: Marina Boulevard at Laguna Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.marina-boulevard-at-laguna-street.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Marina Boulevard at Laguna Street.",
+   "hash": "a08d0c6cf4c351b184fb97b294044f2afbd60e0fdfe70f6a0449dca1d5b4e480",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by Marina Boulevard at Laguna Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.marina-boulevard-at-laguna-street.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Marina Boulevard at Laguna Street.",
+   "hash": "d606e5d955b208af9e007ef819ef24db28e93c84861afa940634f04c3c666062",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to Marina Boulevard at Laguna Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.marina-boulevard-at-laguna-street.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Marina Boulevard at Laguna Street. Focus.",
+   "hash": "d33b3c31298c48efb5b6210fb3e5e4559492f263db93f4637da08c3889de39b0",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Marina Boulevard at Laguna Street. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-green.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Marina Green.",
+   "hash": "28142b163f444c5407de65c9a9d1bb300d7a71322c177718f1fe5709308e7fd5",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Okay, I gotta get to Marina Green."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-green.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Marina Green. Let's move.",
+   "hash": "9778ef874b9d7959e2c5352e9a778eead9eec8ac4f450ce70bd95b8b0e6dbed1",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Marina Green. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.marina-green.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Marina Green, and fast.",
+   "hash": "b1d801d34c80344ca2ae1a1d9bc3e4e1532481ba1b843ec971abf06c36670e92",
+   "file": null,
+   "durationS": 2.51,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.51,
+     "text": "Right. Marina Green, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.marina-green.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Marina Green, go go go.",
+   "hash": "7908013c3571db9be313fbd1111d4ad5c173479ead57967578701688ee3f168e",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Clock's running. Marina Green, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.marina-green.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Marina Green, now.",
+   "hash": "3e8c4935ca099578568dbb0c39655402c312f8aa2cde557be3e799161fe1733e",
+   "file": null,
+   "durationS": 2.51,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.51,
+     "text": "No time. Marina Green, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.marina-green.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Marina Green.",
+   "hash": "3a055ce7bcb8509caed3c1842e5d49acbb0af1b66549f4bd98011018adf2dbe1",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Next stop: Marina Green."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.marina-green.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Marina Green.",
+   "hash": "12adda4e7f8555bfd1d2596bc67ac5972a939eb481bf6741e1136c214bf6ba4d",
+   "file": null,
+   "durationS": 2.27,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.27,
+     "text": "Gotta swing by Marina Green."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.marina-green.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Marina Green.",
+   "hash": "144a411b552d500ddbda1cd721f7734556966f5cc4c9da3d07d9873d7002dd0a",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Still need to get to Marina Green."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.marina-green.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Marina Green. Focus.",
+   "hash": "fea555fa7f71d3676c52c78ac2649fe5aaf67645da6617e97f4f4c18043a4bea",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Marina Green. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.moat-labs-hq.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Moat Labs HQ.",
+   "hash": "d7dabd4c04e19338e0b4b5acb31c405ffdf6395709b4a039a587d5d07f8a72b5",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Okay, I gotta get to Moat Labs HQ."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.moat-labs-hq.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Moat Labs HQ. Let's move.",
+   "hash": "e14d6689fc4d2b3e2b07f3d3726f071209c2e9ed8138c809feff6658cd2961a8",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Moat Labs HQ. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.moat-labs-hq.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Moat Labs HQ, and fast.",
+   "hash": "233cff52dbb83957eea1908e0e1a8099c8a15cd67ac0ae7db5d915a01c26af99",
+   "file": null,
+   "durationS": 2.88,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.88,
+     "text": "Right. Moat Labs HQ, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.moat-labs-hq.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Moat Labs HQ, go go go.",
+   "hash": "d078a5248294e2c4faf2b704743c8753d62eb0f7bb7326051400c30c888f0692",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Clock's running. Moat Labs HQ, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.moat-labs-hq.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Moat Labs HQ, now.",
+   "hash": "82a2b76a55e15b7f4d980eb6c156c363883a764c65a116ea8dfb09c6e8728ecd",
+   "file": null,
+   "durationS": 2.88,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.88,
+     "text": "No time. Moat Labs HQ, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.moat-labs-hq.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Moat Labs HQ.",
+   "hash": "3815e215c5d7b47ed8d2b31e12fd3d14b0a137fc49fba11a5c1921bcbb680bc6",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Next stop: Moat Labs HQ."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.moat-labs-hq.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Moat Labs HQ.",
+   "hash": "ba91cd7a98f8efe43dcb03bb723ca7bd47015bd677b5b46af82a317c0f5a9ace",
+   "file": null,
+   "durationS": 2.64,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.64,
+     "text": "Gotta swing by Moat Labs HQ."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.moat-labs-hq.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Moat Labs HQ.",
+   "hash": "ea5d1d6f4a9042b1bc5c692fefa994c47f23229824f8ed91339220483abd07b9",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Still need to get to Moat Labs HQ."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.moat-labs-hq.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Moat Labs HQ. Focus.",
+   "hash": "41cbe0b75869a2fab23113f844e8aeb9f165f15dde7eaab3f62f5c11f68f9d1d",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Moat Labs HQ. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.washington-square.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to Washington Square.",
+   "hash": "f45fd2e5f59926de8ab3ebe89e667fe4f2499c465297b0d4c60f3d3e729a5d6b",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Okay, I gotta get to Washington Square."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.washington-square.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Washington Square. Let's move.",
+   "hash": "0f15ea2edfa7817a5db7b32ffe3698afc3c8ca336d1757ce4293ab053a7398a6",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Washington Square. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.washington-square.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. Washington Square, and fast.",
+   "hash": "38fe79e8f636429ee5cab92318dd38a23cd74064fcc33df38fad678ba6a091a8",
+   "file": null,
+   "durationS": 2.51,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.51,
+     "text": "Right. Washington Square, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.washington-square.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. Washington Square, go go go.",
+   "hash": "b6d25a918d730daf30bb27d4e76642a031dd98ae41eb391fc6e10489eb8b9129",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Clock's running. Washington Square, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.washington-square.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. Washington Square, now.",
+   "hash": "28e25ab4e9e7a795c3bff71d4ae7273d65350e9d6d833c2cabb26cc8afef9405",
+   "file": null,
+   "durationS": 2.51,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.51,
+     "text": "No time. Washington Square, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.washington-square.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: Washington Square.",
+   "hash": "25907db8674cb2c8d2d251007f34661c70389c8ff030a349ac9c8b6fcc65a79f",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Next stop: Washington Square."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.washington-square.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by Washington Square.",
+   "hash": "181b26624f7f79cb1d03b9bb4dfc5874de55e9d8c3c592e415c246a4eade0ad9",
+   "file": null,
+   "durationS": 2.27,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.27,
+     "text": "Gotta swing by Washington Square."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.washington-square.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to Washington Square.",
+   "hash": "a45aa4bfd85ee43348bd0d1908eebc68b42b7815da5ddea33cec565943e52cd4",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Still need to get to Washington Square."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.washington-square.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Washington Square. Focus.",
+   "hash": "dd3ceb6deee39df72105d4a8141fc7dacff8deac4a9a1b83d4c7c63cca26bd28",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Washington Square. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-bay-bridge-approach-deck.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Bay Bridge approach deck.",
+   "hash": "fdfc84027b228414458525dca2247237172ba7bebdae469afe0fc8d03cd087fe",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to the Bay Bridge approach deck."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-bay-bridge-approach-deck.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Bay Bridge approach deck. Let's move.",
+   "hash": "260ff1f93cc6910c16f96a739becc52e510257fb7313e5db6a640bd5981e5841",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "The Bay Bridge approach deck. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-bay-bridge-approach-deck.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Bay Bridge approach deck, and fast.",
+   "hash": "6000c86dde8d3be68cd092963cc66b84fad0a977b1502c8b39e227c89fbea11a",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. The Bay Bridge approach deck, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-bay-bridge-approach-deck.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Bay Bridge approach deck, go go go.",
+   "hash": "9da3a145d9e65ab1c18ea7c0717b4e2b9ab88b2813aa3979bf81c95a206a5104",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. The Bay Bridge approach deck, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-bay-bridge-approach-deck.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Bay Bridge approach deck, now.",
+   "hash": "4541af82a0ce721caf6aa0d6cced0d973b10ee1f713f017129ad589447f96b5f",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. The Bay Bridge approach deck, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-bay-bridge-approach-deck.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Bay Bridge approach deck.",
+   "hash": "2397a193912c3d29aac6d4fa1ebcae2f3473eedd3b249267e83c579f045ab3d0",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: the Bay Bridge approach deck."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-bay-bridge-approach-deck.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Bay Bridge approach deck.",
+   "hash": "7df458ea4ec6c235833ee47055341864ba74ff6d6fae3593150892ac87c3d6d3",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by the Bay Bridge approach deck."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-bay-bridge-approach-deck.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Bay Bridge approach deck.",
+   "hash": "febb44c3f35f85ae5370dadb4b1ff181779cb603a1b4bef4fbf98a4be94b9bba",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to the Bay Bridge approach deck."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-bay-bridge-approach-deck.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Bay Bridge approach deck. Focus.",
+   "hash": "f7b5f954d68965d9c08b480a420eeb047aab850cb73e4424d7a68a1460b69a8e",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Bay Bridge approach deck. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-crissy-field-waterfront.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Crissy Field waterfront.",
+   "hash": "4717a7a9a54aa9787e700d32f0aafdb0b697f33d63c5fd1f9f6cae8008cff405",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Okay, I gotta get to the Crissy Field waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-crissy-field-waterfront.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Crissy Field waterfront. Let's move.",
+   "hash": "16c12fd265c1d738df83fa499484e2efcde5358466c637c3ef3b0808e9fb41ea",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Crissy Field waterfront. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-crissy-field-waterfront.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Crissy Field waterfront, and fast.",
+   "hash": "af93de875e52f0681865f5a084b0c93f2ba177f5536688bc31e4727f1d594fc3",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Right. The Crissy Field waterfront, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-crissy-field-waterfront.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Crissy Field waterfront, go go go.",
+   "hash": "21cc3994fc29b23129f6a9203c8f95972fc205cf9815d721c47b23ce69b66b72",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Clock's running. The Crissy Field waterfront, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-crissy-field-waterfront.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Crissy Field waterfront, now.",
+   "hash": "78b08ebe2c7c4fca7b038c53d24347b332eee032dcb57278b9d2fb90770616f2",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "No time. The Crissy Field waterfront, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-crissy-field-waterfront.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Crissy Field waterfront.",
+   "hash": "7ff9a5d151a52157f5cc672a5e8458553b50ce1b941ce70dfd8df122d6e72927",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Next stop: the Crissy Field waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-crissy-field-waterfront.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Crissy Field waterfront.",
+   "hash": "45ca64d6a3cb677aa1c966a756538782e6e10b36ad1c246d70764bf1dfd94628",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Gotta swing by the Crissy Field waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-crissy-field-waterfront.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Crissy Field waterfront.",
+   "hash": "3186bd22b62199e6c46b7d12bd040889000b9a5a5b4299900b454d6d8e855637",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "Still need to get to the Crissy Field waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-crissy-field-waterfront.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Crissy Field waterfront. Focus.",
+   "hash": "3a8a2840ef62849e3db8187fd95b3c32e51b2174c2fea1e7f5d47a8c8f5efd47",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The Crissy Field waterfront. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-harrison-street.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Embarcadero at Harrison Street.",
+   "hash": "e62094ba829ad5b8d69cbfd0dabb9b1b97df673e1d04c263ec18a4a95393ed2c",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to the Embarcadero at Harrison Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-harrison-street.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Embarcadero at Harrison Street. Let's move.",
+   "hash": "89446e40a3eb69a3afee2b520cb3d52ab80d9bdde2c1281c8cf50dcc4cdd41a5",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "The Embarcadero at Harrison Street. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-harrison-street.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Embarcadero at Harrison Street, and fast.",
+   "hash": "a88e9e8c054aa798a6dc5e7d7b605f44b677b6b19e630615fea9b77718371f65",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. The Embarcadero at Harrison Street, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-embarcadero-at-harrison-street.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Embarcadero at Harrison Street, go go go.",
+   "hash": "4b9851463dfb88d6b4d4157eb073c0f984744103990bf718bb3b4790ca66fba3",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. The Embarcadero at Harrison Street, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-embarcadero-at-harrison-street.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Embarcadero at Harrison Street, now.",
+   "hash": "0507c06f2b0d61650620a6b86ddaf6bab71339ea6316464e6ba065f28b819831",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. The Embarcadero at Harrison Street, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-embarcadero-at-harrison-street.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Embarcadero at Harrison Street.",
+   "hash": "eef34a242eb11ae7b21e9bb34a4b55be0c5fffd8a1feffaf868ce4422eccbe6b",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: the Embarcadero at Harrison Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-embarcadero-at-harrison-street.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Embarcadero at Harrison Street.",
+   "hash": "8508a1bd680cb7571590fda82357fc9342550053a25f5ca7e608fe4b5ea57233",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by the Embarcadero at Harrison Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-embarcadero-at-harrison-street.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Embarcadero at Harrison Street.",
+   "hash": "4371ed1beae501c2c222555db9a5eefdbed145bec5ad4714147b33414fd52097",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to the Embarcadero at Harrison Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-embarcadero-at-harrison-street.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Embarcadero at Harrison Street. Focus.",
+   "hash": "60e7c9059725d24cc98bf6b5bb2f4aa76ae369f8347420c580520afe82849b1a",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Embarcadero at Harrison Street. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-mission-street.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Embarcadero at Mission Street.",
+   "hash": "088c4b40573d49145c55c80466b7b3ac9d451a98572f8d4f2d66199487f00df9",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to the Embarcadero at Mission Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-mission-street.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Embarcadero at Mission Street. Let's move.",
+   "hash": "73bc0de09021981ddf6da038cec1dee0fd9834b7c90f992826071e0437f81b09",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "The Embarcadero at Mission Street. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-embarcadero-at-mission-street.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Embarcadero at Mission Street, and fast.",
+   "hash": "34efa2ed90d3b33a13fdd3fa74781005d21d4b6348477689204fd4886d56ed3e",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. The Embarcadero at Mission Street, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-embarcadero-at-mission-street.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Embarcadero at Mission Street, go go go.",
+   "hash": "6a5f13ba381a9b2a96cdc96ad7a51fb0309e65bc5367828df0ff92882efc0460",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. The Embarcadero at Mission Street, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-embarcadero-at-mission-street.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Embarcadero at Mission Street, now.",
+   "hash": "938941b33b6dd531e6e2cf75e6658ff048da7c8bddb5c9a62b9197fd7d15aeb0",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. The Embarcadero at Mission Street, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-embarcadero-at-mission-street.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Embarcadero at Mission Street.",
+   "hash": "fc9668e60fc678c2b463a5b30eb3f69098c8c0b8e43531da89956ed1fd1e94b4",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: the Embarcadero at Mission Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-embarcadero-at-mission-street.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Embarcadero at Mission Street.",
+   "hash": "7ca9b49a8d6727e38731fedfc817c0fe78c0a201b6b237f285547fe6591b1d5b",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by the Embarcadero at Mission Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-embarcadero-at-mission-street.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Embarcadero at Mission Street.",
+   "hash": "81c83a922a70f417bfbd42de5973ac51d57171bcd3df3fd7f5613d2da0bc4ab8",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to the Embarcadero at Mission Street."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-embarcadero-at-mission-street.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Embarcadero at Mission Street. Focus.",
+   "hash": "60c7a889bba7b584f326ce050605b14ed69b193d2a8767e1edc73e2a8aa52e3a",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Embarcadero at Mission Street. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-plaza.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Ferry Building plaza.",
+   "hash": "3e9b284f4375cdfe0dc02b0d5b62fffe471686b5631c7e66d6595267cfa2e905",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Okay, I gotta get to the Ferry Building plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-plaza.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ferry Building plaza. Let's move.",
+   "hash": "51b38e271b2e4fb388345cc0dc05af7bf6caf6903d5e2b819b4c3dd5efb7188c",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Ferry Building plaza. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-plaza.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Ferry Building plaza, and fast.",
+   "hash": "99a2335b4e2ff1917aa09af46d0298018852633caa7bbaca40848af6e50b126c",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Right. The Ferry Building plaza, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ferry-building-plaza.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Ferry Building plaza, go go go.",
+   "hash": "1a51af13fe807ee22d1533d725afd04783272e2b0ac2081db36b540de1d1f0dd",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Clock's running. The Ferry Building plaza, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ferry-building-plaza.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Ferry Building plaza, now.",
+   "hash": "470fb58bb9ba949b598b8747c9989db3f2bbdad333f7e70b406dce9e26557996",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "No time. The Ferry Building plaza, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ferry-building-plaza.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Ferry Building plaza.",
+   "hash": "ea8f126ec378a2cb5e4080e96abb85cf1b31db27d73adb6e7b93164ac0466c6b",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Next stop: the Ferry Building plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ferry-building-plaza.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Ferry Building plaza.",
+   "hash": "4668eacc19b515720641d0e587e04e1035f80f9748655413ee3da1e204e80149",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Gotta swing by the Ferry Building plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ferry-building-plaza.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Ferry Building plaza.",
+   "hash": "e11e8b40c07b4101ba0780bb41f70873eb2e1c11f6aa3ec209bd6127fa58054f",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "Still need to get to the Ferry Building plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ferry-building-plaza.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ferry Building plaza. Focus.",
+   "hash": "4964a75601a465857837a516578d4ccb374c0351dbaddfe2615c0a61d07e1f5f",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The Ferry Building plaza. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-waterfront.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Ferry Building waterfront.",
+   "hash": "bc1ca5fca0742b28902d0cf2ac69eb639e969952d0ef8a642fa15c16fb86c55a",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Okay, I gotta get to the Ferry Building waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-waterfront.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ferry Building waterfront. Let's move.",
+   "hash": "4523e75fbcf50a251d9e18a3c7af197f165dfc132ce712c9ed7e52f1afae37d5",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Ferry Building waterfront. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ferry-building-waterfront.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Ferry Building waterfront, and fast.",
+   "hash": "cf8b4743fd5f55eeaa298524a68f3f2fab483e88f6472fba85e58228c5b64284",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Right. The Ferry Building waterfront, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ferry-building-waterfront.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Ferry Building waterfront, go go go.",
+   "hash": "b41ddf8d05957cd996cfda674ea3be6049682681446219abb7fb7249423172fd",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Clock's running. The Ferry Building waterfront, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ferry-building-waterfront.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Ferry Building waterfront, now.",
+   "hash": "9d721fa7d3fff847be707f8ab109c0865ced9585fb523931ec8a0705c3a78d90",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "No time. The Ferry Building waterfront, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ferry-building-waterfront.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Ferry Building waterfront.",
+   "hash": "12f94b53c57bdaa7b43a97a998b18046d08997004f2fafeecce28119394ddcd5",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Next stop: the Ferry Building waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ferry-building-waterfront.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Ferry Building waterfront.",
+   "hash": "3ffd64a62e292c83859663cbed31a8fe742788642d6012cdf355ac56c3f64b81",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Gotta swing by the Ferry Building waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ferry-building-waterfront.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Ferry Building waterfront.",
+   "hash": "7ccf175cb4725debf9e400762694dd59bccfb338f74015e8021660cb0c5f7102",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "Still need to get to the Ferry Building waterfront."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ferry-building-waterfront.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ferry Building waterfront. Focus.",
+   "hash": "e92cf33d30fd6c17edfeef329c1cd553daf652db5b8fb6e93a6702167ef76476",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The Ferry Building waterfront. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-fidi-coworking-desk.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the FiDi coworking desk.",
+   "hash": "268de07a1e4c2ac3f0e798a7ef4bef3519876acbdfca06a454467174db63d321",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Okay, I gotta get to the FiDi coworking desk."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-fidi-coworking-desk.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The FiDi coworking desk. Let's move.",
+   "hash": "dc59b5d681036f3edfcffbd1cd201b0377a33c2fb3245dfbd39fd9e266b78744",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The FiDi coworking desk. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-fidi-coworking-desk.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The FiDi coworking desk, and fast.",
+   "hash": "79712b5a7fb0e963443d9f46712dbe0b9442ee39d0c1c84c8ac17327397667f5",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Right. The FiDi coworking desk, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-fidi-coworking-desk.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The FiDi coworking desk, go go go.",
+   "hash": "3c2e8c70fd018c4b4c891b5638848de9d86a0ee9772954f513b22b1dfdeef65c",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Clock's running. The FiDi coworking desk, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-fidi-coworking-desk.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The FiDi coworking desk, now.",
+   "hash": "7f827d9389f344546dd8d51109ac9e39b1866d31f983106f641ddc1c46b8c777",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "No time. The FiDi coworking desk, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-fidi-coworking-desk.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the FiDi coworking desk.",
+   "hash": "b72fb6c53b0b84e63e77ac2ebce5431e28f226d2e3e6af9b92f604b3a44166ac",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Next stop: the FiDi coworking desk."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-fidi-coworking-desk.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the FiDi coworking desk.",
+   "hash": "8801d2e35d7b9f767cadb79425743ff21f6e5e689e27d83f9da275dd5f877690",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Gotta swing by the FiDi coworking desk."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-fidi-coworking-desk.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the FiDi coworking desk.",
+   "hash": "ff7ddbdc977e6c9f72a4d20f3cddff34940e0c35eda87b3c20f2f6d71aca1884",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "Still need to get to the FiDi coworking desk."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-fidi-coworking-desk.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The FiDi coworking desk. Focus.",
+   "hash": "76b1fc3f7820cc1953fbf60f8eb7a51dcffd0812b421c9be9b4a1647e1e2a372",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The FiDi coworking desk. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-lombard-street-crooked-block.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Lombard Street crooked block.",
+   "hash": "d733e4e65da829e37d2aa3f04f4c3165168c448e24d8f85d9c116a5e88d799d4",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "Okay, I gotta get to the Lombard Street crooked block."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-lombard-street-crooked-block.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Lombard Street crooked block. Let's move.",
+   "hash": "9d2c8ef4db6cc4ad71c043333ce48abce7a1f48e9bafab90cd3b07d5f0ef6e51",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "The Lombard Street crooked block. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-lombard-street-crooked-block.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Lombard Street crooked block, and fast.",
+   "hash": "af2b7d5399300f29466d7bfc336552241e41495370f22837799b0adf899b1ce3",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Right. The Lombard Street crooked block, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-lombard-street-crooked-block.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Lombard Street crooked block, go go go.",
+   "hash": "ea3f5b3807f1010d0eb5dcf389721875a30a0b6052c504f2e26333ea8878aff5",
+   "file": null,
+   "durationS": 4.36,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.36,
+     "text": "Clock's running. The Lombard Street crooked block, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-lombard-street-crooked-block.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Lombard Street crooked block, now.",
+   "hash": "4eca35b94d618e9657b68b8990fa2a9c088af6bd185cc59f1ead5c3a3b2b5a55",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "No time. The Lombard Street crooked block, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-lombard-street-crooked-block.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Lombard Street crooked block.",
+   "hash": "9d7f2c1196043369d7aa1ccaa627d71ad673e122a0bd9ab9b6a74ba392af93f7",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Next stop: the Lombard Street crooked block."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-lombard-street-crooked-block.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Lombard Street crooked block.",
+   "hash": "9e4b3a0aa281c66937c20a92d9d727ce3bcf512f4d5d985c38d09c3550a6b453",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Gotta swing by the Lombard Street crooked block."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-lombard-street-crooked-block.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Lombard Street crooked block.",
+   "hash": "6d85d297cccebfca3e24f137c7aedfbe951039a3e14b33d0ff4ede8ac1da2912",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "Still need to get to the Lombard Street crooked block."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-lombard-street-crooked-block.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Lombard Street crooked block. Focus.",
+   "hash": "90914e466faf15063f6b512568ae4f722664271ba8ccbf345b8e494420fbfb2a",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The Lombard Street crooked block. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ramen-house.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the Ramen house.",
+   "hash": "4c314926ae943c1eeed9dd95985aadc551088547d916ed774941f4e8bf20d853",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Okay, I gotta get to the Ramen house."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ramen-house.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ramen house. Let's move.",
+   "hash": "0bca37b618e52ed8d6c2d374f4e728e6fde5c281865c104951d4a5a541e8dedb",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The Ramen house. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-ramen-house.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The Ramen house, and fast.",
+   "hash": "8a91783437480f0de27d6c5ea4a4f6c94838528f77d0eb1c7ad58772db3ddc5e",
+   "file": null,
+   "durationS": 2.88,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.88,
+     "text": "Right. The Ramen house, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ramen-house.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The Ramen house, go go go.",
+   "hash": "117e6eca698c976db703a34637f90fa4421eff8cab5b61aa340fea70b18adf85",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Clock's running. The Ramen house, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-ramen-house.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The Ramen house, now.",
+   "hash": "fc7c0fc3f9cfb3614eb7ca3383829469650b4ff4799e50daa129ed5203d18f7e",
+   "file": null,
+   "durationS": 2.88,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.88,
+     "text": "No time. The Ramen house, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ramen-house.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the Ramen house.",
+   "hash": "5181bfb53d0af18cd72d684268745d2d7c50886447c80fd2ed49c3f1852eb55b",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Next stop: the Ramen house."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-ramen-house.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the Ramen house.",
+   "hash": "0bd41638b041a494751b6befc2022b05780ef9625faf1c3fff73fdcfac9568a1",
+   "file": null,
+   "durationS": 2.64,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.64,
+     "text": "Gotta swing by the Ramen house."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ramen-house.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the Ramen house.",
+   "hash": "e018f14d605c20ed7219cbb32c9438e32d76b1b3eca9b9fe866412e9d018dbad",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "Still need to get to the Ramen house."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-ramen-house.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The Ramen house. Focus.",
+   "hash": "f08e8dae22d9a550b33ad5a4df2b080f2f9f71c779d0e0ee0932372302e88e7d",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "The Ramen house. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-soma-convention-center-plaza.0",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay, I gotta get to the SoMa convention-center plaza.",
+   "hash": "55bf57993e8beffbb71da937847f191b207c8dd690e56dd27c6d1243bae82171",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Okay, I gotta get to the SoMa convention-center plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-soma-convention-center-plaza.1",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The SoMa convention-center plaza. Let's move.",
+   "hash": "4b37c2d89c42bd656faac0995ee955813e282a089da526b130c38c52dd4b7ae0",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "The SoMa convention-center plaza. Let's move."
+    }
+   ]
+  },
+  {
+   "id": "inner.goto.the-soma-convention-center-plaza.2",
+   "missionId": "inner",
+   "stepId": "goto",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Right. The SoMa convention-center plaza, and fast.",
+   "hash": "fe8e5d5939eaaa947e7f5373b9434e787441fac6f9ea6a56b64d360047c4ae23",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "Right. The SoMa convention-center plaza, and fast."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-soma-convention-center-plaza.0",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Clock's running. The SoMa convention-center plaza, go go go.",
+   "hash": "eb81c90ee869952b32a80d4de302b2c6a96e317010a6a7d609aabb4dbe531e53",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Clock's running. The SoMa convention-center plaza, go go go."
+    }
+   ]
+  },
+  {
+   "id": "inner.gotoRush.the-soma-convention-center-plaza.1",
+   "missionId": "inner",
+   "stepId": "gotoRush",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "No time. The SoMa convention-center plaza, now.",
+   "hash": "a2c1ebaef17c133afe5c231714b920d12dd6323503bb15519f7742a09f5f9cce",
+   "file": null,
+   "durationS": 3.25,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.25,
+     "text": "No time. The SoMa convention-center plaza, now."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-soma-convention-center-plaza.0",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Next stop: the SoMa convention-center plaza.",
+   "hash": "36517760766dd18f3bc0e8470d09d54e94c21f1489e7886449385fee45dd6061",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Next stop: the SoMa convention-center plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.start.the-soma-convention-center-plaza.1",
+   "missionId": "inner",
+   "stepId": "start",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Gotta swing by the SoMa convention-center plaza.",
+   "hash": "30756d64bae8960a660d6749cecf458a0fd948c59a32d7157b97f464551afebb",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Gotta swing by the SoMa convention-center plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-soma-convention-center-plaza.0",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Still need to get to the SoMa convention-center plaza.",
+   "hash": "660d0de2ca652c753263e9b71f3abe6c2cb75d20714b25e60185830e92ce1de9",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "Still need to get to the SoMa convention-center plaza."
+    }
+   ]
+  },
+  {
+   "id": "inner.reminder.the-soma-convention-center-plaza.1",
+   "missionId": "inner",
+   "stepId": "reminder",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "The SoMa convention-center plaza. Focus.",
+   "hash": "5985ab30790612fd9bcd1554d3133143bc8aa3086d50701f87ef981e39ff403a",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "The SoMa convention-center plaza. Focus."
+    }
+   ]
+  },
+  {
+   "id": "inner.melt.0",
+   "missionId": "inner",
+   "stepId": "melt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Water on the bad one. Only the bad one.",
+   "hash": "52250853a6e641b3e4473b91d10c69d71ce00643bbccbbd3f2b312c7a13e69c8",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Water on the bad one. Only the bad one."
+    }
+   ]
+  },
+  {
+   "id": "inner.melt.1",
+   "missionId": "inner",
+   "stepId": "melt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Rust it. Just that one, though.",
+   "hash": "acc89f69e6def6480d6a5db97e7c3b653d7577eb6e888591c297f4abd0c3ed8a",
+   "file": null,
+   "durationS": 2.88,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.88,
+     "text": "Rust it. Just that one, though."
+    }
+   ]
+  },
+  {
+   "id": "inner.watch.0",
+   "missionId": "inner",
+   "stepId": "watch",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Don't spray yet. Just watch what it does.",
+   "hash": "dd3e3cbafcef27a89b75e14c4098fb0ca3070f682ef6950d12014c4726008a30",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Don't spray yet. Just watch what it does."
+    }
+   ]
+  },
+  {
+   "id": "inner.watch.1",
+   "missionId": "inner",
+   "stepId": "watch",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Eyes on it. What's it up to?",
+   "hash": "6983fc653221a5de9020ace1ea14cc2e9cf4406a50585200640b58a19409d1ed",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Eyes on it. What's it up to?"
+    }
+   ]
+  },
+  {
+   "id": "inner.scan.0",
+   "missionId": "inner",
+   "stepId": "scan",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Let's see what this thing really is.",
+   "hash": "b063a180cef74cca05be8e68bd611e78d1ea22b4372674edc83547008eaa22c4",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Let's see what this thing really is."
+    }
+   ]
+  },
+  {
+   "id": "inner.scan.1",
+   "missionId": "inner",
+   "stepId": "scan",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Scan it. Trust, but verify.",
+   "hash": "6557d0eed89b6b5c009c390bf47ebf0154ffe493fa38c2c67c568c0c09fab878",
+   "file": null,
+   "durationS": 2.51,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.51,
+     "text": "Scan it. Trust, but verify."
+    }
+   ]
+  },
+  {
+   "id": "inner.cone.0",
+   "missionId": "inner",
+   "stepId": "cone",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Cone time. Very official.",
+   "hash": "a6ff1ee13bba05080ebef0d7cdab003e967b7246b433c1bb3e97301a5a12c3f7",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Cone time. Very official."
+    }
+   ]
+  },
+  {
+   "id": "inner.cone.1",
+   "missionId": "inner",
+   "stepId": "cone",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "One traffic cone, coming right up.",
+   "hash": "29c5e6dec7547ebfc350603b7a94fec5d46a297ba21b114f11546af1bbfb6d4a",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "One traffic cone, coming right up."
+    }
+   ]
+  },
+  {
+   "id": "inner.threatUp.0",
+   "missionId": "inner",
+   "stepId": "threatUp",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Need these bots to notice me.",
+   "hash": "700374fa65679a75c1205ea32a440777e9bf3a6cbbd506d035fbc311edcd494a",
+   "file": null,
+   "durationS": 2.64,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.64,
+     "text": "Need these bots to notice me."
+    }
+   ]
+  },
+  {
+   "id": "inner.threatUp.1",
+   "missionId": "inner",
+   "stepId": "threatUp",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay. Time to make some noise.",
+   "hash": "297cd18ff2e7f4842385ed11ca27b5e21207cec1801d0f1f37f0e64a35e09b3b",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Okay. Time to make some noise."
+    }
+   ]
+  },
+  {
+   "id": "inner.threatDown.0",
+   "missionId": "inner",
+   "stepId": "threatDown",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Too much heat. Lay low.",
+   "hash": "630796a3292f4a996f15293af6a49958fc142d107430a5f3d1aac3b724111217",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Too much heat. Lay low."
+    }
+   ]
+  },
+  {
+   "id": "inner.threatDown.1",
+   "missionId": "inner",
+   "stepId": "threatDown",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Cool it. Let them forget me.",
+   "hash": "32d4e9da78214f39dfc50f30d9549883faebd1e178dfd2d73a2d2f0437a030ae",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Cool it. Let them forget me."
+    }
+   ]
+  },
+  {
+   "id": "inner.salt.0",
+   "missionId": "inner",
+   "stepId": "salt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Salt water. Great for rust, rough on the nozzle.",
+   "hash": "fd2a3bf0dfd687c766d91fb6b847dca4a321db8a60df600c5798e3b4877cb9cb",
+   "file": null,
+   "durationS": 3.99,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.99,
+     "text": "Salt water. Great for rust, rough on the nozzle."
+    }
+   ]
+  },
+  {
+   "id": "inner.salt.1",
+   "missionId": "inner",
+   "stepId": "salt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Bay water. Extra crunchy.",
+   "hash": "6e94458f66ac78585bea1e52822f132551610cd8a6c145cecad3f36d26a5a7b8",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "Bay water. Extra crunchy."
+    }
+   ]
+  },
+  {
+   "id": "inner.salt.2",
+   "missionId": "inner",
+   "stepId": "salt",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Salt in the tank. The bots won't love this.",
+   "hash": "b986d823d8f1a3752882153d8292453a8bafa078e58b9934d5f5d70d4af019a4",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Salt in the tank. The bots won't love this."
+    }
+   ]
+  },
+  {
+   "id": "inner.fresh.0",
+   "missionId": "inner",
+   "stepId": "fresh",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Fresh water again.",
+   "hash": "484a2066d50a94ee90ecb7ffa5f0953f385ee3b0f2e08c7368fa8e59d2517544",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Fresh water again."
+    }
+   ]
+  },
+  {
+   "id": "inner.fresh.1",
+   "missionId": "inner",
+   "stepId": "fresh",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Back on the good stuff.",
+   "hash": "df0050082db5d3179b925bba819ea6d7c6ce9e6f878f9afd3a0945dfb9d7a9c6",
+   "file": null,
+   "durationS": 2.27,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.27,
+     "text": "Back on the good stuff."
+    }
+   ]
+  },
+  {
+   "id": "inner.fresh.2",
+   "missionId": "inner",
+   "stepId": "fresh",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Fresh tank. Nice and gentle.",
+   "hash": "2150aedf70e7cda1bd3c8ba29f79b498102125f19df2dd7a7949be36f3140a5f",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Fresh tank. Nice and gentle."
+    }
+   ]
+  },
+  {
+   "id": "inner.sketchy.0",
+   "missionId": "inner",
+   "stepId": "sketchy",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "That bot's acting sketchy.",
+   "hash": "2a3ca41df95cccbdbbb2004d4317ae7fd6fda36dfa2d2cad69f9eab03cca3df2",
+   "file": null,
+   "durationS": 1.9,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.9,
+     "text": "That bot's acting sketchy."
+    }
+   ]
+  },
+  {
+   "id": "inner.sketchy.1",
+   "missionId": "inner",
+   "stepId": "sketchy",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Yeah, that one's not right.",
+   "hash": "2a4905ccb197ca03757227788ed4900e61ec3909822b80f13c58991a7b270c9e",
+   "file": null,
+   "durationS": 2.39,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.39,
+     "text": "Yeah, that one's not right."
+    }
+   ]
+  },
+  {
+   "id": "inner.sketchy.2",
+   "missionId": "inner",
+   "stepId": "sketchy",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Huh. That bot's up to something.",
+   "hash": "bdcc3f0db36386b84455094b624f69b5df9facd6006f378e02da941b52d8ce2f",
+   "file": null,
+   "durationS": 2.76,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.76,
+     "text": "Huh. That bot's up to something."
+    }
+   ]
+  },
+  {
+   "id": "inner.win.0",
+   "missionId": "inner",
+   "stepId": "win",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Nailed it.",
+   "hash": "b554c6df72f2b98b9136e35bc35156a857535260edf4b07c2d46a0726706c964",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Nailed it."
+    }
+   ]
+  },
+  {
+   "id": "inner.win.1",
+   "missionId": "inner",
+   "stepId": "win",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Ship it.",
+   "hash": "8b389c84a5af486cb1fbb3fa21751e5ed77fdc130f93765042e6080f6707d83b",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Ship it."
+    }
+   ]
+  },
+  {
+   "id": "inner.win.2",
+   "missionId": "inner",
+   "stepId": "win",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Another one for the pitch deck.",
+   "hash": "d46d8c8721bfc5dd72dc51c06f4ce144c0dfa75254fff82c4e485811b8470a3b",
+   "file": null,
+   "durationS": 2.64,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.64,
+     "text": "Another one for the pitch deck."
+    }
+   ]
+  },
+  {
+   "id": "inner.retry.0",
+   "missionId": "inner",
+   "stepId": "retry",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Okay. Again.",
+   "hash": "93e5eb43b28ed3069e49d5b923bbb124443eba53d630b8d8de8cae4867c41b44",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Okay. Again."
+    }
+   ]
+  },
+  {
+   "id": "inner.retry.1",
+   "missionId": "inner",
+   "stepId": "retry",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "Fine. Take two.",
+   "hash": "3bc6595d573cd519d90ba82b389b9b13340183e695cbe437863fcb12c46b2071",
+   "file": null,
+   "durationS": 1.8,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 1.8,
+     "text": "Fine. Take two."
+    }
+   ]
+  },
+  {
+   "id": "inner.retry.2",
+   "missionId": "inner",
+   "stepId": "retry",
+   "kind": "inner",
+   "speaker": "player",
+   "text": "That didn't happen. Again.",
+   "hash": "30f8fc2a376722cdd72908233892e0ae1aba1b966664617a3d29785d145bec72",
+   "file": null,
+   "durationS": 2.02,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 2.02,
+     "text": "That didn't happen. Again."
+    }
+   ]
+  }
+ ]
+}

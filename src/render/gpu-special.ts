@@ -1,0 +1,48 @@
+// Node-material counterparts for render layers that previously supplied raw GLSL.
+import * as THREE from "three";
+import { MeshStandardNodeMaterial, MeshBasicNodeMaterial, LineBasicNodeMaterial } from "three/webgpu";
+import { uniform, texture, positionWorld, normalWorld, positionLocal, attribute, uv, vec2, vec3, float, dot, sin, smoothstep } from "three/tsl";
+import { fcUniforms } from "./materials.ts";
+
+export function createFarNodeMaterial(mask: THREE.Texture, rectangle: THREE.Vector4): MeshStandardNodeMaterial {
+  const material = new MeshStandardNodeMaterial({ vertexColors: true, flatShading: true, roughness: .92, metalness: 0, name: "fc:far" });
+  material.userData.skipGpuAdapter = true;
+  const rect = uniform(rectangle), farUv = positionWorld.xz.sub(rect.xy).div(rect.zw);
+  const outside = farUv.x.lessThan(0).or(farUv.y.lessThan(0)).or(farUv.x.greaterThanEqual(1)).or(farUv.y.greaterThanEqual(1));
+  material.maskNode = outside.or(texture(mask, farUv).r.lessThanEqual(.5));
+  const cell = vec2(positionWorld.x.add(positionWorld.z).div(4), positionWorld.y.div(3.2)).floor();
+  const random = sin(dot(cell, vec2(12.9898, 78.233))).mul(43758.5453).fract();
+  const wall = float(1).sub(smoothstep(.25, .45, normalWorld.y.abs()));
+  const night = uniform(0).onRenderUpdate(() => fcUniforms.fcNight.value);
+  const lit = random.greaterThan(.72).select(1, 0).mul(wall).mul(positionWorld.y.greaterThan(2).select(1, 0));
+  material.emissiveNode = vec3(1, .72, .42).mul(lit).mul(night).mul(.9);
+  return material;
+}
+
+export function createContactNodeMaterial(): MeshBasicNodeMaterial {
+  const material = new MeshBasicNodeMaterial({ name: "fc:contact-shadow", color: 0x101522, opacity: .32, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  material.userData.skipGpuAdapter = true;
+  const contact = uv().mul(2).sub(1);
+  material.opacityNode = float(.32).mul(float(1).sub(smoothstep(.12, 1, dot(contact, contact))));
+  return material;
+}
+
+interface RainUniforms {
+  fcRainCam: { value: THREE.Vector3 }; fcRainTime: { value: number }; fcRainBox: { value: number };
+  fcRainOpacity: { value: number }; fcRainColor: { value: THREE.Color };
+}
+export function createRainNodeMaterial(values: RainUniforms): LineBasicNodeMaterial {
+  const material = new LineBasicNodeMaterial({ transparent: true, depthWrite: false, fog: false, name: "fc:rain" });
+  material.userData.skipGpuAdapter = true;
+  const camera = uniform(values.fcRainCam.value), time = uniform(0).onRenderUpdate(() => values.fcRainTime.value);
+  const box = uniform(values.fcRainBox.value), half = box.mul(.5), end = attribute("fcEnd", "float");
+  const p = positionLocal;
+  material.positionNode = vec3(
+    p.x.sub(camera.x).add(half).mod(box).add(camera.x).sub(half),
+    p.y.sub(time.mul(9)).sub(camera.y).mod(box).add(camera.y).sub(half),
+    p.z.sub(camera.z).add(half).mod(box).add(camera.z).sub(half),
+  ).add(vec3(.04, -.45, .02).mul(end));
+  material.colorNode = uniform(values.fcRainColor.value);
+  material.opacityNode = uniform(0).onRenderUpdate(() => values.fcRainOpacity.value).mul(float(1).sub(end.mul(.6)));
+  return material;
+}

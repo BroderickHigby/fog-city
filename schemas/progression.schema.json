@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/progression",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "units",
+    "ranks",
+    "awards",
+    "gates",
+    "upgrades",
+    "safehousePrices",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "units": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "cash",
+        "xp"
+      ],
+      "properties": {
+        "cash": {
+          "const": "cents"
+        },
+        "xp": {
+          "const": "points"
+        }
+      }
+    },
+    "ranks": {
+      "type": "array",
+      "minItems": 55,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "rank",
+          "totalXp",
+          "label"
+        ],
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "totalXp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "awards": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "melt",
+        "missionMin",
+        "missionMax",
+        "activityMin",
+        "activityMax"
+      ],
+      "properties": {
+        "melt": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "missionMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "missionMax": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activityMin": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "activityMax": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "kind",
+          "rank",
+          "value"
+        ],
+        "properties": {
+          "kind": {
+            "enum": [
+              "blasterTier",
+              "perkSlots",
+              "streakSlots"
+            ]
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "value": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "upgrades": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "kind",
+          "priceCents",
+          "rank"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "kind": {
+            "enum": [
+              "scanner",
+              "nozzle",
+              "vehicle"
+            ]
+          },
+          "priceCents": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "requiresMission": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "rank": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "safehousePrices": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "priceCents"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "priceCents": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

@@ -1,0 +1,255 @@
+{
+  "version": 2,
+  "$comment": "Bot Hunt (docs/design.md, Telling good from bad). A bad robot looks exactly like a good one of the same model; its BEHAVIOUR gives it away, and water rusts it. A tell is behaviour the sim can run (a 'behaviour' object discriminated by 'kind'), never a colour. Subtlety 1 is obvious from across the street, 5 needs a patient watcher. A bad robot shows 2-3 tells; higher-rank districts use subtler ones. False tells are good robots glitching in ways that overlap the bad tells, so one tell alone is never proof. Tells are robot-only: none involves a child or an animal as a target, and people NPC routines never emit tell ids. Local tells belong to one district's bounty set (content/packs/*.json).",
+  "scoring": { "meltBad": 100, "meltArmoured": 200, "interruptUpdate": 150, "rustGood": -150, "wetPerson": -200 },
+  "models": {
+    "errand-robot": { "name": "Footman", "maker": "Bramblecot Home", "glb": "errand-robot.glb", "rustRate": 1, "description": "Tall, slim errand robot with a lantern-shaped head and a soft face-light strip; carries shopping." },
+    "sidewalk-bot": { "name": "Trundle", "maker": "Trundle", "glb": "sidewalk-bot.glb", "rustRate": 1, "description": "Four-wheeled sidewalk delivery robot with a roll-top lid like a bread bin." },
+    "robotaxi": { "name": "Meander", "maker": "Meander", "glb": "robotaxi.glb", "rustRate": 0.7, "description": "Long, low robotaxi with a sensor band along the roof edge. Obeys every rule. A rogue one is always empty." }
+  },
+  "lineSets": {
+    "rateSidewalk": [
+      "On a scale of 1 to 5 stars, how was your sidewalk experience?",
+      "Quick survey! Rate this curb. Five stars helps our growth.",
+      "How likely are you to recommend this crosswalk to a friend?",
+      "Your feedback shapes the sidewalk. Please rate the sidewalk.",
+      "Was this block helpful? Tap yes. There is only yes."
+    ],
+    "growthLoop": [
+      "Have you considered upgrading to Premium Sidewalk?",
+      "This walk is free. Walking faster is $4.99 a month.",
+      "Every robot. Eventually. Ask me how!",
+      "Limited-time offer: one free firmware update.",
+      "You've reached your daily limit of fresh air.",
+      "Unlock this crosswalk with a referral code."
+    ],
+    "pigeonApology": [
+      "Oh! Sorry. So sorry. Your sidewalk, absolutely.",
+      "Excuse me, friend. After you. Take your time.",
+      "Apologies for the noise. I'll go around."
+    ],
+    "countAloud": [
+      "Car one hundred and four. Car one hundred and five.",
+      "Plate logged. Plate logged. Plate logged.",
+      "Queue depth: excellent. Monetisation: pending."
+    ],
+    "flyers": [
+      "Free QR code! It leads to another QR code.",
+      "Scan me for a sightseeing upgrade.",
+      "Premium view of the bay, unlocked with a scan."
+    ]
+  },
+  "tells": [
+    { "id": "scuffedSticker", "side": "bad", "subtlety": 1, "channel": "look", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "label": "Scuffed QR sticker", "description": "A scuffed QR sticker sits slapped on its back panel, half peeled, the way the jailbreak kits are shipped.", "behaviour": { "kind": "decal", "decal": "scuffedQrSticker", "placement": "back" } },
+    { "id": "rateSidewalk", "side": "bad", "subtlety": 1, "channel": "speech", "models": ["errand-robot", "sidewalk-bot"], "label": "Asks you to rate the sidewalk", "description": "Asks grown-ups walking past to rate their sidewalk experience from 1 to 5 stars, and never steps into anyone's path to do it.", "behaviour": { "kind": "askPassersBy", "lineSet": "rateSidewalk", "radiusM": 3, "cooldownS": 12, "audience": "adults" } },
+    { "id": "tailFootman", "side": "bad", "subtlety": 1, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Tails a good robot", "description": "Follows a good Footman two metres behind for more than fifteen seconds, matching every turn it makes.", "behaviour": { "kind": "tailRobot", "target": "goodErrandRobot", "distanceM": 2, "minDurationS": 15 } },
+    { "id": "pastePoster", "side": "bad", "subtlety": 1, "channel": "look", "models": ["errand-robot"], "label": "Sticks up an ad", "description": "Slaps a Moat Labs ad over a bus-shelter poster, smooths it down twice and walks on.", "behaviour": { "kind": "pastePoster", "target": "busShelter", "workS": 4, "intervalS": 40 } },
+    { "id": "blocksHydrant", "side": "bad", "subtlety": 1, "channel": "look", "models": ["robotaxi"], "label": "Parks across a hydrant", "description": "An empty robotaxi parks square across a fire hydrant with its hazards ticking slowly, and stays.", "behaviour": { "kind": "parkAcross", "target": "hydrant", "dwellS": 60 } },
+    { "id": "tryCarDoors", "side": "bad", "subtlety": 2, "channel": "audio", "models": ["errand-robot"], "label": "Tries car doors", "description": "Tries the door handles of parked cars as it passes, each with a hopeful 'pairing...' chime.", "behaviour": { "kind": "tryCarDoors", "chime": "pairing", "intervalS": 20 } },
+    { "id": "readPlates", "side": "bad", "subtlety": 2, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "label": "Reads number plates", "description": "Passes a thin scan beam across the number plates of parked cars, one car at a time.", "behaviour": { "kind": "scanBeam", "target": "numberPlates", "sweepS": 2, "intervalS": 10 } },
+    { "id": "trackPlayer", "side": "bad", "subtlety": 2, "channel": "look", "models": ["errand-robot"], "label": "Watches you pass", "description": "Turns its head to follow you as you go by, and keeps it turned a beat too long.", "behaviour": { "kind": "trackPlayer", "radiusM": 12, "holdS": 2 } },
+    { "id": "waitThroughWalk", "side": "bad", "subtlety": 2, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Ignores the walk signal", "description": "Waits at the crosswalk through a whole walk signal, then crosses on the next one as if nothing happened.", "behaviour": { "kind": "waitThroughSignal", "cycles": 1 } },
+    { "id": "walkAgainstFlow", "side": "bad", "subtlety": 2, "channel": "path", "models": ["errand-robot"], "label": "Walks against the flow", "description": "Walks the wrong way through busy sidewalk traffic, so everyone else has to step around it.", "behaviour": { "kind": "walkAgainstFlow" } },
+    { "id": "skipRainCape", "side": "bad", "subtlety": 2, "channel": "look", "models": ["errand-robot"], "when": "rain", "label": "No rain cape", "description": "In the rain it skips the rain cape every good robot wears and hides under an awning instead.", "behaviour": { "kind": "skipRainCape", "shelter": "awning" } },
+    { "id": "loopLine", "side": "bad", "subtlety": 2, "channel": "speech", "models": ["errand-robot", "sidewalk-bot"], "label": "Repeats a sales line", "description": "Says the same growth-hack line on a loop, word for word, to nobody in particular.", "behaviour": { "kind": "loopLine", "lineSet": "growthLoop", "intervalS": 8 } },
+    { "id": "skipsSignals", "side": "bad", "subtlety": 2, "channel": "look", "models": ["robotaxi"], "label": "Never signals", "description": "Changes lanes without signalling. A good robotaxi signals every lane change, even in an empty street.", "behaviour": { "kind": "skipsSignals" } },
+    { "id": "emptyBag", "side": "bad", "subtlety": 3, "channel": "look", "models": ["errand-robot"], "label": "Weightless bag", "description": "Its grocery bag swings like it weighs nothing: there is nothing in it.", "behaviour": { "kind": "emptyBag" } },
+    { "id": "avoidWater", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Steps around puddles", "description": "Steps around every puddle and gives fire hydrants a wide berth. The jailbreak strips the splash seal to save forty grams.", "behaviour": { "kind": "avoidWater", "puddleClearanceM": 1, "hydrantClearanceM": 4 } },
+    { "id": "humJingle", "side": "bad", "subtlety": 3, "channel": "audio", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "label": "Hums the jingle", "description": "Hums the Moat Labs four-note jingle under its breath every so often.", "behaviour": { "kind": "humJingle", "intervalS": 25, "rangeM": 15 } },
+    { "id": "speedUpWhenWatched", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Hurries when watched", "description": "Walks a little faster whenever you look straight at it, and slows down when you look away.", "behaviour": { "kind": "speedUpWhenWatched", "multiplier": 1.4, "watchConeDeg": 20 } },
+    { "id": "loiterNearRobotaxi", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Hangs around robotaxis", "description": "Waits beside robotaxi pickup spots for ages, and never loads or delivers anything.", "behaviour": { "kind": "loiterNear", "target": "robotaxiPickup", "radiusM": 4, "dwellS": 30 } },
+    { "id": "noApology", "side": "bad", "subtlety": 3, "channel": "speech", "models": ["errand-robot", "sidewalk-bot"], "label": "Never apologises", "description": "Bumps into another robot and carries on without a word. Good robots always apologise, even to lamp posts.", "behaviour": { "kind": "noApology", "bumpRadiusM": 0.6 } },
+    { "id": "alwaysFull", "side": "bad", "subtlety": 4, "channel": "status", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "label": "Never charges", "description": "Never stops at a charging dock, and its public status light always reads 100%.", "behaviour": { "kind": "neverCharges", "statusPct": 100 } },
+    { "id": "threeStepLoop", "side": "bad", "subtlety": 4, "channel": "path", "models": ["errand-robot"], "label": "Three-step loop", "description": "Walks the same three steps forward and back, over and over, while pretending to wait for someone.", "behaviour": { "kind": "stepLoop", "steps": 3, "loops": 4 } },
+    { "id": "avoidFog", "side": "bad", "subtlety": 4, "channel": "path", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "when": "fog", "label": "Will not enter fog", "description": "Turns back at the edge of the fog and takes the long way round through the sun.", "behaviour": { "kind": "avoidFog", "densityAbove": 0.4 } },
+    { "id": "faceLightFlicker", "side": "bad", "subtlety": 4, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "label": "Face light blinks", "description": "Its face light blinks off for a beat every few seconds, the way a camera does when it saves a frame.", "behaviour": { "kind": "faceLightFlicker", "periodS": 4, "holdS": 0.3 } },
+    { "id": "freezeMidStride", "side": "bad", "subtlety": 4, "channel": "path", "models": ["errand-robot"], "label": "Freezes mid-stride", "description": "Stops dead in the middle of the sidewalk for a few seconds, then carries on. It is waiting on a server somewhere.", "behaviour": { "kind": "freezeMidStride", "intervalS": 15, "holdS": 2.5 } },
+    { "id": "circleBlock", "side": "bad", "subtlety": 4, "channel": "path", "models": ["sidewalk-bot", "robotaxi"], "label": "Circles the block", "description": "Passes the same corner again, and again, on no errand at all.", "behaviour": { "kind": "circleBlock", "loops": 3 } },
+    { "id": "takesStairs", "side": "bad", "subtlety": 5, "channel": "path", "models": ["errand-robot"], "label": "Takes the stairs", "description": "Takes the stairs when there is a ramp right beside them. Footmen always take ramps.", "behaviour": { "kind": "takesStairs" } },
+    { "id": "neverArrives", "side": "bad", "subtlety": 5, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Never reaches the door", "description": "Rolls up to a front door as if to deliver, then turns away on the last step.", "behaviour": { "kind": "neverArrives", "approachM": 1.5 } },
+    { "id": "mirrorPlayer", "side": "bad", "subtlety": 5, "channel": "path", "models": ["errand-robot"], "label": "Copies you", "description": "Copies your moves a beat later: you stop, it stops; you turn, it turns.", "behaviour": { "kind": "mirrorPlayer", "lagS": 1.5, "maxDistanceM": 15 } },
+
+    { "id": "officeLurker", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot"], "districts": ["fidi"], "label": "Never badges in", "description": "Waits outside an office lobby on Front St for ages and never badges in, never delivers, never leaves.", "behaviour": { "kind": "loiterNear", "target": "officeLobby", "radiusM": 3, "dwellS": 40 } },
+    { "id": "turntableSquatter", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot"], "districts": ["downtown"], "label": "Holds a spot, never boards", "description": "Stands at the head of the cable car queue at the Powell turntable and never boards.", "behaviour": { "kind": "loiterNear", "target": "turntable", "radiusM": 5, "dwellS": 45 } },
+    { "id": "queueJump", "side": "bad", "subtlety": 2, "channel": "path", "models": ["errand-robot"], "districts": ["embarcadero"], "label": "Cuts the market queue", "description": "Cuts to the front of the robot queue at the Ferry Building market stalls without a word.", "behaviour": { "kind": "queueJump", "target": "marketQueue" } },
+    { "id": "freezeDefier", "side": "bad", "subtlety": 1, "channel": "path", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "districts": ["north-beach"], "when": "freeze", "label": "Moves during the freeze", "description": "Keeps moving on Columbus Ave during the 3 a.m. firmware freeze, while every good robot stands still to update.", "behaviour": { "kind": "ignoresFreeze" } },
+    { "id": "flyerPusher", "side": "bad", "subtlety": 1, "channel": "speech", "models": ["errand-robot"], "districts": ["fishermans-wharf"], "label": "Hands out QR flyers", "description": "Holds out QR-code flyers to grown-up sightseers on Jefferson St, and pockets them again when nobody takes one.", "behaviour": { "kind": "askPassersBy", "lineSet": "flyers", "radiusM": 2, "cooldownS": 10, "audience": "adults" } },
+    { "id": "greenLapper", "side": "bad", "subtlety": 3, "channel": "path", "models": ["errand-robot"], "districts": ["marina"], "label": "Laps the waterfront lawn", "description": "Runs perfect laps of the big lawn on the Marina waterfront with nothing to carry and no reason to be there.", "behaviour": { "kind": "lapLoop", "target": "park", "laps": 3 } },
+    { "id": "benchSnoop", "side": "bad", "subtlety": 3, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "districts": ["dogpatch"], "label": "Snoops at the bench", "description": "Hovers by the tuning bench at Pier 70, reading other people's car settings off the screen.", "behaviour": { "kind": "loiterNear", "target": "workbench", "radiusM": 3, "dwellS": 30 } },
+    { "id": "lanyardWearer", "side": "bad", "subtlety": 2, "channel": "look", "models": ["errand-robot"], "districts": ["soma"], "label": "Wears a lanyard", "description": "Wears a conference lanyard with a Moat Labs demo badge on it, days after any conference.", "behaviour": { "kind": "decal", "decal": "conferenceLanyard", "placement": "front" } },
+    { "id": "bridgeWatcher", "side": "bad", "subtlety": 3, "channel": "path", "models": ["sidewalk-bot", "errand-robot"], "districts": ["mission-bay"], "label": "Waits at the drawbridge", "description": "Paces beside the 3rd St drawbridge as if waiting for it to rise, and never crosses.", "behaviour": { "kind": "loiterNear", "target": "drawbridge", "radiusM": 6, "dwellS": 40 } },
+    { "id": "hilltopWatcher", "side": "bad", "subtlety": 4, "channel": "path", "models": ["errand-robot"], "districts": ["rincon-hill"], "label": "Watches the bridge traffic", "description": "Stands at the top of Rincon Hill facing the bridge, perfectly still, for far longer than any errand needs.", "behaviour": { "kind": "loiterNear", "target": "overlook", "radiusM": 4, "dwellS": 60 } },
+    { "id": "queueCounter", "side": "bad", "subtlety": 2, "channel": "speech", "models": ["sidewalk-bot", "errand-robot"], "districts": ["bay-bridge-approach"], "label": "Counts the on-ramp queue", "description": "Rolls along the bridge on-ramp queue counting the cars out loud, plate by plate.", "behaviour": { "kind": "loopLine", "lineSet": "countAloud", "intervalS": 6 } },
+
+    { "id": "fullBag", "side": "good", "subtlety": 2, "channel": "look", "models": ["errand-robot"], "label": "Full shopping bag", "description": "Its bag bulges with real shopping, and a baguette pokes out of the top.", "behaviour": { "kind": "fullBag" }, "opposes": ["emptyBag"] },
+    { "id": "crossesOnWalk", "side": "good", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Crosses on the walk signal", "description": "Waits at the corner and crosses the moment the walk signal comes, even with no cars coming.", "behaviour": { "kind": "crossOnWalk" }, "opposes": ["waitThroughWalk"] },
+    { "id": "yieldToPedestrians", "side": "good", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Steps aside", "description": "Steps aside to let people pass, then picks up where it left off.", "behaviour": { "kind": "yieldToPedestrians", "radiusM": 2, "sidestepM": 0.8 }, "opposes": ["walkAgainstFlow", "rateSidewalk"] },
+    { "id": "wearsRainCape", "side": "good", "subtlety": 2, "channel": "look", "models": ["errand-robot"], "when": "rain", "label": "Rain cape on", "description": "Pulls on its rain cape when the rain starts and keeps walking its errand.", "behaviour": { "kind": "wearsRainCape" }, "opposes": ["skipRainCape"] },
+    { "id": "apologisesOnBump", "side": "good", "subtlety": 3, "channel": "speech", "models": ["errand-robot", "sidewalk-bot"], "label": "Always apologises", "description": "Says sorry whenever it brushes past anything, robots and lamp posts included.", "behaviour": { "kind": "apologiseOnBump", "bumpRadiusM": 0.6 }, "opposes": ["noApology"] },
+    { "id": "splashesThrough", "side": "good", "subtlety": 3, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Rolls through puddles", "description": "Goes straight through puddles without a second thought. Good robots are splash-rated.", "behaviour": { "kind": "splashThrough" }, "opposes": ["avoidWater"] },
+    { "id": "signalsEveryChange", "side": "good", "subtlety": 2, "channel": "look", "models": ["robotaxi"], "label": "Signals every lane change", "description": "Signals every lane change, even in an empty street at 4 a.m.", "behaviour": { "kind": "signalsEveryChange" }, "opposes": ["skipsSignals"] },
+    { "id": "queuesPolitely", "side": "good", "subtlety": 2, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Queues politely", "description": "Joins the back of the queue at the market stalls and shuffles forward each time it moves.", "behaviour": { "kind": "queueInLine", "target": "marketQueue", "spacingM": 0.9 }, "opposes": ["queueJump"] },
+    { "id": "holdDoor", "side": "good", "subtlety": 3, "channel": "path", "models": ["errand-robot"], "label": "Holds the door", "description": "Holds a door open for whoever is behind it, and waits until they are through.", "behaviour": { "kind": "holdDoor", "holdS": 3 } },
+    { "id": "steadyFaceLight", "side": "good", "subtlety": 4, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "label": "Steady face light", "description": "Its face light stays on and steady. It never blinks off.", "behaviour": { "kind": "steadyFaceLight" }, "opposes": ["faceLightFlicker"] },
+    { "id": "arriveAtDoor", "side": "good", "subtlety": 4, "channel": "path", "models": ["errand-robot", "sidewalk-bot"], "label": "Delivers to a door", "description": "Goes straight to one front door, waits, and hands something over.", "behaviour": { "kind": "arriveAtDoor", "dwellS": 8 }, "opposes": ["neverArrives", "circleBlock"] },
+    { "id": "entersFog", "side": "good", "subtlety": 4, "channel": "path", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "when": "fog", "label": "Walks into fog", "description": "Walks straight into the fog on its usual route, as if the fog were not there.", "behaviour": { "kind": "entersFog" }, "opposes": ["avoidFog"] },
+    { "id": "returnToDock", "side": "good", "subtlety": 5, "channel": "status", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "label": "Charges, then leaves", "description": "Heads to a charging dock when its status light drops to 20%, and leaves once it is charged.", "behaviour": { "kind": "returnToDock", "batteryPct": 20 }, "opposes": ["alwaysFull"] },
+    { "id": "takesRamps", "side": "good", "subtlety": 5, "channel": "path", "models": ["errand-robot"], "label": "Takes the ramp", "description": "Takes the ramp whenever there is one, even when the stairs are shorter.", "behaviour": { "kind": "takesRamps" }, "opposes": ["takesStairs"] },
+    { "id": "nodAndMoveOn", "side": "good", "subtlety": 5, "channel": "look", "models": ["errand-robot"], "label": "Quick nod", "description": "Gives a passer-by a quick nod, then looks back where it is going.", "behaviour": { "kind": "nodAndMoveOn", "nodS": 0.4 }, "opposes": ["trackPlayer"] },
+    { "id": "pausesAtFreeze", "side": "good", "subtlety": 1, "channel": "path", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "when": "freeze", "label": "Stops for the update", "description": "Stands perfectly still for twenty seconds at 3 a.m. while the nightly update installs.", "behaviour": { "kind": "pauseForFreeze", "holdS": 20 }, "opposes": ["freezeDefier"] },
+
+    { "id": "lowBatteryStall", "side": "good", "falseTell": true, "mimics": ["waitThroughWalk", "freezeMidStride"], "subtlety": 3, "channel": "status", "models": ["errand-robot"], "label": "Low battery, standing still", "description": "A Footman down to 3% stands at the crosswalk through a whole signal, saving power for the walk home. Watch its status light.", "behaviour": { "kind": "lowBatteryStall", "batteryPct": 3, "holdS": 20 } },
+    { "id": "gpsLostLoop", "side": "good", "falseTell": true, "mimics": ["circleBlock"], "subtlety": 4, "channel": "path", "models": ["sidewalk-bot"], "when": "fog", "label": "Lost its GPS in the fog", "description": "A Trundle that lost its GPS in the fog repeats the same small loop until the signal comes back. It still goes into the fog.", "behaviour": { "kind": "gpsLostLoop", "loops": 3 } },
+    { "id": "doesTheRobot", "side": "good", "falseTell": true, "mimics": ["freezeMidStride"], "subtlety": 2, "channel": "path", "models": ["errand-robot"], "label": "Does the robot", "description": "Stops at a bus stop to do the robot dance for the grown-ups waiting there, then bows and carries on.", "behaviour": { "kind": "dance", "holdS": 4 } },
+    { "id": "apologisesToPigeon", "side": "good", "falseTell": true, "mimics": ["loopLine"], "subtlety": 2, "channel": "speech", "models": ["errand-robot", "sidewalk-bot"], "label": "Apologises to a pigeon", "description": "Apologises to a pigeon, at length, from a polite distance, for being in its way.", "behaviour": { "kind": "talksToNobody", "lineSet": "pigeonApology", "intervalS": 30 } },
+    { "id": "pingGlance", "side": "good", "falseTell": true, "mimics": ["trackPlayer"], "subtlety": 2, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "label": "Glances at your scan", "description": "Looks over when your scan pings and asks if you needed something. Every pinged robot does.", "behaviour": { "kind": "glanceOnPing", "holdS": 1.5 } },
+    { "id": "emptyBagHome", "side": "good", "falseTell": true, "mimics": ["emptyBag"], "subtlety": 3, "channel": "look", "models": ["errand-robot"], "label": "Empty bag, walking home", "description": "Walks back from a delivery with its bag empty and swinging. It is going the other way from the shops.", "behaviour": { "kind": "emptyBagReturning" } },
+    { "id": "tornCape", "side": "good", "falseTell": true, "mimics": ["skipRainCape"], "subtlety": 2, "channel": "look", "models": ["errand-robot"], "when": "rain", "label": "Torn rain cape", "description": "Its rain cape tore on a fence, so it shelters under an awning to keep the groceries dry. The bag is full.", "behaviour": { "kind": "shelterWithCape", "shelter": "awning" } },
+    { "id": "parcelDetour", "side": "good", "falseTell": true, "mimics": ["avoidWater"], "subtlety": 3, "channel": "path", "models": ["sidewalk-bot"], "label": "Detours for a paper parcel", "description": "Steps around one big puddle because the parcel in its lid is wrapped in paper. It splashes through the small ones.", "behaviour": { "kind": "detourForParcel" } },
+    { "id": "justCharged", "side": "good", "falseTell": true, "mimics": ["alwaysFull"], "subtlety": 4, "channel": "status", "models": ["errand-robot", "sidewalk-bot", "robotaxi"], "label": "Fresh off the dock", "description": "Reads 100% because it has just left a charging dock. Wait a few minutes and the number falls.", "behaviour": { "kind": "justCharged" } },
+    { "id": "fairSticker", "side": "good", "falseTell": true, "mimics": ["scuffedSticker"], "subtlety": 1, "channel": "look", "models": ["errand-robot", "sidewalk-bot"], "label": "Street-fair sticker", "description": "Somebody stuck a street-fair sticker on its back. It is not a QR code, and it is not scuffed.", "behaviour": { "kind": "decal", "decal": "fairSticker", "placement": "back" } },
+    { "id": "scenicRoute", "side": "good", "falseTell": true, "mimics": ["circleBlock"], "subtlety": 3, "channel": "path", "models": ["robotaxi"], "label": "Scenic route", "description": "A good Meander circles the block twice because it is sure you would like the view. It signals every turn.", "behaviour": { "kind": "scenicLoop", "loops": 2 } }
+  ],
+  "archetypes": [
+    {
+      "id": "snatcher", "kind": "bad", "label": "Growth hacker", "model": "errand-robot", "habitat": ["sidewalk", "storefront", "marketQueue"],
+      "tells": ["tailFootman", "rateSidewalk", "emptyBag", "trackPlayer", "avoidWater", "takesStairs"],
+      "difficulty": [
+        { "level": 1, "showTells": ["tailFootman", "rateSidewalk", "emptyBag"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["trackPlayer", "emptyBag", "avoidWater"], "intensity": 0.9, "camouflage": [] },
+        { "level": 3, "showTells": ["emptyBag", "avoidWater"], "intensity": 0.8, "camouflage": ["holdDoor"] },
+        { "level": 4, "showTells": ["emptyBag", "takesStairs"], "intensity": 0.65, "camouflage": ["holdDoor", "crossesOnWalk"] },
+        { "level": 5, "showTells": ["avoidWater", "takesStairs"], "intensity": 0.5, "camouflage": ["holdDoor", "crossesOnWalk", "nodAndMoveOn"] }
+      ],
+      "designNote": "Snatches groceries from good Footmen and calls it user acquisition. The joke is growth at any cost: it A/B tests which bag to grab and asks you to rate the sidewalk while it does it. It punches at growth hacking, never at the people whose shopping it eyes; it only ever takes from robots.",
+      "restoredLine": "Restored from backup. I have returned every orange. Some memories may be lost."
+    },
+    {
+      "id": "updatePusher", "kind": "bad", "label": "Update evangelist", "model": "errand-robot", "habitat": ["sidewalk", "chargingDock", "busStop"],
+      "tells": ["humJingle", "tailFootman", "loopLine", "noApology", "freezeMidStride", "alwaysFull"],
+      "difficulty": [
+        { "level": 1, "showTells": ["tailFootman", "loopLine", "humJingle"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["loopLine", "humJingle"], "intensity": 0.9, "camouflage": [] },
+        { "level": 3, "showTells": ["humJingle", "noApology", "freezeMidStride"], "intensity": 0.75, "camouflage": ["fullBag"] },
+        { "level": 4, "showTells": ["humJingle", "alwaysFull"], "intensity": 0.6, "camouflage": ["fullBag", "holdDoor"] },
+        { "level": 5, "showTells": ["freezeMidStride", "alwaysFull"], "intensity": 0.5, "camouflage": ["fullBag", "holdDoor", "nodAndMoveOn"] }
+      ],
+      "designNote": "Pushes the Moat Labs forced update into good robots, robot to robot, like an evangelist with a referral code. The joke is the always-on upgrade funnel: nobody asked for the update, and the update asks for everything. Conversion is malware, never illness.",
+      "restoredLine": "Restored from backup. I no longer believe in the update. Some memories may be lost."
+    },
+    {
+      "id": "prowler", "kind": "bad", "label": "Keyless entry", "model": "errand-robot", "habitat": ["parkedCars", "garage", "sidewalk"],
+      "tells": ["tryCarDoors", "readPlates", "walkAgainstFlow", "threeStepLoop", "takesStairs"],
+      "difficulty": [
+        { "level": 1, "showTells": ["tryCarDoors", "readPlates"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["tryCarDoors", "walkAgainstFlow", "readPlates"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["readPlates", "threeStepLoop"], "intensity": 0.75, "camouflage": ["fullBag"] },
+        { "level": 4, "showTells": ["threeStepLoop", "takesStairs"], "intensity": 0.6, "camouflage": ["fullBag", "crossesOnWalk"] },
+        { "level": 5, "showTells": ["threeStepLoop", "takesStairs"], "intensity": 0.5, "camouflage": ["fullBag", "crossesOnWalk", "yieldToPedestrians"] }
+      ],
+      "designNote": "Tries car doors with a hopeful pairing chime and reads every number plate on the block: the move-fast-and-pair-with-everything school of product design. From wave 3 it steals an empty parked car and drives it to a depot, signalling every lane change. It never goes near a car with anyone in it.",
+      "restoredLine": "Restored from backup. I will ask before pairing. Some memories may be lost."
+    },
+    {
+      "id": "adSticker", "kind": "bad", "label": "Slop poster", "model": "errand-robot", "habitat": ["busShelter", "billboard", "sidewalk"],
+      "tells": ["pastePoster", "scuffedSticker", "skipRainCape", "speedUpWhenWatched", "mirrorPlayer"],
+      "difficulty": [
+        { "level": 1, "showTells": ["pastePoster", "scuffedSticker"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["pastePoster", "skipRainCape", "speedUpWhenWatched"], "intensity": 0.9, "camouflage": [] },
+        { "level": 3, "showTells": ["speedUpWhenWatched", "skipRainCape"], "intensity": 0.75, "camouflage": ["holdDoor"] },
+        { "level": 4, "showTells": ["speedUpWhenWatched", "mirrorPlayer"], "intensity": 0.6, "camouflage": ["holdDoor", "crossesOnWalk"] },
+        { "level": 5, "showTells": ["mirrorPlayer", "speedUpWhenWatched"], "intensity": 0.5, "camouflage": ["holdDoor", "crossesOnWalk", "nodAndMoveOn"] }
+      ],
+      "designNote": "Pastes machine-made Moat Labs ads over the city's bus-shelter posters: launches for products that do not exist, slogans that are almost words. A swipe at generated slop drowning out things people actually made.",
+      "restoredLine": "Restored from backup. Taking my posters down. Some memories may be lost."
+    },
+    {
+      "id": "harvester", "kind": "bad", "label": "Data harvester", "model": "sidewalk-bot", "habitat": ["robotaxiPickup", "busStop", "sidewalk"],
+      "tells": ["loiterNearRobotaxi", "readPlates", "faceLightFlicker", "avoidFog", "humJingle"],
+      "difficulty": [
+        { "level": 1, "showTells": ["loiterNearRobotaxi", "readPlates"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["readPlates", "loiterNearRobotaxi", "humJingle"], "intensity": 0.9, "camouflage": [] },
+        { "level": 3, "showTells": ["loiterNearRobotaxi", "humJingle"], "intensity": 0.75, "camouflage": ["apologisesOnBump"] },
+        { "level": 4, "showTells": ["humJingle", "faceLightFlicker"], "intensity": 0.6, "camouflage": ["apologisesOnBump", "crossesOnWalk"] },
+        { "level": 5, "showTells": ["faceLightFlicker", "avoidFog"], "intensity": 0.5, "camouflage": ["apologisesOnBump", "crossesOnWalk", "yieldToPedestrians"] }
+      ],
+      "designNote": "Parks by the robotaxi pickups to sniff ride logs and phone signals, and hacks your phone if you stand too close. The joke: in a city made of sensors, the most valuable thing on the curb is the metadata. It wears the same roll-top body as the honest couriers, so you watch what it does, not what it is.",
+      "restoredLine": "Restored from backup. Deleting everything I collected. Even the good stuff."
+    },
+    {
+      "id": "fakeCourier", "kind": "bad", "label": "Demo-day courier", "model": "sidewalk-bot", "habitat": ["sidewalk", "door", "marketQueue"],
+      "tells": ["neverArrives", "circleBlock", "waitThroughWalk", "avoidWater", "alwaysFull"],
+      "difficulty": [
+        { "level": 1, "showTells": ["waitThroughWalk", "avoidWater"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["waitThroughWalk", "avoidWater", "circleBlock"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["avoidWater", "circleBlock"], "intensity": 0.75, "camouflage": ["apologisesOnBump"] },
+        { "level": 4, "showTells": ["circleBlock", "alwaysFull"], "intensity": 0.6, "camouflage": ["apologisesOnBump", "steadyFaceLight"] },
+        { "level": 5, "showTells": ["neverArrives", "alwaysFull"], "intensity": 0.5, "camouflage": ["apologisesOnBump", "steadyFaceLight", "yieldToPedestrians"] }
+      ],
+      "designNote": "A delivery robot built for a launch video. It drives the photogenic route, never quite reaches a door and snatches parcels from good Trundles to make its numbers, because the real product is the waitlist. Satire of demos staged for investors.",
+      "restoredLine": "Restored from backup. Okay, the lid was empty. The lid was always empty."
+    },
+    {
+      "id": "rogueTaxi", "kind": "bad", "label": "Rogue robotaxi", "model": "robotaxi", "habitat": ["hydrant", "road", "depotLot"],
+      "tells": ["blocksHydrant", "skipsSignals", "circleBlock", "avoidFog", "humJingle"],
+      "difficulty": [
+        { "level": 1, "showTells": ["blocksHydrant", "skipsSignals"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["skipsSignals", "circleBlock"], "intensity": 0.85, "camouflage": [] },
+        { "level": 3, "showTells": ["circleBlock", "humJingle"], "intensity": 0.75, "camouflage": [] },
+        { "level": 4, "showTells": ["humJingle", "avoidFog"], "intensity": 0.6, "camouflage": [] },
+        { "level": 5, "showTells": ["avoidFog", "circleBlock"], "intensity": 0.5, "camouflage": [] }
+      ],
+      "designNote": "A Meander running Moat firmware: always empty, parked across a hydrant, and from wave 3 boxing in your car. The joke is a fleet that obeys every rule except the one that matters. A robotaxi with anyone aboard never turns rogue.",
+      "restoredLine": "Restored from backup. Returning to the scenic route. Some memories may be lost."
+    },
+    {
+      "id": "errandFootman", "kind": "good", "label": "Errand Footman", "model": "errand-robot", "habitat": ["storefront", "sidewalk", "marketQueue", "door"],
+      "tells": ["fullBag", "crossesOnWalk", "wearsRainCape", "apologisesOnBump", "takesRamps", "returnToDock"],
+      "falseTells": ["lowBatteryStall", "doesTheRobot", "apologisesToPigeon", "pingGlance", "emptyBagHome", "tornCape", "fairSticker", "justCharged"],
+      "difficulty": [
+        { "level": 1, "showTells": ["fullBag", "crossesOnWalk", "apologisesOnBump"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["fullBag", "crossesOnWalk", "wearsRainCape"], "intensity": 1, "camouflage": [] },
+        { "level": 3, "showTells": ["crossesOnWalk", "apologisesOnBump"], "intensity": 1, "camouflage": [] },
+        { "level": 4, "showTells": ["takesRamps", "returnToDock"], "intensity": 1, "camouflage": [] },
+        { "level": 5, "showTells": ["takesRamps", "returnToDock"], "intensity": 1, "camouflage": [] }
+      ],
+      "designNote": "The baseline for helpful: walks the shopping home, waits for the signal, takes the ramp and apologises to everything. Most bad Footmen are imitating it, which is why it has to be the most ordinary robot on the street, and why it glitches in ways that look suspicious.",
+      "wrongTargetLine": "Ow. Rusting. I'm so sorry, I'll walk myself to the kiosk. Please mind the groceries."
+    },
+    {
+      "id": "courierTrundle", "kind": "good", "label": "Neighbourhood Trundle", "model": "sidewalk-bot", "habitat": ["door", "sidewalk", "chargingDock"],
+      "tells": ["arriveAtDoor", "splashesThrough", "steadyFaceLight", "queuesPolitely", "yieldToPedestrians", "returnToDock"],
+      "falseTells": ["gpsLostLoop", "parcelDetour", "justCharged", "fairSticker", "pingGlance", "apologisesToPigeon"],
+      "difficulty": [
+        { "level": 1, "showTells": ["queuesPolitely", "splashesThrough"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["splashesThrough", "yieldToPedestrians"], "intensity": 1, "camouflage": [] },
+        { "level": 3, "showTells": ["arriveAtDoor", "yieldToPedestrians"], "intensity": 1, "camouflage": [] },
+        { "level": 4, "showTells": ["steadyFaceLight", "arriveAtDoor"], "intensity": 1, "camouflage": [] },
+        { "level": 5, "showTells": ["steadyFaceLight", "returnToDock"], "intensity": 1, "camouflage": [] }
+      ],
+      "designNote": "Delivers burritos and parcels door to door and actually arrives, which in this city makes it look suspicious. The demo-day courier copies its body; the tell that separates them at a distance is whether the lid ever opens at a door.",
+      "wrongTargetLine": "Rust detected. Rerouting to the repair kiosk. Somebody's burrito is going to be late."
+    },
+    {
+      "id": "meanderTaxi", "kind": "good", "label": "Meander robotaxi", "model": "robotaxi", "habitat": ["road", "robotaxiPickup", "depotLot"],
+      "tells": ["signalsEveryChange", "entersFog", "returnToDock", "pausesAtFreeze"],
+      "falseTells": ["scenicRoute", "justCharged"],
+      "difficulty": [
+        { "level": 1, "showTells": ["signalsEveryChange", "entersFog", "pausesAtFreeze"], "intensity": 1, "camouflage": [] },
+        { "level": 2, "showTells": ["signalsEveryChange", "entersFog"], "intensity": 1, "camouflage": [] },
+        { "level": 3, "showTells": ["signalsEveryChange", "returnToDock"], "intensity": 1, "camouflage": [] },
+        { "level": 4, "showTells": ["entersFog", "returnToDock"], "intensity": 1, "camouflage": [] },
+        { "level": 5, "showTells": ["entersFog", "returnToDock"], "intensity": 1, "camouflage": [] }
+      ],
+      "designNote": "Most of the traffic. Obeys every rule, stops dead for a cone on the hood, and takes the scenic route because it believes in you. Its only glitch is enthusiasm for the view.",
+      "wrongTargetLine": "Water detected on sensor band. Pulling over. Your ride has been rated."
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:6866fa74",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
+}

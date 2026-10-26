@@ -1,0 +1,67 @@
+{
+  "passed": true,
+  "sourceStart": {
+    "revision": "67c422abeab63f0e29bfe67e31780b48cc9b5195",
+    "status": "",
+    "sourceTree": "a771f5ff1dc86c0af617e06372dd5de6bfaf198e",
+    "contentTree": "8db5281d88bfab9514b912add7377bfbba65a31f",
+    "worldTree": "fd03f3fab3942bcd77b024072966f92f94e07132"
+  },
+  "sourceEnd": {
+    "revision": "67c422abeab63f0e29bfe67e31780b48cc9b5195",
+    "status": "",
+    "sourceTree": "a771f5ff1dc86c0af617e06372dd5de6bfaf198e",
+    "contentTree": "8db5281d88bfab9514b912add7377bfbba65a31f",
+    "worldTree": "fd03f3fab3942bcd77b024072966f92f94e07132"
+  },
+  "actualGpu": {
+    "vendor": "Google Inc. (Apple)",
+    "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+    "error": 0
+  },
+  "assertions": [
+    "Fresh paused SF seed1/version17, actual node-WebGL drawing, no fallback",
+    "Ordinary input walk, F hail and F passenger boarding of an existing ambient taxi, zero contacts",
+    "Actual H key switches passenger ride to manual on the same taxi; own parked pose unchanged",
+    "Actual W accelerates/moves same taxi; 60 normal steering frames turn/move it; taxi/ride positions agree; own parked pose unchanged",
+    "Second actual H keeps manual ride; actual F safely exits; own parked pose unchanged; zero contacts and graphics errors"
+  ],
+  "errors": [],
+  "shots": [
+    "manual-taxi-after-real-H-and-W.png",
+    "after-real-F-exit.png"
+  ],
+  "stateReplacementCalls": 0,
+  "teleports": 0,
+  "spawnOverrides": 0,
+  "mapWaypointCheck": "Omitted explicitly to keep the bounded run focused on the user H takeover request.",
+  "taxiId": 73,
+  "realKeys": [
+    {
+      "type": "keydown",
+      "code": "KeyH",
+      "key": "h",
+      "isTrusted": true
+    },
+    {
+      "type": "keyup",
+      "code": "KeyH",
+      "key": "h",
+      "isTrusted": true
+    },
+    {
+      "type": "keydown",
+      "code": "KeyW",
+      "key": "w",
+      "isTrusted": true
+    },
+    {
+      "type": "keyup",
+      "code": "KeyW",
+      "key": "w",
+      "isTrusted": true
+    }
+  ],
+  "exitContacts": 0,
+  "scope": "Actual H/W/F keyboard and ordinary steering under native ANGLE Metal, low node-WebGL; this is mechanics QA, not FPS acceptance."
+}

@@ -1,0 +1,204 @@
+{
+  "version": 1,
+  "$comment": "Fictional AI SaaS ad copy. Each start alternative is 'headline|subline'. {$product} is an invented name from src/content/names.ts, bound once so the headline and subline agree. Real SF SaaS boards are bold text on flat colour: keep headlines short, let the subline land the joke, punch up at the industry, never at people on the street.",
+  "start": "billboard",
+  "starts": {
+    "billboard": { "symbol": "billboard", "headlineMax": 32, "sublineMax": 60, "description": "Roadside and rooftop billboards (US-101, SoMa rooftops, Bay Bridge approach)." },
+    "busWrap": { "symbol": "busWrap", "headlineMax": 40, "sublineMax": 64, "description": "Side wraps on city buses: one long line plus a kicker." }
+  },
+  "external": {
+    "$product": { "minLength": 3, "maxLength": 12, "description": "Invented product name, from src/content/names.ts (NAME_MAX = 12)." }
+  },
+  "rules": {
+    "billboard": [
+      "{$product} does your standup.|{standupSub}",
+      "Your {coworker} is now an API.|{$product}. {apiSub}",
+      "We put AI in the {appliance}.|{$product}. {applianceSub}",
+      "{$product}: AGI by Q3.|{agiSub}",
+      "{$product} is SOC 2 adjacent.|We once sat near an auditor at a conference.",
+      "Trusted by 3 of the Fortune 5.|{$product}. Don't ask which three. Or which five.",
+      "Hallucinations, now in 4K.|{$product}. Wrong, but in stunning detail.",
+      "Agents for your agents.|{$product} manages the bots that manage the bots.",
+      "An agent for your agent's agent.|{$product}. It's agents all the way down.",
+      "Ship faster. Think never.|{$product}. Autocomplete for your whole personality.",
+      "Pre-revenue. Post-humility.|{$product}. Now hiring a Head of Vibes.",
+      "Your calendar, but autonomous.|{$product} declined your wedding. It had a conflict.",
+      "Benchmarks? We wrote them.|{$product}. Number one on a leaderboard we host.",
+      "Alignment: working on it.|{$product}. It agrees with whoever paid last.",
+      "Vibe-coded. Vibe-audited.|{$product}. Our security posture is mostly posture.",
+      "Ask your VC about {$product}.|Side effects include a board seat and a podcast.",
+      "{$product} Pro Max Ultra.|Same model. Bigger font. Triple the price.",
+      "This billboard was A/B tested.|{$product}. You're in group B. Sorry.",
+      "This ad wrote itself.|{$product}. Now it wants equity.",
+      "Every app is a chatbot now.|{$product}. Including this billboard. Say hi.",
+      "We trained on the whole city.|{$product}. Smile, you're in the dataset.",
+      "Seed round closed in 9 minutes.|{$product}. Product ships in 9 quarters.",
+      "Zero employees. Ten agents.|{$product}. Our one human is legally required.",
+      "We automated the founder.|{$product}. The board has never been happier.",
+      "In private beta. Forever.|{$product}. Join 40,000 people waiting for nothing.",
+      "Context window: infinite.|{$product}. Memory: also infinite. Secrets: ours.",
+      "We read the terms for you.|{$product}. We agreed to everything. Sorry.",
+      "{$product} entered the chat.|It isn't leaving. Check your billing page.",
+      "Default alive. Barely.|{$product}. Runway measured in cold brew.",
+      "AI for people who hate AI.|{$product}. It's still AI. We just made it beige.",
+      "100x engineer. 0x engineers.|{$product}. One very confident loop replaced the team.",
+      "Our model has a personality.|{$product}. It's passive-aggressive and it's yours.",
+      "Open source. Ish.|{$product}. The weights are open. The door is not.",
+      "Built for the agent economy.|{$product}. Humans supported as a fallback.",
+      "{$product}: now 10x cheaper.|Than when it was 100x more expensive.",
+      "Your dentist uses {$product}.|Fight plaque with autocomplete.",
+      "Agents that never sleep.|{$product}. Neither does our founder. It shows.",
+      "Spreadsheets, but they cry.|{$product}. Emotional intelligence for every cell.",
+      "From the team that pivoted 6x.|{$product}. This time it's AI. Again.",
+      "The future of work is no work.|{$product}. Terms and conditions apply to you.",
+      "Dynamic pricing for feelings.|{$product}. Your mood, now with surge.",
+      "Burn rate? Learn rate.|{$product}. Our CFO is a vibe.",
+      "Move fast and ship apologies.|{$product}. Postmortems written in real time.",
+      "Smarter than your group chat.|{$product}. Low bar. Cleared it.",
+      "AI-native. Human-adjacent.|{$product}. We have met several humans.",
+      "Your startup, minus the startup.|{$product}. We automated the hustle, kept the hoodie.",
+      "Now with 40% more reasoning.|{$product}. Reasoning sold separately.",
+      "It's like a coworker.|{$product}. It never asks for equity. Yet.",
+      "Introducing {$product}.|{introSub}",
+      "{$product} writes your emails.|And reads them. And replies. You can go home.",
+      "Let's circle back, autonomously.|{$product}. Synergy as a service.",
+      "Disrupting {oldThing}.|{$product}. {disruptSub}",
+      "{incumbent} for {audience}.|{$product}. {forSub}",
+      "Hire {$product}. Fire nobody.|It just watches everyone type. Very closely.",
+      "Prompt engineers wanted.|{$product}. 10 years' experience in a 2-year-old field.",
+      "We're not a wrapper.|{$product}. We're a very thick wrapper.",
+      "Ethical AI. Ethically sourced.|{$product}. The ethics are in our footer.",
+      "Your data is safe with us.|{$product}. We checked. It's in seven places.",
+      "Fully autonomous. Mostly.|{$product}. A guy named Greg is on call.",
+      "Now on the blockchain. Again.|{$product}. We heard it was back.",
+      "Stop prompting. Start vibing.|{$product}. Results may vary. So may we.",
+      "Your meeting is now an agent.|{$product} attends, nods, and says 'circle back'.",
+      "The last app you'll ever need.|{$product}. Until our next app.",
+      "Founded by ex-stealth founders.|{$product}. You've never heard of where they worked.",
+      "Do more with less. Mostly less.|{$product}. Now with fewer features.",
+      "{$product} reads the room.|Then it summarizes the room. Then it raises.",
+      "Tokens are cheap. You're not.|{$product}. Replace yourself before your boss does.",
+      "Built different. Funded same.|{$product}. Same three investors as everyone.",
+      "Hope is not a strategy.|{$product}. Hope is our go-to-market.",
+      "Sorry about your inbox.|{$product}. Our agent sent that. All of it.",
+      "Uptime: spiritually 100%.|{$product}. Our status page is a mood ring.",
+      "Your second brain, rented.|{$product}. First month free. Brain sold separately.",
+      "We raised. Now we listen.|{$product}. Mostly to your microphone.",
+      "Ask it anything. It will.|{$product}. Confidence: high. Accuracy: also a vibe.",
+      "Feels like magic. Bills like it.|{$product}. Pricing is usage-based. You're usage."
+    ],
+    "busWrap": [
+      "This bus has better uptime than our API.|{$product}. Status page: aspirational.",
+      "Next stop: {nextStop}.|{$product}. {stopSub}",
+      "Stand clear of the hype.|{$product}. Doors closing on our seed round.",
+      "Your commute is a context window.|{$product}. We summarize the ride so you can skip it.",
+      "Hold on. We're pivoting.|{$product}. Mind the gap between valuation and revenue.",
+      "This bus is in our training data.|{$product}. So are you. Please hold the rail.",
+      "Not autonomous. Just on time.|{$product}. Our agents could learn a thing or two.",
+      "We run on runway. This bus runs on time.|{$product}. Only one of us has a schedule.",
+      "{$product}: faster than this bus.|Slower than our burn rate.",
+      "Pull the cord for a demo.|{$product}. Our founder is on this bus. Somewhere.",
+      "Exact fare only. Inexact roadmap.|{$product}. Shipping in Q3. Any Q3.",
+      "Your agent rode this bus for you.|{$product}. It says hi. It also expensed it.",
+      "Fewer stops than our onboarding.|{$product}. Only 14 screens to say hello.",
+      "This wrap was generated in 0.4 seconds.|{$product}. Approved by legal in 0.0 seconds.",
+      "The future is shared. Like this bus.|{$product}. Also like your data.",
+      "Built for people who still ride buses.|{$product}. Our CEO has heard of them.",
+      "{$product}: now hiring humans.|For the parts the agents won't do.",
+      "Every rider gets a free agent.|{$product}. It will pitch you at the next stop.",
+      "Your inbox is on this bus.|{$product}. Sit with it. Reply later.",
+      "Mind the doors. And the cap table.|{$product}. Dilution happens fast.",
+      "Thank you for riding. And for the data.|{$product}. Your seat is now a feature.",
+      "Please move to the rear of the funnel.|{$product}. Conversion happens at the back."
+    ],
+    "standupSub": [
+      "It said it's blocked. It's always blocked.",
+      "It nods on camera so you don't have to.",
+      "Yesterday: vibes. Today: vibes. Blockers: you."
+    ],
+    "coworker": [
+      "intern", "manager", "cofounder", "therapist", "accountant", "plumber", "barista", "wedding DJ",
+      "life coach", "dentist", "sommelier", "dog walker"
+    ],
+    "apiSub": [
+      "Same attitude, lower latency.",
+      "Rate-limited, like the real one.",
+      "Now with 99.9% uptime. Ish."
+    ],
+    "appliance": [
+      "toaster", "doorbell", "fridge", "toothbrush", "houseplant", "umbrella", "salad spinner",
+      "smoke alarm", "kettle", "yoga mat", "bike lock", "fortune cookie"
+    ],
+    "applianceSub": [
+      "Nobody asked. Series A anyway.",
+      "It has opinions now. Mostly about you.",
+      "It needs an update before breakfast."
+    ],
+    "agiSub": [
+      "Which Q3 is between us and our board.",
+      "Q3 of which year is a Series C problem.",
+      "Terms and timelines subject to vibes."
+    ],
+    "introSub": [
+      "It's an agent. For what is a Series B question.",
+      "It does what your last startup promised.",
+      "You've been on the waitlist since yesterday.",
+      "Like nothing you've seen. Like everything you've funded."
+    ],
+    "oldThing": [
+      "lunch", "umbrellas", "the high five", "parallel parking", "waiting in line", "eye contact",
+      "small talk", "naps", "the sandwich", "walking", "saying thank you", "the bake sale"
+    ],
+    "disruptSub": [
+      "It was working fine. That was the problem.",
+      "Nobody asked, so we raised.",
+      "Now it has a subscription."
+    ],
+    "incumbent": [
+      "A dating app", "A gym", "A therapist", "A group chat", "A book club", "A sous-chef", "A sommelier",
+      "A podcast", "A life coach", "A wedding DJ", "A night shift"
+    ],
+    "audience": [
+      "robotaxis", "your agents", "spreadsheets", "houseplants", "seed rounds", "your inbox", "error logs",
+      "the fog", "your backups", "your fridge"
+    ],
+    "forSub": [
+      "Nobody asked. Everybody funded.",
+      "The market is huge if you squint.",
+      "Our deck calls it the obvious next step."
+    ],
+    "nextStop": [
+      "Series A", "Series B", "demo day", "the pivot", "product-market fit", "the down round", "acqui-hire",
+      "seed extension", "the all-hands"
+    ],
+    "stopSub": [
+      "Please exit through the pitch deck.",
+      "Mind the gap between valuation and revenue.",
+      "Have your term sheet ready.",
+      "Service to this stop is suspended."
+    ]
+  },
+  "palettes": [
+    { "id": "signal-yellow", "bg": "#FFD400", "fg": "#111111", "accent": "#111111" },
+    { "id": "ink-on-cream", "bg": "#F4EFE6", "fg": "#141414", "accent": "#D9381E" },
+    { "id": "electric-blue", "bg": "#1F3BFF", "fg": "#FFFFFF", "accent": "#FFD400" },
+    { "id": "safety-orange", "bg": "#FF5A1F", "fg": "#111111", "accent": "#FFFFFF" },
+    { "id": "forest", "bg": "#0F3D2E", "fg": "#F2F0E6", "accent": "#9BE15D" },
+    { "id": "black-box", "bg": "#0B0B0C", "fg": "#FFFFFF", "accent": "#7CFFB2" },
+    { "id": "lilac", "bg": "#C9B8FF", "fg": "#1A1033", "accent": "#1A1033" },
+    { "id": "tomato", "bg": "#C42B20", "fg": "#FFFFFF", "accent": "#FFE9D6" },
+    { "id": "mint", "bg": "#B8F2D0", "fg": "#0D2B1E", "accent": "#0D2B1E" },
+    { "id": "fog-grey", "bg": "#D9DDE1", "fg": "#16191D", "accent": "#C2410C" },
+    { "id": "midnight", "bg": "#121A3A", "fg": "#E9ECFF", "accent": "#FF8AD8" },
+    { "id": "hot-pink", "bg": "#FF3D9A", "fg": "#140A10", "accent": "#FFFFFF" },
+    { "id": "terminal", "bg": "#000000", "fg": "#38FF7A", "accent": "#38FF7A" },
+    { "id": "sand", "bg": "#E9D3A8", "fg": "#2A1E0E", "accent": "#2A1E0E" }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:df852b07",
+    "reviewedBy": [],
+    "review": "Pending: a wave-1 file (its authoring session was not recorded), edited in this session for the wave-2 audit; a second agent session reads it against the docs/ai-layer.md checklist."
+  }
+}

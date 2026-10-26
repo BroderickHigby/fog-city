@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v16 street props (props.ts, impacts.ts) on top of v15 robots and v14 impacts, on 59e5a7ba",
+  "simVersion": 16,
+  "hashes": [
+    "f0deb97b",
+    "bba94ac8",
+    "024c3d83",
+    "8c5dc952",
+    "2be8abb3"
+  ]
+}

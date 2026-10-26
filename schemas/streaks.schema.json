@@ -1,0 +1,128 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/streaks",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "equippedSlots",
+    "rewards",
+    "modes",
+    "boosts",
+    "provenance"
+  ],
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "equippedSlots": {
+      "const": 3
+    },
+    "rewards": {
+      "type": "array",
+      "minItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "threshold",
+          "durationS",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "threshold": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "durationS": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "modes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "points",
+          "resetOn"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "points": {
+            "type": "object",
+            "minProperties": 1,
+            "additionalProperties": {
+              "type": "integer"
+            }
+          },
+          "resetOn": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "pattern": "^[a-z][A-Za-z0-9-]*$"
+            }
+          }
+        }
+      }
+    },
+    "boosts": {
+      "type": "array",
+      "minItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "sunDurationS",
+          "fogDurationS"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z][A-Za-z0-9-]*$"
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "sunDurationS": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "fogDurationS": {
+            "type": "integer",
+            "minimum": 1
+          }
+        }
+      }
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

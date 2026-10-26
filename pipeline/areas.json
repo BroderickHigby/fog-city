@@ -1,0 +1,171 @@
+{
+  "$comment": "World definitions for pipeline/build-world.ts. Adding a neighbourhood = adding an entry to a world's areas. Every 500 m tile an area's bbox touches is built complete (all buildings whose centroid is in the tile), so areas never cut a block in half at a tile seam.",
+  "worlds": {
+    "sf": {
+      "title": "San Francisco",
+      "citywide": {
+        "$comment": "The whole city: every 500 m tile in this box with SF buildings, roads or land (inside DataSF's Analysis Neighborhoods) is built; open-water tiles get no file and are listed in manifest.json water. The box contains every footprint, active street and neighbourhood (DataSF extents, 2026-10-20) and leaves out the Farallon Islands. The areas below now only label milestones.",
+        "north": 37.834,
+        "west": -122.516,
+        "south": 37.704,
+        "east": -122.356,
+        "demBlockTiles": 8
+      },
+      "areas": [
+        {
+          "id": "downtown",
+          "milestone": "M0",
+          "name": "Downtown: Ferry Building, Embarcadero, Financial District, the 415 Mission St tower, Bay Bridge touchdown",
+          "north": 37.805,
+          "west": -122.405,
+          "south": 37.78,
+          "east": -122.385
+        },
+        {
+          "id": "north-beach",
+          "milestone": "M1",
+          "name": "North Beach",
+          "north": 37.808,
+          "west": -122.417,
+          "south": 37.797,
+          "east": -122.403
+        },
+        {
+          "id": "embarcadero-north",
+          "milestone": "M1",
+          "name": "Embarcadero north: Telegraph Hill, Fisherman's Wharf, the northern piers",
+          "north": 37.812,
+          "west": -122.425,
+          "south": 37.795,
+          "east": -122.388
+        },
+        {
+          "id": "marina",
+          "milestone": "M1",
+          "name": "Marina",
+          "north": 37.81,
+          "west": -122.448,
+          "south": 37.798,
+          "east": -122.425
+        },
+        {
+          "id": "dogpatch",
+          "milestone": "M1",
+          "name": "Dogpatch (incl. 315 Pennsylvania Ave)",
+          "north": 37.766,
+          "west": -122.395,
+          "south": 37.755,
+          "east": -122.385
+        }
+      ],
+      "spawn": {
+        "$comment": "Spawn on the named street, at the point of it nearest to this lat/lon, heading along the road.",
+        "street": "THE EMBARCADERO",
+        "lat": 37.7951,
+        "lon": -122.3932,
+        "towardLat": 37.7995,
+        "towardLon": -122.3975
+      },
+      "sources": {
+        "buildings": "ynuv-fyni",
+        "streets": "3psu-pn9h",
+        "assessor": "wv5m-vpq2",
+        "assessorRollYear": 2025,
+        "businesses": "g8m3-pdis",
+        "neighborhoods": "j2bu-swwd",
+        "fountains": "wfq4-upmv",
+        "muniStops": "i28k-bkz6",
+        "muniRoutes": "9exe-acju",
+        "signals": "ybh5-27n2",
+        "crosswalks": "g9zy-srvv",
+        "streetCleaning": "yhqp-riqs",
+        "parking": "hi6h-neyh",
+        "snapshotDate": "2026-10-20"
+      },
+      "probes": {
+        "$comment": "Named points whose building ids the build reports (report.json \"probes\"), so landmark placements can list replacesBuildingIds. Labels are addresses or public landmark names, never brands. radiusM: report every record within that distance (a landmark the data splits into several records).",
+        "points": [
+          {
+            "id": "ferry-building",
+            "label": "Ferry Building clock tower (world origin)",
+            "lat": 37.7955,
+            "lon": -122.3937
+          },
+          {
+            "id": "415-mission",
+            "label": "415 Mission St tower (tallest, completed 2018)",
+            "lat": 37.7897,
+            "lon": -122.3972
+          },
+          {
+            "id": "600-montgomery",
+            "label": "600 Montgomery St pyramid",
+            "lat": 37.7952,
+            "lon": -122.4028
+          },
+          {
+            "id": "coit-tower",
+            "label": "Coit Tower, Telegraph Hill",
+            "lat": 37.8024,
+            "lon": -122.4058
+          },
+          {
+            "id": "saints-peter-and-paul",
+            "label": "Saints Peter and Paul Church, Washington Square",
+            "lat": 37.8003,
+            "lon": -122.4104
+          },
+          {
+            "id": "beach-st-pier",
+            "label": "Pier at The Embarcadero and Beach St (marketplace, sea-lion floats)",
+            "lat": 37.8087,
+            "lon": -122.4098
+          },
+          {
+            "id": "palace-of-fine-arts",
+            "label": "Palace of Fine Arts rotunda",
+            "lat": 37.8029,
+            "lon": -122.4484
+          },
+          {
+            "id": "315-pennsylvania",
+            "label": "315 Pennsylvania Ave, Dogpatch (east side of the 300 block; the 2025 roll lists 301 and 331)",
+            "lat": 37.76241,
+            "lon": -122.39325
+          },
+          {
+            "id": "sutro-tower",
+            "label": "Sutro Tower (lattice radio tower; the footprint data fills its upper structure as solid blocks, overridden to 3 m plinths until a landmark replaces these records)",
+            "lat": 37.7552,
+            "lon": -122.4528,
+            "radiusM": 60
+          },
+          {
+            "id": "city-hall",
+            "label": "City Hall dome, Civic Center",
+            "lat": 37.7793,
+            "lon": -122.4193
+          },
+          {
+            "id": "grace-cathedral",
+            "label": "Grace Cathedral, Nob Hill",
+            "lat": 37.7919,
+            "lon": -122.4133
+          },
+          {
+            "id": "mission-dolores",
+            "label": "Mission Dolores",
+            "lat": 37.7643,
+            "lon": -122.4269
+          },
+          {
+            "id": "conservatory-of-flowers",
+            "label": "Conservatory of Flowers, Golden Gate Park",
+            "lat": 37.7726,
+            "lon": -122.4603
+          }
+        ]
+      }
+    }
+  }
+}

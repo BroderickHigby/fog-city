@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "Combined v16: contextual robotaxi takeover, retaining civilian traffic and jog/sprint 3.5/8 m/s; previous release fb5d8981b600d679c796e0b1218fb78de0f0474d",
+  "simVersion": 16,
+  "hashes": [
+    "27277dc2",
+    "7194f7ef",
+    "8a26ea39",
+    "b3e97cce",
+    "e6c6c1bd"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/hydrants",
+  "title": "Fire hydrants (public/tiles/<world>/hydrants.json): water refill points, procedural.",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "hydrants"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "hydrants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "z",
+          "y",
+          "at"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "x": {
+            "type": "number"
+          },
+          "z": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          },
+          "at": {
+            "type": "string",
+            "description": "Sidewalk node or edge it stands at"
+          }
+        }
+      }
+    }
+  }
+}

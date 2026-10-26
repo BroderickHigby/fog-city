@@ -1,0 +1,164 @@
+{
+  "id": "spill",
+  "version": 1,
+  "wave": 2,
+  "campaign": 2,
+  "$comment": "Mission 2 (docs/design.md, Campaign spine): the first real bounty. A crew of three on the Embarcadero, one of them posted. Watch, then Bot Check beta, then melt; the crew converges and threat reaches 2; then escape (fog, traffic, a car wash) until threat is 0. The e2e scenario ?world=sf&scenario=spill expects a heap within 30 s of the driver's start.",
+  "title": "Spill",
+  "summary": "BotBounty has posted its first crew: three bad robots working the Embarcadero, one of them posted. Watch them, scan them, rust them, and get out before the rest of Moat Labs shows up.",
+  "area": "Embarcadero",
+  "start": "posting",
+  "cast": {
+    "player": { "name": "You", "role": "Founder" },
+    "dispatch": { "name": "Dispatcher", "role": "BotBounty's dispatcher bot", "description": "Polite, terse and paid per posting." },
+    "cofounder": { "name": "Your cofounder", "role": "Cofounder, by text", "description": "Shipped Bot Check beta last night. It is confident." }
+  },
+  "actors": {
+    "posted": { "kind": "badRobot", "archetype": "snatcher", "level": 2, "posted": true, "note": "The posted robot: a growth hacker working the promenade." },
+    "pusher": { "kind": "badRobot", "archetype": "updatePusher", "level": 2, "note": "Hidden: pushes the update into good robots by the ferry doors." },
+    "sniffer": { "kind": "badRobot", "archetype": "harvester", "level": 2, "note": "Hidden: a Trundle by the robotaxi pickup." },
+    "crew": { "kind": "crew", "members": ["snatcher", "updatePusher", "harvester"], "note": "A crew of three within 60 m; one posted, two hidden." },
+    "bystander": { "kind": "goodRobot", "archetype": "errandFootman", "note": "Good Footmen queue at the market stalls; read before you spray." }
+  },
+  "meters": {},
+  "outcomes": {
+    "paid": { "label": "Bounty paid", "kind": "success" },
+    "scattered": { "label": "The crew scattered", "kind": "retry" },
+    "cornered": { "label": "Couldn't shake them", "kind": "retry" },
+    "cold": { "label": "The trail went cold", "kind": "retry" }
+  },
+  "steps": [
+    {
+      "id": "posting",
+      "type": "trigger",
+      "event": {
+        "kind": "phoneCall",
+        "caller": "dispatch",
+        "place": { "label": "The FiDi coworking desk, Montgomery St", "lat": 37.7905, "lon": -122.4015, "radiusM": 40, "source": "content/safehouses.json fidi-desk" }
+      },
+      "lines": [
+        { "speaker": "dispatch", "text": "BotBounty dispatch. One posting near the Embarcadero at Mission St: a Footman, crew of three. Pays on melt." },
+        { "speaker": "cofounder", "text": "bot check beta is on your phone now. it's 97% confident about everything. that's a joke. it's also true" }
+      ],
+      "next": "go"
+    },
+    {
+      "id": "go",
+      "type": "goto",
+      "travel": "any",
+      "target": { "label": "The Embarcadero at Mission St", "lat": 37.79377, "lon": -122.3925, "radiusM": 40, "source": "DataSF street centerline intersection (3psu-pn9h)" },
+      "timer": { "limitS": 300, "warnAtS": 60, "label": "Posting expires" },
+      "next": "crew",
+      "onTimeout": "cold"
+    },
+    {
+      "id": "crew",
+      "type": "stage",
+      "note": "One posted robot and two hidden ones, all within 60 m, among good robots at the market stalls.",
+      "actors": ["crew", "posted", "pusher", "sniffer", "bystander"],
+      "place": { "label": "The promenade by Mission St", "lat": 37.793, "lon": -122.3922, "radiusM": 60, "source": "Hand-placed on the promenade south of the Ferry Building" },
+      "nearHydrantM": 30,
+      "lines": [
+        { "speaker": "dispatch", "text": "Posted robot is in the area. Last seen near the promenade. Tell: tails a good Footman." }
+      ],
+      "next": "watch"
+    },
+    {
+      "id": "watch",
+      "type": "objective",
+      "objective": { "kind": "watch", "actor": "posted", "seconds": 3 },
+      "hint": "Watch first. A Watch from close up for more than 3 s makes a bad robot wary, so keep your distance.",
+      "next": "scan"
+    },
+    {
+      "id": "scan",
+      "type": "objective",
+      "objective": { "kind": "scan", "actor": "posted" },
+      "hint": "Hold scan for one second. Bot Check is confident; it is not always right. And the ping makes nearby bad robots wary.",
+      "lines": [
+        { "speaker": "cofounder", "text": "if it says 98% that means nothing. if it walks like a bad robot that means something" }
+      ],
+      "next": "first-melt"
+    },
+    {
+      "id": "first-melt",
+      "type": "objective",
+      "objective": { "kind": "melt", "actor": "posted" },
+      "timeLimitS": 240,
+      "hint": "Melt the posted robot. The other two will notice.",
+      "next": "converge",
+      "onFail": "scattered"
+    },
+    {
+      "id": "converge",
+      "type": "objective",
+      "objective": { "kind": "threatAtLeast", "level": 2 },
+      "hint": "The crew knows where you are. Two melts inside a minute, or a witness, brings threat 2 and a Moat Labs van.",
+      "lines": [
+        { "speaker": "dispatch", "text": "Heads up: the rest of the crew is converging. A Moat Labs van has been dispatched from the depot." }
+      ],
+      "next": "escape"
+    },
+    {
+      "id": "escape",
+      "type": "objective",
+      "objective": { "kind": "threatAtMost", "level": 0 },
+      "timeLimitS": 180,
+      "hint": "Break line of sight: the fog, traffic, a car wash. Threat drops a level after 30 s out of sight.",
+      "lines": [
+        { "speaker": "cofounder", "text": "ok now LEAVE. fog, traffic, car wash, anything. they can't follow what they can't see" }
+      ],
+      "next": "paid",
+      "onFail": "cornered"
+    },
+    {
+      "id": "paid",
+      "type": "reward",
+      "outcome": "paid",
+      "lines": [
+        { "speaker": "dispatch", "text": "Bounty confirmed. Payment sent. Revenue extends runway." },
+        { "speaker": "cofounder", "text": "we're profitable!!! for one afternoon!!! buy a better nozzle" }
+      ],
+      "grants": [
+        { "kind": "stat", "stat": "cash", "delta": 750 },
+        { "kind": "unlock", "unlock": "activity:bounty-board" }
+      ]
+    },
+    {
+      "id": "scattered",
+      "type": "retry",
+      "outcome": "scattered",
+      "lines": [
+        { "speaker": "dispatch", "text": "The crew has scattered. The posting will be renewed shortly." }
+      ],
+      "hint": "Watch and scan from a distance, then commit: rust that passes 0.3 never dries off.",
+      "cooldownS": 120,
+      "retryFrom": "crew"
+    },
+    {
+      "id": "cornered",
+      "type": "retry",
+      "outcome": "cornered",
+      "lines": [
+        { "speaker": "cofounder", "text": "they kept finding you. next time head for the fog, or the car wash on the way" }
+      ],
+      "retryFrom": "crew"
+    },
+    {
+      "id": "cold",
+      "type": "retry",
+      "outcome": "cold",
+      "lines": [
+        { "speaker": "dispatch", "text": "Posting expired. Another will be along. They always are." }
+      ],
+      "retryFrom": "posting"
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:acab9ccd",
+    "reviewedBy": [],
+    "review": "Pending: mission text is on the user's read-in-full list (docs/ai-layer.md, Review), and a second agent session reads it against the checklist."
+  }
+}

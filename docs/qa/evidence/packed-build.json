@@ -1,0 +1,102 @@
+{
+  "sourceHead": "67c422abeab63f0e29bfe67e31780b48cc9b5195",
+  "artifact": "test-results/local-preview-67c422ab",
+  "files": 190,
+  "bytes": 176742149,
+  "runtimeAssetsUnchangedFrom867": 187,
+  "changedRuntimeAssets": [],
+  "indexSHA256": "1f451a83405cb55e1d09024247a63bd84a979e6da0abaf5c07d29ac629f83528",
+  "assetIndexSHA256": "560fabad335940f1cc4020505d0f8c33f64546142eb9057089fc61302737a33e",
+  "completeSlopMITNotice": true,
+  "preflightHTTPMatches": true,
+  "sourceMaps": 0,
+  "native": {
+    "ready": true,
+    "sim": {
+      "seed": 1,
+      "tick": 0,
+      "version": 17,
+      "assets": "packed",
+      "colliders": "pack"
+    },
+    "backend": "webgpu",
+    "graphicsError": null,
+    "failedTiles": 0,
+    "shadowCascades": 2,
+    "shadowAtlas": {
+      "width": 4096,
+      "height": 2048
+    },
+    "postProcessing": {
+      "enabled": true,
+      "ssr": true,
+      "bloom": true,
+      "framesRendered": 2671
+    },
+    "device": {
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      },
+      "limits": {
+        "maxVertexBuffers": 8,
+        "maxTextureDimension2D": 8192
+      }
+    }
+  },
+  "native-night": {
+    "ready": true,
+    "sim": {
+      "seed": 1,
+      "tick": 0,
+      "version": 17,
+      "assets": "packed",
+      "colliders": "pack"
+    },
+    "backend": "webgpu",
+    "graphicsError": null,
+    "failedTiles": 0,
+    "shadowCascades": 2,
+    "shadowAtlas": {
+      "width": 4096,
+      "height": 2048
+    },
+    "postProcessing": {
+      "enabled": true,
+      "ssr": true,
+      "bloom": true,
+      "framesRendered": 4596
+    },
+    "device": {
+      "adapter": {
+        "vendor": "apple",
+        "architecture": "metal-3",
+        "device": "",
+        "description": ""
+      },
+      "limits": {
+        "maxVertexBuffers": 8,
+        "maxTextureDimension2D": 8192
+      }
+    }
+  },
+  "legacy": {
+    "ready": true,
+    "sim": {
+      "seed": 1,
+      "tick": 0,
+      "version": 17,
+      "assets": "packed",
+      "colliders": "pack"
+    },
+    "backend": "webgl-legacy",
+    "graphicsError": null,
+    "failedTiles": 0,
+    "shadowCascades": 0,
+    "shadowAtlas": null,
+    "postProcessing": null,
+    "device": null
+  }
+}

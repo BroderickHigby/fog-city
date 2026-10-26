@@ -1,0 +1,7 @@
+{
+  "scenario": "sf seed 1 wave 3, 1 player weave, ticks 901-1200",
+  "ratio": 5.335,
+  "bytesPerTick": 4599064,
+  "recorded": "2026-10-24",
+  "note": "ratio 5.335 (best 11.48 ms/tick vs calibration 2.15 ms), 4491 KB/tick"
+}

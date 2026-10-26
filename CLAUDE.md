@@ -28,9 +28,11 @@ AI feature.
 - Coordinate frame (`src/geo/project.ts`): metres, origin at the Ferry Building clock tower, +x east, +y up,
   +z south (north is -z). Headings are compass bearings (radians clockwise from north); the renderer sets
   `rotation.y = -heading` on models that face -z.
-- Data flow: `pipeline/` (Node, offline) fetches SF open data and writes `public/tiles/<world>/`. Tiles are
-  stored per the tile-storage decision in `docs/roadmap.md` ("Decisions the user makes": Git LFS or a
-  versioned release artifact). The sim reads `*.collider.json`; the renderer reads `*.glb`.
+- Data flow: `pipeline/` (Node, offline) fetches SF open data and writes `public/tiles/<world>/`. Tiles live
+  in plain git, meshopt-compressed (decided 2026-10-20, `docs/design.md` decision log). The sim reads the
+  citywide collider pack `world.colliders.bin` (`src/sim/pack.ts`; hand-made worlds: `*.collider.json`),
+  the road graph and `boundary.json`; the renderer reads `*.glb` and the far-LOD cells. Files go through
+  `src/io/assets.ts`; `pnpm build` writes the packed static build in `dist/` (`scripts/build-web.ts`).
 - The sim and renderer make no network calls. Only `src/net/` talks to the relay, in online modes.
 - TypeScript: relative imports use the `.ts` extension; erasable syntax only (no enums, namespaces or
   constructor parameter properties). Node runs `.ts` files directly (`node pipeline/x.ts`).
@@ -45,7 +47,7 @@ render split are in [`docs/roadmap.md`](docs/roadmap.md#ownership).
 | Track | Owns |
 |---|---|
 | Pipeline | `pipeline/`, `public/tiles/sf/` (incl. `roads.json`), `docs/data-sources.md`, `tests/pipeline/` |
-| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `index.html`, `vite.config.ts`, `public/tiles/dev-city/`, `tests/render/` |
+| Render-World | `src/render/`, `src/main.ts`, `src/debug.ts`, `src/io/` (asset layer, world loading), `src/env.d.ts`, `index.html`, `vite.config.ts`, `scripts/build-web.ts` (the static build), `public/tiles/dev-city/`, `tests/render/`, `tests/io/` |
 | UI-Audio | `src/ui/`, `src/audio/`, `src/input/`, `tests/ui/` |
 | Sim-World | the files directly in `src/sim/` (`contract.ts`, `step.ts`, `index.ts`, the top-level `systems.ts`, `dmath.ts` and the other shared files; additive changes to `contract.ts` only: bump to the next `SIM_VERSION` and say so in the report), `src/sim/vehicles/`, `src/sim/fog/`, `src/sim/clock/`, `tests/sim/world/` and the files directly in `tests/sim/` |
 | Sim-Agents | `src/sim/agents/`, `src/sim/robots/`, `tests/sim/agents/` |
@@ -68,7 +70,8 @@ Adding a dependency: pin an exact version that is at least two weeks old (`pnpm 
 - No real brands, logos or trademarks. Invent startup and product names. Storefronts stay unnamed for now:
   iconography only (beer-neon shape, barber pole), empty sign slot reserved.
 - Robotaxis and robots are original designs: nothing that copies a real vehicle or a film robot.
-- Public figures only as obvious caricature that never claims to be the real person; never real private people.
+- Public figures only as obvious caricature that never claims to be the real person; never real private people
+  (one consented exception: the owner's own stylised likeness as the player, `docs/design.md` decision log, 2026-10-21).
 - Punch up at tech and VC culture. Never make homelessness, poverty, drug use or crime victims the joke.
 
 ## Tests

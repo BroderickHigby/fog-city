@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v15 cars bowl robots over (impacts.ts) on top of v14 impacts, on 59e5a7ba",
+  "simVersion": 15,
+  "hashes": [
+    "f0e57540",
+    "bba28f03",
+    "0252f948",
+    "8c6007e9",
+    "a2259f0c"
+  ]
+}

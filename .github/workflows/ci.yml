@@ -1,0 +1,116 @@
+# Typecheck, unit tests and browser end-to-end tests on every pull request and every push to main.
+# How to run the same thing locally, and what each suite proves: docs/testing.md.
+name: CI
+
+on:
+  # Pull requests run CI for every branch; a push runs it again only on main.
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: typecheck, unit, e2e
+    runs-on: ubuntu-24.04
+    # The e2e step runs one worker on this runner. On 2026-10-23, after the render realism pass
+    # landed, it took 34 minutes on one run and over 53 on the next (the campaign spec alone 17
+    # and 26.5); a 45- and then a 60-minute job limit cancelled both, the first during the
+    # screenshots and the second before e2e finished, so no test results were uploaded.
+    timeout-minutes: 90
+    env:
+      CI: "true"
+      # One job per runner, so the default port is free; set per checkout locally.
+      E2E_PORT: "4173"
+    steps:
+      # Tiles live in plain git, meshopt-compressed (decided 2026-10-20, docs/design.md decision log).
+      - name: Check out
+        uses: actions/checkout@v5
+
+      # pnpm version comes from package.json "packageManager".
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        id: install
+        run: pnpm install --frozen-lockfile
+
+      # Each check runs whenever install succeeded, so one failure does not hide the others.
+      - name: Typecheck
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm typecheck
+
+      - name: Unit tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm test
+
+      # The static web build for hosting (dist/, packed tiles); fails if it breaks the host's
+      # limits. tests/e2e/web-build.spec.ts builds its own copy and boots it from a sub-path.
+      - name: Web build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: pnpm build
+
+      - name: Read Playwright version
+        id: playwright
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: browser-cache
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        uses: actions/cache@v5
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Chromium runs every e2e test (SwiftShader WebGL); Firefox and WebKit run the
+      # cross-engine determinism tests.
+      - name: Install Playwright browsers with system dependencies
+        id: browsers
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browser-cache.outputs.cache-hit != 'true' }}
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+
+      - name: Install Playwright system dependencies (browsers from cache)
+        id: browser-deps
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browser-cache.outputs.cache-hit == 'true' }}
+        run: pnpm exec playwright install-deps chromium firefox webkit
+
+      # E2E_REQUIRE (repository variable, Settings > Secrets and variables > Actions > Variables)
+      # lists prerequisites that must be present, so their tests fail instead of skipping: set
+      # it to "all" once every track is merged. Empty means skip with a reason (a track branch).
+      - name: End-to-end tests
+        id: e2e
+        if: ${{ !cancelled() && steps.install.outcome == 'success' && steps.browsers.outcome != 'failure' && steps.browser-deps.outcome != 'failure' }}
+        env:
+          E2E_REQUIRE: ${{ vars.E2E_REQUIRE }}
+        run: pnpm e2e --max-failures=1
+
+      # Pictures for reviewers (test-results/shots/index.html). Informational: never fails CI.
+      - name: Screenshots
+        if: ${{ !cancelled() && steps.e2e.outcome == 'success' }}
+        continue-on-error: true
+        # A step that reaches timeout-minutes fails the job even under continue-on-error, so Playwright's
+        # own 9-minute limit ends slow software-GL captures first; the step limit is only a backstop.
+        timeout-minutes: 12
+        run: pnpm shots --global-timeout=540000 || echo "::warning::Screenshots stopped early; the ones taken are in the artifact."
+
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: test-results-attempt-${{ github.run_attempt }}
+          path: test-results/
+          retention-days: 14
+          if-no-files-found: warn

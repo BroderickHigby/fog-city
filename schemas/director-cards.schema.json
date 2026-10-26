@@ -1,0 +1,422 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/director-cards",
+  "title": "Ambient Director cards (content/director-cards.json)",
+  "description": "Short staged encounters within 150 m, built only from sim staging primitives (the beat verbs). Cross-references (archetypes, false tells, sabotage kinds, bark contexts, targets) are checked by checkDirectorCards in src/content/directorCards.ts.",
+  "type": "object",
+  "required": [
+    "version",
+    "maxRadiusM",
+    "idleWindowS",
+    "provenance",
+    "cards"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "$comment": {
+      "type": "string"
+    },
+    "maxRadiusM": {
+      "const": 150
+    },
+    "idleWindowS": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "prefixItems": [
+        {
+          "type": "number",
+          "minimum": 0
+        },
+        {
+          "type": "number",
+          "minimum": 0
+        }
+      ]
+    },
+    "provenance": {
+      "$ref": "provenance"
+    },
+    "cards": {
+      "type": "array",
+      "minItems": 40,
+      "maxItems": 60,
+      "items": {
+        "$ref": "#/$defs/card"
+      }
+    }
+  },
+  "$defs": {
+    "card": {
+      "type": "object",
+      "required": [
+        "id",
+        "title",
+        "blurb",
+        "fromWave",
+        "radiusM",
+        "cooldownS",
+        "protectedAreas",
+        "when",
+        "actors",
+        "beats",
+        "payoff"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 3,
+          "maxLength": 32
+        },
+        "blurb": {
+          "type": "string",
+          "minLength": 10,
+          "maxLength": 120
+        },
+        "fromWave": {
+          "type": "integer",
+          "minimum": 2,
+          "maximum": 8
+        },
+        "radiusM": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "maximum": 150
+        },
+        "cooldownS": {
+          "type": "number",
+          "minimum": 60
+        },
+        "protectedAreas": {
+          "type": "boolean",
+          "description": "May it run inside a protected area? Never for a card with a bad robot."
+        },
+        "when": {
+          "type": "object",
+          "required": [
+            "near"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "near": {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "billboard",
+                  "busShelter",
+                  "busStop",
+                  "carWash",
+                  "chargingDock",
+                  "crosswalk",
+                  "door",
+                  "drawbridge",
+                  "hill",
+                  "hydrant",
+                  "marketQueue",
+                  "officeLobby",
+                  "overlook",
+                  "park",
+                  "parkedCars",
+                  "plaza",
+                  "puddle",
+                  "repairKiosk",
+                  "road",
+                  "robotaxiPickup",
+                  "sidewalk",
+                  "stairs",
+                  "storefront",
+                  "turntable",
+                  "workbench"
+                ]
+              }
+            },
+            "time": {
+              "enum": [
+                "any",
+                "morning",
+                "day",
+                "evening",
+                "night"
+              ]
+            },
+            "weather": {
+              "enum": [
+                "any",
+                "clear",
+                "rain",
+                "fog"
+              ]
+            },
+            "playerState": {
+              "enum": [
+                "any",
+                "onFoot",
+                "inCar"
+              ]
+            },
+            "minThreat": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5
+            },
+            "maxThreat": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5
+            },
+            "minStars": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 5
+            },
+            "districts": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "pattern": "^[a-z0-9-]+$"
+              }
+            },
+            "afterMelt": {
+              "const": true
+            },
+            "afterWrongTarget": {
+              "const": true
+            }
+          }
+        },
+        "actors": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "kind"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z][A-Za-z0-9]*$"
+              },
+              "kind": {
+                "enum": [
+                  "badRobot",
+                  "goodRobot",
+                  "rogueTaxi",
+                  "goodTaxi",
+                  "moatVan",
+                  "bystanders",
+                  "associate"
+                ]
+              },
+              "archetype": {
+                "type": "string"
+              },
+              "level": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 5
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 8
+              }
+            }
+          }
+        },
+        "beats": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "do"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "do": {
+                "enum": [
+                  "alert",
+                  "approach",
+                  "approachPlayer",
+                  "arrive",
+                  "arriveAtDoor",
+                  "askPassersBy",
+                  "avoidFog",
+                  "avoidWater",
+                  "bark",
+                  "broadcast",
+                  "chase",
+                  "chasePlayer",
+                  "circleBlock",
+                  "convert",
+                  "cutQueue",
+                  "disguise",
+                  "dock",
+                  "falseTell",
+                  "flashSabotage",
+                  "gather",
+                  "hideTell",
+                  "hint",
+                  "holdDoor",
+                  "honk",
+                  "humJingle",
+                  "lap",
+                  "limp",
+                  "loiter",
+                  "meet",
+                  "mirrorPlayer",
+                  "neverArrive",
+                  "offerShift",
+                  "parkAcross",
+                  "postBounty",
+                  "queue",
+                  "quickCall",
+                  "restore",
+                  "sabotage",
+                  "seize",
+                  "shelter",
+                  "showStatus",
+                  "skipSignal",
+                  "spill",
+                  "splashThrough",
+                  "stall",
+                  "stepLoop",
+                  "stuck",
+                  "tail",
+                  "takeRamp",
+                  "takeStairs",
+                  "undock",
+                  "unload",
+                  "waitForScan",
+                  "walkAgainstFlow",
+                  "walkAway",
+                  "walkPast",
+                  "walkTowardShops",
+                  "watch",
+                  "wearCape"
+                ]
+              },
+              "actor": {
+                "type": "string"
+              },
+              "target": {
+                "type": "string"
+              },
+              "seconds": {
+                "type": "number",
+                "exclusiveMinimum": 0,
+                "maximum": 120
+              },
+              "sabotage": {
+                "enum": [
+                  "snatchGroceries",
+                  "pushUpdate",
+                  "stickAd",
+                  "tryCarDoor",
+                  "stealEmptyCar",
+                  "harvestData",
+                  "parkAcrossHydrant"
+                ]
+              },
+              "tell": {
+                "type": "string"
+              },
+              "speaker": {
+                "type": "string"
+              },
+              "context": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "maxLength": 24
+              },
+              "prop": {
+                "enum": [
+                  "oranges"
+                ]
+              },
+              "speedMps": {
+                "type": "number",
+                "exclusiveMinimum": 0
+              },
+              "loops": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "laps": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "activity": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string",
+                "maxLength": 120
+              },
+              "actors": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        },
+        "payoff": {
+          "type": "object",
+          "required": [
+            "kind"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "melt",
+                "catchInTheAct",
+                "interruptUpdate",
+                "coneTaxi",
+                "help",
+                "holdFire",
+                "escape",
+                "escort",
+                "flavour",
+                "activity"
+              ]
+            },
+            "cash": {
+              "const": "bounty",
+              "description": "Paid as a bounty: $150 x the subtlety factor (botTells.ts bountyPay)."
+            },
+            "reputation": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 3
+            },
+            "points": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "note": {
+              "type": "string",
+              "maxLength": 160
+            }
+          }
+        }
+      }
+    }
+  }
+}

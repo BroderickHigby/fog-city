@@ -1,0 +1,142 @@
+{
+  "equippedSlots": 3,
+  "rewards": [
+    {
+      "id": "confidence-score",
+      "label": "Confidence score",
+      "threshold": 300,
+      "durationS": 20,
+      "description": "Mark targets within 150 m. One marker in five is a labelled hallucination."
+    },
+    {
+      "id": "buzzword-parrots",
+      "label": "Buzzword parrots",
+      "threshold": 500,
+      "durationS": 20,
+      "description": "Choose a point within 200 m. The flock draws attention from rooftops; nobody approaches the birds."
+    },
+    {
+      "id": "tensor-brick-drop",
+      "label": "Tensor brick drop",
+      "threshold": 700,
+      "durationS": 90,
+      "description": "Load one boost from a people-free landing site. Fog doubles its duration."
+    },
+    {
+      "id": "blimp-impressions",
+      "label": "Blimp impressions",
+      "threshold": 900,
+      "durationS": 30,
+      "description": "Light approved ad lanes within 200 m. Affected bad robots slow to half speed."
+    },
+    {
+      "id": "open-hydrants",
+      "label": "Open hydrants",
+      "threshold": 1200,
+      "durationS": 15,
+      "description": "Nearby hydrants rust bad robots within 12 m. People cheer and stay dry."
+    },
+    {
+      "id": "agi-allegedly",
+      "label": "AGI achieved, allegedly",
+      "threshold": 2500,
+      "durationS": 3,
+      "description": "The clock chimes early. Bad robots within 500 m gain rust; the scene pauses without a flash."
+    }
+  ],
+  "modes": [
+    {
+      "id": "freeRoam",
+      "points": {
+        "melt": 100,
+        "armouredMelt": 200,
+        "interruptedUpdate": 150,
+        "beforeFirstAttack": 50,
+        "caughtInAct": 50
+      },
+      "resetOn": [
+        "wrongTarget",
+        "downRound"
+      ]
+    },
+    {
+      "id": "botSweep",
+      "points": {
+        "melt": 100,
+        "armouredMelt": 200,
+        "interruptedUpdate": 150,
+        "revive": 100
+      },
+      "resetOn": [
+        "wrongTarget",
+        "downRound"
+      ]
+    },
+    {
+      "id": "cleanStreets",
+      "points": {
+        "melt": 100,
+        "armouredMelt": 200,
+        "interruptedUpdate": 150
+      },
+      "resetOn": [
+        "wrongTarget",
+        "downRound"
+      ]
+    },
+    {
+      "id": "hideInTheCrowd",
+      "points": {
+        "hiderTask": 200,
+        "surviveTwoMinutes": 300,
+        "hiderMelt": 500,
+        "melt": 50,
+        "goodRobot": -150,
+        "wetPerson": -200
+      },
+      "resetOn": [
+        "wrongTarget",
+        "connectionLost"
+      ]
+    },
+    {
+      "id": "fogRoyale",
+      "points": {
+        "flowerHit": 150,
+        "crate": 50,
+        "melt": 100
+      },
+      "resetOn": [
+        "downRound"
+      ]
+    }
+  ],
+  "boosts": [
+    {
+      "id": "salt",
+      "label": "Salt boost",
+      "sunDurationS": 90,
+      "fogDurationS": 180
+    },
+    {
+      "id": "pressure",
+      "label": "Pressure boost",
+      "sunDurationS": 90,
+      "fogDurationS": 180
+    },
+    {
+      "id": "wide",
+      "label": "Wide boost",
+      "sunDurationS": 90,
+      "fogDurationS": 180
+    }
+  ],
+  "version": 1,
+  "provenance": {
+    "source": "agent",
+    "authorSession": "lane/content/wave4-2026-10-23",
+    "contentHash": "fnv1a32:bbf7e315",
+    "reviewedBy": [],
+    "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
+  }
+}

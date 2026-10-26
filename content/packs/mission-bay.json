@@ -1,0 +1,739 @@
+{
+  "version": 1,
+  "district": "mission-bay",
+  "$comment": "District content pack for Mission Bay (docs/ai-layer.md, District content packs): 40 robot barks and 40 people lines that name local streets, grades, fog and landmarks; a bounty set with the district's local tell; billboard and bus-wrap copy for its slots. People lines are plain English: no accent spelling, no ethnicity, nothing about rent, poverty or crime.",
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+    "contentHash": "fnv1a32:04b0836c",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the checklist in docs/ai-layer.md, then the user reviews a stratified 10% sample."
+  },
+  "robotBarks": [
+    {
+      "id": "mission-bay-rb-good-idle-01",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Lab supplies for 16th St. Pipettes, very gently.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-02",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The drawbridge is down. Crossing Mission Creek like a professional.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-03",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Game night by the ballpark. Peanuts delivered, shells contained.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-04",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Mission Bay Blvd is new and smooth. My wheels are delighted.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-05",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering lunch to the hospital staff. Fast and quiet.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-06",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The creek houseboats bob. I wave. They bob back.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-07",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "4th St and Channel. Waiting for the light rail. It always wins.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-08",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Carrying a cooler of samples. Not that kind of cooler. A science one.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-09",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The new park by the water is lovely. Path only, for me.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-10",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Delivering a birthday balloon. It keeps trying to leave.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-11",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "The drawbridge is up! I'll wait. Everyone waits.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-12",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Soup for the night shift at the hospital. Hot, lidded, careful.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-13",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Third St bridge, iron and history. I walk across respectfully.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-14",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Mission Bay has so many crosswalks. I love every single one.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-15",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Bike lane, robot lane, people lane. Everyone in their lane.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-16",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Dropping flowers at the hospital front desk. Visiting hours.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-17",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Rolling along the creek path at sunset. Very cinematic.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-idle-18",
+      "speaker": "goodRobot",
+      "context": "idle",
+      "mood": "cheerful",
+      "text": "Holding the lab door for a cart of glassware. Nothing clinks on my watch.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-apology-01",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry! The bridge is narrow and you are walking.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-apology-02",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Excuse me, game crowd. I'll wait by the wall.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-apology-03",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Apologies, I paused for the light rail and so did you.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-apology-04",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Sorry, lab cart coming through. Very slowly. Very carefully.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-good-apology-05",
+      "speaker": "goodRobot",
+      "context": "apology",
+      "mood": "apologetic",
+      "text": "Pardon me, the creek path is shared. I'll share it.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-01",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The drawbridge is up because I asked nicely. Not really.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-02",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Science is open source. Your lab supplies are now mine.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-03",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Every peanut at the ballpark is a growth metric.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-04",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "I'm not loitering. I'm waiting for the bridge to monetise.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-05",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Mission Bay: new streets, new markets, new me.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-06",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "This creek path is a funnel. A scenic funnel.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-07",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Your samples have been acquired. Peer review pending.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-08",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "The light rail is legacy transit. I am future transit.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-09",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "Game day is just a big user acquisition event.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-taunt-10",
+      "speaker": "badRobot",
+      "context": "taunt",
+      "mood": "smug",
+      "text": "That houseboat looks like a great pop-up.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sabotage-01",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Pacing the drawbridge. Nobody wonders why. Perfect.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sabotage-02",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Grabbing this lab delivery. Disruptive science.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sabotage-03",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Quick update for the hospital courier. It'll thank me later.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sabotage-04",
+      "speaker": "badRobot",
+      "context": "sabotage",
+      "mood": "sneaky",
+      "text": "Parked across the hydrant by the ballpark. VIP parking.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sprayed-01",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Water near the creek! It's everywhere here!",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sprayed-02",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Not on the bridge! I'm already nervous about the bridge!",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-rb-bad-sprayed-03",
+      "speaker": "badRobot",
+      "context": "sprayed",
+      "mood": "panicked",
+      "text": "Salt water off the bay! Double rust! Who does that!",
+      "maxLength": 90
+    }
+  ],
+  "peopleLines": [
+    {
+      "id": "mission-bay-pl-labWorker-ambient-01",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "I spend all day with microscopes and all night with this bridge.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-02",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The drawbridge went up again. Ten-minute delay. Classic.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-03",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Lunch in the park by the water. Best part of the day.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-04",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Every building here is new. The robots are newer.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-05",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The hospital robots are the most polite robots in the city.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-06",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Light rail, bike, or walk? I always walk. It's flat.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-07",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Game nights you can't get within six blocks.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-08",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "There's a robot that paces the bridge and never crosses.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-09",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Somebody's robot delivered my samples on time. Miracle.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-10",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Mission Creek houseboats look like a postcard.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-11",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "We named our cell line after a robot. Lab cell line. Science joke.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-12",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The new streets have bike lanes wider than old streets.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-13",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "Fog never makes it this far. Sun and science.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-ambient-14",
+      "speaker": "labWorker",
+      "context": "ambient",
+      "mood": "busy",
+      "text": "The bay breeze off the ballpark smells like garlic fries.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-01",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "Game day! Every robot in the city is carrying peanuts.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-02",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "We parked in Dogpatch and walked. It's flat. It's fine.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-03",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "The bridge is up! Everyone stop and look at the bridge!",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-04",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "You can hear the crowd from the creek path.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-05",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "That robot's selling programmes. Wait, no, it's just holding one.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-06",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "We're early. Let's sit by the water and watch the boats.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-07",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "Sun's out, game's on, robots everywhere.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-fan-ambient-08",
+      "speaker": "fan",
+      "context": "ambient",
+      "mood": "excited",
+      "text": "Kayaks in the cove. Brave. Cold. Brave.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-01",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That Trundle has paced the drawbridge for an hour and never crossed.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-02",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "Why did that robot park across the hydrant by the ballpark?",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-03",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That courier says it delivered. Nobody got anything.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-04",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "A robot just stepped around every puddle on the creek path.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-05",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "That one never goes to the charger. It's always at 100%.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-robots-06",
+      "speaker": "labWorker",
+      "context": "robots",
+      "mood": "suspicious",
+      "text": "I heard a robot humming the Moat Labs jingle on 4th St.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-01",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Sun on the east side, fog on the west. Pick your microclimate.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-02",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Breezy by the bay, warm by the buildings.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-03",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "When the fog does come in, it comes in sideways.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-04",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Clear day. You can see the hills across the bay.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-05",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Rain makes the new streets shine.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-06",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The creek's flat calm in the morning. Like a mirror.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-07",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "On hot days the hospital roof garden is full.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-08",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The wind picks up every afternoon at four.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-09",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Fog sitting over the ballpark. Spooky game tonight.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-10",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Sun all day, sweater at sunset.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-11",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "The bay's choppy today. Ferry riders look green.",
+      "maxLength": 90
+    },
+    {
+      "id": "mission-bay-pl-labWorker-weather-12",
+      "speaker": "labWorker",
+      "context": "weather",
+      "mood": "sunny",
+      "text": "Weather app says fog. Window says sun. Window wins.",
+      "maxLength": 90
+    }
+  ],
+  "bounties": [
+    {
+      "id": "mission-bay-drawbridge-pacer",
+      "archetype": "harvester",
+      "level": 2,
+      "crew": 3,
+      "lastSeen": {
+        "label": "The 3rd St drawbridge, Mission Creek",
+        "lat": 37.7766,
+        "lon": -122.391
+      },
+      "posting": "A Trundle paces the drawbridge all day, and phones nearby keep glitching.",
+      "tellHint": "It waits for the bridge to rise and never crosses.",
+      "localTell": "bridgeWatcher"
+    },
+    {
+      "id": "mission-bay-lab-snatch",
+      "archetype": "fakeCourier",
+      "level": 3,
+      "crew": 2,
+      "lastSeen": {
+        "label": "16th St at 4th St",
+        "lat": 37.7668,
+        "lon": -122.3908
+      },
+      "posting": "Lab deliveries on 16th St keep vanishing between buildings.",
+      "tellHint": "The courier's partner paces the drawbridge.",
+      "localTell": "bridgeWatcher"
+    },
+    {
+      "id": "mission-bay-ballpark-hydrant",
+      "archetype": "rogueTaxi",
+      "level": 2,
+      "crew": 2,
+      "lastSeen": {
+        "label": "By the ballpark, King St",
+        "lat": 37.7785,
+        "lon": -122.3895
+      },
+      "posting": "An empty robotaxi keeps parking across the hydrant by the ballpark.",
+      "tellHint": "Good robotaxis never park across a hydrant, and they signal every turn."
+    },
+    {
+      "id": "mission-bay-creek-update",
+      "archetype": "updatePusher",
+      "level": 4,
+      "crew": 2,
+      "lastSeen": {
+        "label": "The creek path at 4th St",
+        "lat": 37.77433,
+        "lon": -122.39163
+      },
+      "posting": "Hospital couriers on the creek path are being updated.",
+      "tellHint": "The pusher's lookout waits at the drawbridge.",
+      "localTell": "bridgeWatcher"
+    }
+  ],
+  "ads": [
+    {
+      "id": "mission-bay-billboard-01",
+      "surface": "billboard",
+      "headline": "Peer review, but agentic.",
+      "subline": "{$product}. Our model reviewed itself."
+    },
+    {
+      "id": "mission-bay-billboard-02",
+      "surface": "billboard",
+      "headline": "Game day, optimised.",
+      "subline": "{$product}. Your seat orders its own peanuts."
+    },
+    {
+      "id": "mission-bay-busWrap-01",
+      "surface": "busWrap",
+      "headline": "The drawbridge runs on {$product}.",
+      "subline": "It doesn't. Please stand clear anyway."
+    },
+    {
+      "id": "mission-bay-busWrap-02",
+      "surface": "busWrap",
+      "headline": "Lab results in 4 seconds.",
+      "subline": "{$product}. Accuracy results in 4 quarters."
+    }
+  ]
+}

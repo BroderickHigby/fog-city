@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/parking",
+  "title": "Parking regulations per road edge side (public/tiles/<world>/parking.json).",
+  "type": "object",
+  "required": [
+    "version",
+    "world",
+    "rules"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "const": 1
+    },
+    "world": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "attribution": {
+      "type": "string"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "edge",
+          "side",
+          "kind",
+          "days",
+          "from",
+          "to",
+          "hourLimit",
+          "permitAreas",
+          "lengthM"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "edge": {
+            "type": "string"
+          },
+          "side": {
+            "enum": [
+              "L",
+              "R"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "days": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          "from": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "to": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "hourLimit": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "permitAreas": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lengthM": {
+            "type": "number"
+          }
+        }
+      }
+    }
+  }
+}

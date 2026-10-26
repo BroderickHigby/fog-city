@@ -2,8 +2,11 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "fog-city/tile-collider",
   "title": "Tile collision data consumed by src/sim/world.ts",
+  "$comment": "The file, its buildings and its ground are closed (meta stays open): an undeclared key fails the schema suite. Declare a new field here before shipping it; a key starting with x- is free for experiments and is never a contract.",
   "type": "object",
   "required": ["tileId", "buildings", "ground"],
+  "additionalProperties": false,
+  "patternProperties": { "^x-": true },
   "properties": {
     "tileId": { "type": "string" },
     "buildings": {
@@ -11,6 +14,8 @@
       "items": {
         "type": "object",
         "required": ["id", "footprint", "baseY", "topY"],
+        "additionalProperties": false,
+        "patternProperties": { "^x-": true },
         "properties": {
           "id": { "type": "string" },
           "footprint": {
@@ -20,8 +25,26 @@
           "baseY": { "type": "number" },
           "topY": { "type": "number" },
           "meta": {
-            "description": "Optional facts for facades and storefronts (year built, use, stories, source ids). Never read by the sim.",
-            "type": "object"
+            "description": "Optional facts for facades and storefronts (year built, use, stories, source ids). Never read by the sim. The keys below are the pipeline's (docs/data-sources.md); other worlds may add their own.",
+            "type": "object",
+            "properties": {
+              "footY": { "type": "number", "description": "Lowest ground under the footprint minus 5 cm: where walls start so nothing floats" },
+              "heightM": { "type": "number", "description": "Height of this record's roof above the building's ground reference, metres" },
+              "heightSource": { "enum": ["lidar", "assessor-stories", "override"] },
+              "lidarM": {
+                "description": "LiDAR [median, max] height above ground, metres (2010 survey)",
+                "type": "array", "items": { "type": "number" }, "minItems": 2, "maxItems": 2
+              },
+              "parcel": { "type": "string", "description": "Assessor parcel (block + lot) joined to the footprint" },
+              "year": { "type": "integer", "description": "Year built (assessor)" },
+              "use": { "type": "string", "description": "Assessor use definition, or \"Residential Condominium\"" },
+              "stories": { "type": "integer", "minimum": 1, "description": "Storeys, when the assessor's count agrees with the measured height" },
+              "units": { "type": "integer", "minimum": 1, "description": "Units on the parcel, or condominium units on the building" },
+              "condo": { "const": true, "description": "The joined parcel is one unit of a condominium building" },
+              "tower": { "type": "string", "description": "On a podium record: the id of its tower record" },
+              "towerOf": { "type": "string", "description": "On a \"-tower\" record: the podium record's id" },
+              "podiumTopY": { "type": "number", "description": "On a \"-tower\" record: the podium's roof (absolute y)" }
+            }
           }
         }
       }
@@ -32,13 +55,19 @@
         {
           "type": "object",
           "required": ["x0", "z0", "cellSizeM", "nx", "nz", "heights"],
+          "additionalProperties": false,
+          "patternProperties": { "^x-": true },
           "properties": {
             "x0": { "type": "number" },
             "z0": { "type": "number" },
             "cellSizeM": { "type": "number", "exclusiveMinimum": 0 },
             "nx": { "type": "integer", "minimum": 2 },
             "nz": { "type": "integer", "minimum": 2 },
-            "heights": { "type": "array", "items": { "type": "number" } }
+            "heights": { "type": "array", "items": { "type": "number" } },
+            "water": {
+              "description": "Optional per-sample open-water flags, same layout as heights (1 = open water at sea level, 0 = land)",
+              "type": "array", "items": { "enum": [0, 1] }
+            }
           }
         }
       ]

@@ -1,0 +1,138 @@
+{
+  "version": 1,
+  "sampleRate": 44100,
+  "sounds": {
+    "door-close": {
+      "files": {
+        "ogg": "audio/door-close.ogg",
+        "mp3": "audio/door-close.mp3"
+      },
+      "durationS": 0.5,
+      "loop": false,
+      "use": "A car door shutting."
+    },
+    "door-open": {
+      "files": {
+        "ogg": "audio/door-open.ogg",
+        "mp3": "audio/door-open.mp3"
+      },
+      "durationS": 0.45,
+      "loop": false,
+      "use": "A car door opening (getting in or out)."
+    },
+    "horn": {
+      "files": {
+        "ogg": "audio/horn.ogg",
+        "mp3": "audio/horn.mp3"
+      },
+      "durationS": 0.5,
+      "loop": true,
+      "use": "The player's car horn: loop while the horn button is held (use the .ogg for gapless looping)."
+    },
+    "impact": {
+      "files": {
+        "ogg": "audio/impact.ogg",
+        "mp3": "audio/impact.mp3"
+      },
+      "durationS": 0.6,
+      "loop": false,
+      "use": "The player's car hitting something solid; level and pitch follow the impact speed."
+    },
+    "melt-fizz": {
+      "files": {
+        "ogg": "audio/melt-fizz.ogg",
+        "mp3": "audio/melt-fizz.mp3"
+      },
+      "durationS": 2.2,
+      "loop": false,
+      "use": "A robot melting into a rust heap (slumping -> heap)."
+    },
+    "moat-jingle": {
+      "files": {
+        "ogg": "audio/moat-jingle.ogg",
+        "mp3": "audio/moat-jingle.mp3"
+      },
+      "durationS": 1.7,
+      "loop": false,
+      "use": "Moat Labs four-note jingle (A4 D5 E5 B4): bad robots hum it (tell, subtlety 3).",
+      "notes": [
+        "A4",
+        "D5",
+        "E5",
+        "B4"
+      ]
+    },
+    "robotaxi-horn": {
+      "files": {
+        "ogg": "audio/robotaxi-horn.ogg",
+        "mp3": "audio/robotaxi-horn.mp3"
+      },
+      "durationS": 0.62,
+      "loop": false,
+      "use": "A robotaxi's polite double chirp when it honks (agent mode honk)."
+    },
+    "rust-creak": {
+      "files": {
+        "ogg": "audio/rust-creak.ogg",
+        "mp3": "audio/rust-creak.mp3"
+      },
+      "durationS": 1.3,
+      "loop": false,
+      "use": "A joint rusting solid: rust past 0.5, seize and slump."
+    },
+    "splash": {
+      "files": {
+        "ogg": "audio/splash.ogg",
+        "mp3": "audio/splash.mp3"
+      },
+      "durationS": 0.7,
+      "loop": false,
+      "use": "Water lands on a robot or the pavement."
+    },
+    "spray": {
+      "files": {
+        "ogg": "audio/spray.ogg",
+        "mp3": "audio/spray.mp3"
+      },
+      "durationS": 1.0,
+      "loop": true,
+      "use": "Blaster stream loop: play while firing; loops seamlessly (use the .ogg for gapless looping)."
+    },
+    "step-1": {
+      "files": {
+        "ogg": "audio/step-1.ogg",
+        "mp3": "audio/step-1.mp3"
+      },
+      "durationS": 0.18,
+      "loop": false,
+      "use": "Footstep on pavement, variant 1 of 4."
+    },
+    "step-2": {
+      "files": {
+        "ogg": "audio/step-2.ogg",
+        "mp3": "audio/step-2.mp3"
+      },
+      "durationS": 0.18,
+      "loop": false,
+      "use": "Footstep on pavement, variant 2 of 4."
+    },
+    "step-3": {
+      "files": {
+        "ogg": "audio/step-3.ogg",
+        "mp3": "audio/step-3.mp3"
+      },
+      "durationS": 0.18,
+      "loop": false,
+      "use": "Footstep on pavement, variant 3 of 4."
+    },
+    "step-4": {
+      "files": {
+        "ogg": "audio/step-4.ogg",
+        "mp3": "audio/step-4.mp3"
+      },
+      "durationS": 0.18,
+      "loop": false,
+      "use": "Footstep on pavement, variant 4 of 4."
+    }
+  }
+}

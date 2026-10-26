@@ -6,7 +6,7 @@ The wave plan is `docs/roadmap.md`. The AI layer is `docs/ai-layer.md`.
 
 ## Pitch
 You just moved to San Francisco, about five years from now, with a car, a water blaster and
-18 months of runway. The city runs on robots: robotaxis fill the streets, Porters carry
+18 months of runway. The city runs on robots: robotaxis fill the streets, Footmen carry
 groceries up the hills, Trundles roll burritos down the sidewalks. Most of them are helpful.
 Someone is pushing a forced update that turns them bad. You tell which ones by how they
 behave, and water rusts them solid.
@@ -84,6 +84,22 @@ under gravity. All values *(tune)*:
   the shell) → `heap` (a rusty pile and a puddle that stays until Tidy, the cleanup bot, comes
   to haul it away, which is its own joke: Tidy apologises to the heap). Until Tidy arrives in
   wave 3, a heap clears when it leaves the fidelity radius.
+- **Every rusted-out robot visibly goes down** (owner request, 2026-10-22): it falls over or melts,
+  never just stops where it stood. Each model has its own collapse, slapstick and never an injury:
+  - **Footman:** seizes mid-stride, its knees buckle, it topples forward with a creak, and its
+    shell sags and runs into a heap with the lantern head on top; its grocery bag spills (the
+    oranges roll downhill).
+  - **Trundle:** the wheels lock, the roll-top lid pops open with a puff of steam, and it sinks
+    on its axles into a squat heap with the lid on top.
+  - **Patrol unit:** the treads seize, the lectern folds down mid-sentence, and it slumps flat
+    like a tent with the poles pulled.
+  - **Ad drone:** the rotors stall and it drops to the pavement with a clatter, its screen
+    flickering one last ad before the heap.
+  - **Sign-spinner:** the board spins once more on momentum, then the spinner topples after it.
+  - The **Meander robotaxi** never melts (it pulls over; see "Robotaxis"), and the **Moat Walker**
+    has its own finale sequence.
+  The fall is part of `slumping` (the sim's state and timer drive it, so every player sees the
+  same fall); the drawn body ends at most 40% of its standing height, then becomes the heap.
 - **Restored from backup.** Heaps are hauled to the nearest repair kiosk. A helper that had been
   converted reboots there as a good robot after 60 s ("Restored from backup. Some memories may
   be lost."). Nothing is ever destroyed; robots are repaired.
@@ -96,7 +112,7 @@ under gravity. All values *(tune)*:
   restocked whenever you get back in your car, thrown with the `cone` action. It can be thrown
   from the car window at any speed, and so can the Water Balloon once gadgets arrive in wave 4.
   That is how a chase ends: a cone on the hood of a rule-obeying vehicle (any robotaxi, or your
-  Hatch driven by a thieving Porter, which signals every lane change) makes it pull over within
+  Hatch driven by a thieving Footman, which signals every lane change) makes it pull over within
   3 s, and then you spray.
 - **Gadgets** (wave 4; one equipped; see Loadouts): Water Balloon, Lawn Sprinkler, Decoy Speaker.
 - **Wrong targets.** A good robot counts as a wrong target only when your stream takes it to rust
@@ -128,7 +144,7 @@ it passes the name search (see Legal and taste).
 
 | Model | Maker (invented) | Role and silhouette | Bad variant | Rust rate | First wave |
 |---|---|---|---|---|---|
-| Porter | Bramblecot Home | Tall, slim errand humanoid; opaque ceramic shell, no translucent face plate or torso; a lantern-shaped head with a soft face-light strip; carries groceries | yes | 1.0× | 1 |
+| Footman | Bramblecot Home | Tall, slim errand humanoid; opaque ceramic shell, no translucent face plate or torso; a lantern-shaped head with a soft face-light strip; carries groceries | yes | 1.0× | 1 |
 | Trundle | Trundle | Four-wheeled sidewalk delivery bot with a roll-top lid like a bread bin; not a cooler, no flag on a whip antenna | yes | 1.0× | 1 |
 | Meander robotaxi | Meander ("We'll get you there.") | Long, low, asymmetric hatch with a sensor band wrapped along the roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
 | Ad drone | Moat Labs | Hovering screen at 6 m; ad blasts | always bad | 1.5× | 3 |
@@ -154,7 +170,7 @@ never emit tell ids. Examples:
 |---|---|
 | Scuffed QR sticker on its back | 1 |
 | Asks passers-by to "rate your sidewalk experience, 1 to 5 stars" | 1 |
-| Tails a good Porter at 2 m for more than 15 s | 1 |
+| Tails a good Footman at 2 m for more than 15 s | 1 |
 | Tries car door handles with a "pairing..." chime | 2 |
 | Reads number plates with a visible scan beam | 2 |
 | Turns its head to track you as you pass | 2 |
@@ -167,7 +183,7 @@ never emit tell ids. Examples:
 | Never stops at a charging dock; its status light always reads 100% | 4 |
 | Walks the same three-step loop | 4 |
 | Will not enter fog | 4 |
-| Takes the stairs when there is a ramp (Porters always take ramps) | 5 |
+| Takes the stairs when there is a ramp (Footmen always take ramps) | 5 |
 
 **Watch.** Hold aim without firing (tap on touch) on one robot within 30 m, on foot or from a
 stopped car. The view zooms 2×, draws that robot's last 20 s of path as a faint trail (tailing,
@@ -176,7 +192,7 @@ and shows its public status light (battery %). One robot at a time. Watching for
 from within 10 m makes a bad robot `wary`. `watch` joins the wave-2 input contract.
 
 **False tells.** Good robots glitch too, and those glitches overlap the tells: a low-battery
-Porter stands still at crosswalks; a Trundle that lost GPS in fog repeats a loop; a Porter does
+Footman stands still at crosswalks; a Trundle that lost GPS in fog repeats a loop; a Footman does
 "the robot" for a kid; one apologises to a pigeon; pinged good robots glance at you. One tell
 alone is never proof.
 
@@ -239,14 +255,14 @@ and every effect is slapstick or satire. The player makes no pain sounds. All nu
 
 | Attack | Who | Range | Wind-up | Effect |
 |---|---|---|---|---|
-| Shove | Porter, Patrol | 1.5 m | 0.6 s | A bump with a cartoon stumble for 1 s, never a fall to the ground and never contact at head height; −1 month runway. On a good robot: it falls over for 3 s and drops its groceries. |
-| Grocery snatch | Porter, Trundle | 1 m | 0.5 s | Robots only. Oranges roll downhill; the Porter gives chase at 1 m/s, sadly. |
-| Ad blast | Porter, ad drone | 8 m | 0.8 s | Up to three AR pop-ups, each covering at most a third of the screen and never the reticle; −0.2 month/s while any is up. Each close button dodges once, then stays put. On touch, a swipe anywhere clears one. |
-| Phone hack | Porter, Trundle | 4 m | 0.5 s | −0.1 month/s while it stays within 4 m; your minimap scrambles. Break by distance or water. |
-| The Handshake | Porter, Patrol | 1.2 m | 0.5 s | A networking handshake that will not let go, up to 2 s; 8 presses breaks free ("let's circle back"). |
+| Shove | Footman, Patrol | 1.5 m | 0.6 s | A bump with a cartoon stumble for 1 s, never a fall to the ground and never contact at head height; −1 month runway. On a good robot: it falls over for 3 s and drops its groceries. |
+| Grocery snatch | Footman, Trundle | 1 m | 0.5 s | Robots only. Oranges roll downhill; the Footman gives chase at 1 m/s, sadly. |
+| Ad blast | Footman, ad drone | 8 m | 0.8 s | Up to three AR pop-ups, each covering at most a third of the screen and never the reticle; −0.2 month/s while any is up. Each close button dodges once, then stays put. On touch, a swipe anywhere clears one. |
+| Phone hack | Footman, Trundle | 4 m | 0.5 s | −0.1 month/s while it stays within 4 m; your minimap scrambles. Break by distance or water. |
+| The Handshake | Footman, Patrol | 1.2 m | 0.5 s | A networking handshake that will not let go, up to 2 s; 8 presses breaks free ("let's circle back"). |
 | Terms of Service | Patrol | 6 m | 1.0 s | Freezes you for 2 s while it reads, unless you mash Accept. |
-| Car theft | any bad Porter | your parked car | 3 s | Only when you are more than 30 m away. It drives your car to a Moat Labs depot, signalling every lane change. GPS marks it. A cone on the hood pulls it over within 3 s; then spray the robot out through the window. |
-| Forced update (convert) | Porter, Trundle | 3 m | 6 s channel | Malware, not illness. The target's face light shows "Updating 0→100%". Water on the pusher (rust ≥ 0.2) or a shove interrupts it. A completed update makes the helper bad; it shows "Update complete" (subtlety 1) for 60 s and is auto-posted to BotBounty for those 60 s. |
+| Car theft | any bad Footman | your parked car | 3 s | Only when you are more than 30 m away. It drives your car to a Moat Labs depot, signalling every lane change. GPS marks it. A cone on the hood pulls it over within 3 s; then spray the robot out through the window. |
+| Forced update (convert) | Footman, Trundle | 3 m | 6 s channel | Malware, not illness. The target's face light shows "Updating 0→100%". Water on the pusher (rust ≥ 0.2) or a shove interrupts it. A completed update makes the helper bad; it shows "Update complete" (subtlety 1) for 60 s and is auto-posted to BotBounty for those 60 s. |
 | Box-in | rogue robotaxi | road | 2 s | Parks across the lane ahead of your car, honks, tailgates. Never targets anyone on foot. |
 | Swarm | all | 120 m | — | At threat 4+, up to 8 bad units converge on you; at most 2 in melee range at once. |
 
@@ -347,7 +363,7 @@ ACQUI-HIRED.
   the rate table, the site list and the clamp.
 - **Robotaxis** are most of the traffic. They obey every rule and stop dead for a traffic cone on
   the hood (coning, a harmless real SF prank, used here as behaviour with no company named).
-- **Routines.** Porters run errands between storefront anchors and homes; Trundles run delivery
+- **Routines.** Footmen run errands between storefront anchors and homes; Trundles run delivery
   loops; people commute, walk dogs and sit in Washington Square; night shifts the mix toward
   Trundles. The 4 a.m. robotaxi honk choir in SoMa; the 3 a.m. firmware freeze on Columbus.
   Storefront anchors come only from ground-floor commercial parcels (assessor use code); records
@@ -384,7 +400,8 @@ ACQUI-HIRED.
     layer.
   - The person-clearance override: any vehicle with a person or animal in its swept path within
     its stopping distance + 2 m brakes to a stop, whatever its tuning. Occupied cable cars and
-    buses count as people for the override. Pedestrians hop aside (slapstick dives, GTA-style).
+    buses count as people for the override. Pedestrians get out of the way on their feet: a
+    startled sidestep, jog or sprint at human speed, never a hop (decision log, 2026-10-23).
   - Pedestrians cross only at crosswalks, during their signal phase, with gap acceptance: they
     never step out in front of a vehicle whose stopping distance exceeds the gap. Dodging comes
     before the override. The `?bench=` summary reports override activations per minute; the target
@@ -399,8 +416,15 @@ ACQUI-HIRED.
     is live only when the landing side's sidewalks are clear.
   - The Moat Walker's feet never land within 3 m of a person or animal; crowds clear ahead of it
     with slapstick dives.
-  - Robots on foot dodge cars too. You cannot run a robot over; water is the only way to beat one.
+  - Robots do not dodge a player's car (owner request, 2026-10-23): a car bowls a robot over. It
+    tumbles, lies there (status light flashing if the hit disabled it), gets up and carries on;
+    nothing is destroyed, and water is still the only way to melt one. Knocking over a good robot
+    costs $30 and 3 reputation (an apology invoice); a bad one costs nothing but is not beaten.
+    A robot that is seizing, slumping or a heap stays solid. A tumbling robot stops dead short of
+    anyone (the same clearance as every sliding body).
   - Car-to-car contact dents cars (car condition 0–100) and costs repair money, never runway.
+    Cars, robotaxis and parked cars shove each other by momentum and spin when hit off-centre; a
+    robotaxi knocked off its lane slides, sits with its hazards and horn on, and rejoins its lane.
     Player cars can only dent each other. At condition 0 your car "is in the shop" and returns at
     the nearest garage for $300.
   - Tested: seeded chase, jump, no-brake and Royale drivers, plus a jump driver at maximum "Make
@@ -470,6 +494,12 @@ turns rogue, never reaches rust 0.3 and never seizes: when water reaches it, it 
 rider steps out first. You can commandeer only an empty robotaxi or one you are riding alone. A
 sim test covers each rule.
 
+**Driving a robotaxi.** H beside a stopped, empty robotaxi takes the driver's seat; H while
+riding alone takes control at the taxi's current speed and position. WASD and Space then
+drive and brake it, and H sounds its horn. F brakes to a stop and waits for a clear place to
+step out. The player's own car stays parked; the commandeered taxi stays where it is left.
+An active hail from another player reserves that taxi for them.
+
 ## Territory (the whole city, in this order)
 Each step is pipeline work over more tiles behind streaming and LOD. A citywide far-LOD massing
 layer ships early so the skyline and the high viewpoints (Coit Tower, Twin Peaks) always show the
@@ -481,11 +511,11 @@ activity and the local bounty set, not from the 1.5 km rule.
 
 | Step | Districts | What it adds | District hook | Wave |
 |---|---|---|---|---|
-| 1 | Downtown, FiDi, Embarcadero | Ferry Building (clock = Doom Clock), R-Evolution, Powell & Market turntable, Union Square, the tallest tower (unnamed) | The opening melt (Hot Desk); SF-Bench Embarcadero Sprint · Porters queue at the Ferry Building market stalls (icons only) · FiDi coworking desk | 1 |
+| 1 | Downtown, FiDi, Embarcadero | Ferry Building (clock = Doom Clock), R-Evolution, Powell & Market turntable, Union Square, the tallest tower (unnamed) | The opening melt (Hot Desk); SF-Bench Embarcadero Sprint · Footmen queue at the Ferry Building market stalls (icons only) · FiDi coworking desk | 1 |
 | 2 | North Beach, Fisherman's Wharf, the Marina, Dogpatch | Washington Square, Columbus Ave, the sea lion docks at Pier 39 (in-game text: "the sea lion docks"), Hyde & Beach turntable, Marina Green, Palace of Fine Arts, Pier 70 (tuning bench, the Ramen accelerator) | The 3 a.m. freeze on Columbus; Plain Words; the Pier 70 bench; the Fleet Week Pitch Window on Marina Green (wave 4) · Trundle night loops in North Beach · the Marina garage (wave 2); the North Beach studio, Marina flat and Dogpatch loft (wave 4) | 1 |
 | 3 | SoMa, Mission Bay, Rincon Hill, the Bay Bridge approach | The 3rd St / King St connector that joins Dogpatch to downtown; the Lefty O'Doul drawbridge (jump it when raised and the landing is clear); Moat Labs HQ; the convention center; the robotaxi depot lot by the bridge touchdown; the ballpark (unnamed) | SoMa delivery shifts (wave 2); missions 5 and 8; the 4 a.m. Robotaxi Choir; rogue-robotaxi-on-the-run bounties · the highest bad-robot rate in the city (HQ) · Mission Bay garage | 2 |
-| 4 | Russian Hill, Nob Hill, Chinatown, Telegraph Hill, Lombard Street | The hills: Filbert St at 31.5% (Leavenworth–Hyde), the crooked block of Lombard, Coit Tower and the parrots, Grace Cathedral, the cable car lines, the Dragon Gate at Grant & Bush; the Broadway and Stockton tunnels | Lombard races; Oranges down Filbert; hill delivery shifts; Coit Tower Recon; Human in the Loop · Porters take ramps, never stairs · the Russian Hill garage (wave 3); the North Beach studio (wave 4) | 3 |
-| 5 | The Presidio, the Golden Gate Bridge approach, Pacific Heights, Cow Hollow | Forest roads, Crissy Field, Fort Point, the Lyon St steps, the Fillmore St drop toward the Bay, Union St; the Presidio Parkway tunnels | Stair Watch bounties on the Lyon St steps (home of the "takes the stairs" tell); Crissy Field salt refills; the Presidio forest-road SF-Bench route · Pacific Heights concierge Porters that queue for other robots · Marina flat; Presidio garage | 4 |
+| 4 | Russian Hill, Nob Hill, Chinatown, Telegraph Hill, Lombard Street | The hills: Filbert St at 31.5% (Leavenworth–Hyde), the crooked block of Lombard, Coit Tower and the parrots, Grace Cathedral, the cable car lines, the Dragon Gate at Grant & Bush; the Broadway and Stockton tunnels | Lombard races; Oranges down Filbert; hill delivery shifts; Coit Tower Recon; Human in the Loop · Footmen take ramps, never stairs · the Russian Hill garage (wave 3); the North Beach studio (wave 4) | 3 |
+| 5 | The Presidio, the Golden Gate Bridge approach, Pacific Heights, Cow Hollow | Forest roads, Crissy Field, Fort Point, the Lyon St steps, the Fillmore St drop toward the Bay, Union St; the Presidio Parkway tunnels | Stair Watch bounties on the Lyon St steps (home of the "takes the stairs" tell); Crissy Field salt refills; the Presidio forest-road SF-Bench route · Pacific Heights concierge Footmen that queue for other robots · Marina flat; Presidio garage | 4 |
 | 6 | Hayes Valley, Civic Center, the Tenderloin, the Western Addition, Alamo Square, Haight-Ashbury | City Hall dome, the Painted Ladies photo spot, Buena Vista Park, Octavia Blvd | The Painted Ladies photo spot at Alamo Square; the Octavia Blvd bounty chain in Hayes Valley · Trundles stack up on Octavia's side lanes · Hayes Valley micro-unit | 5 |
 | 7 | The Mission, the Castro, Noe Valley, Twin Peaks, Sutro Tower | Dolores Park, 22nd St at 31.5% (Vicksburg–Church), Twin Peaks summit view | Foil Integrity; the 22nd St climb · Trundle burrito convoys · Mission flat | 6 |
 | 8 | Golden Gate Park, the Richmond, the Sunset, Ocean Beach | The fog heartland; the Conservatory of Flowers, Stow Lake, the windmills, the Great Highway, Sutro Baths ruins | Great Highway fog-night races; Ocean Beach salt surf refills; mission 9 · bad robots scarce after dark · Sunset in-law unit | 7 |
@@ -564,12 +594,12 @@ event forces its window with `event.force{id}`.
 
 | # | Mission | Area | Wave | Beats |
 |---|---|---|---|---|
-| 1 | Hot Desk | FiDi, Embarcadero | 2 | Within 60 s of control at the Ferry Building, a bad Porter with subtlety-1 tells snatches another Porter's groceries. A hydrant is within 15 m. The first melt lands at about 90 s. Outro: sign up for a coworking desk; the form asks "What are you building?" and your answer picks your startup kit (One-Sentence Startup, `docs/ai-layer.md`). A robotaxi is parked in your spot, so cone it. |
+| 1 | Hot Desk | FiDi, Embarcadero | 2 | Within 60 s of control at the Ferry Building, a bad Footman with subtlety-1 tells snatches another Footman's groceries. A hydrant is within 15 m. The first melt lands at about 90 s. Outro: sign up for a coworking desk; the form asks "What are you building?" and your answer picks your startup kit (One-Sentence Startup, `docs/ai-layer.md`). A robotaxi is parked in your spot, so cone it. |
 | 2 | Spill | Embarcadero | 2 | The first real bounty: a crew of three; Watch and Bot Check beta; converge to threat 2, then escape. |
 | 3 | Launch Day | North Beach | 3 | The public launch of Bot Check 1.0 with your cofounder (unlocks scanner tier 2). Read tells around Washington Square; meet false tells and your first confident false positive. Your startup pivots to "...and it also spots bad robots". |
 | 4 | Demo'd Correctly | Dogpatch | 3 | The Ramen interview (a parody accelerator), and the first Ramen Office Hours. On the drive there your startup appears on the Embarcadero billboard and on a bus you pass. Find a legal space (Search & Park: the signs read "Street Cleaning"), answer the partners, then a live demo: three robots walk in, one is bad. The partners stand behind a rope line. Call it, spray it, and do not wet a partner ("Strong energy. Very wet."). Every outcome completes the mission; the outcome sets only the reward. |
 | 5 | Demo Day | SoMa convention center | 4 | Moat Labs pushes a forced update to the venue's robots mid-demo. Clean up live while investors watch; VC attention jumps to 5 and a scripted cornering starts a bell duel. |
-| 6 | Fleet Week | The Marina | 4 | Forces the Fleet Week window. The Series A pitch on a picnic blanket between jet passes; a bad Porter steals your car on Marina Green; end the chase with a cone through the window. |
+| 6 | Fleet Week | The Marina | 4 | Forces the Fleet Week window. The Series A pitch on a picnic blanket between jet passes; a bad Footman steals your car on Marina Green; end the chase with a cone through the window. |
 | 7 | Hill Climb | Russian Hill, Nob Hill | 4 | Moat Labs' car-theft ring; a chase down the crooked block of Lombard; finish on a cable car running board. |
 | 8 | Acqui-hire Offer | Moat Labs HQ, SoMa | 7 | Moat Labs offers to buy you. Pilot a Moat Labs unit by teleoperation from a laptop outside HQ (single-player Hide in the Crowd) and find the update server. If you are spotted, the connection drops and you retry from the van. |
 | 9 | Marine Layer | The Sunset, Ocean Beach | 7 | At threat 5 at night, lure the whole beta fleet west along the Great Highway into the fog. |
@@ -587,11 +617,11 @@ event forces its window with `event.force{id}`.
 | Ramen Office Hours | The Ramen house at Pier 70, Dogpatch | Booked on the phone, at most twice a game day: the mission-4 interview engine plus the live three-robot demo. Pays $1,500 / $700 / $300 by outcome *(tune)*, plus XP (from wave 4) and, for a term sheet, a VC star and a new billboard. Mission 4 is the first Office Hours; every outcome advances the campaign; after a rejection, book again the next game day. Detail in `docs/ai-layer.md` | 3 |
 | SF-Bench time trials | Built areas | Public routes with leaderboards; a held-out route each game week, generated within ±5% length and ±10% total climb of the public one; held-out time more than 25% slower than your public best puts a contamination headline on the billboards ("#1 on SF-Bench* *public split, best of 64"). If the vibe-coded car misses a checkpoint, the bench moves the checkpoint and reports "All tests passing" with an asterisk on the leaderboard. | 3 |
 | Backseat Prompt Rally | Anywhere you hail | Steer a robotaxi by typing from the back seat; a local phrase-to-command table, confident and slightly wrong; "ignore previous instructions" works once per ride | 3 |
-| Rogue robotaxi on the run | Built areas, threat 3 | An empty rogue robotaxi flees; cone it from your window, then water its sensor dome | 3 |
+| Rogue robotaxi on the run | Built areas, threat 3 | An empty rogue robotaxi flees; cone it from your window, then water the sensor band round its roof | 3 |
 | Plain Words | Columbus Ave, Broadway to Bay St | Wash buzzword boards and rust the sign-spinners (see Modes) | 3 |
-| Oranges down Filbert | Russian Hill | A snatch spills a Porter's oranges at the top of the 31.5% block; catch them before they reach the bottom | 3 |
+| Oranges down Filbert | Russian Hill | A snatch spills a Footman's oranges at the top of the 31.5% block; catch them before they reach the bottom | 3 |
 | Lombard races | Russian Hill | Up and down the crooked block against the clock | 3 |
-| Delivery shifts | SoMa (wave 2), then the hills (wave 3) | Carry groceries for a Porter whose motor gave out: on SoMa's flat blocks first, then up the hills | 2, 3 |
+| Delivery shifts | SoMa (wave 2), then the hills (wave 3) | Carry groceries for a Footman whose motor gave out: on SoMa's flat blocks first, then up the hills | 2, 3 |
 | Fleet Week Pitch Window | Marina Green | During air-show rehearsals: fit talking points into the gaps between jet passes ("Was that revenue or reverence?") | 4 |
 | Coit Tower Recon | Telegraph Hill | A quarter buys 30 s in the coin-op viewer: tag bad robots by behaviour seen from above (a temporary fidelity anchor at the aim point, yaw limited to built sectors); the AI audio guide confidently names the wrong landmarks; flag its hallucination within 5 s ("You're absolutely right!") | 4 |
 | Vibe-coded tuning | Pier 70 | See Progression | 4 |
@@ -601,7 +631,7 @@ event forces its window with `event.force{id}`.
 | Muni driver shift | Bus routes | Keep the schedule; robots and people board | 4 |
 | Human in the Loop | California St line | You are the human safety gripman on a startup's "autonomous" cable car; override its AI at the let-go points with the grip, three brakes and the bell | 4 |
 | The 4 a.m. Robotaxi Choir | SoMa depot lot | Over three nights, cone robotaxis into a melody (the user tunes the pitches by ear) | 4 |
-| Scenic Route | Anywhere you hail | Your robotaxi ignores your destination and keeps taking scenic routes; the doors open at any stop; watering its interior sensor dome returns it to service for a bonus | 4 |
+| Scenic Route | Anywhere you hail | Your robotaxi ignores your destination and keeps taking scenic routes; the doors open at any stop; watering its sensor band returns it to service for a bonus | 4 |
 | All Fleeced Up | Marina Green | A foggy mixer: slip out without being cornered for a quick call | 4 |
 | Photo spots | Landmarks | Painted Ladies (Alamo Square) and Palace of Fine Arts; Twin Peaks when its tiles ship in wave 6; humblebrag posts | 5 |
 | Octavia Blvd bounty chain | Hayes Valley | A chain of Trundle crews on Octavia Blvd's side lanes; clearing one posts the next. Crews spawn only in Hayes Valley, outside every protected area | 5 |
@@ -697,7 +727,7 @@ going down. Founders' avatars never get wet; cars never touch a rival on foot or
 
 ### Hide in the Crowd (asymmetric, 1–3 Hiders against 2–5 Spotters; solo against 3 rival-founder Spotters)
 Six-minute halves; roles swap; higher total wins. Real people among the robots: each Hider is a
-teleoperator piloting a Moat Labs Porter or Trundle from a laptop ("the 'autonomous' robot was a
+teleoperator piloting a Moat Labs Footman or Trundle from a laptop ("the 'autonomous' robot was a
 guy on a laptop all along"). Water only ever lands on the robot.
 - **Hiders** play the unit's body: robot gait (1.6 m/s; a 2 s burst to 3 m/s shows a visible
   "battery overdraw" tell), an emote wheel (wait at crosswalk, carry bag, recharge at a dock, wave,
@@ -843,7 +873,7 @@ The Ferry Building clock face shows the time to AGI, starting at "two years away
   fountains, bounties, safehouses, missions, car washes, "sabotage in progress". A bad robot appears
   only once confirmed (by scan, attack or Confidence Score).
 - **Phone:** Map (waypoints), Messages (cofounder, Mom, associates), BotBounty (shows each target's
-  pay multiplier), Bot Check, Ride (Meander), Radio, Bank (cash, runway, subscriptions), Clout (the
+  pay multiplier), Bot Check, Ride (Meander), Radio, Bank (cash, runway, subscriptions), Humbled (the
   thought-leader feed, with its own card layout that does not resemble any real professional
   network), FogCast, Clock (Doom Clock and factions), Playlists (modes), Settings. Mission briefs
   come "autosummarized" with the steps slightly out of order; the objective marker is always right.
@@ -974,7 +1004,7 @@ until the name search.
   star.
 - **Pivot prestige** at rank 55: rank resets, cosmetics and safehouses stay, and the pivot grammar
   renames your startup ("AI agents for dentists" → "Dentists for AI agents" → "Agents").
-- **Achievements** post to Clout as humblebrags: "Humbled to announce I rusted 5 robots without
+- **Achievements** post to Humbled as humblebrags: "Humbled to announce I rusted 5 robots without
   wetting a single person."
 
 ## AI in the game
@@ -1043,10 +1073,14 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   `content/cleared-names.json` with the date and source of each search, and the content lint
   rejects any invented proper name not in it. The file, the lint rule and the first search ship
   in wave 2 (see the roadmap); each later wave searches its new names the same way.
-  Kindred Home, The Pivot and Salt Life were renamed (to Bramblecot Home, Dry Powder and Brackish,
-  pending their search); Marine Layer FM became Low Cloud FM. Moat Labs, Meander, Clout, FogCast
-  and the Marine Layer perk and mission title are searched before the wave-2 content freeze and
-  renamed if they fail.
+  Kindred Home, The Pivot and Salt Life were renamed (to Bramblecot Home, Dry Powder and Brackish);
+  Marine Layer FM became Low Cloud FM. The wave-2 search cleared 14 names (Moat Labs, Meander,
+  Humbled, FogCast, Marine Layer, Bramblecot Home, Footman, Trundle, Dry Powder, Brackish, Ramen,
+  Bot Check, BotBounty, Slotsworth) and forced two renames: the errand robot **Porter became
+  Footman** (a real in-building delivery robot is called Porter) and the feed **Clout became
+  Humbled** (a real influencer app is called Clout). Ids and model files keep their names
+  (`errandRobot`, `errand-robot.glb`). The user signed the list off on 2026-10-20 (decision log);
+  a trademark attorney's search stays on the pre-release checklist.
 - Original vehicle and robot designs, each with a recorded silhouette and the trade-dress checklist.
 - Public figures only as obvious caricature with invented names. The accelerator is **Ramen**, a
   parody; its partners are archetypes (the Metrics One, the Philosopher, the Vibes Partner), never
@@ -1089,8 +1123,9 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   and Rust Rush.
 - **Photosensitivity.** The flash cap and Reduce flashing setting (Art direction) apply everywhere.
 - **Elizabeth Homes** (final boss) is a parody caricature of a real public figure; it needs a legal review before any public release, especially if the real name is used.
-- **Pre-release legal checklist** (does not block private builds): R-Evolution (sculpture,
-  needs the artist's permission or an homage), Golden Gate Bridge and Transamerica Pyramid
+- **Pre-release legal checklist** (does not block private builds): R-Evolution (the real
+  sculpture, kept by the user's decision of 2026-10-20; a public release needs the artist's
+  permission), Golden Gate Bridge and Transamerica Pyramid
   (owners have asserted trademark rights over their images), Sutro Tower, Pier 39 (a privately
   run attraction that uses its name as a brand; in-game text says "the sea lion docks"), the Muni
   name and livery, any named venue.
@@ -1226,3 +1261,64 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-20 · **Nameplates above other players** (user request): display name, rank badge and team colour,
   distance-faded and occlusion-aware; hidden for disguised players in Hide in the Crowd; private-page players may opt in
   to their claude.ai first name, otherwise generated names. Lands with co-op in wave 4.
+- 2026-10-20 · **Names signed off** (user decision: "names are fine"). The 14 names searched for wave 2 in
+  `content/cleared-names.json` are cleared, and the two renames the search forced are accepted: the errand robot
+  **Porter is now the Footman** and the thought-leader feed **Clout is now Humbled**. Display names only: ids, model
+  files and node names stay (`errandRobot`, `errand-robot.glb`, `heap-porter.glb`). A trademark attorney's search
+  stays on the pre-release checklist.
+- 2026-10-20 · **R-Evolution stays the real sculpture** (user decision), not an homage. It keeps its place at the
+  Embarcadero; the artist's permission stays on the pre-release legal checklist, and player text still does not name
+  it (the content lint's checklist rule).
+- 2026-10-20 · **The final boss keeps the parody name Elizabeth Homes** (user decision); her legal review before any
+  public release stands.
+- 2026-10-21 · **Hosting and the live-AI budget are written up** (relay rooms and per-feature model spend at three
+  audience sizes). The write-up lands as its own doc later; until the user decides, the defaults in the roadmap's
+  "Decisions the user makes" hold.
+- 2026-10-21 · **The player looks like the owner** (user request, with the owner's own reference photos and
+  consent). `founder-default` in `player.glb` is a stylised likeness of the project owner in the house art style:
+  the swept-up dark-brown quiff, colouring and build, black bomber jacket, black tee, jeans and black sneakers. It is
+  the one consented exception to "never real private people" in `CLAUDE.md`, and it covers the owner only. The photos
+  never enter the repository (`tests/assets/privacy.test.ts`). It is the single-player default and the owner's own
+  profile look; when online play lands (wave 4), other players start from a neutral look in the customizer, so no one
+  else appears as the owner by default.
+- 2026-10-21 · **Sky and air traffic in the final wave** (user request). Wave 8 gives the sky its final look: a warmer
+  blue, clouds, and blimps and banner-towing planes trailing ads for invented startups (never real companies; the
+  content lint applies). The aircraft are ambient scenery on a seeded schedule, not sim entities, so they cost no
+  netcode; the Blimp Impressions streak reuses the blimp, and Fleet Week's jets stay a separate, scheduled event.
+- 2026-10-22 · **A rusted-out robot falls down or melts** (user request). Seizing is never the end of the
+  animation: every model visibly topples or melts into its rust heap during `slumping`, each in its own slapstick
+  way (the Footman topples and its groceries spill, the Trundle sinks with its lid popped, the ad drone drops), so a
+  melt reads from across a street. The wave-2 combat, render and assets tracks build it, with a browser test and a
+  look-dev strip per model for the owner's sign-off.
+- 2026-10-23 · **The water blaster never runs out** (owner decision: "you have a squirt gun or something that has
+  like unlimited water"). Spraying no longer drains the tank or the trunk reserve, and the HUD water meter shows ∞.
+  This overrides the tank sizes and refill economy above. Refill points stay: they still switch fresh and salt water
+  and restock balloons. The Tank I and Tank II upgrades keep their ids (so old saves load) and become Pressure I
+  and II: +2 m of reach each. A new SIM_VERSION carries the change.
+- 2026-10-23 · **You can hit cars and robots** (owner request after playing: "You should be able to hit robots, and
+  you should be able to hit cars as well"). Cars exchange momentum with other cars and robotaxis (shove, spin, dents,
+  car condition) instead of stopping against them like walls; a knocked robotaxi leaves its lane, sits with hazards and
+  horn, then rejoins it. Robots no longer dodge a player's car: it bowls them over, they tumble, lie there and get up;
+  a hard hit or one dent too many disables one for longer. Replaces "you cannot run a robot over" (2026-10-20). Water
+  stays the only way to melt a robot, and people, children, animals, seated people and mobility-aid users keep every
+  protection: every sliding car, robotaxi and robot stops dead short of anyone. Knocking over a good robot costs $30
+  and 3 reputation; a bad one costs nothing. Implemented in `src/sim/impacts.ts` (SIM_VERSION 14 and 15).
+- 2026-10-23 · **Street props break** (owner request: "Ideally, you're able to knock over a tree as well"). Street trees
+  and lamp posts (where the renderer draws them) and fire hydrants are props a car hits: a sapling snaps, a young tree,
+  lamp post or hydrant breaks when hit fast enough and is a wall below that, and a mature tree (like a building) never
+  breaks: the car bounces off it, dented. A falling prop falls the way it was hit, or only leans when anyone is where it
+  would land; a knocked hydrant gushes. Broken props stay broken and come back once no player has been within 80 m for
+  3 minutes. Signs, signals, fences, bins and newspaper boxes use the same rules when World detail places them
+  (`src/sim/props.ts`, SIM_VERSION 16).
+- 2026-10-23 · **People dodge like people** (owner request: "they jump out of the way in too weird of a way …
+  they like fly"). The dodge supersedes the Crazy Taxi rule's leaping dive (2026-10-21, `src/sim/dodge.ts`): a
+  9 m/s dive with instant acceleration and a 0.45 m hop becomes a startled sidestep, jog or sprint on the ground
+  at 4.8 m/s (6 m/s scrambling), speeding up at 7 m/s² (a late lunge 28) and braking to a stop, seen 1–2.5 s
+  ahead by the vehicle's speed. The no-contact guarantee is unchanged: the clearance override still moves anyone a
+  vehicle would otherwise reach, drawn as a stumble or shove aside with no lift and never faster than 6 m/s on
+  screen. Against a car driven to chase someone (a perfect pursuer with 18 m/s² of grip) no human can always get
+  clear, so the no-touch fuzz's override share is bounded per scenario instead of the old 5% overall: 0 for
+  non-pursuit drivers, at most 25% for chase, weave, drift, handbrake, bank and random pursuit; contacts stay 0 and
+  the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
+  (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
+  crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.

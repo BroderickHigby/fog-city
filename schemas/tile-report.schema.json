@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "fog-city/tile-report",
+  "title": "Pipeline build report (public/tiles/<world>/report.json): counts for review, and the building records at each probe point (content/landmarks.json replacesBuildingIds come from here). The game never reads it.",
+  "type": "object",
+  "required": ["world", "tiles", "buildings", "roads", "spawn", "probes", "tallest"],
+  "properties": {
+    "world": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "tiles": { "type": "integer", "minimum": 1 },
+    "buildings": {
+      "description": "Building counts (pipeline/lib/buildings.ts BuildingStats)",
+      "type": "object",
+      "required": ["kept", "twoTier"],
+      "properties": {
+        "spikeTowersDroppedByUse": {
+          "description": "spikeTowersDropped by the joined parcel's assessor use_code (\"none\": no parcel)",
+          "type": "object",
+          "propertyNames": { "pattern": "^([A-Z]+|none)$" },
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "additionalProperties": { "type": "number" }
+    },
+    "roads": { "type": "object" },
+    "spawn": {
+      "type": "object",
+      "required": ["x", "z", "heading"],
+      "properties": { "x": { "type": "number" }, "z": { "type": "number" }, "heading": { "type": "number" } }
+    },
+    "probes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "x", "z", "buildings", "nearestM"],
+        "additionalProperties": false,
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "label": { "type": "string" },
+          "x": { "type": "number" },
+          "z": { "type": "number" },
+          "radiusM": { "type": "number", "exclusiveMinimum": 0 },
+          "buildings": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "nearestM": { "type": "number" }
+        }
+      }
+    },
+    "tallest": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "heightM", "topY", "source"],
+        "properties": {
+          "id": { "type": "string" },
+          "heightM": { "type": "number" },
+          "topY": { "type": "number" },
+          "parcel": { "type": "string" },
+          "source": { "enum": ["lidar", "assessor-stories", "override"] }
+        }
+      }
+    }
+  }
+}

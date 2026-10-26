@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "$comment": "City life tuning (docs/parallel/status/city-life-stream.md; owner feedback 2026-10-23: more robots, a little more action). population.badScale multiplies the bad-robot share outside protected areas (places.ts badRobotRate). It is 1: a real-SF soak (tests/sim/agents/bad-bots-sf.test.ts) already finds 5-20 bad robots within 300 m of a free-roam player at the design rate, so what the city lacked was bad robots doing something visible (the incidents below) and a way to tell them apart, not more of them, and more bad brains cost frame time; population (owner and coordinator, 2026-10-24: no more bodies than before, the sim is at its frame budget) shifts the street mix toward robots, about 1.4x the Footmen and Trundles and 0.45x the people, which keeps each area's walker total at or below the old one; it scales the ambient densities of src/sim/agents.ts (AGENT_SPEC perKm and cap, per 250 m area) by kind: base x the hour band x the district of the player who owns the area, capped at maxScale. It applies in the game composition only (createGameSystems); bare step() keeps the base densities. director paces the Ambient Director (seconds between incidents while nothing else is on, how long one stays staged) and weights its picks; incidents are extra director cards (same shape and rules as content/director-cards.json) for the street incidents the owner asked for.",
+  "population": {
+    "maxScale": 2,
+    "badScale": 1,
+    "base": { "robotaxi": 1, "errandRobot": 1.4, "sidewalkBot": 1.4, "person": 0.45 },
+    "hours": [
+      { "from": 0, "to": 5, "scale": { "robotaxi": 0.6, "errandRobot": 0.45, "sidewalkBot": 1.35, "person": 0.35 } },
+      { "from": 5, "to": 7, "scale": { "robotaxi": 0.85, "errandRobot": 0.8, "sidewalkBot": 1.15, "person": 0.6 } },
+      { "from": 7, "to": 10, "scale": { "robotaxi": 1, "errandRobot": 1.1, "sidewalkBot": 0.9, "person": 1 } },
+      { "from": 10, "to": 16, "scale": { "robotaxi": 1, "errandRobot": 1, "sidewalkBot": 1, "person": 1 } },
+      { "from": 16, "to": 19, "scale": { "robotaxi": 1, "errandRobot": 1, "sidewalkBot": 1, "person": 1 } },
+      { "from": 19, "to": 24, "scale": { "robotaxi": 0.9, "errandRobot": 0.75, "sidewalkBot": 1.25, "person": 0.7 } }
+    ],
+    "districts": {
+      "downtown": { "errandRobot": 1.1 },
+      "fidi": { "errandRobot": 1.2 },
+      "embarcadero": { "errandRobot": 1.15 },
+      "north-beach": { "sidewalkBot": 1.2 },
+      "fishermans-wharf": { "errandRobot": 1.1 },
+      "marina": { "errandRobot": 0.9, "sidewalkBot": 0.9 },
+      "dogpatch": { "sidewalkBot": 1.1 },
+      "soma": { "errandRobot": 1.1, "sidewalkBot": 1.2 },
+      "mission-bay": { "errandRobot": 1.1, "sidewalkBot": 1.2 },
+      "rincon-hill": { "errandRobot": 1.1 },
+      "bay-bridge-approach": { "sidewalkBot": 1.1 }
+    }
+  },
+  "director": {
+    "idleWindowS": [30, 50],
+    "stagedS": 30,
+    "stageM": [25, 70],
+    "weights": {
+      "snatch-in-progress": 3,
+      "double-snatch": 2,
+      "crew-of-three": 2,
+      "crosswalk-squatter": 3,
+      "robotaxi-standoff": 3,
+      "malfunction-spree": 3
+    }
+  },
+  "incidents": [
+    {
+      "id": "crosswalk-squatter",
+      "title": "Crosswalk squatter",
+      "blurb": "A delivery Trundle parks itself on the crosswalk and will not budge.",
+      "fromWave": 2,
+      "radiusM": 120,
+      "cooldownS": 180,
+      "protectedAreas": false,
+      "when": { "near": ["crosswalk"], "time": "any" },
+      "actors": [{ "id": "trundle", "kind": "badRobot", "archetype": "fakeCourier", "level": 2 }],
+      "beats": [{ "do": "stall", "actor": "trundle" }, { "do": "postBounty", "actor": "trundle" }],
+      "payoff": { "kind": "melt", "cash": "bounty", "reputation": 1, "note": "Everyone walks round it. Rust it off the crosswalk." }
+    },
+    {
+      "id": "robotaxi-standoff",
+      "title": "Robotaxi standoff",
+      "blurb": "Two empty robotaxis meet nose to nose in one lane. Neither backs up. Both honk.",
+      "fromWave": 2,
+      "radiusM": 120,
+      "cooldownS": 180,
+      "protectedAreas": false,
+      "when": { "near": ["road"], "time": "any" },
+      "actors": [
+        { "id": "first", "kind": "rogueTaxi", "archetype": "rogueTaxi", "level": 1 },
+        { "id": "second", "kind": "rogueTaxi", "archetype": "rogueTaxi", "level": 1 }
+      ],
+      "beats": [
+        { "do": "parkAcross", "actor": "first" },
+        { "do": "parkAcross", "actor": "second" },
+        { "do": "honk", "actor": "first" },
+        { "do": "honk", "actor": "second" }
+      ],
+      "payoff": { "kind": "coneTaxi", "cash": "bounty", "reputation": 1, "note": "Traffic goes round them. Cone a hood, then spray; both are always empty." }
+    },
+    {
+      "id": "malfunction-spree",
+      "title": "Malfunction spree",
+      "blurb": "A Footman's firmware glitches mid-errand and it starts lifting every good robot's groceries.",
+      "fromWave": 2,
+      "radiusM": 120,
+      "cooldownS": 180,
+      "protectedAreas": false,
+      "when": { "near": ["sidewalk"], "time": "any" },
+      "actors": [
+        { "id": "glitch", "kind": "badRobot", "archetype": "snatcher", "level": 1 },
+        { "id": "first", "kind": "goodRobot", "archetype": "errandFootman" },
+        { "id": "second", "kind": "goodRobot", "archetype": "errandFootman" }
+      ],
+      "beats": [
+        { "do": "chase", "actor": "glitch", "target": "first" },
+        { "do": "sabotage", "actor": "glitch", "target": "first", "sabotage": "snatchGroceries" },
+        { "do": "chase", "actor": "glitch", "target": "second" },
+        { "do": "flashSabotage" }
+      ],
+      "payoff": { "kind": "catchInTheAct", "cash": "bounty", "reputation": 1, "note": "Melt it mid-snatch for the caught-in-the-act bonus." }
+    }
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "https://claude.ai/code/session_016EZ6L7tmyK2MnsHG59Dc1v",
+    "contentHash": "fnv1a32:534d162a",
+    "reviewedBy": [],
+    "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
+  }
+}
