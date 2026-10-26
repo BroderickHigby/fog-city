@@ -132,15 +132,17 @@ export function setFog(f: FogSettings, fog: THREE.FogExp2): void {
 const BUILDING_VERTEX_PARS = /* glsl */ `
 attribute vec4 _facade;
 // Per-building identity/base/height/family supplied once when a tile loads.
-attribute vec4 _building;
-varying vec4 vFcBuilding;
+// Keep identity bit-stable: interpolating even equal Float32 seeds can perturb the
+// room hash by one ULP, producing speckled light/blind colors and relief normals.
+attribute highp vec4 _building;
+flat varying highp vec4 vFcBuilding;
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
 varying vec3 vFcBuildingWorld;
 `;
 
 const BUILDING_FRAGMENT_PARS = /* glsl */ `
-varying vec4 vFcBuilding;
+flat varying highp vec4 vFcBuilding;
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
 varying vec3 vFcBuildingWorld;
@@ -561,11 +563,11 @@ export function createSharedMaterials(): SharedMaterials {
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
   Object.assign(building, { defaultAttributeValues: { _facade: [0, 0, 0, 1], _building: [-1, 0, 0, -1] } });
   building.onBeforeCompile = patchBuildingShader;
-  building.customProgramCacheKey = () => "fc:building:v4";
+  building.customProgramCacheKey = () => "fc:building:v5";
   const buildingFlat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, flatShading: true, name: "fc:building-flat" });
   Object.assign(buildingFlat, { defaultAttributeValues: { _facade: [0, 0, 0, 1], _building: [-1, 0, 0, -1] } });
   buildingFlat.onBeforeCompile = patchBuildingShader;
-  buildingFlat.customProgramCacheKey = () => "fc:building:v4";
+  buildingFlat.customProgramCacheKey = () => "fc:building:v5";
 
   const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
   ground.onBeforeCompile = patchGrainShader(0.12, 0.16);
