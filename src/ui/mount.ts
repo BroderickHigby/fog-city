@@ -36,7 +36,13 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const mini=node("div","fc-minimap"),canvas=node("canvas"),street=node("div","fc-street",copy("ui.hud.location"));canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(street,canvas);
   const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," km/h");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
   const hints=node("div","fc-drive-hints");hints.setAttribute("aria-hidden","true");
-  for(const [key,label]of [["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H","ui.hud.robotaxiHint"]]){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
+  let hintMode="";
+  const updateHints=(onFoot:boolean):void=>{
+    const mode=onFoot?"foot":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
+    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H","ui.hud.robotaxiHint"]];
+    for(const [key,label]of keys){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
+  };
+  updateHints(false);
   const perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
   const ads=node("div","fc-ads"),layer=node("div","fc-modal-layer");layer.hidden=true;
   const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,mini,speed,hints,perf,reticle,ads,layer);host.append(root);
@@ -127,7 +133,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveDetail.textContent=next.objective?.detail??next.interaction?.detail??"";
     speedValue.textContent=String(Math.round(bounded(next.speedMps,0,200)*3.6));
     mode.textContent=copy(next.vehicleControl==="robotaxi-driver"?"ui.hud.robotaxiDriver":next.vehicleControl==="robotaxi-passenger"?"ui.hud.robotaxiPassenger":next.travelMode==="foot"?"ui.hud.walkMode":"ui.hud.driveMode");
-    speed.dataset.mode=next.travelMode??"vehicle";street.textContent=next.streetName??copy("ui.hud.location");drawMap(canvas,next);
+    speed.dataset.mode=next.travelMode??"vehicle";updateHints(next.travelMode==="foot");street.textContent=next.streetName??copy("ui.hud.location");drawMap(canvas,next);
     if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris${next.performance.backend?` · ${next.performance.backend}`:""}${next.performance.shadowCascades?` · ${next.performance.shadowCascades} sun cascades`:""}`;
     renderAds();
     // Never replace a focused form while sim snapshots arrive.
