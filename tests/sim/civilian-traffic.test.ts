@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { admitPassingCars, agentsOf, populate, stepAgents, MAX_AGENTS_TOTAL, SPAWN_MIN_PLAYER_M, DESPAWN_RANGE_M, type AgentState } from "../../src/sim/agents.ts";
-import { Action, createInitialState, canonicalJson, upgradeState, makeFoot, step, NEUTRAL_INPUT, type SimState } from "../../src/sim/index.ts";
+import { admitPassingCars, agentsOf, populate, stepAgents, MAX_AGENTS, MAX_AGENTS_TOTAL, SPAWN_MIN_PLAYER_M, DESPAWN_RANGE_M, type AgentState } from "../../src/sim/agents.ts";
+import { Action, buildWorld, createInitialState, canonicalJson, upgradeState, makeFoot, step, NEUTRAL_INPUT, type SimState } from "../../src/sim/index.ts";
 import { CIVILIAN_PASS_INTERVAL_TICKS, isCivilianTraffic } from "../../src/sim/civilian-traffic.ts";
 import { boardableTaxi, hailableTaxi } from "../../src/sim/ride.ts";
 import { createAgentsRuntime } from "../../src/sim/agents/runtime.ts";
@@ -9,7 +9,7 @@ import type { Projectile } from "../../src/sim/combat-contract.ts";
 import { contextFromState } from "../../src/sim/combat/adapter.ts";
 import { gridCity } from "./fixtures.ts";
 import { nearestDrivableLane } from "../../src/sim/vehicles/follower.ts";
-import { lanePath, pathPoint } from "../../src/sim/roads.ts";
+import { lanePath, pathPoint, endNode } from "../../src/sim/roads.ts";
 import { sfWorld, CITY_MS } from "./world/load.ts";
 import { readJson } from "../helpers.ts";
 
@@ -33,6 +33,123 @@ describe("ordinary passing traffic",()=>{
     const again=admitPassingCars(world,{...state,ext:{agents:departed}},3600,departed);
     expect(again.list).toHaveLength(1);
     expect(again.list[0]!.id).toBeGreaterThan(ext.list[0]!.id);
+  });
+
+  it.each([50,150])("crosses a connected upstream junction and passes a clear 100m-block midpoint x=%s at both cadence ticks",x=>{
+    const world=gridCity();
+    for(const cadence of [1800,3600]) {
+      let state=empty(world,x,-15);
+      const ext=admitPassingCars(world,state,cadence,state.ext.agents!);
+      expect(ext.list).toHaveLength(1);
+      const car=ext.list[0]!,originalQueue=canonicalJson(car.trafficRoute),id=car.id;
+      expect(car.trafficRoute?.length).toBeGreaterThan(0);
+      expect(Math.hypot(car.x-x,car.z+15)).toBeGreaterThanOrEqual(SPAWN_MIN_PLAYER_M);
+      state={...state,tick:cadence,ext:{agents:ext}};
+      let closest=Infinity,after=0,finished=false,restored=false;
+      for(let tick=cadence+1;tick<cadence+1800;tick++) {
+        const previous=state,previousRoute=agentsOf(previous).find(a=>a.id===id)?.trafficRoute,prevJson=JSON.stringify(previousRoute);
+        const result=stepAgents(world,previous,tick)!;
+        expect(JSON.stringify(previousRoute)).toBe(prevJson);
+        state={...previous,tick,ext:{agents:result.ext},rng:result.rng};
+        const current=agentsOf(state).find(a=>a.id===id);
+        if(!current) break;
+        const distance=Math.hypot(current.x-x,current.z+15);closest=Math.min(closest,distance);after=distance;
+        finished ||= !current.trafficRoute;
+        if(!restored&&current.conn&&current.trafficRoute?.length) {
+          const copy=JSON.parse(JSON.stringify(state)) as SimState;
+          expect(stepAgents(world,copy,tick+1)).toEqual(stepAgents(world,state,tick+1));restored=true;
+        }
+      }
+      expect(closest).toBeLessThan(25);expect(after-closest).toBeGreaterThan(20);expect(finished).toBe(true);
+      expect(canonicalJson(car.trafficRoute)).toBe(originalQueue);
+      // Even a single-junction queue is serialized before its first turn.
+      const serialized=JSON.parse(JSON.stringify({...ext,list:[car]}));expect(serialized.list[0].trafficRoute).toEqual(car.trafficRoute);
+    }
+  });
+
+  it("continues a bounded approach over several connected short road links",()=>{
+    const nodes=Array.from({length:15},(_,i)=>({id:`s${i}`,x:(i-5)*20,z:0}));
+    const edges=nodes.slice(1).map((node,i)=>({id:`e${i}`,a:nodes[i]!.id,b:node.id,kind:"residential",lanes:2,oneway:false,widthM:11,speedLimitMps:11.18,points:[[nodes[i]!.x,0],[node.x,0]] as [number,number][]}));
+    const world=buildWorld([],{version:1,nodes,edges});
+    let state=empty(world,50,-15),ext=admitPassingCars(world,state,1800,state.ext.agents!);
+    expect(ext.list).toHaveLength(1);expect(ext.list[0]!.trafficRoute!.length).toBeGreaterThanOrEqual(2);expect(ext.list[0]!.trafficRoute!.length).toBeLessThanOrEqual(8);
+    const id=ext.list[0]!.id;state={...state,tick:1800,ext:{agents:ext}};
+    let closest=Infinity,after=0,roundtrip=false;
+    for(let tick=1801;tick<3600;tick++) {
+      const result=stepAgents(world,state,tick)!;state={...state,tick,ext:{agents:result.ext},rng:result.rng};
+      const car=agentsOf(state).find(a=>a.id===id);if(!car)break;
+      const distance=Math.hypot(car.x-50,car.z+15);closest=Math.min(closest,distance);after=distance;
+      if(!roundtrip&&car.conn&&car.trafficRoute?.length){
+        expect(stepAgents(world,JSON.parse(JSON.stringify(state)),tick+1)).toEqual(stepAgents(world,state,tick+1));roundtrip=true;
+      }
+    }
+    expect(roundtrip).toBe(true);expect(closest).toBeLessThan(25);expect(after-closest).toBeGreaterThan(20);
+  });
+
+  it("waits for an occupied upstream junction, then follows its original approach after it clears",()=>{
+    const world=gridCity();let state=empty(world,150,-15);
+    const ext=admitPassingCars(world,state,1800,state.ext.agents!),car=ext.list[0]!;
+    expect(car.trafficRoute?.length).toBeGreaterThan(0);
+    const edge=world.roads!.edges[world.roads!.edgeIndex.get(car.edge)!]!,junction=world.roads!.nodes[endNode(edge,car.dir)]!;
+    const target=world.roads!.edges[world.roads!.edgeIndex.get(car.next)!]!,point=pathPoint(lanePath(target,car.ndir,car.nlane),1);
+    const holder:AgentState={...car,id:8,edge:car.next,dir:car.ndir,lane:car.nlane,s:1,x:point.x,z:point.z,heading:Math.atan2(point.tx,-point.tz),speed:0,node:junction.id,trafficRoute:undefined};
+    state={...state,tick:1800,ext:{agents:{nextId:16,list:[car,holder]}}};
+    let waited=false;
+    for(let tick=1801;tick<2700;tick++) {
+      const result=stepAgents(world,state,tick,new Set([holder.id]))!;state={...state,tick,ext:{agents:result.ext},rng:result.rng};
+      const current=agentsOf(state).find(a=>a.id===car.id)!;
+      expect(current.edge).toBe(car.edge);expect(current.ghost).toBe(0);
+      if(current.speed<.05&&current.wait>0)waited=true;
+    }
+    expect(waited).toBe(true);
+    state.ext.agents={...state.ext.agents!,list:agentsOf(state).filter(a=>a.id!==holder.id)};
+    let passed=false;
+    for(let tick=2700;tick<4500;tick++){
+      const result=stepAgents(world,state,tick)!;state={...state,tick,ext:{agents:result.ext},rng:result.rng};
+      const current=agentsOf(state).find(a=>a.id===car.id);if(current&&current.x>170)passed=true;
+    }
+    expect(passed).toBe(true);
+  });
+
+  it("replaces an eligible car of the same full owner while retaining a farther other-owner car",()=>{
+    const world=gridCity(),state=empty(world);
+    state.players.p2={...state.players.p1!,id:"p2",car:{...state.players.p1!.car,x:2000,z:2000}};
+    const template=admitPassingCars(world,state,1800,state.ext.agents!).list[0]!;
+    const ext={nextId:10000,list:[...Array.from({length:MAX_AGENTS-1},(_,i)=>({...template,id:100+i,kind:"person" as const,x:185+i%32,z:-20+Math.floor(i/32)})),{...template,id:8,x:175,z:250},{...template,id:16,x:2000,z:2300}]};
+    state.ext.agents=ext;const result=admitPassingCars(world,state,1800,ext);
+    expect(result.list.some(a=>a.id===16)).toBe(true);expect(result.list.some(a=>a.id===8)).toBe(false);
+    expect(result.list.some(a=>a.id>=10000&&isCivilianTraffic(a))).toBe(true);
+    expect(result.list.filter(a=>(a.x-175)**2+(a.z+15)**2<=(a.x-2000)**2+(a.z-2000)**2).length).toBe(MAX_AGENTS);
+  });
+
+  it("never evicts another player's car to exceed the local owner cap",()=>{
+    const world=gridCity(),state=empty(world);
+    state.players.p2={...state.players.p1!,id:"p2",car:{...state.players.p1!.car,x:2000,z:2000}};
+    const template=admitPassingCars(world,state,1800,state.ext.agents!).list[0]!;
+    const list=[...Array.from({length:MAX_AGENTS},(_,i)=>({...template,id:100+i,kind:"person" as const,x:185+i%32,z:-20+Math.floor(i/32)})),{...template,id:8,x:2000,z:2200}];
+    const ext={nextId:10000,list};state.ext.agents=ext;
+    const result=admitPassingCars(world,state,1800,ext);
+    expect(result.list.some(a=>a.id===8)).toBe(true);
+    expect(result.list.filter(a=>(a.x-175)**2+(a.z+15)**2<=(a.x-2000)**2+(a.z-2000)**2).length).toBeLessThanOrEqual(MAX_AGENTS);
+  });
+
+  it.each(["bound","significant","owned","hailed","ridden","watched","service","runtime","legacyclaimed"])("retains a %s vehicle when replacing owner-local population",protection=>{
+    const world=gridCity(),state=empty(world),template=admitPassingCars(world,state,1800,state.ext.agents!).list[0]!;
+    const protectedTaxi:AgentState={...template,id:8,x:175,z:250};
+    if(protection==="service")protectedTaxi.vehicle={...state.players.p1!.car,x:175,z:250};
+    if(protection==="runtime")protectedTaxi.runtimeId="special-taxi";
+    if(protection==="legacyclaimed")protectedTaxi.runtimeLegacy=true;
+    const ext={nextId:10000,list:[...Array.from({length:MAX_AGENTS-1},(_,i)=>({...template,id:100+i,kind:"person" as const,x:185+i%32,z:-20+Math.floor(i/32)})),protectedTaxi]};
+    state.ext.agents=ext;
+    const robots=createAgentsRuntime({...state,ext:{agents:{nextId:9,list:[{...protectedTaxi,runtimeId:undefined,vehicle:undefined}]}}});
+    if(protection==="bound")robots.missionBindings={important:"agent:8"};
+    if(protection==="significant")robots.actors["agent:8"]!.significant=true;
+    if(protection==="owned")robots.actors["agent:8"]!.ownerId="p1";
+    state.ext.robots=robots;
+    if(protection==="hailed")state.players.p1!.hail={agentId:8,untilTick:4000};
+    if(protection==="ridden")state.players.p1!.ride={agentId:8,x:175,y:0,z:250,heading:0,speed:0,goal:null,exitPending:false};
+    if(protection==="watched")state.ext.player={version:1,tick:0,nextId:1,players:{p1:{status:"active",bridgeUntil:0,resumeTick:0,safehouseId:"",startupKitId:"",downRounds:0,commandSequence:0,watchingActorId:"agent:8",watchedTicks:1}},events:[]};
+    expect(admitPassingCars(world,state,1800,ext).list.some(a=>a.id===8)).toBe(true);
   });
 
   it("stays bounded, starts outside the normal pop-in distance, and culls traffic after a district move",()=>{

@@ -235,7 +235,11 @@ export function personIsChild(id: number): boolean {
   return hash32(id, 0x0c41d) % 100 < CHILD_PERCENT;
 }
 
+export interface TrafficLeg { edge: string; dir: Dir; lane: number }
+
 export interface AgentState {
+  /** v15: a bounded admission approach; consumed after its final frontage, then normal wandering. */
+  trafficRoute?: TrafficLeg[];
   /** Core physical proxies for lane-owned runtime actors stay out of ambient rendering/sensing. */
   runtimeId?: string;
   /** Physical controller memory for service vehicles. */
@@ -1731,6 +1735,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   let ndir = a.ndir;
   let nlane = a.nlane;
   let resume = a.resume;
+  let trafficRoute = a.trafficRoute;
   if (spec.road && a.conn === null && (a.node === "" || rearHold(g, a)) && c.winners.has(a.id)) {
     node = g.nodes[endNode(e, a.dir)]!.id; // claim the junction (letting go of the one behind)
   }
@@ -1777,11 +1782,15 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     conn = cp;
     curEdge = plan.edge;
     curPath = plan.path;
-    const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng, ride?.goal ?? null);
-    next = n2;
-    ndir = d2;
-    nlane = l2;
-    rng = r2;
+    // Admission routes are finite intentions fixed at spawn, never a moving-player destination.
+    // Read-only input queue: only the successful output owns its consumed slice.
+    if(trafficRoute?.[0]?.edge === edge && trafficRoute[0].dir === dir && trafficRoute[0].lane === lane) trafficRoute=trafficRoute.slice(1);
+    const planned=trafficRoute?.[0];
+    if(planned) { next=planned.edge; ndir=planned.dir; nlane=planned.lane; }
+    else {
+      const [n2, d2, l2, r2] = chooseNext(g, plan.edge, plan.dir, plan.lane, spec.road, rng, ride?.goal ?? null);
+      next = n2; ndir = d2; nlane = l2; rng = r2;
+    }
   }
 
   if (spec.road && conn === null && node !== "" && node === g.nodes[startNode(curEdge, dir)]!.id && s >= spec.halfLength + 1) {
@@ -1864,6 +1873,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     mode,
     rng,
   };
+  if(trafficRoute?.length) out.trafficRoute=trafficRoute;
+  else delete out.trafficRoute;
   if (pass) out.pass = pass;
   else delete out.pass;
   return out;
@@ -2202,52 +2213,100 @@ export function populate(
   return { ext: { nextId, list }, rng: r };
 }
 
-/** Admit one ordinary car toward each player every thirty simulation seconds, when a safe road has room.
- * It uses the ordinary lane/junction/yield/overtake controller and normal distance retirement.
- * A blocked road postpones the encounter; no car teleports through traffic or appears on a person.
- */
-export function admitPassingCars(world: World, state: Readonly<SimState>, tick: number, ext: AgentsExt): AgentsExt {
-  if (tick % CIVILIAN_PASS_INTERVAL_TICKS !== 0 || !world.roads) return ext;
-  const graph = world.roads, bodies = playerBodies(state), cars = playerCars(state);
-  if (!bodies.length) return ext;
-  let list = ext.list.slice(), nextId = ext.nextId;
-  for (const body of bodies) {
-    if (list.filter(a => isCivilianTraffic(a) && (a.x-body.x)**2+(a.z-body.z)**2 < 100**2).length >= 4) continue;
-    const edges = new Set<number>();
-    for (const area of graph.areas) if ((area.cx-body.x)**2+(area.cz-body.z)**2 < 350**2) for (const piece of area.drive) edges.add(piece.edge);
-    const choices: {edge: RoadEdgeInfo; dir: Dir; lane: number; s: number; score: number}[] = [];
-    for (const index of [...edges].sort((a,b)=>a-b)) {
-      const edge = graph.edges[index]!;
-      for (const dir of [1,-1] as const) {
-        if (!canDrive(edge,dir)) continue;
-        for (let lane=0;lane<edge.laneCount[dirIndex(dir)];lane++) {
-          if (!edge.laneClear[dirIndex(dir)][lane]) continue;
-          const path = lanePath(edge,dir,lane), near = projectOnPath(path,body.x,body.z);
-          // Start upstream, with enough lane left to approach and pass the player's street frontage.
-          if (near.dist > 35 || near.s < 38 || path.len-near.s < 8) continue;
-          const along = Math.max(3,near.s-65), point = pathPoint(path,along);
-          const distance = Math.sqrt((point.x-body.x)**2+(point.z-body.z)**2);
-          if (distance < SPAWN_MIN_PLAYER_M || distance > 100) continue;
-          choices.push({edge,dir,lane,s:along,score:near.dist*4+Math.abs(distance-60)});
-        }
+interface CivilianApproach { edge: RoadEdgeInfo; dir: Dir; lane: number; s: number; score: number; route: TrafficLeg[] }
+
+/** A finite connected road approach, extending upstream through short links as necessary. */
+function civilianApproaches(world: World, body: Body): CivilianApproach[] {
+  const graph=world.roads!;
+  const edges=new Set<number>();
+  for(const area of graph.areas) if((area.cx-body.x)**2+(area.cz-body.z)**2 < 350**2) for(const piece of area.drive) edges.add(piece.edge);
+  const choices:CivilianApproach[]=[];
+  for(const index of [...edges].sort((a,b)=>a-b)) {
+    const frontage=graph.edges[index]!;
+    for(const dir of [1,-1] as const) {
+      if(!canDrive(frontage,dir)) continue;
+      for(let lane=0;lane<frontage.laneCount[dirIndex(dir)];lane++) {
+        if(!frontage.laneClear[dirIndex(dir)][lane]) continue;
+        const path=lanePath(frontage,dir,lane),near=projectOnPath(path,body.x,body.z);
+        if(near.dist>35 || path.len-near.s<8) continue;
+        let visited=0;
+        const extend=(edge:RoadEdgeInfo,direction:Dir,slot:number,toS:number,after:number,route:TrafficLeg[],seen:ReadonlySet<number>):void=>{
+          if(++visited>64) return;
+          const current=lanePath(edge,direction,slot);
+          for(const travel of [65,80,95,110,125]) {
+            const s=toS-(travel-after);
+            if(s<3 || s>toS) continue;
+            const point=pathPoint(current,s),distance=Math.sqrt((point.x-body.x)**2+(point.z-body.z)**2);
+            if(distance<SPAWN_MIN_PLAYER_M || distance>100) continue;
+            choices.push({edge,dir:direction,lane:slot,s,route:route.slice(1),score:near.dist*4+Math.abs(distance-65)+travel*.01});
+          }
+          if(route.length>=8 || after+toS>=125) return;
+          const node=graph.nodes[startNode(edge,direction)]!;
+          for(const outward of node.out) {
+            const previous=graph.edges[outward.edge]!,incoming:Dir=outward.dir===1?-1:1;
+            if(seen.has(previous.index) || !canDrive(previous,incoming)) continue;
+            for(let previousLane=0;previousLane<previous.laneCount[dirIndex(incoming)];previousLane++) {
+              if(!previous.laneClear[dirIndex(incoming)][previousLane]) continue;
+              const upstream=lanePath(previous,incoming,previousLane),join=connectorPath(makeConnector(upstream,current,.56));
+              // A graph connection is not permission to cut a corner through a real building.
+              let clear=true;
+              for(let at=0;at<=join.len;at+=Math.max(1,join.len/8)) {
+                const point=pathPoint(join,at);
+                if(bodyBlocked(world,"robotaxi",point.x,point.z,datan2(point.tx,-point.tz))) {clear=false;break;}
+              }
+              if(!clear) continue;
+              const leg={edge:previous.id,dir:incoming,lane:previousLane};
+              extend(previous,incoming,previousLane,upstream.len,after+toS+join.len,[leg,...route],new Set([...seen,previous.index]));
+            }
+          }
+        };
+        extend(frontage,dir,lane,near.s,0,[{edge:frontage.id,dir,lane}],new Set([frontage.index]));
       }
     }
-    choices.sort((a,b)=>a.score-b.score || a.edge.index-b.edge.index || b.dir-a.dir || a.lane-b.lane);
-    for (const choice of choices) {
-      const point=pathPoint(lanePath(choice.edge,choice.dir,choice.lane),choice.s), heading=datan2(point.tx,-point.tz);
-      if (bodyBlocked(world,"robotaxi",point.x,point.z,heading) || !spawnClearOfVehicles("robotaxi",point.x,point.z,point.tx,point.tz,list,cars)) continue;
-      if (list.some(other => (other.x-point.x)**2+(other.z-point.z)**2 < (AGENT_SPEC[other.kind].road ? 10 : 4)**2)) continue;
-      // At capacity, exchange only a distant ordinary ambient vehicle, never a rider or runtime actor.
-      if (list.length >= MAX_AGENTS_TOTAL || list.filter(a => nearestBody(bodies,a.x,a.z)===nearestBody(bodies,body.x,body.z)).length >= MAX_AGENTS) {
-        const removable=list.filter(a => a.kind==="robotaxi" && a.runtimeId===undefined && !ridesByAgent(state).has(a.id) && minDist2(bodies,a.x,a.z)>150**2).sort((a,b)=>minDist2(bodies,b.x,b.z)-minDist2(bodies,a.x,a.z)||a.id-b.id)[0];
+  }
+  return choices.sort((a,b)=>a.score-b.score || a.route.length-b.route.length || a.edge.index-b.edge.index || b.dir-a.dir || a.lane-b.lane);
+}
+
+/** IDs whose current task or interaction must survive ambient population replacement. */
+function protectedTrafficIds(state:Readonly<SimState>):ReadonlySet<number> {
+  const protectedIds=new Set([...ridesByAgent(state).keys(),...hailsByAgent(state).keys()]);
+  const runtime=state.ext.robots as unknown as {actors?:Record<string,{legacyId:number|null;numericId:number;significant?:boolean;ownerId?:string;model?:string}>;missionBindings?:Record<string,string>}|undefined;
+  const bound=new Set(Object.values(runtime?.missionBindings??{}));
+  const watched=new Set(Object.values(state.ext.player?.players??{}).map(player=>player.watchingActorId).filter(Boolean));
+  for(const [id,actor] of Object.entries(runtime?.actors??{})) if(actor.significant || actor.ownerId!==undefined || bound.has(id) || watched.has(id) || actor.model==="van" || actor.model==="bus") protectedIds.add(actor.legacyId??actor.numericId);
+  for(const agent of state.ext.agents?.list??[]) if(watched.has(agentActorId(agent.id)) || state.ext.combat?.targets[agentActorId(agent.id)]) protectedIds.add(agent.id);
+  return protectedIds;
+}
+
+/** Admit an ordinary car every thirty simulation seconds when a safe connected approach has room. */
+export function admitPassingCars(world: World, state: Readonly<SimState>, tick: number, ext: AgentsExt): AgentsExt {
+  if (tick % CIVILIAN_PASS_INTERVAL_TICKS !== 0 || !world.roads) return ext;
+  const graph=world.roads,bodies=playerBodies(state),cars=playerCars(state),protectedIds=protectedTrafficIds(state);
+  if(!bodies.length) return ext;
+  let list=ext.list.slice(),nextId=ext.nextId;
+  for(let owner=0;owner<bodies.length;owner++) {
+    const body=bodies[owner]!;
+    if(list.filter(a=>isCivilianTraffic(a)&&(a.x-body.x)**2+(a.z-body.z)**2<100**2).length>=4) continue;
+    for(const choice of civilianApproaches(world,body)) {
+      const point=pathPoint(lanePath(choice.edge,choice.dir,choice.lane),choice.s),heading=datan2(point.tx,-point.tz);
+      // The budget belongs to the owner of the admitted body, even near an ownership boundary.
+      if(nearestBody(bodies,point.x,point.z)!==owner) continue;
+      if(bodyBlocked(world,"robotaxi",point.x,point.z,heading)||!spawnClearOfVehicles("robotaxi",point.x,point.z,point.tx,point.tz,list,cars)) continue;
+      if(list.some(other=>(other.x-point.x)**2+(other.z-point.z)**2<(AGENT_SPEC[other.kind].road?10:4)**2)) continue;
+      const ownerFull=list.filter(a=>nearestBody(bodies,a.x,a.z)===owner).length>=MAX_AGENTS;
+      if(list.length>=MAX_AGENTS_TOTAL || ownerFull) {
+        const removable=list.filter(a=>a.kind==="robotaxi"&&a.runtimeId===undefined&&a.runtimeLegacy!==true&&a.vehicle===undefined&&!protectedIds.has(a.id)
+          &&(!ownerFull||nearestBody(bodies,a.x,a.z)===owner)&&minDist2(bodies,a.x,a.z)>150**2)
+          .sort((a,b)=>minDist2(bodies,b.x,b.z)-minDist2(bodies,a.x,a.z)||a.id-b.id)[0];
         if(!removable) break;
         list=list.filter(a=>a.id!==removable.id);
       }
       while(nextId%8!==7) nextId++;
-      const id=nextId++, rng=hash32(state.seed,id,tick);
-      const [next,ndir,nlane,arng]=chooseNext(graph,choice.edge,choice.dir,choice.lane,true,rng);
+      const id=nextId++,rng=hash32(state.seed,id,tick),planned=choice.route[0];
+      const [next,ndir,nlane,arng]=planned?[planned.edge,planned.dir,planned.lane,rng] as const:chooseNext(graph,choice.edge,choice.dir,choice.lane,true,rng);
       list.push({id,kind:"robotaxi",x:point.x,y:meshGroundHeight(world,point.x,point.z),z:point.z,heading,pitch:bodyPitch(world,point.x,point.z,heading),speed:0,vmax:10,
-        edge:choice.edge.id,dir:choice.dir,lane:choice.lane,s:choice.s,next,ndir,nlane,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:arng,dodge:null});
+        edge:choice.edge.id,dir:choice.dir,lane:choice.lane,s:choice.s,next,ndir,nlane,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:arng,dodge:null,
+        ...(choice.route.length?{trafficRoute:choice.route}:{})});
       break;
     }
   }

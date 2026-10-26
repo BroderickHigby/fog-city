@@ -60,6 +60,8 @@
 // v15: ambient civilian cars share road-following and passing behavior, and the player's
 // jog/sprint speeds rise to 3.5/8 m/s. This combined behavior stamp keeps every v14 saved
 // field, including active missions, wallets, traffic, damage and dodges, without reshaping.
+// Optional AgentState.trafficRoute holds only a scheduled car's bounded approach across
+// connected street edges; absent in older saves and removed after reaching its frontage.
 export const SIM_VERSION = 15;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
