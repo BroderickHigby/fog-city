@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOOK_COUNT, LOOK_SWATCHES, loadIdentity, profileName, randomName, saveIdentity, validProfile } from "../../src/net/identity.ts";
+import { LOOK_COUNT, LOOK_NAMES, LOOK_SWATCHES, loadIdentity, profileName, randomName, saveIdentity, validProfile } from "../../src/net/identity.ts";
 import { CAR_COLORS } from "../../src/render/actors.ts";
 
 function memory(): Pick<Storage, "getItem" | "setItem"> & { data: Map<string, string> } {
@@ -34,5 +34,18 @@ describe("guest identity", () => {
   it("shows the renderer's own player colours as the look swatches", () => {
     expect([...LOOK_SWATCHES]).toEqual(CAR_COLORS);
     expect(LOOK_COUNT).toBe(CAR_COLORS.length);
+    expect(LOOK_NAMES).toHaveLength(LOOK_COUNT);
+  });
+
+  it("keeps saved look indices, names, paint and device tokens while adding six looks", () => {
+    expect(LOOK_NAMES.slice(0, 6)).toEqual(["Persimmon", "Bay Blue", "Mustard", "Eucalyptus", "Fog", "Ube"]);
+    expect(CAR_COLORS.slice(0, 6)).toEqual([0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0]);
+    expect(LOOK_COUNT).toBe(12);
+    for (let look = 0; look < LOOK_COUNT; look++) {
+      const store = memory(), identity = { token: "a".repeat(32), name: ["quiet", "heron"] as const, look };
+      saveIdentity(store, identity);
+      expect(loadIdentity(store)).toEqual(identity);
+      expect(validProfile({ name: identity.name, look })).toBe(true);
+    }
   });
 });

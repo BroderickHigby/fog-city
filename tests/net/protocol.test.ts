@@ -3,6 +3,7 @@ import { MAX_MESSAGE_BYTES, NET_VERSION, parseClientMessage } from "../../src/ne
 import { normalizeRelayUrl, relayUrl } from "../../src/net/config.ts";
 import { worldFingerprint } from "../../src/net/world-id.ts";
 import { SIM_VERSION } from "../../src/sim/index.ts";
+import { LOOK_COUNT } from "../../src/net/identity.ts";
 import { loadWorldFiles } from "../helpers.ts";
 
 const hello = { type: "hello", net: NET_VERSION, sim: SIM_VERSION, world: "sf", fingerprint: "b703eecb", action: "create", profile: { name: ["quiet", "heron"], look: 3 }, device: "ab".repeat(16) };
@@ -11,6 +12,9 @@ const parse = (v: unknown) => parseClientMessage(JSON.stringify(v));
 describe("relay protocol", () => {
   it("accepts the closed message shapes", () => {
     expect(parse(hello)).toEqual(hello);
+    for (let look = 6; look < LOOK_COUNT; look++) {
+      expect(parse({ ...hello, profile: { ...hello.profile, look } })).toMatchObject({ profile: { look } });
+    }
     expect(parse({ ...hello, action: "join", code: "ABCDEFGH" })).toMatchObject({ action: "join" });
     expect(parse({ ...hello, action: "rejoin", code: "ABCDEFGH", token: "a".repeat(32) })).toMatchObject({ action: "rejoin" });
     expect(parse({ type: "input", seq: 1, input: { throttle: 1, steer: -1, brake: 0, actions: 3, aimYaw: 1.5 } })).toMatchObject({ seq: 1 });
@@ -28,7 +32,7 @@ describe("relay protocol", () => {
     expect(() => parse({ ...hello, sim: SIM_VERSION + 1 })).toThrow("version_mismatch");
     expect(() => parse({ ...hello, net: 1 })).toThrow("version_mismatch");
     for (const bad of [
-      { ...hello, world: "nyc" }, { ...hello, profile: { name: ["quiet", "nosuchnoun"], look: 0 } }, { ...hello, profile: { name: ["quiet", "heron"], look: 6 } },
+      { ...hello, world: "nyc" }, { ...hello, profile: { name: ["quiet", "nosuchnoun"], look: 0 } }, { ...hello, profile: { name: ["quiet", "heron"], look: LOOK_COUNT } },
       { ...hello, profile: { name: "Free Text", look: 0 } }, { ...hello, device: "short" }, { ...hello, device: undefined }, { ...hello, action: "join", code: "abcdefgh" }, { ...hello, action: "join", code: "ABCDEFG0" }, { ...hello, extra: 1 },
       { ...hello, action: "rejoin", code: "ABCDEFGH", token: "x" }, { type: "input", seq: 0, input: { throttle: 0, steer: 0, brake: 0, actions: 0 } },
       { type: "input", seq: 1, input: { throttle: 2, steer: 0, brake: 0, actions: 0 } }, { type: "input", seq: 1, input: { throttle: 0, steer: 0, brake: 0, actions: 1 << 20 } },
