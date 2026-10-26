@@ -40,7 +40,8 @@ import { trackGpuMemory, type GpuMemory } from "./gpu-memory.ts";
 import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
 import type { GrassInfo } from "./grass.ts";
 import { createGpuEngine, type GpuEngine, type RendererBackendRequest, type PostProcessingInfo } from "./gpu-engine.ts";
-import { StorageInstancedBufferAttribute, type WebGPURenderer } from "three/webgpu";
+import type { WebGPURenderer } from "three/webgpu";
+import { GpuInstanceOwnership } from "./gpu-instance-ownership.ts";
 import { prepareGpuScene, setGpuMaterialsEnabled, updateGpuMaterialTime } from "./node-materials.ts";
 
 export type { CameraMode } from "./cameras.ts";
@@ -245,6 +246,7 @@ export class SceneRenderer {
   private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => this.unwatchGpuTree(event.child);
   private readonly resizeListener = (): void => this.resize();
   private readonly gpuGround: GroundFn;
+  private instanceOwnership: GpuInstanceOwnership | null = null;
 
   /** Initialize GPU capabilities before constructing materials or drawing the first frame. */
   static async create(container: HTMLElement, world: WorldData, opts: RenderOptions): Promise<SceneRenderer> {
@@ -448,18 +450,10 @@ export class SceneRenderer {
   private watchGpuTree(root: THREE.Object3D): void {
     if (this.disposed || this.watched.has(root)) return;
     root.updateWorldMatrix(true, true);
-    if (this.gpu?.backend === "webgpu") root.traverse(object => {
-      const mesh = object as THREE.InstancedMesh;
-      if (!mesh.isInstancedMesh || (mesh.instanceMatrix as THREE.InstancedBufferAttribute & { isStorageInstancedBufferAttribute?: boolean }).isStorageInstancedBufferAttribute) return;
-      const source = mesh.instanceMatrix;
-      // The reference's storage-instance procedure avoids both per-draw uniform uploads
-      // and duplicate four-location matrix vertex attributes. Keep the live CPU array.
-      const target = new StorageInstancedBufferAttribute(source.array, 16);
-      target.name = source.name; target.normalized = source.normalized; target.meshPerAttribute = source.meshPerAttribute;
-      target.setUsage(source.usage); target.gpuType = source.gpuType; target.version = source.version + 1;
-      for (const range of source.updateRanges) target.addUpdateRange(range.start, range.count);
-      mesh.instanceMatrix = target;
-    });
+    if (this.gpu?.backend === "webgpu") {
+      this.instanceOwnership ??= new GpuInstanceOwnership(this.gpu.renderer);
+      root.traverse(object => { if ((object as THREE.InstancedMesh).isInstancedMesh) this.instanceOwnership!.adopt(object as THREE.InstancedMesh); });
+    }
     prepareGpuScene(root, { ground: this.gpuGround });
     root.traverse(object => {
       if (this.watched.has(object)) return;
@@ -969,6 +963,7 @@ export class SceneRenderer {
     this.nightMats.pool.dispose();
     for (const e of this.envCache.values()) e.dispose();
     this.pmrem?.dispose();
+    this.instanceOwnership?.dispose();
     if (this.gpu) void this.gpu.dispose(); else this.renderer.dispose();
   }
 }

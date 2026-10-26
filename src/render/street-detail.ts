@@ -10,6 +10,7 @@
 // and cells beyond NEAR_M + HYSTERESIS_M are disposed.
 
 import * as THREE from "three";
+import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { SharedMaterials } from "./materials.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
@@ -291,6 +292,7 @@ export class StreetDetailLayer {
     if (!cell.built) return;
     for (const o of cell.built.meshes) {
       this.group.remove(o);
+      disposeRenderObjects(o);
       if (o instanceof THREE.Mesh) o.geometry.dispose();
     }
     cell.built.furniture?.dispose();

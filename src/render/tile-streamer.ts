@@ -18,6 +18,7 @@
 //  - Unload disposes every per-tile geometry, texture and instance buffer.
 
 import * as THREE from "three";
+import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
 import { BuildingDetailLayer, characterizeBuildings, type BuildingCharacter, type BuildingDetailStats } from "./building-character.ts";
@@ -490,6 +491,7 @@ export class TileStreamer {
     if (rec.retryTimer !== null) clearTimeout(rec.retryTimer);
     rec.retryTimer = null;
     rec.group.removeFromParent();
+    disposeRenderObjects(rec.group);
     for (const g of rec.geometries) g.dispose();
     for (const mat of rec.ownedMaterials) mat.dispose();
     for (const t of rec.textures) t.dispose();
@@ -553,6 +555,7 @@ function disposeMaterial(m: THREE.Material): void {
 }
 
 export function disposeObject(root: THREE.Object3D): void {
+  disposeRenderObjects(root);
   root.traverse((o) => {
     const mesh = o as THREE.Mesh;
     if (!mesh.isMesh) return;

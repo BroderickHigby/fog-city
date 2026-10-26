@@ -130,15 +130,22 @@ describe("TileStreamer", () => {
   });
 
   it("unloads and disposes tiles the camera has left", async () => {
-    const { streamer, parent, manifest } = make("dev-city", { radius: 300 });
+    const { streamer, parent, manifest, materials } = make("dev-city", { radius: 300 });
     await settle(streamer, manifest.spawn.x, manifest.spawn.z);
     const near = parent.getObjectByName("tile:t-1_0")!;
-    let disposed = 0;
-    for (const m of meshes(near)) m.geometry.addEventListener("dispose", () => disposed++);
+    let disposed = 0, sharedMaterialDisposals = 0;
+    const retired = new Set<THREE.Mesh>(), tileMeshes = meshes(near);
+    for (const m of tileMeshes) {
+      m.geometry.addEventListener("dispose", () => disposed++);
+      m.addEventListener("dispose", () => retired.add(m));
+    }
+    for (const material of materials.all) material.addEventListener("dispose", () => sharedMaterialDisposals++);
     await settle(streamer, -2300, -1300);
     expect(parent.getObjectByName("tile:t-1_0")).toBeUndefined();
     expect(parent.getObjectByName("tile:t-5_-3")).toBeDefined();
     expect(disposed).toBeGreaterThan(2);
+    expect(retired.size).toBe(tileMeshes.length);
+    expect(sharedMaterialDisposals).toBe(0);
   });
 
   it("builds a tile from its collider when its glb fails to load twice", async () => {
