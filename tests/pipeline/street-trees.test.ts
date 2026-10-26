@@ -46,11 +46,12 @@ describe("sf street trees", () => {
   const doc = JSON.parse(readFileSync(join(ROOT, "public/tiles/sf/street-trees.json"), "utf8")) as { classes: string[]; trees: TreeRecord[] };
   const near = (x: number, z: number, r: number): TreeRecord[] => doc.trees.filter((t) => Math.hypot(t[1] - x, t[2] - z) < r);
 
-  it("has the city's inventory, with palms along the Embarcadero and street trees on Chestnut St", () => {
-    expect(doc.trees.length).toBeGreaterThan(120000);
+  it("retains a citywide inventory with roadside trees after road-clearance curation", () => {
+    expect(doc.trees.length).toBeGreaterThan(40000);
     expect(doc.classes).toEqual(["broadleaf", "conifer", "palm"]);
-    expect(near(0, 0, 400).filter((t) => t[3] === 2).length).toBeGreaterThan(40);
-    expect(near(-3750, -590, 150).length).toBeGreaterThan(40);
+    expect(near(0, 0, 400).filter((t) => t[3] === 2).length).toBeGreaterThan(10);
+    expect(near(-3750, -590, 150).length).toBeGreaterThan(5);
+    expect(doc.trees.some(t => t[0] === 135582), "Drumm Street's former road-centre tree").toBe(false);
   });
 
   it("hands broadleaf and conifer trees to the foliage layer and draws the palms", () => {
