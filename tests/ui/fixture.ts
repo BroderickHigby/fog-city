@@ -11,7 +11,9 @@ const shellStyle=document.createElement("style");shellStyle.textContent=new DOMP
 const uiHost=document.querySelector<HTMLElement>("#app")!;uiHost.id="game";
 const events:GameplayCommandEvent[]=[];
 const waypoints:MapPoint[]=[];
+const pauseEvents:boolean[]=[];
+const lightingEvents:string[]=[];
 const view:UiView={tick:1,playerId:"p1",x:0,z:0,heading:0,speedMps:12,runwayMonths:9,cashCents:10000,reputation:45,waterLitres:8,capacityLitres:8,salt:false,threat:2,phoneApps:["map","botBounty","botCheck"],map:{nodes:[{id:"a",x:0,z:0},{id:"b",x:50,z:0},{id:"c",x:50,z:50}],edges:[{from:"a",to:"b"},{from:"b",to:"c"}],blips:[{id:"water",kind:"water",x:30,z:30,label:"Water"},{id:"hidden",kind:"robot",x:20,z:20,label:"Hidden robot",confirmed:false}]},vendor:[{id:"nozzle",title:"Nozzle",description:"A focused stream",priceCents:500,owned:false,available:true},{id:"too-expensive",title:"Big tank",description:"More water",priceCents:100000,owned:false,available:true}],bounties:[{id:"b1",title:"Confirmed firmware",detail:"Dock robot",multiplier:2,confirmed:true}],popups:[{id:"ad1",title:"A desk with a view",detail:"The view is another desk."}]};
 const form=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-const ui=mountGameUI(uiHost,{copy:uiText,startupChoices:form?.type==="form"?form.form.multipleChoice:undefined,callbacks:{...gameplayCallbacks({playerId:"p1",tick:()=>view.tick,emit:e=>events.push(e)}),waypoint:point=>waypoints.push(point)},touch:true});ui.update(view);
-Object.assign(window,{ui,events,view,waypoints});
+const ui=mountGameUI(uiHost,{copy:uiText,startupChoices:form?.type==="form"?form.form.multipleChoice:undefined,callbacks:{...gameplayCallbacks({playerId:"p1",tick:()=>view.tick,emit:e=>events.push(e)}),waypoint:point=>waypoints.push(point),pause:paused=>pauseEvents.push(paused),lighting:preset=>lightingEvents.push(preset)},touch:new URLSearchParams(location.search).get("touch")!=="0"});ui.update(view);
+Object.assign(window,{ui,events,view,waypoints,pauseEvents,lightingEvents});

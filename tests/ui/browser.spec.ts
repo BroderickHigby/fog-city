@@ -45,6 +45,7 @@ test("mobile phone, vendor and startup form remain usable and isolate gameplay",
   await expect(page.getByRole("dialog")).toBeVisible();await expect(page.getByRole("button",{name:"Hidden robot"})).toHaveCount(0);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button",{name:"More actions",exact:true}).click();
   await page.getByRole("button",{name:"Counter",exact:true}).click();
   await expect(page.getByRole("button",{name:"Buy",exact:true}).nth(1)).toBeDisabled();
   await page.getByRole("button",{name:"Buy",exact:true}).first().click();

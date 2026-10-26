@@ -228,7 +228,17 @@
     "ui.map.open": "Open map (M)",
     "ui.map.navigation": "Navigation",
     "ui.map.phoneApps": "Phone apps",
-    "ui.map.keyboard": "Arrow keys pan. + and − zoom. Enter sets a waypoint."
+    "ui.map.keyboard": "Arrow keys pan. + and − zoom. Enter sets a waypoint.",
+    "ui.hud.status": "Player status",
+    "ui.hud.statusHint": "Open for details",
+    "ui.hud.more": "More actions",
+    "ui.hud.actions": "Quick actions",
+    "ui.hud.missionDetails": "Mission details: {title}",
+    "ui.hud.runwayHelp": "Your startup’s staying power. Attacks drain it; rest, food and rewards restore it.",
+    "ui.hud.cashHelp": "Money available for gear and food. Earn more from missions and robot bounties.",
+    "ui.hud.waterHelp": "Your blaster has unlimited water. Salt water rusts robots faster.",
+    "ui.hud.threatHelp": "Robot attention, from 0 to 5. Lose sightlines or use a car wash to bring it down.",
+    "ui.hud.reputationHelp": "Your standing in the city, from 0 to 100. Stop bad robots and avoid innocent targets."
   },
   "provenance": {
     "source": "agent",
