@@ -65,9 +65,9 @@ const distance = (a: { x: number; z: number }, b: { x: number; z: number }): num
  * Where to stage a card for a player at `body`: a sidewalk node (a crosswalk's middle for a card
  * that wants one) between `range` metres of them, preferring ahead of them and the middle of the
  * range, ties broken by a hash of the request. Never inside a protected area when the card has a
- * bad robot (`allowed`). Null when the graph has nothing in range.
+ * bad robot (`allowed`). Empty when the graph has nothing legal in range.
  */
-export function incidentPlace(graph: SidewalkGraph, card: DirectorCard, body: { x: number; z: number; heading: number }, range: readonly [number, number], key: string, allowed: (x: number, z: number) => boolean): { x: number; z: number } | null {
+export function incidentPlaces(graph: SidewalkGraph, card: DirectorCard, body: { x: number; z: number; heading: number }, range: readonly [number, number], key: string, allowed: (x: number, z: number) => boolean, limit = 1, interpolate = false): Array<{ x: number; z: number }> {
   const hx = dsin(body.heading), hz = -dcos(body.heading);
   const crosswalk = card.when.near.includes("crosswalk");
   const points: Array<{ x: number; z: number; id: string }> = [];
@@ -79,15 +79,43 @@ export function incidentPlace(graph: SidewalkGraph, card: DirectorCard, body: { 
     }
   } else for (const n of graph.nodes) points.push({ x: n.x, z: n.z, id: n.id });
   const mid = (range[0] + range[1]) / 2;
-  let best: { x: number; z: number } | null = null, score = Infinity;
-  for (const p of points) {
+  const ranked: Array<{ x: number; z: number; score: number }> = [];
+  const consider = (p: { x: number; z: number; id: string }) => {
     const d = distance(p, body);
-    if (d < range[0] || d > range[1] || !allowed(p.x, p.z)) continue;
+    if (d < range[0] || d > range[1] || !allowed(p.x, p.z)) return;
     const ahead = ((p.x - body.x) * hx + (p.z - body.z) * hz) / Math.max(d, 1e-6);
     const s = Math.abs(d - mid) + (ahead < 0.2 ? 40 : 0) + (hashText(`${key}:${p.id}`) % 1000) / 100;
-    if (s < score) { score = s; best = { x: p.x, z: p.z }; }
+    // Strict comparisons retain graph order on equal scores, including the legacy first pick.
+    const index = ranked.findIndex(other => s < other.score);
+    if (index >= 0) ranked.splice(index, 0, { x: p.x, z: p.z, score: s });
+    else if (ranked.length < limit) ranked.push({ x: p.x, z: p.z, score: s });
+    if (ranked.length > limit) ranked.pop();
+  };
+  for (const p of points) consider(p);
+  // v17 only, when sparse endpoints leave the whole ring empty: seven bounded samples
+  // on each nearby actual sidewalk path. Crosswalk cards keep their crosswalk semantics.
+  if (interpolate && !crosswalk && ranked.length === 0) {
+    const offsets = [0, -mid, mid, -range[0], range[0], -range[1], range[1]];
+    for (const edge of graph.edges) {
+      if (edge.kind !== "sidewalk") continue;
+      const path = edge.path;
+      let nearby = false;
+      for (let i = 0; i + 1 < path.xs.length && !nearby; i++) nearby = Math.max(path.xs[i]!, path.xs[i + 1]!) >= body.x - range[1] && Math.min(path.xs[i]!, path.xs[i + 1]!) <= body.x + range[1] && Math.max(path.zs[i]!, path.zs[i + 1]!) >= body.z - range[1] && Math.min(path.zs[i]!, path.zs[i + 1]!) <= body.z + range[1];
+      if (!nearby) continue;
+      const nearest = projectOnPath(path, body.x, body.z);
+      if (nearest.dist > range[1]) continue;
+      for (let i = 0; i < offsets.length; i++) {
+        const point = pathPoint(path, Math.max(0, Math.min(path.len, nearest.s + offsets[i]!)));
+        consider({ x: point.x, z: point.z, id: `edge:${edge.id}:${i}` });
+      }
+    }
   }
-  return best;
+  return ranked.map(({ x, z }) => ({ x, z }));
+}
+
+/** The legacy single nominal location; physical admission may still refuse it. */
+export function incidentPlace(graph: SidewalkGraph, card: DirectorCard, body: { x: number; z: number; heading: number }, range: readonly [number, number], key: string, allowed: (x: number, z: number) => boolean): { x: number; z: number } | null {
+  return incidentPlaces(graph, card, body, range, key, allowed)[0] ?? null;
 }
 
 /**

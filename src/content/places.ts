@@ -10,7 +10,7 @@ import districtsJson from "../../content/districts.json" with { type: "json" };
 import instancesJson from "../../content/modes/instances.json" with { type: "json" };
 import placesJson from "../../content/places.json" with { type: "json" };
 import safehousesJson from "../../content/safehouses.json" with { type: "json" };
-import { toLocal } from "../geo/project.ts";
+import { ORIGIN, toLocal } from "../geo/project.ts";
 
 /** [lat, lon] */
 export type LatLon = readonly [number, number];
@@ -98,6 +98,25 @@ export const SAFEHOUSE_RADIUS_M = 1500;
 
 type XZ = { x: number; z: number };
 const xz = (p: LatLon): XZ => toLocal(p[0], p[1]);
+interface ProjectedPolygon { coordinates: number[]; ring: XZ[]; originLat: number; originLon: number }
+const projectedPolygons = new WeakMap<Polygon, ProjectedPolygon>();
+
+/** Reuse authored projections, while reflecting coordinate edits to exported polygons. */
+function projectedPolygon(poly: Polygon): readonly XZ[] {
+  const cached = projectedPolygons.get(poly);
+  if (cached && cached.coordinates.length === poly.length * 2 && Object.is(cached.originLat, ORIGIN.lat) && Object.is(cached.originLon, ORIGIN.lon)) {
+    let same = true;
+    for (let i = 0; i < poly.length; i++) {
+      const point = poly[i]!;
+      if (!Object.is(point[0], cached.coordinates[i * 2]) || !Object.is(point[1], cached.coordinates[i * 2 + 1])) { same = false; break; }
+    }
+    if (same) return cached.ring;
+  }
+  const coordinates: number[] = [];
+  const ring = poly.map(point => { coordinates.push(point[0], point[1]); return xz(point); });
+  projectedPolygons.set(poly, { coordinates, ring, originLat: ORIGIN.lat, originLon: ORIGIN.lon });
+  return ring;
+}
 
 export function distanceM(a: LatLon, b: LatLon): number {
   const pa = xz(a);
@@ -109,7 +128,7 @@ export function distanceM(a: LatLon, b: LatLon): number {
 /** Even-odd rule; a point on an edge may land either side. */
 export function pointInPolygon(p: LatLon, poly: Polygon): boolean {
   const { x, z } = xz(p);
-  const ring = poly.map(xz);
+  const ring = projectedPolygon(poly);
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const a = ring[i] as XZ;

@@ -5,7 +5,7 @@ import { planServiceRuntime } from "./service-runtime.ts";
 import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
 import { planMissionActors, stageActorId } from "./mission-actors.ts";
 import {pendingMissionStages} from "./mission-staging.ts";
-import {incidentPlace,planIncident,stageRequests,type Incident} from "./incidents.ts";
+import {incidentPlaces,planIncident,stageRequests,type Incident} from "./incidents.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
   agentsRuntimeOf, fallbackGraph, naturalBadCount, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
@@ -103,10 +103,14 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         const body=player.mode==="foot"&&player.foot?player.foot:player.car;
         const bad=card.actors.some(a=>a.kind==="badRobot"||a.kind==="rogueTaxi"||a.kind==="moatVan");
         const allowed=(x:number,z:number)=>!bad||!options.protectedArea?.(x,z);
-        const place=incidentPlace(graph,card,body,options.director.stageM,`${state.seed}:${state.tick}:${request.playerId}`,allowed);
+        // v17: a nominal sidewalk point can be blocked by real traffic or buildings.
+        // Try at most eight ranked legal places for this same card, admitting only one plan.
+        let place:{x:number;z:number}|undefined,plan:ReturnType<typeof planIncident>=[];
+        for(const candidate of incidentPlaces(graph,card,body,options.director.stageM,`${state.seed}:${state.tick}:${request.playerId}`,allowed,state.version>=17?8:1,state.version>=17)){
+          const proposed=planIncident(context.world,state,card,nextIncident,request.playerId,candidate,graph,allowed,spawns);
+          if(proposed.length){place=candidate;plan=proposed;break;}
+        }
         if(!place)continue;
-        const plan=planIncident(context.world,state,card,nextIncident,request.playerId,place,graph,allowed,spawns);
-        if(!plan.length)continue;
         const reserved=allocate(state,plan.map(actor=>actor.id));state=reserved.state;
         for(const actor of plan)spawns.push({...actor,numericId:reserved.ids[actor.id]!});
         const id=`incident:${nextIncident}`;nextIncident++;

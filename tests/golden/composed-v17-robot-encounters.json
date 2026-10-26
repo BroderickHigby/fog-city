@@ -20,19 +20,19 @@
     },
     "service": {
       "hashes": [
-        "42d5ca60",
-        "c0b75cc1",
-        "640f777a",
-        "85bd7215",
-        "e37b4698",
-        "d5f051cf",
-        "010e24f4",
-        "522c4faa",
-        "ebe10c12"
+        "56373237",
+        "e8c55ca8",
+        "cd86d9e6",
+        "cdac339d",
+        "b142e000",
+        "83064be9",
+        "205ceb7a",
+        "f6c1a248",
+        "0bfb336e"
       ],
       "coverage": {
-        "agents:final": 2,
-        "identities:final": 2,
+        "agents:final": 6,
+        "identities:final": 6,
         "services:service.delivered": 1,
         "services:service.dispatched": 1,
         "services:service.retired": 1
@@ -93,9 +93,9 @@
     },
     "robotaxi-drive": {
       "hashes": [
-        "3ee76a68",
-        "be6c0e2d",
-        "b3311985",
+        "939604f4",
+        "432131a1",
+        "f6bf89f1",
         "b846f65d",
         "19974114",
         "90e387aa"

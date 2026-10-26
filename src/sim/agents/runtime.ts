@@ -296,12 +296,12 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   return {state,own};
 }
 
-function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>,options:AgentRuntimeOptions):RobotObservations{
+function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,others:RuntimeActor[],inputs:InputFrame,people:ReturnType<typeof players>,options:AgentRuntimeOptions,protectedActor:boolean):RobotObservations{
   const sight:RobotObservations["sight"][number][]=[],sounds:RobotObservations["sounds"][number][]=[],scans:RobotObservations["scans"][number][]=[],watches:RobotObservations["watches"][number][]=[];
   const protectedArea=options.protectedArea??defaultProtected;
   const encounters=sim.version>=17&&options.engagePlayers===true&&
     (actor.model==="footman"||actor.model==="patrol"||actor.model==="trundle"&&(options.wave??2)>=3);
-  const mayEngage=encounters&&actor.protected!==true&&!protectedArea(actor.x,actor.z);
+  const mayEngage=encounters&&actor.protected!==true&&!protectedActor;
   for(const player of people){
     const near=distance(actor,player)<=40;
     if(!near)continue;
@@ -735,8 +735,11 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
       // From wave 4, a staged mission body keeps its script in fog (as it ignores weather refuges):
       // fog breaks off ambient pursuit, not an authored scene the founder walked into.
       const scripted=(options.wave??2)>=4&&actor.significant&&actor.id.startsWith("mission:");
+      // The protection predicate is unchanged between sensing and conversion. Its
+      // default geographic query allocates projected polygons, so evaluate it once.
+      const protectedActor=(options.protectedArea??defaultProtected)(actor.x,actor.z);
       const step=stepRobotBrain(actor.brain,{tick:sim.tick,self:{x:actor.x,z:actor.z,heading:actor.heading,rust:own?.rust??0,fogDensity:scripted?0:clamp(options.fogAt?.(actor.x,actor.z)??options.fog??0,0,1),shoved:(own?.stoppedUntil??0)>sim.tick},
-        observations:observationSet(world,sim,actor,list,inputs,people,options),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:(options.protectedArea??defaultProtected)(actor.x,actor.z),baseBadCount:naturalBad,badCount},
+        observations:observationSet(world,sim,actor,list,inputs,people,options,protectedActor),conversion:{withinFidelity:fidelity.allowConversion,protectedArea:protectedActor,baseBadCount:naturalBad,badCount},
         acknowledgedUpdates:(activeCombat(sim)?.events??[]).filter(event=>event.kind==="robot.converted"&&event.sourceId===actor.id).flatMap(event=>state.actors[event.targetId]?[{targetId:state.actors[event.targetId]!.numericId,completedTick:event.tick}]:[]),
         goalWeights:{...contentGoalWeights(actor,options.wave??2,sim.version>=17&&options.engagePlayers===true),...(options.conversionCap!==undefined&&badCount>=options.conversionCap?{forcedUpdate:0}:{})}});
       actor.brain=step.state;intent=step.intent;actor.intent=intent;actor.behavior=step.state.mode;actor.hiddenTellId=step.intent.hideOneTell?actor.tellIds[0]??null:null;queueAttack(state,actor,intent,sim,options);

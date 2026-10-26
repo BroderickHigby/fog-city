@@ -25,7 +25,7 @@ const LOOKS: Readonly<Record<string, PresentationLook>> = Object.freeze({
   golden: { contrast: 1.07, saturation: 1.08, balance: [1.045, 1, 0.955], bloom: 0.24, bloomThreshold: 1.2 },
   noon: { contrast: 1.07, saturation: 1.06, balance: [1.015, 1, 0.985], bloom: 0.18, bloomThreshold: 1.35 },
   twilight: { contrast: 1.1, saturation: 1.08, balance: [1.025, 0.995, 1.015], bloom: 0.28, bloomThreshold: 1.05 },
-  night: { contrast: 1.08, saturation: 1.06, balance: [0.985, 1, 1.035], bloom: 0.3, bloomThreshold: 1.0 },
+  night: { contrast: 1.08, saturation: 1.06, balance: [0.985, 1, 1.035], bloom: 0.29, bloomThreshold: 1.0 },
 });
 export function presentationLook(name: LightingPreset["name"]): PresentationLook { return LOOKS[name]!; }
 
