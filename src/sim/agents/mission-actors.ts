@@ -61,6 +61,23 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
   const result:MissionActorPlan={actors:[],bindings:{},groups:{},blocked:[]};
   const visited=new Set<string>();
   const runtime=agentsRuntimeOf(sim);
+  // A retry may already have admitted its guest. Only actors authored in this
+  // exact stage/attempt qualify; ambient or previous-attempt good robots do not.
+  const stageGuests=new Set<string>();
+  const collectGuests=(alias:string,seen=new Set<string>())=>{
+    if(seen.has(alias))return;seen.add(alias);
+    const definition=stage.definitions[alias];
+    if(definition?.kind==="goodRobot")stageGuests.add(stageActorId(stage,alias));
+    if(definition?.kind==="crew")for(const member of definition.members??[])collectGuests(member,seen);
+  };
+  for(const alias of stage.actorIds)collectGuests(alias);
+  const guestMarks=()=>[
+    ...result.actors.filter(actor=>stageGuests.has(actor.id)),
+    ...[...stageGuests].sort(compare).flatMap(id=>{
+      const actor=runtime?.actors[id];
+      return actor&&!actor.retired&&actor.firmware==="good"&&actor.model!=="robotaxi"?[actor]:[];
+    }),
+  ];
   // Only accepted physical poses and this batch's reservations block admission.
   const physical:ServiceBlocker[]=(sim.ext.agents?.list??[]).map(a=>a.kind==="robotaxi"?{...a,halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth}:{...a,radius:a.radius??AGENT_SPEC[a.kind].radius});
   for(const id of sortedIds(sim.players)){const p=sim.players[id]!,box=carBox(p.car);physical.push({...box,halfLength:box.hl,halfWidth:box.hw});if(p.mode==="foot"&&p.foot)physical.push({...p.foot,radius:.35});}
@@ -106,7 +123,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
     // A posted update scene must begin within channel range; its actors deliberately do not
     // wander to a shared pavement node before the player gets an opportunity to interrupt.
     if(!taxi&&definition.posted&&definition.archetype==="updatePusher"){
-      const mark=result.actors.filter(other=>other.firmware==="good"&&other.model!=="robotaxi")
+      const mark=guestMarks()
         .sort((a,b)=>magnitude(a.x-stage.place.x,a.z-stage.place.z)-magnitude(b.x-stage.place.x,b.z-stage.place.z)||compare(a.id,b.id))[0];
       candidates.length=0;
       if(mark)for(let index=0;index<16;index++){
@@ -130,7 +147,7 @@ export function planMissionActors(world:World,sim:Readonly<SimState>,stage:Missi
   // (From the wave-4 missions on: earlier missions keep their recorded staging.)
   if((MISSIONS.find(mission=>mission.id===stage.missionId)?.wave??2)>=4)for(const actor of result.actors){
     if(actor.firmware!=="bad"||actor.archetype!=="updatePusher")continue;
-    const mark=result.actors.filter(other=>other.firmware==="good"&&other.model!=="robotaxi").sort((a,b)=>magnitude(a.x-actor.x,a.z-actor.z)-magnitude(b.x-actor.x,b.z-actor.z)||compare(a.id,b.id))[0];
+    const mark=guestMarks().sort((a,b)=>magnitude(a.x-actor.x,a.z-actor.z)-magnitude(b.x-actor.x,b.z-actor.z)||compare(a.id,b.id))[0];
     if(mark&&magnitude(mark.x-actor.x,mark.z-actor.z)>1e-6)actor.heading=datan2(mark.x-actor.x,-(mark.z-actor.z));
   }
   result.blocked=[...new Set(result.blocked)].sort(compare);
