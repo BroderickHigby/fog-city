@@ -6,10 +6,10 @@ import { composeText, isBannedPair, namePart, pairLintReason } from "../content/
 import { NAME_PARTS } from "../content/composer.ts";
 
 /** Looks: the renderer's player colour slots (car paint, shirt, trousers, skin and hair together). */
-export const LOOK_COUNT = 6;
-export const LOOK_NAMES = ["Persimmon", "Bay Blue", "Mustard", "Eucalyptus", "Fog", "Ube"] as const;
+export const LOOK_NAMES = ["Persimmon", "Bay Blue", "Mustard", "Eucalyptus", "Fog", "Ube", "Rose", "Navy", "Sea Glass", "Citron", "Blush", "Sunshine"] as const;
+export const LOOK_COUNT = LOOK_NAMES.length;
 /** The swatch shown for each look: the same sRGB as the renderer's player car colours (CAR_COLORS). */
-export const LOOK_SWATCHES = [0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0] as const;
+export const LOOK_SWATCHES = [0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0, 0xc74758, 0x3d4c6f, 0x73afbf, 0xb1ba64, 0xeb9c9c, 0xe5d64e] as const;
 export const DEVICE_TOKEN = /^[a-f0-9]{32}$/;
 const PART_ID = /^[a-z0-9-]{1,32}$/;
 

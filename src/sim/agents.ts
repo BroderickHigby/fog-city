@@ -2219,7 +2219,10 @@ interface CivilianApproach { edge: RoadEdgeInfo; dir: Dir; lane: number; s: numb
 function civilianApproaches(world: World, body: Body): CivilianApproach[] {
   const graph=world.roads!;
   const edges=new Set<number>();
-  for(const area of graph.areas) if((area.cx-body.x)**2+(area.cz-body.z)**2 < 350**2) for(const piece of area.drive) edges.add(piece.edge);
+  for(const area of graph.areas) {
+    const dx=area.cx-body.x,dz=area.cz-body.z;
+    if(dx*dx+dz*dz < 350*350) for(const piece of area.drive) edges.add(piece.edge);
+  }
   // RoadNode.out contains legal outgoing directions only, so reversing it loses one-way
   // predecessors. Index the legal directed incoming links themselves in this bounded area.
   const incomingByNode=new Map<number,{edge:number;dir:Dir}[]>();
@@ -2247,7 +2250,7 @@ function civilianApproaches(world: World, body: Body): CivilianApproach[] {
           for(const travel of [65,80,95,110,125]) {
             const s=toS-(travel-after);
             if(s<3 || s>toS) continue;
-            const point=pathPoint(current,s),distance=Math.sqrt((point.x-body.x)**2+(point.z-body.z)**2);
+            const point=pathPoint(current,s),dx=point.x-body.x,dz=point.z-body.z,distance=Math.sqrt(dx*dx+dz*dz);
             if(distance<SPAWN_MIN_PLAYER_M || distance>100) continue;
             choices.push({edge,dir:direction,lane:slot,s,route:route.slice(1),score:near.dist*4+Math.abs(distance-65)+travel*.01});
           }
@@ -2282,9 +2285,13 @@ function civilianApproaches(world: World, body: Body): CivilianApproach[] {
 function protectedTrafficIds(state:Readonly<SimState>):ReadonlySet<number> {
   const protectedIds=new Set([...ridesByAgent(state).keys(),...hailsByAgent(state).keys()]);
   const runtime=state.ext.robots as unknown as {actors?:Record<string,{legacyId:number|null;numericId:number;significant?:boolean;ownerId?:string;model?:string}>;missionBindings?:Record<string,string>}|undefined;
-  const bound=new Set(Object.values(runtime?.missionBindings??{}));
-  const watched=new Set(Object.values(state.ext.player?.players??{}).map(player=>player.watchingActorId).filter(Boolean));
-  for(const [id,actor] of Object.entries(runtime?.actors??{})) if(actor.significant || actor.ownerId!==undefined || bound.has(id) || watched.has(id) || actor.model==="van" || actor.model==="bus") protectedIds.add(actor.legacyId??actor.numericId);
+  const bindings=runtime?.missionBindings??{},players=state.ext.player?.players??{},actors=runtime?.actors??{};
+  const bound=new Set(sortedIds(bindings).map(id=>bindings[id]!));
+  const watched=new Set(sortedIds(players).map(id=>players[id]!.watchingActorId).filter(Boolean));
+  for(const id of sortedIds(actors)) {
+    const actor=actors[id]!;
+    if(actor.significant || actor.ownerId!==undefined || bound.has(id) || watched.has(id) || actor.model==="van" || actor.model==="bus") protectedIds.add(actor.legacyId??actor.numericId);
+  }
   for(const agent of state.ext.agents?.list??[]) if(watched.has(agentActorId(agent.id)) || state.ext.combat?.targets[agentActorId(agent.id)]) protectedIds.add(agent.id);
   return protectedIds;
 }
@@ -2297,17 +2304,24 @@ export function admitPassingCars(world: World, state: Readonly<SimState>, tick: 
   let list=ext.list.slice(),nextId=ext.nextId;
   for(let owner=0;owner<bodies.length;owner++) {
     const body=bodies[owner]!;
-    if(list.filter(a=>isCivilianTraffic(a)&&(a.x-body.x)**2+(a.z-body.z)**2<100**2).length>=4) continue;
+    if(list.filter(a=>{
+      if(!isCivilianTraffic(a)) return false;
+      const dx=a.x-body.x,dz=a.z-body.z;
+      return dx*dx+dz*dz<100*100;
+    }).length>=4) continue;
     for(const choice of civilianApproaches(world,body)) {
       const point=pathPoint(lanePath(choice.edge,choice.dir,choice.lane),choice.s),heading=datan2(point.tx,-point.tz);
       // The budget belongs to the owner of the admitted body, even near an ownership boundary.
       if(nearestBody(bodies,point.x,point.z)!==owner) continue;
       if(bodyBlocked(world,"robotaxi",point.x,point.z,heading)||!spawnClearOfVehicles("robotaxi",point.x,point.z,point.tx,point.tz,list,cars)) continue;
-      if(list.some(other=>(other.x-point.x)**2+(other.z-point.z)**2<(AGENT_SPEC[other.kind].road?10:4)**2)) continue;
+      if(list.some(other=>{
+        const dx=other.x-point.x,dz=other.z-point.z,clear=AGENT_SPEC[other.kind].road?10:4;
+        return dx*dx+dz*dz<clear*clear;
+      })) continue;
       const ownerFull=list.filter(a=>nearestBody(bodies,a.x,a.z)===owner).length>=MAX_AGENTS;
       if(list.length>=MAX_AGENTS_TOTAL || ownerFull) {
         const removable=list.filter(a=>a.kind==="robotaxi"&&a.runtimeId===undefined&&a.runtimeLegacy!==true&&a.vehicle===undefined&&!protectedIds.has(a.id)
-          &&(!ownerFull||nearestBody(bodies,a.x,a.z)===owner)&&minDist2(bodies,a.x,a.z)>150**2)
+          &&(!ownerFull||nearestBody(bodies,a.x,a.z)===owner)&&minDist2(bodies,a.x,a.z)>150*150)
           .sort((a,b)=>minDist2(bodies,b.x,b.z)-minDist2(bodies,a.x,a.z)||a.id-b.id)[0];
         if(!removable) break;
         list=list.filter(a=>a.id!==removable.id);
