@@ -148,6 +148,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   // The player's car and mode last frame, for engine load, impacts, landings and doors.
   let prevCar: CarState | null = null;
   let prevRideSpeed: number | null = null;
+  let prevTaxiCar: CarState | null = null;
+  let prevTaxiId: number | null = null;
   let prevMode: string | undefined;
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
@@ -240,10 +242,12 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       // The car (engine, road, tyres, impacts), the doors and footsteps.
       const dtS = lastFrameMs === null ? 0 : Math.min(0.25, Math.max(0, (frame.nowMs - lastFrameMs) / 1000));
       lastFrameMs = frame.nowMs;
+      const taxiCar = player?.ride?.manual ? agentsOf(state).find(a => a.id === player.ride!.agentId)?.manualCar ?? null : null;
+      const previousTaxi = prevTaxiId === player?.ride?.agentId ? prevTaxiCar : null;
       if (player && !frame.paused) {
         // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
         const ride = player.ride ?? null;
-        mixer.setEngine(ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
+        mixer.setEngine(taxiCar ? engineParams(taxiCar, previousTaxi, dtS) : ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
         // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's
         // own body is the ridden taxi while riding. When it is in one, the car's generic hit
         // one-shot stands down (landings still play).
@@ -251,7 +255,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         const hits = impacts.update(state.ext.impacts as ImpactsLike | undefined, listener, selfKey, false);
         for (const c of hits) mixer.playImpact(c);
         const ownHit = hits.some((c) => c.self);
-        if (inCar && !ride) for (const s of carOneShots(player.car, prevCar)) if (s.landing || !ownHit) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
+        if (taxiCar || inCar && !ride) for (const s of carOneShots(taxiCar ?? player.car, taxiCar ? previousTaxi : prevCar)) if (s.landing || !ownHit) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, rate: s.rate });
         mixer.setHydrant(impacts.hydrant(state.ext.impacts as ImpactsLike | undefined, listener));
         for (const s of doorOneShots(prevMode, player.mode)) mixer.play({ sound: s.sound, gain: s.gain, pan: 0, delayS: s.delayS });
         const step = footsteps.update(onFoot ? player.foot : null, dtS);
@@ -262,6 +266,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       }
       prevCar = player ? { ...player.car } : null;
       prevRideSpeed = player?.ride?.speed ?? null;
+      prevTaxiCar = taxiCar ? { ...taxiCar } : null;
+      prevTaxiId = player?.ride?.agentId ?? null;
       prevMode = player?.mode;
       const runtime = agentsRuntimeOf(state);
       const actors: HummingActor[] & SoundingActor[] = runtime ? Object.values(runtime.actors) : [];

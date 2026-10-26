@@ -63,7 +63,7 @@ export function distanceToTaxi(a: Readonly<Pick<AgentState, "x" | "z" | "heading
   return Math.sqrt(dl * dl + df * df);
 }
 
-interface RuntimeRow { legacyId?: number | null; firmware?: string; retired?: boolean }
+interface RuntimeRow { legacyId?: number | null; numericId?: number; firmware?: string; retired?: boolean; significant?: boolean; ownerId?: string }
 
 /**
  * Is this robotaxi bad (a rogue), disabled or rusting? Read from the agents runtime and combat:
@@ -87,14 +87,15 @@ function unfit(state: Readonly<SimState>, a: Readonly<AgentState>): boolean {
  * proxy or a service vehicle), empty, stopped or nearly, fit, within RIDE.boardRange of its body
  * with no building in between. The nearest wins (then the lowest id).
  */
-export function boardableTaxi(world: World, state: Readonly<SimState>, x: number, z: number): AgentState | null {
+export function boardableTaxi(world: World, state: Readonly<SimState>, x: number, z: number, self?: string): AgentState | null {
   const list = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const ridden = ridesByAgent(state);
   let best: AgentState | null = null;
   let bestD = Infinity;
   for (const a of list) {
-    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null) continue;
+    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null || a.manualCar && (!self || !canTakeOverTaxi(state,a.id,self))) continue;
     if (ridden.has(a.id) || Math.abs(a.speed) > RIDE.boardSpeed) continue;
+    if (sortedIds(state.players).some(id=>id!==self && state.players[id]!.hail?.agentId===a.id && state.players[id]!.hail!.untilTick>state.tick)) continue;
     const d = distanceToTaxi(a, x, z);
     if (d > RIDE.boardRange || d >= bestD) continue;
     if (segmentBlocked(world, x, z, a.x, a.z) || unfit(state, a)) continue;
@@ -126,7 +127,7 @@ export function hailableTaxi(world: World, state: Readonly<SimState>, x: number,
   let best: AgentState | null = null;
   let bestD = Infinity;
   for (const a of list) {
-    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null || ridden.has(a.id)) continue;
+    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.manualCar !== undefined || a.dodge !== null || ridden.has(a.id)) continue;
     const mine = state.players[self]?.hail?.agentId === a.id;
     if (hailed.has(a.id) && !mine) continue;
     const d = Math.sqrt((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z));
@@ -150,4 +151,33 @@ export function arrived(ride: Readonly<Pick<PlayerRide, "goal">>, x: number, z: 
   const g = ride.goal;
   if (!g) return false;
   return (g.x - x) * (g.x - x) + (g.z - z) * (g.z - z) <= RIDE.arrive * RIDE.arrive;
+}
+
+/** Only an empty taxi, or the caller's own solitary ride, may be commandeered. */
+export function canTakeOverTaxi(state: Readonly<SimState>, agentId: number, self: string): boolean {
+  const a=state.ext.agents?.list.find(a=>a.id===agentId);
+  if(!a || isCivilianTraffic(a) || a.kind!=="robotaxi" || a.runtimeId!==undefined || a.vehicle!==undefined || a.dodge!==null || unfit(state,a)) return false;
+  const runtime=state.ext.robots as {actors?:Record<string,RuntimeRow>;missionBindings?:Record<string,string>}|undefined;
+  const bindings=runtime?.missionBindings??{};
+  const bound=new Set(sortedIds(bindings).map(id=>bindings[id]!));
+  const actors=runtime?.actors??{};
+  for(const id of sortedIds(actors)) {const row=actors[id]!;if((row.legacyId===agentId || row.numericId===agentId) && (row.significant || row.ownerId!==undefined || bound.has(id))) return false;}
+  for(const id of sortedIds(state.players)) {
+    const p=state.players[id]!;
+    if(id!==self && (p.ride?.agentId===agentId || p.hail?.agentId===agentId && p.hail.untilTick>state.tick)) return false;
+  }
+  return true;
+}
+
+/** The nearest eligible stopped taxi within boarding reach (H), then lowest numeric id. */
+export function takeoverTaxi(world: World,state:Readonly<SimState>,x:number,z:number,self:string):AgentState|null {
+  let best:AgentState|null=null,bestD=Infinity;
+  for(const a of state.ext.agents?.list??[]) {
+    if(a.kind!=="robotaxi" || Math.abs(a.speed)>RIDE.boardSpeed) continue;
+    const d=distanceToTaxi(a,x,z);
+    if(d>RIDE.boardRange || d>bestD || d===bestD && best!==null && a.id>best.id) continue;
+    if(!canTakeOverTaxi(state,a.id,self) || segmentBlocked(world,x,z,a.x,a.z)) continue;
+    best=a;bestD=d;
+  }
+  return best;
 }

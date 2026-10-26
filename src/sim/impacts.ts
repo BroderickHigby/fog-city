@@ -257,6 +257,7 @@ export function carVelocity(c: Readonly<Pick<CarState, "heading" | "speed" | "la
 
 /** An agent's world velocity: its knock, else its speed along its heading. */
 export function agentVelocity(a: Readonly<AgentState>): { vx: number; vz: number } {
+  if(a.manualCar && !a.knock) return carVelocity(a.manualCar);
   if (a.knock) return { vx: a.knock.vx, vz: a.knock.vz };
   return { vx: a.speed * dsin(a.heading), vz: -a.speed * dcos(a.heading) };
 }
@@ -506,7 +507,7 @@ function receive(w: Work, key: string, k: Readonly<CarContact>, hitter: string, 
     const p = w.players[id];
     if (!p) return 0;
     const dv = Math.sqrt(jx * jx + jz * jz) / CAR.mass;
-    if (slid || p.mode === "foot") {
+    if (slid || p.mode === "foot" || p.ride) {
       const kick = spinKick(CAR.mass, CAR.yawK2, k.x - p.car.x, k.z - p.car.z, jx, jz);
       w.players = { ...w.players, [id]: { ...p, car: shoveCar(p.car, jx / CAR.mass, jz / CAR.mass, kick) } };
     }
@@ -918,18 +919,19 @@ function stepParked(world: World, w: Work, id: PlayerId): void {
  * its stepCar this tick (by player id). Returns the new state (ext.impacts only once anything has
  * ever been hit).
  */
-export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap<PlayerId, readonly CarContact[]>): SimState {
+export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap<PlayerId, readonly CarContact[]>, agentContacts: ReadonlyMap<number, readonly CarContact[]> = new Map()): SimState {
   const combat = state.ext.combat as CombatState | undefined;
   const agentsExt = state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined;
   const prior = impactsOf(state);
   const list = agentsExt ? agentsExt.list : [];
   let anyContact = false;
   for (const id of sortedIds(state.players)) if ((contacts.get(id)?.length ?? 0) > 0) anyContact = true;
+  if ([...agentContacts.values()].some(hits=>hits.length>0)) anyContact=true;
   const anyKnocked = list.some((a) => a.knock !== undefined);
   let anyParked = false;
   for (const id of sortedIds(state.players)) {
     const p = state.players[id]!;
-    if (p.mode === "foot" && (p.car.speed !== 0 || p.car.lateral !== 0 || p.car.yawRate !== 0)) anyParked = true;
+    if ((p.mode === "foot" || p.ride) && (p.car.speed !== 0 || p.car.lateral !== 0 || p.car.yawRate !== 0)) anyParked = true;
   }
   const repairing = prior !== undefined && sortedIds(prior.cars).some((id) => prior.cars[id]!.condition < 100);
   const broken = prior?.props !== undefined && sortedIds(prior.props).length > 0;
@@ -954,16 +956,29 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     }
   }
 
+  // A manually driven taxi hits as its own ambient body, never as the rider's parked car.
+  for(const id of [...agentContacts.keys()].sort((a,b)=>a-b)) {
+    const index=w.index.get(id);if(index===undefined) continue;
+    for(const hit of agentContacts.get(id)??[]) {
+      const a=w.agents[index]!;
+      if(hit.key.startsWith("prop:")) hitProp(world,w,hit,`a:${id}`,a.y);
+      else receive(w,hit.key,hit,`a:${id}`,false);
+      const dv=Math.sqrt(hit.j*hit.j+hit.jt*hit.jt)/CAR.mass;
+      const current=w.agents[index]!;
+      w.agents[index]={...current,dents:addDents(current.dents??{front:0,rear:0,left:0,right:0},localOf(a.x,a.z,a.heading,hit.x,hit.z),a.halfLength??ROBOTAXI_BODY.halfLength,dv)};
+    }
+  }
+
   // 2. Knocked agents slide, sit, turn back and rejoin; parked cars slide.
   const removed = new Set<number>();
   for (let i = 0; i < w.agents.length; i++) {
     const a = w.agents[i]!;
-    if (!a.knock || w.fresh.has(a.id)) continue;
+    if (!a.knock || a.manualCar || w.fresh.has(a.id)) continue;
     if (!stepKnocked(world, w, i)) removed.add(a.id);
   }
   for (const id of sortedIds(w.players)) {
     const p = w.players[id]!;
-    if (p.mode === "foot") stepParked(world, w, id);
+    if (p.mode === "foot" || p.ride) stepParked(world, w, id);
   }
 
   resetProps(world, w);

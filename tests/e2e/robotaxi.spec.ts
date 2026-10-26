@@ -5,16 +5,17 @@
 // player out beside it, with no contact.
 
 import { expect, test } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { FAST_VIEWPORT, bootWorld, gateWorld, type FogWindow } from "./fixtures.ts";
 
 test.use({ viewport: FAST_VIEWPORT });
 test.describe.configure({ timeout: 360_000 });
 
-type Ride = { agentId: number; x: number; z: number; speed: number; goal: { x: number; z: number } | null } | null | undefined;
+type Ride = { agentId: number; x: number; z: number; heading: number; speed: number; manual?: true; goal: { x: number; z: number } | null } | null | undefined;
 const ride = (page: import("@playwright/test").Page): Promise<Ride> =>
   page.evaluate(() => ((window as unknown as FogWindow).__fogcity!.state().players.p1 as unknown as { ride?: Ride }).ride);
 
-test("walk up to a robotaxi, F hops in, ride to a map waypoint, F gets out", async ({ page }) => {
+test("F rides to a map waypoint, H takes control, WASD drives the same taxi and F gets out", async ({ page }) => {
   gateWorld("sf");
   const problems = await bootWorld(page, "sf", "&gfx=default&radius=300&pr=0.5", 150_000);
   await page.waitForFunction(() => {
@@ -37,7 +38,7 @@ test("walk up to a robotaxi, F hops in, ride to a map waypoint, F gets out", asy
       if (me.ride) return true;
       if (!me.foot) return `not on foot at tick ${tick}: ${log.join(" | ")}`;
       const foot = me.foot;
-      const taxis = ((s.ext as { agents?: { list: Taxi[] } }).agents?.list ?? []).filter((a) => a.kind === "robotaxi" && a.runtimeId === undefined);
+      const taxis = ((s.ext as { agents?: { list: Taxi[] } }).agents?.list ?? []).filter((a) => a.kind === "robotaxi" && a.runtimeId === undefined && a.id % 8 !== 7);
       // The hailed taxi, else the nearest empty one that is not stuck in traffic.
       let best = me.hail ? taxis.find((t) => t.id === me.hail!.agentId) : undefined;
       if (!best) {
@@ -80,6 +81,43 @@ test("walk up to a robotaxi, F hops in, ride to a map waypoint, F gets out", asy
   await expect.poll(async () => (await ride(page))?.goal ?? null, { timeout: 60_000 }).not.toBeNull();
   // The taxi drives off with the player aboard (the camera and HUD follow it).
   await expect.poll(async () => { const r = await ride(page); return r ? Math.hypot(r.x - first!.x, r.z - first!.z) : 0; }, { timeout: 120_000 }).toBeGreaterThan(5);
+
+  // The actual H key switches the existing passenger ride to manual control. The own car is
+  // still a parked body, and the taxi keeps its ambient identity and its current position.
+  const parked = await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.state().players.p1!.car);
+  await page.keyboard.press("KeyH");
+  await expect.poll(async () => (await ride(page))?.manual ?? false, { timeout: 60_000 }).toBe(true);
+  expect((await ride(page))!.agentId).toBe(first!.agentId);
+  await page.keyboard.down("KeyW");
+  try {
+    await expect.poll(async () => Math.abs((await ride(page))?.speed ?? 0), { timeout: 60_000 }).toBeGreaterThan(4);
+  } finally {
+    await page.keyboard.up("KeyW");
+  }
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.pause());
+  const controlled = await page.evaluate(() => {
+    const h = (window as unknown as FogWindow).__fogcity!;
+    const before = h.state().players.p1!.ride!;
+    for (let i = 0; i < 60; i++) h.stepFrames!([{ p1: { throttle: 0.65, steer: 0.3, brake: 0, actions: 0 } }]);
+    const after = h.state(), rider = after.players.p1!.ride!;
+    const taxi = after.ext.agents!.list.find(a => a.id === rider.agentId)!;
+    return { before, rider, taxi, own: after.players.p1!.car };
+  });
+  expect(Math.hypot(controlled.rider.x - controlled.before.x, controlled.rider.z - controlled.before.z)).toBeGreaterThan(1);
+  expect(Math.abs(controlled.rider.heading - controlled.before.heading)).toBeGreaterThan(0.025);
+  expect(controlled.taxi.manualCar).toBeDefined();
+  expect(controlled.taxi.x).toBe(controlled.rider.x);
+  expect(controlled.taxi.z).toBe(controlled.rider.z);
+  expect(controlled.own.x).toBeCloseTo(parked.x, 4);
+  expect(controlled.own.z).toBeCloseTo(parked.z, 4);
+  mkdirSync("test-results/robotaxi-takeover", { recursive: true });
+  writeFileSync("test-results/robotaxi-takeover/manual-drive.json", JSON.stringify(controlled, null, 2));
+  await page.setViewportSize({ width: 1100, height: 700 });
+  await page.screenshot({ path: "test-results/robotaxi-takeover/manual-drive.png" });
+  await page.evaluate(() => (window as unknown as FogWindow).__fogcity!.resume());
+  // While driving, H remains the horn; it does not discard the manual steering state.
+  await page.keyboard.press("KeyH");
+  await expect.poll(async () => (await ride(page))?.manual ?? false, { timeout: 60_000 }).toBe(true);
 
   // The real F key: the taxi stops and the player steps out beside it.
   await page.keyboard.press("KeyF");

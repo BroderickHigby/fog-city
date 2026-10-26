@@ -142,7 +142,24 @@ const wave3Rain: ComposedScenario = {
     return { ...state, ext: { ...state.ext, clock: { version: 1, elapsedTicks: firstRain(7) } } };
   },
 };
-export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City, wave3Rain];
+
+/** A stopped street taxi is commandeered, driven and parked; the own car stays behind. */
+const robotaxiDrive: ComposedScenario = {
+  name: "robotaxi-drive", ticks: 480, every: 80, wave: 3, world: devWorld,
+  initial: world => {
+    const state = createInitialState(world, 7, ["p1"], loadWorldFiles("dev").manifest.spawn);
+    const source = state.ext.agents!.list.find(a => a.kind === "robotaxi" && a.id % 8 !== 7)!;
+    const taxi = { ...source, speed: 0 };
+    const foot = makeFoot(taxi.x - Math.cos(taxi.heading) * 1.7, taxi.y, taxi.z - Math.sin(taxi.heading) * 1.7, taxi.heading);
+    return { ...state, players: { p1: { ...state.players.p1!, mode: "foot", foot } },
+      ext: { ...state.ext, agents: { ...state.ext.agents!, list: state.ext.agents!.list.map(a => a.id === taxi.id ? taxi : a) } } };
+  },
+  inputs: tick => ({ p1: tick === 1 ? { ...idle, actions: Action.horn }
+    : tick < 180 ? { throttle: .7, steer: tick >= 60 && tick < 100 ? .2 : 0, brake: 0, actions: 0 }
+    : tick === 241 ? { ...idle, actions: Action.enterExit } : { ...idle, brake: 1 } }),
+  events: () => [],
+};
+export const COMPOSED_SCENARIOS: readonly ComposedScenario[] = [city, service, mission, wave3City, wave3Rain, robotaxiDrive];
 
 export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
   const world = scenario.world(), systems = createGameSystems({ wave: scenario.wave ?? 2 });
@@ -153,6 +170,7 @@ export function runComposedScenario(scenario: ComposedScenario): ComposedRun {
   for (let t = 0; t < scenario.ticks; t++) {
     const tick = state.tick + 1;
     state = step(world, state, scenario.inputs(tick), scenario.events(tick), systems);
+    for (const id of Object.keys(state.players).sort()) if (state.players[id]!.ride?.manual) count("robotaxi:manual-ticks");
     for (const event of state.ext.combat?.events ?? []) count(`combat:${event.kind}`);
     for (const event of state.ext.robots?.events ?? []) count(`robots:${event.kind}`);
     for (const event of state.ext.robots?.services?.events ?? []) count(`services:${event.kind}`);

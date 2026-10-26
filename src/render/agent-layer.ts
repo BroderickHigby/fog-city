@@ -209,8 +209,8 @@ const _off = { x: 0, z: 0 };
 const _one = new THREE.Vector3(1, 1, 1);
 
 /** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, uniform scale. */
-function baseMatrix(x: number, y: number, z: number, heading: number, pitch: number, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(pitch, -heading, 0, "YXZ");
+function baseMatrix(x: number, y: number, z: number, heading: number, pitch: number, scale: number, out: THREE.Matrix4, roll = 0): THREE.Matrix4 {
+  _e.set(pitch, -heading, -roll, "YXZ");
   _q.setFromEuler(_e);
   return out.compose(_p.set(x, y, z), _q, _s.setScalar(scale));
 }
@@ -534,6 +534,11 @@ export class AgentLayer {
     view.source = "file";
   }
 
+  private hiddenAgent: number | null = null;
+
+  /** Hide only the occupied taxi while looking from its driver's seat. */
+  setHiddenAgent(id: number | null): void { this.hiddenAgent = id; }
+
   /**
    * Render-only: errand robots' bags full (true), empty (false), or as each agent says (null,
    * the default; the sim carries no bag tell yet, so full).
@@ -652,6 +657,7 @@ export class AgentLayer {
       const tier = this.tiers[i]!;
       if (tier === TIER_HIDDEN) continue;
       const [a, b] = pairs[i]!;
+      if (b.id === this.hiddenAgent) continue;
       const pose = this.poses[i]!;
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
@@ -696,7 +702,7 @@ export class AgentLayer {
         near++;
         this.drawNear(view, b, pose, cue, dt);
       } else {
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
+        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
         collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
       }
@@ -841,7 +847,7 @@ export class AgentLayer {
     const spec = AGENT_SPEC[b.kind];
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
-    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
+    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
     const override = this.lookOverride?.get(b.id);
     collapse(_base, b, override ?? visualCombat(b), override?.height ?? visualHeight(b));
     // A seized robot's limbs and wheels stop where they are.
@@ -856,7 +862,7 @@ export class AgentLayer {
           break;
         case "steer-spin":
           rx = anim.wheel;
-          ry = -anim.steer;
+          ry = -(pose.steer ?? anim.steer);
           break;
         case "swing":
           rx = p.channel.gain * swing;

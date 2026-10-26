@@ -28,7 +28,7 @@ export function stepHeat(previous:HeatState,ctx:GameplayContext,tick:number,gran
   if(fact.kind==="player.down"){own.threat=0;own.vcQuarters=Math.min(20,own.vcQuarters+4);}
   if(fact.kind==="car-wash"){own.threat=Math.max(0,own.threat-1);own.lastSeenTick=tick;}
   if(ctx.wave>=3&&fact.kind==="player.viral-jump")own.vcQuarters=Math.min(20,own.vcQuarters+1);
-  if(ctx.wave>=3&&fact.kind==="player.commandeer")own.vcQuarters=Math.min(20,own.vcQuarters+4);
+  if(fact.kind==="player.commandeer"){own.vcQuarters=Math.min(20,own.vcQuarters+4);own.lastAssociateSeenTick=tick;event(state,"player.commandeer",fact.playerId,fact.actorId??"",1,"Ride shared to your feed");}
  }
  for(const body of sortedBodies(ctx)){
   const own=state.players[body.id]!, observation=ctx.observations.find(o=>o.playerId===body.id), fog=(observation?.fog??0)>.4;

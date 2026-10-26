@@ -39,7 +39,7 @@ export const RAM_GOOD_ROBOT_CENTS = 3000;
  */
 export function rammedRobotFacts(context:SimSystemContext,actors:()=>readonly CombatActor[]):GameplayFact[] {
   const tick=context.state.tick;
-  const hits=(impactsOf(context.state)?.events??[]).filter(e=>e.tick===tick&&e.kind==="car-robot"&&e.fell===true&&e.a.startsWith("p:"));
+  const hits=(impactsOf(context.state)?.events??[]).filter(e=>e.tick===tick&&(e.kind==="car-robot"||e.kind==="taxi-robot")&&e.fell===true&&(e.a.startsWith("p:")||sortedIds(context.state.players??{}).some(id=>{const ride=context.state.players[id]!.ride;return ride?.manual&&e.a===`a:${ride.agentId}`;})));
   if(!hits.length)return [];
   const list=(context.state.ext.agents as AgentsExt|undefined)?.list??[];
   const all=actors();
@@ -50,7 +50,7 @@ export function rammedRobotFacts(context:SimSystemContext,actors:()=>readonly Co
     const actorId=agent.runtimeId??`agent:${agent.id}`;
     const actor=all.find(a=>a.id===actorId);
     if(!actor||actor.kind!=="robot"||actor.firmware!=="good")continue;
-    out.push({id:`world:ram-${e.id}`,source:"world",sequence:e.id,tick,kind:"economy.penalty",playerId:e.a.slice(2),actorId,amount:RAM_GOOD_ROBOT_CENTS/100,detail:"reputation:-3 rammed"});
+    out.push({id:`world:ram-${e.id}`,source:"world",sequence:e.id,tick,kind:"economy.penalty",playerId:e.a.startsWith("p:")?e.a.slice(2):sortedIds(context.state.players??{}).find(id=>{const ride=context.state.players[id]!.ride;return ride?.manual&&e.a===`a:${ride.agentId}`;})!,actorId,amount:RAM_GOOD_ROBOT_CENTS/100,detail:"reputation:-3 rammed"});
   }
   return out;
 }

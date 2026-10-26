@@ -656,6 +656,15 @@ export function carVehicle(world: World, before: Readonly<SimState>, after: Read
  * from its previous pose (`prev`, stepped `dt` seconds ago); its next step is `dt` too.
  */
 export function vehicleOfAgent(a: Readonly<AgentState>, prev: Readonly<AgentState> | null, dt: number, world: World | null = null, predict = true, segs: Route | null = null): Vehicle {
+  if(a.manualCar) {
+    const vehicle=vehicleOfCar(`taxi-${a.id}`,a.manualCar,prev?.manualCar??null,world);
+    vehicle.key=`a:${a.id}`;vehicle.player=null;
+    // The drawn taxi is a little larger than the player's hatch; widen its complete reach.
+    const extra=Math.max(0,(a.halfLength??ROBOTAXI_BODY.halfLength)-CAR.halfLength,(a.halfWidth??ROBOTAXI_BODY.halfWidth)-CAR.halfWidth);
+    vehicle.hl+=extra;vehicle.hw+=extra;vehicle.inflate+=extra;
+    vehicle.minX-=extra;vehicle.maxX+=extra;vehicle.minZ-=extra;vehicle.maxZ+=extra;
+    return vehicle;
+  }
   const spec = AGENT_SPEC[a.kind];
   const hl = a.halfLength ?? (spec.road ? ROBOTAXI_BODY.halfLength : spec.halfLength);
   const hw = a.halfWidth ?? (spec.road ? ROBOTAXI_BODY.halfWidth : spec.halfWidth);
@@ -721,7 +730,7 @@ const ZONE_STEP_M = 0.04;
  */
 export function routeReach(v: Vehicle, a: Readonly<AgentState>, dt: number, world: World, segs: Route | null = null): void {
   // (A body off its route, a system's or one knocked by a hit, keeps the reach its velocity gives.)
-  if (a.runtimeId !== undefined || a.knock) return;
+  if (a.runtimeId !== undefined || a.knock || a.manualCar) return;
   const spec = AGENT_SPEC[a.kind];
   const travel = (a.speed + spec.accel * dt) * dt;
   const n = Math.max(1, Math.ceil(travel / ZONE_STEP_M - 1e-9));

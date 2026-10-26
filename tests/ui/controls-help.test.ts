@@ -17,6 +17,14 @@ describe("controls help menu", () => {
     for (const code of Object.keys(KEY_ACTIONS)) expect(listed.has(label(code)), code).toBe(true);
     for (const key of ["E", "Q", "Z", "R", "B", "P", "Esc", "C", "V", "N", "Space", "Shift", "F1"]) expect(listed.has(key), key).toBe(true);
   });
+  it("explains the shared drive-takeover and horn button for keyboard, pad and touch", () => {
+    for (const keys of ["H", "L3"]) {
+      const row = [...KEYBOARD_ROWS, ...GAMEPAD_ROWS].find(row => row.keys === keys)!;
+      expect(strings[row.action]).toContain("Drive a stopped robotaxi");
+      expect(strings[row.action]).toContain("horn when driving");
+    }
+    expect(strings["ui.controls.horn"]).toBe("Drive taxi / horn");
+  });
   it("gives every row a picture that exists", () => {
     for (const row of [...KEYBOARD_ROWS, ...GAMEPAD_ROWS]) expect(CONTROL_ICONS[row.icon], row.keys).toMatch(/^<(path|g|circle|rect) /);
   });

@@ -16,6 +16,7 @@
 
 import type { AgentKind, AgentMode, AgentState } from "../sim/agents.ts";
 import { AGENT_SPEC, LOD_STRIDE, NEAR_RANGE_M as SIM_NEAR_RANGE_M } from "../sim/agents.ts";
+import type { CarState } from "../sim/contract.ts";
 import { DT } from "../sim/contract.ts";
 
 export const NEAR_RANGE_M = 60;
@@ -36,7 +37,12 @@ export interface AgentPose {
   heading: number;
   pitch: number;
   speed: number;
+  /** The manually driven taxi's suspension and front-wheel angle. */
+  roll?: number;
+  steer?: number;
 }
+
+type AgentPoseSource = Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed"> & { manualCar?: Readonly<CarState> }>;
 
 function wrapPi(a: number): number {
   const t = Math.PI * 2;
@@ -51,12 +57,20 @@ function wrapPi(a: number): number {
  * spawned), `b` in the current one, alpha 0..1 the fraction of a tick elapsed since `b`'s tick.
  */
 export function interpolateAgent(
-  a: Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed">> | null,
-  b: Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed">>,
+  a: AgentPoseSource | null,
+  b: AgentPoseSource,
   alpha: number,
   out: AgentPose,
 ): AgentPose {
   const t = alpha < 0 ? 0 : alpha > 1 ? 1 : alpha;
+  if (b.manualCar) {
+    const before = a?.manualCar ?? b.manualCar;
+    out.roll = before.roll + (b.manualCar.roll - before.roll) * t;
+    out.steer = before.steer + (b.manualCar.steer - before.steer) * t;
+  } else {
+    delete out.roll;
+    delete out.steer;
+  }
   if (!a || (a.x - b.x) * (a.x - b.x) + (a.z - b.z) * (a.z - b.z) > JUMP_M * JUMP_M) {
     out.x = b.x;
     out.y = b.y;
@@ -77,7 +91,7 @@ export function interpolateAgent(
 
 // ---------------------------------------------------------------- far agents' stride
 
-type PoseLike = Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed">>;
+type PoseLike = AgentPoseSource;
 
 /**
  * The sim step an agent is being drawn across. The sim (src/sim/agents.ts, documented rule)

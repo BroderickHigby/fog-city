@@ -46,7 +46,8 @@ import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./
 import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
-import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, destinationOf, hailableTaxi } from "./ride.ts";
+import { stepManualTaxis, syncManualTaxiImpacts, commandeerTaxi } from "./manual-taxi.ts";
+import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, hailableTaxi, takeoverTaxi } from "./ride.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -157,6 +158,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    0). Robots keep their hop. Nothing else changes.
  *  - v14 -> v15: civilian traffic and a faster on-foot pace change behavior only. Preserve
  *    every existing field and optional extension; do not rebuild traffic or progression.
+ *  - v15 -> v16: optional manual taxi controls; preserve all existing state unchanged.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -171,6 +173,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 12) return upgradeState({ ...s, version: 13 });
   if (s.version === 13) return upgradeState(upgradeDodgeOnFoot(s, 14));
   if (s.version === 14) return upgradeState({ ...s, version: 15 });
+  if (s.version === 15) return upgradeState({ ...s, version: 16 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -507,8 +510,12 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   const sanitized: Record<PlayerId, SimInput> = {};
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
-    // A robotaxi rider neither drives the parked car nor sprays from it: only F (get out) counts.
-    sanitized[id] = players[id]!.ride ? { ...NEUTRAL_INPUT, actions: input.actions & Action.enterExit } : input;
+    // A passenger can take control (H) or get out (F); a driver controls only the taxi.
+    // Neither can spray or drive the parked car.
+    sanitized[id] = players[id]!.ride
+      ? players[id]!.ride!.manual ? { ...input, actions: input.actions & (Action.enterExit | Action.horn) }
+        : { ...NEUTRAL_INPUT, actions: input.actions & (Action.enterExit | Action.horn) }
+      : input;
   }
   const prior: SimState = { ...prev, players };
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
@@ -531,7 +538,8 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
     ? { ...admitted, tick, players: next, rng: agents.rng, ext: { ...admitted.ext, [AGENTS_EXT_KEY]: agents.ext } }
     : { ...admitted, tick, players: next, ext: { ...admitted.ext } };
   const physical = applyMotionBodies(world, moved, prepared.motions);
-  const impacted = stepImpacts(world, physical, contacts);
+  const manual = stepManualTaxis(world, before, physical, sanitized);
+  const impacted = syncManualTaxiImpacts(stepImpacts(world, manual.state, contacts, manual.contacts));
   const cleared = settleRides(world, before, stepDodge(world, before, impacted), sanitized, events);
   return runSystems({ world, previous: before, state: cleared, inputs: sanitized, events, observedBodies:observedMotionBodies(cleared,prepared.motions) }, systems);
 }
@@ -571,12 +579,13 @@ export function activeBody(p: Readonly<PlayerState>): ActiveBody {
  */
 function settleRides(world: World, before: Readonly<SimState>, state: SimState, inputs: Readonly<Record<PlayerId, SimInput>>, events: readonly SimEvent[]): SimState {
   const ids = sortedIds(state.players);
-  if (!ids.some((id) => state.players[id]!.ride || state.players[id]!.hail || (inputs[id]!.actions & Action.enterExit) !== 0)) return state;
-  const agents = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
+  if (!ids.some((id) => state.players[id]!.ride || state.players[id]!.hail || (inputs[id]!.actions & (Action.enterExit | Action.horn)) !== 0)) return state;
+  let agents = (state.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
   const players: Record<PlayerId, PlayerState> = { ...state.players };
   for (const id of ids) {
     const p = players[id]!;
     const pressed = (inputs[id]!.actions & Action.enterExit) !== 0;
+    const takeover = (inputs[id]!.actions & Action.horn) !== 0;
     let goal: { x: number; z: number } | null | undefined;
     for (const e of events) if (e.kind === RIDE_DESTINATION_EVENT && e.playerId === id) goal = destinationOf(e.payload) ?? goal;
     if (!p.ride) {
@@ -584,13 +593,17 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
       const hail = p.hail && p.hail.untilTick > state.tick && p.mode === "foot" ? p.hail : null;
       if ((p.hail ?? null) !== hail) players[id] = { ...p, hail: null };
       const was = before.players[id];
-      if (!pressed || p.mode !== "foot" || !p.foot || p.foot.dodge || !was || was.mode !== "foot") continue;
-      const taxi = boardableTaxi(world, { ...state, players }, p.foot.x, p.foot.z);
+      if ((!pressed && !takeover) || p.mode !== "foot" || !p.foot || p.foot.dodge || !was || was.mode !== "foot") continue;
+      const taxi = takeover ? takeoverTaxi(world, { ...state, players, ext: { ...state.ext, agents: { ...state.ext.agents!, list: agents } } }, p.foot.x, p.foot.z, id)
+        : boardableTaxi(world, { ...state, players }, p.foot.x, p.foot.z, id);
       if (taxi) {
+        const manual = takeover || taxi.manualCar !== undefined;
+        if (manual) agents = agents.map(a=>a.id===taxi.id ? commandeerTaxi(a) : a);
         players[id] = { ...p, mode: "vehicle", foot: null, exitPending: false, hail: null,
-          ride: { agentId: taxi.id, x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };
+          ride: { agentId: taxi.id, ...(manual ? { manual: true as const } : {}), x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };
         continue;
       }
+      if (takeover) continue;
       // None in reach: hail the nearest one passing (it pulls up and waits for you).
       const passing = hailableTaxi(world, { ...state, players }, p.foot.x, p.foot.z, id);
       if (passing) players[id] = { ...p, hail: { agentId: passing.id, untilTick: state.tick + RIDE.hailTicks } };
@@ -598,10 +611,12 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
     }
     const taxi = agents.find((a) => a.id === p.ride!.agentId);
     const pulling = (state.ext.combat?.targets[`agent:${p.ride.agentId}`]?.pullOverTick ?? 0) > state.tick;
-    const ride = { ...p.ride, ...(goal !== undefined ? { goal } : {}),
+    const claim = takeover && !p.ride.manual && taxi && canTakeOverTaxi({ ...state, players }, taxi.id, id);
+    if (claim) agents = agents.map(a=>a.id===taxi.id ? commandeerTaxi(a) : a);
+    const ride = { ...p.ride, ...(claim ? { manual: true as const, goal: null, exitPending: false } : {}), ...(!p.ride.manual && !claim && goal !== undefined ? { goal } : {}),
       ...(taxi ? { x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed } : { speed: 0 }) };
-    if (!taxi || pressed || pulling || arrived(ride, ride.x, ride.z)) ride.exitPending = true;
-    if (ride.exitPending && Math.abs(ride.speed) < RIDE.exitSpeed) {
+    if (!taxi || pressed || pulling || (!ride.manual && arrived(ride, ride.x, ride.z))) ride.exitPending = true;
+    if (ride.exitPending && Math.abs(ride.speed) < RIDE.exitSpeed && (!ride.manual || !taxi?.manualCar || taxi.manualCar.grounded && Math.abs(taxi.manualCar.lateral)<RIDE.exitSpeed)) {
       const foot = rideExitSpot(world, { ...state, players }, id, p.car, ride);
       if (foot) {
         players[id] = { ...p, mode: "foot", foot, exitPending: false, ride: null };
@@ -610,7 +625,7 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
     }
     players[id] = { ...p, ride };
   }
-  return { ...state, players };
+  return { ...state, players, ...(state.ext.agents && agents !== state.ext.agents.list ? { ext: { ...state.ext, agents: { ...state.ext.agents, list: agents } } } : {}) };
 }
 
 /** Where a rider steps out of a stopped robotaxi, with getOut's rules (or null: not yet). */
@@ -635,7 +650,8 @@ function rideExitSpot(world: World, state: Readonly<SimState>, id: PlayerId, car
     boxes.push({ ...b, hl: b.hl + WALKER_SKIN_M, hw: b.hw + WALKER_SKIN_M });
     if (other !== id && o.mode === "foot" && o.foot) circles.push({ x: o.foot.x, z: o.foot.z, r: FOOT.radius, person: true });
   }
-  const reaching = vehiclesReaching(world, state, id, ride.x, ride.z, ROBOTAXI_BODY.halfLength + FOOT.exitGap + 2 * FOOT.radius + 1);
+  const reaching = vehiclesReaching(world, state, id, ride.x, ride.z, ROBOTAXI_BODY.halfLength + FOOT.exitGap + 2 * FOOT.radius + 1)
+    .filter(v=>!ride.manual || v.key!==`a:${ride.agentId}`);
   const prof = DODGE_PROFILE.player;
   const avoid = (x: number, z: number): boolean => {
     for (const v of reaching) {

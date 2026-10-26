@@ -305,6 +305,8 @@ export interface AgentState {
   dents?: import("./impacts.ts").Dents;
   /** v13 robotaxis: going round a stopped vehicle on the current lane (src/sim/overtake.ts); absent otherwise. */
   pass?: PassState;
+  /** v16: commandeered taxi physics. With no driver it brakes and parks where it was left. */
+  manualCar?: import("./contract.ts").CarState;
 }
 
 /** state.ext.agents */
@@ -779,7 +781,7 @@ function agentObstacles(list: readonly AgentState[], g: RoadGraph | null = null,
     const road = spec.road;
     if (road) {
       // To robotaxis, its two circles; to walkers, its drawn body (with a berth while it moves).
-      const pass = a.runtimeId !== undefined || passable.has(a.id) ? { key: `a:${a.id}`, rect: vehicleRect(a), speed: a.speed } : undefined;
+      const pass = a.runtimeId !== undefined || a.manualCar || passable.has(a.id) ? { key: `a:${a.id}`, rect: vehicleRect(a), speed: a.speed } : undefined;
       const passing = a.pass !== undefined;
       for (const c of agentCircles(a)) out.push({ x: c.x, z: c.z, r: c.r, id: a.id, player: false, road, onlyFor: "road", ...(pass ? { pass } : {}), ...(passing ? { passing } : {}) });
       const ei = g && a.pass && a.conn === null ? g.edgeIndex.get(a.edge) : undefined;
@@ -983,6 +985,7 @@ export interface Seg {
   lat: number;
   /** A robotaxi's pass profile on its current lane (overtake.ts): the shift by arc length instead of `lat`. */
   pass?: PassState;
+
 }
 
 /** Position and unit tangent (the way the body faces) at arc length s of a route segment. */
@@ -2285,7 +2288,7 @@ function protectedTrafficIds(state:Readonly<SimState>):ReadonlySet<number> {
   const bound=new Set(Object.values(runtime?.missionBindings??{}));
   const watched=new Set(Object.values(state.ext.player?.players??{}).map(player=>player.watchingActorId).filter(Boolean));
   for(const [id,actor] of Object.entries(runtime?.actors??{})) if(actor.significant || actor.ownerId!==undefined || bound.has(id) || watched.has(id) || actor.model==="van" || actor.model==="bus") protectedIds.add(actor.legacyId??actor.numericId);
-  for(const agent of state.ext.agents?.list??[]) if(watched.has(agentActorId(agent.id)) || state.ext.combat?.targets[agentActorId(agent.id)]) protectedIds.add(agent.id);
+  for(const agent of state.ext.agents?.list??[]) if(agent.manualCar || watched.has(agentActorId(agent.id)) || state.ext.combat?.targets[agentActorId(agent.id)]) protectedIds.add(agent.id);
   return protectedIds;
 }
 
@@ -2376,7 +2379,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   // Who steps this tick, and by how much.
   const stepDt = new Map<number, number>();
   for (const a of ext.list) {
-    if (controlled.has(a.id) || a.runtimeId !== undefined) continue;
+    if (controlled.has(a.id) || a.manualCar || a.runtimeId !== undefined) continue;
     const near = minDist2(bodies, a.x, a.z) <= NEAR_RANGE_M * NEAR_RANGE_M;
     if (near) stepDt.set(a.id, DT);
     else if ((tick + a.id) % LOD_STRIDE === 0) stepDt.set(a.id, DT * LOD_STRIDE);
@@ -2400,7 +2403,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   // junction at their start to come down: nobody enters one against such traffic.
   const linked = new Set<string>();
   for (const a of ext.list) {
-    if (!AGENT_SPEC[a.kind].road) continue;
+    if (!AGENT_SPEC[a.kind].road || a.manualCar) continue;
     linked.add(`${a.edge}|${a.dir}`);
     if (a.node !== "" && a.conn === null) {
       const ei = g.edgeIndex.get(a.edge);
@@ -2425,7 +2428,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const contenders = new Map<string, AgentState[]>();
   for (const a of ext.list) {
     const spec = AGENT_SPEC[a.kind];
-    if (!spec.road || a.ghost > 0) continue;
+    if (!spec.road || a.manualCar || a.ghost > 0) continue;
     // On a short link with its tail still in the junction behind (rearHold): it contends for the
     // junction ahead from wherever it waits, or it would hold the one behind while every other
     // approach takes the one ahead.
@@ -2490,7 +2493,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const holding = new Set<number>();
   const road = new Set<number>();
   for (const a of ext.list) {
-    if (!AGENT_SPEC[a.kind].road) continue;
+    if (!AGENT_SPEC[a.kind].road || a.manualCar) continue;
     road.add(a.id);
     if (a.node !== "") holding.add(a.id);
   }

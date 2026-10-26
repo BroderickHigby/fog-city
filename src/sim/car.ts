@@ -373,6 +373,8 @@ export function stepCar(
   /** Road surface grip 0..1 (1 dry; rain and flooding lower it: src/sim/fog tractionAt). Scales cornering grip and braking. */
   traction = 1,
   contacts: CarContact[] = [],
+  /** Optional body dimensions for another vehicle using the same handling model. */
+  dimensions: Readonly<{halfLength:number;halfWidth:number;bodyHeight:number}> = CAR,
 ): CarState {
   const G = CAR.gravity;
   const mu = traction > 0 && traction < 1 ? traction : 1;
@@ -493,7 +495,7 @@ export function stepCar(
   // Buildings block the body between its wheels plus the step it can climb onto a roof, and
   // its top (it passes under a structure higher than that).
   const colY = c.y + ROOF_STEP_M;
-  const topY = c.y + CAR.bodyHeight;
+  const topY = c.y + dimensions.bodyHeight;
   // Walls hold each point of the body on the side it was on at the start of the tick.
   const ref = { x: c.x, z: c.z, heading: h0 };
   let touched = false;
@@ -507,19 +509,19 @@ export function stepCar(
     const lastZ = z;
     x += (vx * DT) / n;
     z += (vz * DT) / n;
-    const res = resolveBox(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, colY, obstacles, ref, pushLeft, topY);
+    const res = resolveBox(world, { x, z, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, colY, obstacles, ref, pushLeft, topY);
     pushLeft -= res.pushed;
     if (!res.hit) continue;
     x = res.x;
     z = res.z;
     touched = true;
-    if (boxCrossedWall(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+    if (boxCrossedWall(world, { x, z, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, ref)) {
       // Wedged where the pushes cannot clear a wall (a sharp corner): undo this step, and the
       // turn too if even the last place is across a wall with the new heading. No point of the
       // body ever ends a tick on the far side of a wall from where it started.
       x = lastX;
       z = lastZ;
-      if (boxCrossedWall(world, { x, z, heading, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+      if (boxCrossedWall(world, { x, z, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, ref)) {
         x = c.x;
         z = c.z;
         heading = h0;
@@ -589,7 +591,7 @@ export function stepCar(
       const delta = wrapAngle(datan2(vx, -vz) - heading);
       const aligned = wrapAngle(heading + clamp(delta, -CAR.wallAlign * DT, CAR.wallAlign * DT));
       // (Never swinging a corner of the body across a wall.)
-      if ((delta < 0 ? -delta : delta) < 1.2 && !boxCrossedWall(world, { x, z, heading: aligned, hl: CAR.halfLength, hw: CAR.halfWidth }, ref)) {
+      if ((delta < 0 ? -delta : delta) < 1.2 && !boxCrossedWall(world, { x, z, heading: aligned, hl: dimensions.halfLength, hw: dimensions.halfWidth }, ref)) {
         heading = aligned;
         fx = dsin(heading);
         fz = -dcos(heading);

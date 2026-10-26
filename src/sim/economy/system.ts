@@ -13,6 +13,7 @@ export function stepEconomy(previous:EconomyState,ctx:GameplayContext,tick:numbe
  for(const body of sortedBodies(ctx)) {const old=previous.players[body.id]??createWallet();state.players[body.id]={...old,paidActorIds:old.paidActorIds.filter(id=>liveActors.has(id)),ownedItemIds:[...old.ownedItemIds],ownedSiteIds:[...old.ownedSiteIds]};}
  for(const fact of facts(ctx,tick,state.factCursors)) {
   const wallet=state.players[fact.playerId];if(!wallet)continue;
+  if(fact.kind==="player.commandeer"){wallet.reputation=Math.max(0,wallet.reputation-1);event(state,"economy.changed",fact.playerId,fact.actorId??"",wallet.cashCents,"Ride shared to your feed");}
   if(fact.kind==="player.runway")wallet.runwayMonths=clamp(wallet.runwayMonths+(fact.amount??0),0,18);
   if(fact.kind==="economy.penalty") {pay(wallet,-Math.abs(fact.amount??0)*100);wallet.reputation=clamp(wallet.reputation-(fact.detail?.includes("-5")?5:3),0,100);event(state,"economy.changed",fact.playerId,"",wallet.cashCents,"wrong-target");}
   if(fact.kind==="robot.heap"&&fact.actorId&&!wallet.paidActorIds.includes(fact.actorId)) {

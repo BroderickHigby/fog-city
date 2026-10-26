@@ -29,6 +29,8 @@ export interface UiView {
   readonly z:number;
   readonly heading:number;
   readonly speedMps:number;
+  /** The occupied robotaxi, distinct from the player's parked car. */
+  readonly vehicleControl?:"robotaxi-driver"|"robotaxi-passenger";
   readonly runwayMonths:number;
   readonly cashCents:number;
   readonly reputation:number;

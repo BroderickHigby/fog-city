@@ -117,7 +117,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     stats.get("water")!.parentElement!.querySelector("progress")!.value=1;
     stats.get("threat")!.textContent=String(Math.round(bounded(next.threat,0,100)));stats.get("reputation")!.textContent=String(Math.round(bounded(next.reputation,-999,999)));
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveDetail.textContent=next.objective?.detail??next.interaction?.detail??"";
-    speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h`;drawMap(canvas,next);
+    speed.textContent=`${Math.round(bounded(next.speedMps,0,200)*3.6)} km/h${next.vehicleControl==="robotaxi-driver"?` · ${copy("ui.hud.robotaxiDriver")}`:next.vehicleControl==="robotaxi-passenger"?` · ${copy("ui.hud.robotaxiPassenger")}`:""}`;drawMap(canvas,next);
     if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris`;
     renderAds();
     // Never replace a focused form while sim snapshots arrive.

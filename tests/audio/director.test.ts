@@ -2,6 +2,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createGameAudioDirector } from "../../src/audio/index.ts";
 import { EffectCueTracker } from "../../src/audio/cues.ts";
+import { AGENTS_EXT_KEY, type AgentState } from "../../src/sim/agents.ts";
+import { makeCar } from "../../src/sim/car.ts";
 import { hornBlasts } from "../../src/audio/horn.ts";
 import { Action } from "../../src/sim/contract.ts";
 import { InnerVoice } from "../../src/audio/inner-voice.ts";
@@ -69,6 +71,29 @@ describe("audio director occupied body", () => {
       expect(last!.whineHz).toBeGreaterThan(300);
       expect(last!.squealGain).toBe(0);
       expect(play.mock.calls.some(([cue]) => cue.sound === "impact")).toBe(false);
+    } finally {
+      director.dispose();
+    }
+  });
+
+  it("drives the taxi's tyre and motor feedback, and uses the takeover press before sounding the horn", () => {
+    const state = JSON.parse(JSON.stringify(saved10.state)) as SimState;
+    state.version = SIM_VERSION;
+    const player = state.players.p!;
+    player.mode = "vehicle";
+    player.foot = null;
+    player.ride = { agentId: 8, x: 20, y: 0, z: 40, heading: 0, speed: 15, goal: null, exitPending: false, manual: true };
+    const taxi = { id: 8, kind: "robotaxi", manualCar: { ...makeCar(20, 40, 0), speed: 15, lateral: 4 } } as AgentState;
+    (state.ext as Record<string, unknown>)[AGENTS_EXT_KEY] = { list: [taxi] };
+    const engine = vi.spyOn(GameAudio.prototype, "setEngine");
+    const director = createGameAudioDirector({ host: {} as HTMLElement, missions: MISSIONS, prefs: new AudioPrefsStore(null) });
+    try {
+      director.update({ state, playerId: "p", paused: false, nowMs: 0 });
+      expect(engine.mock.calls.at(-1)?.[0]?.squealGain).toBeGreaterThan(0.2);
+      const previous = { ...state, players: { p: { ...player, ride: { ...player.ride, manual: undefined } } } };
+      const frame = { p: { throttle: 0, steer: 0, brake: 0, actions: Action.horn } };
+      expect(hornBlasts(frame, state, previous)).toEqual([]);
+      expect(hornBlasts(frame, state, state)).toEqual([{ playerId: "p", x: 20, z: 40, inVehicle: true }]);
     } finally {
       director.dispose();
     }

@@ -62,7 +62,9 @@
 // field, including active missions, wallets, traffic, damage and dodges, without reshaping.
 // Optional AgentState.trafficRoute holds only a scheduled car's bounded approach across
 // connected street edges; absent in older saves and removed after reaching its frontage.
-export const SIM_VERSION = 15;
+// v16: contextual H commandeers an eligible robotaxi. PlayerRide.manual and AgentState.manualCar
+// keep the driven taxi on normal physical controls; after exit it parks at its actual pose.
+export const SIM_VERSION = 16;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -265,6 +267,8 @@ export interface PlayerState {
 /** v12: a passenger ride in an ambient robotaxi (state.ext.agents id `agentId`). */
 export interface PlayerRide {
   agentId: number;
+  /** v16: the rider drives this taxi; absent means an autonomous passenger ride. */
+  manual?: true;
   /** The taxi's pose at the end of the tick, mirrored for cameras, HUDs, missions and AI. */
   x: number;
   y: number;

@@ -14,8 +14,8 @@ for (const segment of baseline.segments) {
   for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
   hashes.push(hashState(state));
 }
-const file = join(import.meta.dirname, "../../tests/golden/wave2-v15-civilian-pace.json");
-const text = JSON.stringify({ sourceInput: "wave1-v2.json", sourcePhysics: "Combined v15: civilian passing traffic and jog/sprint 3.5/8 m/s; previous release 4cb909caafd357b6f1198aced58ae95aca2719de", simVersion: SIM_VERSION, hashes }, null, 2) + "\n";
+const file = join(import.meta.dirname, "../../tests/golden/wave2-v16-robotaxi-takeover.json");
+const text = JSON.stringify({ sourceInput: "wave1-v2.json", sourcePhysics: "Combined v16: contextual robotaxi takeover, retaining civilian traffic and jog/sprint 3.5/8 m/s; previous release fb5d8981b600d679c796e0b1218fb78de0f0474d", simVersion: SIM_VERSION, hashes }, null, 2) + "\n";
 if (process.argv.includes("--update")) writeFileSync(file, text);
 else if (readFileSync(file, "utf8") !== text) throw new Error("current core replay pins changed");
 console.log(file);

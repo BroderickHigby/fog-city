@@ -65,10 +65,13 @@ export const HINT_TOO_FAR = "Too far from your car to get in";
 /** Shown the first few times the player gets out on foot, so the sprint is discoverable. */
 export const HINT_SPRINT = "Hold Shift to sprint";
 /** Robotaxi rides (src/sim/ride.ts). */
-export const HINT_TAXI_BOARD = "F: hop in the robotaxi";
+export const HINT_TAXI_BOARD = "H: drive robotaxi (+1 star, −1 rep) · F: ride";
+export const HINT_TAXI_DRIVE = "H: drive robotaxi (+1 star, −1 rep)";
+export const HINT_TAXI_DRIVING = "Driving robotaxi. WASD drive · Space brake · F get out · H horn";
+export const HINT_TAXI_EXIT = "Braking to let you out. F to cancel";
 export const HINT_TAXI_HAILED = "Robotaxi pulling over: walk up and press F";
-export const HINT_TAXI_RIDING = "Riding. Set a map waypoint to go there; F to get out";
-export const HINT_TAXI_HEADING = "Riding to your waypoint; F to get out";
+export const HINT_TAXI_RIDING = "Riding. Set a map waypoint to go there · H take control · F get out";
+export const HINT_TAXI_HEADING = "Riding to your waypoint · H take control · F get out";
 export const HINT_SPRINT_TOUCH = "Hold Brake / sprint to run";
 export const SPRINT_HINTS = 3;
 

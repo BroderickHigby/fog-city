@@ -697,7 +697,8 @@ export class SceneRenderer {
     if (step) this.stepDown(step);
     if (local) {
       const t = local.target;
-      this.actors.hideFor(this.rig.mode === "first-person" ? local.id : null, t.onFoot ? "person" : "car");
+      this.actors.hideFor(this.rig.mode === "first-person" && t.robotaxiId === undefined ? local.id : null, t.onFoot ? "person" : "car");
+      this.agents.setHiddenAgent(this.rig.mode === "first-person" ? t.robotaxiId ?? null : null);
       this.rig.update(dtSeconds, t, fly);
       // The headlight rides on the local car; on foot it is dark (intensity 0, still in the scene).
       const fx = Math.sin(t.heading);
@@ -707,6 +708,7 @@ export class SceneRenderer {
       this.headlight.target.position.set(t.x + fx * 30, t.y - 1.5, t.z + fz * 30);
       this.headlight.target.updateMatrixWorld();
     } else {
+      this.agents.setHiddenAgent(null);
       this.rig.update(dtSeconds, NO_TARGET, fly);
     }
     this.actors.update(dtSeconds);

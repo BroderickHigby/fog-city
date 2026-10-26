@@ -494,6 +494,12 @@ turns rogue, never reaches rust 0.3 and never seizes: when water reaches it, it 
 rider steps out first. You can commandeer only an empty robotaxi or one you are riding alone. A
 sim test covers each rule.
 
+**Driving a robotaxi.** H beside a stopped, empty robotaxi takes the driver's seat; H while
+riding alone takes control at the taxi's current speed and position. WASD and Space then
+drive and brake it, and H sounds its horn. F brakes to a stop and waits for a clear place to
+step out. The player's own car stays parked; the commandeered taxi stays where it is left.
+An active hail from another player reserves that taxi for them.
+
 ## Territory (the whole city, in this order)
 Each step is pipeline work over more tiles behind streaming and LOD. A citywide far-LOD massing
 layer ships early so the skyline and the high viewpoints (Coit Tower, Twin Peaks) always show the

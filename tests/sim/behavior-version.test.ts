@@ -4,7 +4,7 @@ import saved from "../golden/legacy-saves/v14-behavior.json";
 import { deepFreeze } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
-describe("v14 to v15 civilian traffic and on-foot pace migration", () => {
+describe("v14 civilian traffic save through the current migration chain", () => {
   it("keeps every recorded mission, wallet, dodge, traffic and opaque extension field", () => {
     expect(saved.sourceCommit).toBe("4cb909caafd357b6f1198aced58ae95aca2719de");
     expect(saved.simVersion).toBe(14);
@@ -19,8 +19,8 @@ describe("v14 to v15 civilian traffic and on-foot pace migration", () => {
     expect(dodgeExtOf(old).dives).toBeGreaterThan(0);
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     const before = canonicalJson(old), upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(15);
-    expect(upgraded).toEqual({ ...old, version: 15 });
+    expect(SIM_VERSION).toBe(16);
+    expect(upgraded).toEqual({ ...old, version: 16 });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);
     expect(upgraded.ext.compatibilitySentinel).toEqual({ nested: { keep: [37, true, "v14"] } });
@@ -28,7 +28,7 @@ describe("v14 to v15 civilian traffic and on-foot pace migration", () => {
     expect(upgradeState(upgraded)).toBe(upgraded);
   });
 
-  it("replays the recorded v14 continuation under v15 identically across JSON round trips", () => {
+  it("replays the recorded v14 continuation under the current contract identically across JSON round trips", () => {
     const { world } = loadDevWorldWithRoads(), systems = createGameSystems({ wave: 3 });
     const run = (roundTrip: boolean): { state: SimState; hashes: string[] } => {
       let state = upgradeState(JSON.parse(JSON.stringify(saved.state)) as SimState);
@@ -44,7 +44,7 @@ describe("v14 to v15 civilian traffic and on-foot pace migration", () => {
     const first = run(false), restored = run(true);
     expect(restored.hashes).toEqual(first.hashes);
     expect(hashState(restored.state)).toBe(hashState(first.state));
-    expect(first.state.version).toBe(15);
+    expect(first.state.version).toBe(16);
     expect(first.state.tick).toBe(saved.state.tick + saved.frames.length);
     expect(first.state.ext.missions?.players.p1?.missionId).toBe("hot-desk");
     expect(first.state.ext.economy?.players.p1?.cashCents).toBe(saved.state.ext.economy.players.p1.cashCents);

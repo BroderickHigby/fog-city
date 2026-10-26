@@ -32,6 +32,7 @@ import {
 } from "../../src/render/agent-lod.ts";
 import { clusterSimplify } from "../../src/render/simplify.ts";
 import { AGENT_SPEC, LOD_STRIDE, MAX_AGENTS, NEAR_RANGE_M as SIM_NEAR_RANGE_M } from "../../src/sim/agents.ts";
+import { makeCar } from "../../src/sim/car.ts";
 import { DT } from "../../src/sim/contract.ts";
 
 const pose = (): AgentPose => ({ x: 0, y: 0, z: 0, heading: 0, pitch: 0, speed: 0 });
@@ -57,6 +58,17 @@ describe("interpolateAgent", () => {
     const b = at(5, 5, 1);
     expect(interpolateAgent(null, b, 0.3, pose())).toMatchObject({ x: 5, z: 5, heading: 1 });
     expect(interpolateAgent(at(5 + JUMP_M + 1, 5), b, 0.3, pose())).toMatchObject({ x: 5, z: 5 });
+  });
+
+  it("uses the driven taxi's steering and roll, and clears them when reusing a pose for an autonomous agent", () => {
+    const a = { ...at(0, 0), manualCar: { ...makeCar(0, 0, 0), steer: 0.1, roll: 0.02 } };
+    const b = { ...at(1, 0), manualCar: { ...makeCar(1, 0, 0), steer: 0.3, roll: 0.06 } };
+    const out = interpolateAgent(a, b, 0.5, pose());
+    expect(out.steer).toBeCloseTo(0.2);
+    expect(out.roll).toBeCloseTo(0.04);
+    interpolateAgent(null, at(1, 0), 1, out);
+    expect(out.steer).toBeUndefined();
+    expect(out.roll).toBeUndefined();
   });
 
   it("clamps alpha to the two ticks", () => {

@@ -1,4 +1,4 @@
-import { Action } from "../contract.ts";
+import { Action, sortedIds } from "../contract.ts";
 import { playerPose } from "../ride.ts";
 import { dcos,dsin } from "../dmath.ts";
 import { segmentBlocked } from "../world.ts";
@@ -39,11 +39,18 @@ export function combatFacts(events:readonly CombatEvent[],combat?:Pick<CombatSta
   return [{id:`combat:${e.id}`,source:"combat" as const,sequence:e.id,tick:e.tick,kind,playerId,actorId,amount:e.amount,detail:e.detail}];
  });
 }
+/** A physical transition into the driver's seat is an observed fact, once per takeover. */
+export function commandeerFacts(context:Pick<SimSystemContext,"state"|"previous">):GameplayFact[] {
+ return sortedIds(context.state.players).flatMap(id=>{
+  const ride=context.state.players[id]!.ride,was=context.previous.players[id]?.ride;
+  return ride?.manual && !(was?.manual && was.agentId===ride.agentId) ? [{id:`commandeer-${id.split("").map(c=>c.charCodeAt(0).toString(16).padStart(4,"0")).join("")}:${context.state.tick}`,source:"world" as const,sequence:context.state.tick,tick:context.state.tick,kind:"player.commandeer",playerId:id,actorId:`agent:${ride.agentId}`,amount:1,detail:"Ride shared to your feed"}] : [];
+ });
+}
 export const defaultGameplayProvider:GameplayProvider=context=>{
  const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=playerPose(player);return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
- return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
+ return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:[...combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),...commandeerFacts(context)],observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
 };
 export interface ObservedGameplayOptions {
  wave?:number;

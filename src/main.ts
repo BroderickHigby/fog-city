@@ -64,13 +64,13 @@ import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
 import { gameplaySnapshot } from "./sim/player/adapter.ts";
 import { gameTime } from "./sim/clock/calendar.ts";
 import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/index.ts";
-import { RIDE_DESTINATION_EVENT, boardableTaxi } from "./sim/ride.ts";
+import { RIDE_DESTINATION_EVENT, boardableTaxi, takeoverTaxi } from "./sim/ride.ts";
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
+import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_DRIVE, HINT_TAXI_DRIVING, HINT_TAXI_EXIT, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import { leapDrawOffset } from "./render/human-motion.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
@@ -297,7 +297,7 @@ async function boot(): Promise<void> {
   }});
   /** A rider's destination enters the sim as a recorded event (src/sim/ride.ts). */
   const sendRideDestination=():void=>{
-    if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride)return;
+    if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride||curr.players[LOCAL_PLAYER]?.ride?.manual)return;
     const event:SimEvent={tick:curr.tick+1,kind:RIDE_DESTINATION_EVENT,playerId:LOCAL_PLAYER,payload:{x:Math.round(waypoint.x),z:Math.round(waypoint.z)}};
     queuedEvents.push(event);recordedCommands.push(event);
   };
@@ -336,7 +336,7 @@ async function boot(): Promise<void> {
     curr = step(world, curr, frame, [...events,...pending],systems);
     // Every horn in the stepped frame sounds (keys, pad and touch all set Action.horn).
     const me = curr.players[LOCAL_PLAYER];
-    if (me) for (const blast of hornBlasts(frame, curr)) audio.playHorn(blast);
+    if (me) for (const blast of hornBlasts(frame, curr, prev)) audio.playHorn(blast);
   };
   const advance = (input: SimInput): void => advanceFrame({ [LOCAL_PLAYER]: input });
 
@@ -511,11 +511,14 @@ async function boot(): Promise<void> {
           const hint = before?.ride || curr.players[LOCAL_PLAYER]?.ride || newHail ? null : exitHint(before, curr.players[LOCAL_PLAYER], (input.actions & Action.enterExit) !== 0);
           if (hint) hud.hint(hint, now);
           const rider = curr.players[LOCAL_PLAYER];
-          if (rider?.ride && !before?.ride) {
-            // Just hopped in: head for the waypoint if one is set.
+          if (rider?.ride?.manual && !before?.ride?.manual) {
+            hud.hint(HINT_TAXI_DRIVING, now);
+          } else if (rider?.ride && !before?.ride) {
+            // Just hopped in as a passenger: head for the waypoint if one is set.
             sendRideDestination();
             hud.hint(waypoint ? HINT_TAXI_HEADING : HINT_TAXI_RIDING, now);
           }
+          if (rider?.ride?.exitPending && !before?.ride?.exitPending) hud.hint(HINT_TAXI_EXIT, now);
           // The first few times the player jogs off after getting out, say how to sprint.
           const after = curr.players[LOCAL_PLAYER];
           if (before?.mode === "vehicle" && after?.mode === "foot" && sprintHints < SPRINT_HINTS) sprintHintDue = true;
@@ -593,6 +596,7 @@ async function boot(): Promise<void> {
         target.onFoot = onFoot;
         target.speed = onFoot ? P.foot.speed : c.speed;
         target.pitch = onFoot || pc.ride ? 0 : c.pitch;
+        target.robotaxiId = pc.ride?.agentId;
         // Riding a robotaxi: follow the taxi, not the parked car.
         const rb = pc.ride, ra = pp.ride ?? rb;
         if (rb && ra) {
@@ -601,6 +605,9 @@ async function boot(): Promise<void> {
           target.z = lerp(ra.z, rb.z, alpha);
           target.heading = ra.heading + wrapAngle(rb.heading - ra.heading) * alpha;
           target.speed = lerp(ra.speed, rb.speed, alpha);
+          const cb = agentsOf(shown).find(a => a.id === rb.agentId)?.manualCar;
+          const ca = agentsOf(shownPrev).find(a => a.id === rb.agentId)?.manualCar ?? cb;
+          if (cb && ca) target.pitch = lerp(ca.pitch, cb.pitch, alpha);
         }
       }
     }
@@ -633,7 +640,9 @@ async function boot(): Promise<void> {
     // On foot beside an empty robotaxi (and not beside your own car): say F hops in.
     if (me && me.mode === "foot" && me.foot && now >= nextTaxiHint && !hud.hintText()) {
       nextTaxiHint = now + 500;
-      if (!canEnterCar(world, me.car, me.foot.x, me.foot.z) && boardableTaxi(world, curr, me.foot.x, me.foot.z)) hud.hint(HINT_TAXI_BOARD, now);
+      const canDriveTaxi = takeoverTaxi(world, shown, me.foot.x, me.foot.z, me_);
+      if (canDriveTaxi) hud.hint(canEnterCar(world, me.car, me.foot.x, me.foot.z) ? HINT_TAXI_DRIVE : HINT_TAXI_BOARD, now);
+      else if (!canEnterCar(world, me.car, me.foot.x, me.foot.z) && boardableTaxi(world, shown, me.foot.x, me.foot.z)) hud.hint("F: hop in the robotaxi", now);
     }
     hudData.x = target.x;
     hudData.z = target.z;

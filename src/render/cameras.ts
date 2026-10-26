@@ -16,6 +16,8 @@ export interface CameraTarget {
   heading: number;
   speed: number;
   onFoot: boolean;
+  /** Occupied ambient taxi; the player's own parked car stays visible. */
+  robotaxiId?: number;
   /** The car's pitch on a hill, radians, + = nose up (0 or absent on foot). */
   pitch?: number;
 }

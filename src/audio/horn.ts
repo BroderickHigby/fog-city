@@ -19,12 +19,14 @@ export interface HornBlast {
 export const HORN_HEARD_M = 60;
 
 /** Every player whose stepped input this tick carried the horn, in player-id order. */
-export function hornBlasts(frame: InputFrame, state: Readonly<SimState>): HornBlast[] {
+export function hornBlasts(frame: InputFrame, state: Readonly<SimState>, previous?: Readonly<SimState>): HornBlast[] {
   const out: HornBlast[] = [];
   for (const id of Object.keys(frame).sort()) {
     const input = frame[id];
     const player = state.players[id];
     if (!input || !player || (input.actions & Action.horn) === 0) continue;
+    // The same button takes the controls first; it sounds the horn on subsequent presses.
+    if (previous && player.ride?.manual && !previous.players[id]?.ride?.manual) continue;
     const foot = player.mode === "foot" && player.foot !== null;
     const body = playerPose(player);
     out.push({ playerId: id, x: body.x, z: body.z, inVehicle: !foot });
