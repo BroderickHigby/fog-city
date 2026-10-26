@@ -48,6 +48,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     const shape={id:edge.id,name:edge.name,widthM:edge.widthM??(Number.isFinite(edge.lanes)?Math.max(3,edge.lanes*3.25):7),kind:edge.kind,...(points?.length>=2?{points,length}:{})};
     all.push({from:edge.a,to:edge.b,...shape});if(!edge.oneway)all.push({from:edge.b,to:edge.a,...shape,reversed:true});}edges=all;if(roads)graphEdges.set(roads,edges);}
   const blips:MapBlip[]=SAFEHOUSES.map(site=>({id:site.id,kind:"safehouse" as const,label:site.label,...toLocal(site.lat,site.lon)}));
+  if(geography?.landmarks)blips.push(...geography.landmarks);
   const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":undefined)):undefined;
   const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id,playerId)[objectiveActor]:undefined;
   const actorTarget=targetId?agentsRuntimeOf(state)?.actors[targetId]:undefined;

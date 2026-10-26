@@ -56,6 +56,8 @@ export interface FarLayerOptions {
   budget?: FarBudget;
   /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
   tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
+  /** Replace only authored landmark hulls once at load. Returned geometry is owned here. */
+  filterGeometry?: (geo:THREE.BufferGeometry,matrixWorld:THREE.Matrix4)=>THREE.BufferGeometry|null;
 }
 
 /** The far terrain is a 100 m lattice: its vertices sit on whole multiples of 100 m; hull corners do not. */
@@ -550,6 +552,8 @@ export class FarLayer {
       o.matrixAutoUpdate = false;
       const mesh = o as THREE.Mesh;
       if (!mesh.isMesh) return;
+      const filtered=this.opts.filterGeometry?.(mesh.geometry,mesh.matrixWorld);
+      if(filtered){const previous=mesh.geometry;mesh.geometry=filtered;previous.dispose();}
       const old = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
       for (const m of old) m.dispose();
       mesh.material = this.material;

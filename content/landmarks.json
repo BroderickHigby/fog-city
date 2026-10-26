@@ -2,6 +2,16 @@
   "version": 1,
   "landmarks": [
     {
+      "id": "palace-of-fine-arts",
+      "model": "models/palace-of-fine-arts.glb",
+      "lat": 37.802923311185815,
+      "lon": -122.44840925561012,
+      "headingDeg": 84.44334179005355,
+      "scale": 1,
+      "replacesBuildingIds": ["201006.0000986", "201006.0000986-tower", "201006.0006360", "201006.0006456", "201006.0156555", "201006.0157252"],
+      "source": "Original open rotunda and curved colonnades; placement from DataSF footprints, architectural form and dimensions from California Office of Historic Preservation. Collision parts in palace-of-fine-arts.json share the generated model geometry. Exhibition hall remains intact."
+    },
+    {
       "id": "ferry-building",
       "model": "models/ferry-building.glb",
       "lat": 37.7954097,

@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { assembleWorldFiles, type StreetDetailIndex } from "../src/io/world-load.ts";
 import { propsFromStreetDetail, type PropPlacement } from "../src/sim/props.ts";
+import type { LandmarkWorldReplacement } from "../src/io/landmark-world.ts";
 import { buildWorld, type BoundaryFile, type RoadsFile, type TileCollider, type World } from "../src/sim/index.ts";
 import type { GameplayWorldData } from "../src/sim/gameplay-world.ts";
 import { navigationFromPipeline, type PipelineSidewalks } from "../src/sim/agents/pipeline-navigation.ts";
@@ -96,6 +97,7 @@ export interface WorldFilesNode {
   streetProps?: PropPlacement[] | null;
   /** Where the colliders came from: the collider pack (when the manifest names one) or per-tile JSON. */
   colliders: "pack" | "json";
+  landmarkReplacements?: LandmarkWorldReplacement[];
 }
 
 const worldFilesCache = new Map<string, WorldFilesNode>();
@@ -128,7 +130,7 @@ export function loadWorldFiles(name: string): WorldFilesNode {
     ? propsFromStreetDetail({ trees: layer(detail.layers.trees), furniture: layer(detail.layers.furniture), signs: layer(detail.layers.signs) })
     : null;
   const files = assembleWorldFiles(manifest, colliders, roads as RoadsFile | null, boundary, { gameplay, sidewalks, transit, parking, streetCleaning, streetProps });
-  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, sidewalks, transit, parking, streetCleaning, streetProps, colliders: files.colliders };
+  const out: WorldFilesNode = { manifest, tiles: files.tiles, roads, boundary, gameplay, sidewalks, transit, parking, streetCleaning, streetProps, colliders: files.colliders, landmarkReplacements:files.landmarkReplacements };
   worldFilesCache.set(name, out);
   return out;
 }
