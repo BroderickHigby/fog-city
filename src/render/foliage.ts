@@ -195,11 +195,32 @@ export function createFoliagePrototype(species: Species, far: boolean): Prototyp
     colorGeometry(g, new THREE.Color(species === 0 ? 0xb9c597 : 0xa6b694), (.78 + random() * .25) * ao);
     cards.push(g);
   }
+  const trunkVertices = bark[0]!.getAttribute("position").count;
   const result = { bark: combine(bark), leaves: combine(cards) };
   // Preserve the source height and planted root, including the full extent of tilted leaf cards.
   const bounds = result.bark.boundingBox!.clone().union(result.leaves.boundingBox!);
   const scale = height / Math.max(bounds.max.y, .1);
   for (const g of [result.bark, result.leaves]) { g.scale(scale, scale, scale); g.computeBoundingSphere(); g.computeBoundingBox(); }
+  // Street trees have a raised crown over people and vehicles. Match that clearance in
+  // BOTH distance tiers: large far cards previously drooped metres below the near crown.
+  // Keep the planted trunk and original total height; compress only branches and foliage.
+  const crownFloor = species === 0 ? 4.6 : 6;
+  for (const [g, first] of [[result.bark, trunkVertices], [result.leaves, 0]] as const) {
+    const position = g.getAttribute("position");
+    let low = Infinity, high = -Infinity;
+    for (let i = first; i < position.count; i++) { low = Math.min(low, position.getY(i)); high = Math.max(high, position.getY(i)); }
+    const top = Math.max(high, crownFloor + .6);
+    const yScale = (top - crownFloor) / Math.max(high - low, 1e-6);
+    for (let i = first; i < position.count; i++) position.setY(i, crownFloor + (position.getY(i) - low) * yScale);
+    if (g === result.leaves) {
+      // Preserve the foliage's soft radial normals under the vertical deformation.
+      const normals = g.getAttribute("normal"), n = new THREE.Vector3();
+      for (let i = 0; i < normals.count; i++) {
+        n.fromBufferAttribute(normals, i); n.y /= yScale; n.normalize(); normals.setXYZ(i, n.x, n.y, n.z);
+      }
+    } else g.computeVertexNormals();
+    g.computeBoundingSphere(); g.computeBoundingBox();
+  }
   return result;
 }
 

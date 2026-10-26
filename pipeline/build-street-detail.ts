@@ -1,8 +1,8 @@
 // Street-detail layers for a built world: junction paint (crosswalks, stop bars, junction
 // patches) from the committed road graph and signals plus pinned DataSF snapshots
 // (pipeline/lib/street-detail-sources.ts). Writes public/tiles/<world>/street-detail.json
-// (the index the renderer reads) and the layer files it lists. Render-only data: nothing
-// here is a collider, so the sim is untouched.
+// (the index the renderer reads) and the layer files it lists. Tree records also supply
+// solid simulation props, so road-clearance filtering happens here before either consumer.
 //
 //   node pipeline/build-street-detail.ts [--world sf]            download (cached) + write
 //   node pipeline/build-street-detail.ts --offline                from pipeline/.cache only
@@ -21,9 +21,10 @@ import { buildTrees, TREE_CLASSES, type TreeRow } from "./lib/street-trees.ts";
 import { buildStreetSigns, type SignRow } from "./lib/street-signs.ts";
 import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from "./lib/street-markings.ts";
 import { Ground } from "./lib/terrain.ts";
-import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
+import { STREET_DETAIL_INDEX, decodeJunction } from "../src/render/street-markings.ts";
 import { decodeWorldColliders } from "./lib/world-colliders.ts";
 import { GRASS_FILE, GRASS_ATTRIBUTION } from "./build-grass.ts";
+import { filterStreetTrees, TREE_DESCRIPTION } from "./lib/clear-street-trees.ts";
 
 export const MARKINGS_FILE = "street-markings.json";
 export const FURNITURE_FILE = "street-furniture.json";
@@ -131,12 +132,13 @@ export function buildStreetDetail(
   // Trees on land inside the world: on a tile with ground and above the sea.
   const tileIds = new Set(pack.tiles.map((t) => `${t.ix},${t.iz}`));
   const trees = buildTrees((rows.trees ?? []) as TreeRow[], (x, z) => tileIds.has(`${Math.floor(x / 500)},${Math.floor(z / 500)}`) && (ground.heightAt(x, z) ?? -1) > 0.2);
+  trees.trees = filterStreetTrees(trees.trees, TREE_CLASSES, roads, (x, z) => ground.heightAt(x, z) ?? 0,
+    junctions.flatMap(j => { const decoded = decodeJunction(encodeJunction(j)); return decoded ? [decoded] : []; }));
   const treesFile = jsonLines(
     {
       version: 1,
       world: manifest.world,
-      description:
-        "Street trees (render-only), one per line: [treeid, x, z, class, height m]. class indexes `classes`. Placed from San Francisco Public Works' Street Tree Inventory; height from trunk diameter (pipeline/lib/street-trees.ts). Ids for knockable props: tree:<treeid>.",
+      description: TREE_DESCRIPTION,
       snapshotDate,
       attribution: streetDetailAttribution(["trees"]),
       classes: [...TREE_CLASSES],

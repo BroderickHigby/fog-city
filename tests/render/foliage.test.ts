@@ -60,6 +60,31 @@ describe("SF foliage", () => {
     layer.dispose();
   });
 
+  it("raises both foliage LOD crowns without flattening the branches or changing total height", () => {
+    for (const species of [0, 1] as const) for (const far of [false, true]) {
+      const model = createFoliagePrototype(species, far);
+      try {
+        const crownFloor = species === 0 ? 4.6 : 6;
+        expect(model.leaves.boundingBox!.min.y).toBeCloseTo(crownFloor, 4);
+        expect(Math.max(model.bark.boundingBox!.max.y, model.leaves.boundingBox!.max.y))
+          .toBeCloseTo(species === 0 ? 6.6 : 10.5, 3);
+        const positions = model.bark.getAttribute("position");
+        const branchHeights: number[] = [];
+        for (let i = 0; i < positions.count; i++) {
+          // The planted trunk stays narrow; samples outside it belong to the crown limbs.
+          if (Math.hypot(positions.getX(i), positions.getZ(i)) > .5) branchHeights.push(positions.getY(i));
+        }
+        expect(branchHeights.length).toBeGreaterThan(0);
+        expect(Math.min(...branchHeights)).toBeGreaterThanOrEqual(crownFloor - 1e-5);
+        // A height clamp collapsed the entire far limb to a horizontal sheet. Both LODs
+        // must retain a genuinely rising branch silhouette after raising the crown.
+        expect(Math.max(...branchHeights) - Math.min(...branchHeights)).toBeGreaterThan(.05);
+      } finally {
+        model.bark.dispose(); model.leaves.dispose();
+      }
+    }
+  });
+
   it("keeps nearest trees detailed, bounds near counts, and restores originals on disposal", () => {
     const source = tile(FOLIAGE_NEAR_LIMIT + 10); const layer = new FoliageLayer();
     layer.addTile(source.group); layer.update(100, -50);
