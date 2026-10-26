@@ -13,8 +13,6 @@ The documentation commit is the starting point for the one eventual game-upgrade
 - `PR_INVENTORY.md`: compact table of the 16 open draft PRs and their holds.
 - `PR_INVENTORY.json`: complete read-only GitHub snapshot, with exact heads,
   bases, descriptions, check evidence and source comments.
-- `current-settings.jpg`: current local phone/Settings reference captured through
-  the live browser; audio and saved progress exist, Graphics settings do not.
 
 Snapshot date: 26 October 2026. Refresh main and PR state on the next computer.
 This bundle contains instructions/evidence only, not a checkout, game assets,
