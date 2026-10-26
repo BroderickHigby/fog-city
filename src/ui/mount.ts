@@ -5,6 +5,7 @@ import { MenuGamepad } from "../input/menu-gamepad.ts";
 import { bounded, formatMoney } from "./copy.ts";
 import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap, releaseMapCache } from "./minimap.ts";
+import { formatCompass } from "./compass.ts";
 import { UI_STYLES } from "./styles.ts";
 import { createTouchControls } from "./touch.ts";
 import { createControlsHelp } from "./controls-help.ts";
@@ -32,9 +33,12 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   for(const key of ["runway","cash","water","threat","reputation"]){const stat=node("div","fc-stat"),label=node("small",undefined,copy(`ui.hud.${key}`)),value=node("strong");stat.title=copy(`ui.hud.${key}`);stat.append(label,value);stats.set(key,value);cluster.append(stat);if(key==="water"){const progress=node("progress");progress.max=1;progress.value=0;progress.setAttribute("aria-label",copy("ui.hud.water"));stat.append(progress);}}
   const helpButton=button(copy("ui.help.open"),()=>setModal(modal==="help"?undefined:"help"));helpButton.className="fc-help-open";helpButton.setAttribute("aria-keyshortcuts","F1 Shift+Slash");
   if(callbacks.lighting){const lighting=node("select","fc-lighting");lighting.setAttribute("aria-label",copy("ui.hud.lighting"));for(const preset of ["live","noon","golden","twilight","night"] as const){const option=node("option",undefined,copy(`ui.hud.lighting.${preset}`));option.value=preset;lighting.append(option);}lighting.value=options.lightingPreset??"live";lighting.addEventListener("change",()=>{callbacks.lighting?.(lighting.value as UiLightingPreset);lighting.blur();});tools.append(lighting);}
-  tools.append(button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")),helpButton);hud.append(brand,cluster,tools);
+  const mapButton=button(copy("ui.phone.map"),()=>setModal(modal==="phone"&&app==="map"?undefined:"phone","map"));mapButton.setAttribute("aria-label",copy("ui.map.open"));mapButton.setAttribute("aria-keyshortcuts","M");
+  tools.append(mapButton,button(copy("ui.phone.open"),()=>setModal("phone")),button(copy("ui.vendor.title"),()=>setModal("vendor")),helpButton);hud.append(brand,cluster,tools);
   const objective=node("aside","fc-objective"),objectiveTitle=node("h2"),objectiveDetail=node("p");objective.setAttribute("aria-label",copy("ui.hud.objective"));const resumeInteraction=button(copy("ui.common.continue"),()=>setModal("interaction"));resumeInteraction.hidden=true;objective.append(objectiveTitle,objectiveDetail,resumeInteraction);objective.hidden=true;
-  const mini=button(copy("ui.phone.map"),()=>setModal("phone","map")),canvas=node("canvas"),street=node("span","fc-street",copy("ui.hud.location"));mini.className="fc-minimap";mini.replaceChildren(street,canvas);mini.setAttribute("aria-label",`${copy("ui.phone.map")} (M)`);mini.setAttribute("aria-keyshortcuts","M");canvas.setAttribute("role","img");canvas.setAttribute("aria-label",copy("ui.phone.map"));
+  const mini=button(copy("ui.phone.map"),()=>setModal("phone","map")),canvas=node("canvas"),street=node("span","fc-street",copy("ui.hud.location")),mapTitle=node("span","fc-map-title");mapTitle.append(node("strong",undefined,copy("ui.phone.map")),node("kbd",undefined,"M"));mini.className="fc-minimap";mini.replaceChildren(mapTitle,canvas,street);mini.setAttribute("aria-label",`${copy("ui.phone.map")} (M)`);mini.setAttribute("aria-keyshortcuts","M");canvas.setAttribute("role","img");canvas.setAttribute("aria-label",copy("ui.phone.map"));
+  const navigation=node("nav","fc-navigation"),compass=node("div","fc-compass"),dial=node("span","fc-compass-dial"),needle=node("span","fc-compass-needle","▲"),compassText=node("span"),bearing=node("strong",undefined,"N · 000°");
+  navigation.setAttribute("aria-label",copy("ui.map.navigation"));compass.setAttribute("role","img");compass.setAttribute("aria-label",`${copy("ui.hud.compass")}: N · 000°`);dial.setAttribute("aria-hidden","true");dial.append(node("span","fc-compass-north","N"),needle);compassText.append(node("small",undefined,copy("ui.hud.compass")),bearing);compass.append(dial,compassText);navigation.append(compass,mini);
   const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," km/h");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
   const hints=node("div","fc-drive-hints");hints.setAttribute("aria-hidden","true");
   let hintMode="";
@@ -46,7 +50,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   updateHints(false);
   const perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
   const ads=node("div","fc-ads"),layer=node("div","fc-modal-layer");layer.hidden=true;
-  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,mini,speed,hints,perf,reticle,ads,layer);host.append(root);
+  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,navigation,speed,hints,perf,reticle,ads,layer);host.append(root);
   const touch=options.touch?createTouchControls(doc,controls,copy):undefined;if(touch)root.append(touch.element);
 
   function setModal(next:typeof modal,phoneApp?:PhoneApp):void {
@@ -58,13 +62,14 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(!modal)previousFocus?.focus();
   }
   function renderPanel():void {
+    const mapOpen=modal==="phone"&&app==="map";mapButton.setAttribute("aria-expanded",String(mapOpen));mini.setAttribute("aria-expanded",String(mapOpen));
     if(phoneMap){releaseMapCache(phoneMap);phoneMap=undefined;}
     savePanel?.dispose();savePanel=undefined;audioPanel?.dispose();audioPanel=undefined;creditsPanel?.dispose();creditsPanel=undefined;
     layer.hidden=!modal;if(!modal){freeText?.dispose();freeText=undefined;layer.replaceChildren();return;}
     freeText?.dispose();freeText=undefined;
-    const dialog=node("section","fc-dialog");dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");dialog.tabIndex=-1;
-    const header=node("header"),title=node("h1",undefined,modal==="interaction"?(view?.interaction?.title??copy("ui.hud.objective")):copy(modal==="phone"?"ui.phone.title":modal==="vendor"?"ui.vendor.title":modal==="startup"?"ui.signup.title":modal==="help"?"ui.help.title":"ui.hud.pause"));
-    title.id="fc-dialog-title";dialog.setAttribute("aria-labelledby",title.id);header.append(title,button(copy("ui.common.close"),()=>setModal(undefined)));dialog.append(header);
+    const dialog=node("section",`fc-dialog${mapOpen?" fc-map-dialog":""}`);dialog.setAttribute("role","dialog");dialog.setAttribute("aria-modal","true");dialog.tabIndex=-1;
+    const header=node("header"),title=node("h1",undefined,modal==="interaction"?(view?.interaction?.title??copy("ui.hud.objective")):copy(modal==="phone"?(mapOpen?"ui.phone.map":"ui.phone.title"):modal==="vendor"?"ui.vendor.title":modal==="startup"?"ui.signup.title":modal==="help"?"ui.help.title":"ui.hud.pause"));
+    title.id="fc-dialog-title";dialog.setAttribute("aria-labelledby",title.id);header.append(title);if(mapOpen)header.append(button(copy("ui.map.phoneApps"),()=>{app=undefined;renderPanel();}));header.append(button(copy("ui.common.close"),()=>setModal(undefined)));dialog.append(header);
     if(modal==="phone")renderPhone(dialog);
     if(modal==="pause"&&options.audioSettings){audioPanel=options.audioSettings(doc);dialog.append(audioPanel.element);}
     if(modal==="pause"){creditsPanel=mountCredits(doc);dialog.append(creditsPanel.element);}
@@ -85,12 +90,12 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(view?.interaction)dialog.append(button(copy("ui.common.continue"),()=>setModal("interaction")));
     const apps=node("nav","fc-phone-apps");apps.setAttribute("aria-label",copy("ui.phone.title"));
     for(const key of APPS){const b=button(copy(`ui.phone.${key}`),()=>{app=key;callbacks.app?.(key);renderPanel();});b.disabled=!(view?.phoneApps??["map","botBounty","botCheck"]).includes(key);b.setAttribute("aria-pressed",String(key===app));apps.append(b);}
-    dialog.append(apps);if(!app)return;
-    const content=node("div","fc-phone-content");content.append(node("h2",undefined,copy(`ui.phone.${app}`)));
+    if(app!=="map")dialog.append(apps);if(!app)return;
+    const content=node("div","fc-phone-content");if(app!=="map")content.append(node("h2",undefined,copy(`ui.phone.${app}`)));
     if(app==="map"&&view){
       const map=node("canvas","fc-phone-map"),mapTools=node("div","fc-map-tools"),instructions=node("p","fc-map-instructions",copy("ui.map.keyboard"));
       phoneMap=map;phoneCenter??={x:view.x,z:view.z};map.tabIndex=0;map.setAttribute("role","application");map.setAttribute("aria-label",copy("ui.phone.map"));map.setAttribute("aria-keyshortcuts","ArrowUp ArrowDown ArrowLeft ArrowRight + - Enter");instructions.id="fc-map-instructions";map.setAttribute("aria-describedby",instructions.id);
-      const paint=()=>{if(view)drawMap(map,view,400,0,phoneRadius,phoneCenter);};
+      const paint=()=>{if(view)drawMap(map,view,600,0,phoneRadius,phoneCenter);};
       const zoom=(factor:number)=>{phoneRadius=Math.max(80,Math.min(5000,phoneRadius*factor));paint();};
       mapTools.append(button("+",()=>zoom(1/1.5)),button("−",()=>zoom(1.5)),button(copy("ui.map.recenter"),()=>{if(view)phoneCenter={x:view.x,z:view.z};paint();}));
       mapTools.children[0]!.setAttribute("aria-label",copy("ui.map.zoomIn"));mapTools.children[1]!.setAttribute("aria-label",copy("ui.map.zoomOut"));
@@ -137,6 +142,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const pollPad=()=>{if(disposed)return;menuPad.update(availableGamepads(win.navigator).find(pad=>pad?.connected));gamepadFrame=win.requestAnimationFrame(pollPad);};gamepadFrame=win.requestAnimationFrame(pollPad);
   function update(next:UiView):void {
     if(disposed)return;view=next;
+    const heading=formatCompass(next.heading);bearing.textContent=heading.label;needle.style.transform=`rotate(${heading.rotation}deg)`;compass.setAttribute("aria-label",`${copy("ui.hud.compass")}: ${heading.label}`);
     const nextInteraction=next.interaction?.id??"";
     if(nextInteraction!==interactionId){interactionId=nextInteraction;if(next.interaction)setModal("interaction");else if(modal==="interaction")setModal(undefined);}
     stats.get("runway")!.textContent=`${bounded(next.runwayMonths,0,999).toFixed(1)} mo`;
@@ -150,7 +156,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     mode.textContent=copy(next.vehicleControl==="robotaxi-driver"?"ui.hud.robotaxiDriver":next.vehicleControl==="robotaxi-passenger"?"ui.hud.robotaxiPassenger":next.travelMode==="foot"?"ui.hud.walkMode":"ui.hud.driveMode");
     speed.dataset.mode=next.travelMode??"vehicle";updateHints(next.travelMode==="foot");street.textContent=next.streetName??copy("ui.hud.location");drawMap(canvas,next);
     if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris${next.performance.backend?` · ${next.performance.backend}`:""}${next.performance.shadowCascades?` · ${next.performance.shadowCascades} sun cascades`:""}`;
-    renderAds();if(phoneMap)drawMap(phoneMap,next,400,0,phoneRadius,phoneCenter);
+    renderAds();if(phoneMap)drawMap(phoneMap,next,600,0,phoneRadius,phoneCenter);
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"&&modal!=="interaction"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null,mapFocused=active===phoneMap;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(mapFocused)phoneMap?.focus();else if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }

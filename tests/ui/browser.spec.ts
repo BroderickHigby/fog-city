@@ -1,5 +1,42 @@
 import {test,expect} from "@playwright/test";
 test.beforeEach(async({page})=>{await page.goto("/tests/ui/fixture.html");});
+test("compass follows heading and the clearly labelled map opens without hiding below app tiles",async({page})=>{
+  await expect(page.getByRole("img",{name:"Compass: N · 000°",exact:true})).toBeVisible();
+  await page.evaluate(()=>{
+    const w=window as unknown as {view:import("../../src/ui/types.ts").UiView;ui:{update(v:import("../../src/ui/types.ts").UiView):void}};
+    w.ui.update({...w.view,heading:Math.PI/2});
+  });
+  await expect(page.getByRole("img",{name:"Compass: E · 090°",exact:true})).toBeVisible();
+  const open=page.getByRole("button",{name:"Open map (M)",exact:true});await open.click();
+  await expect(page.getByRole("dialog",{name:"Map",exact:true})).toBeVisible();
+  await expect(page.locator(".fc-phone-apps")).toBeHidden();
+  const map=page.getByRole("application",{name:"Map",exact:true});await expect(map).toBeVisible();
+  const rect=await map.boundingBox();expect(rect!.height).toBeGreaterThan(250);expect(Math.abs(rect!.height-rect!.width)).toBeLessThan(2);
+  expect(rect!.y+rect!.height).toBeLessThanOrEqual(844);
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  await page.getByRole("button",{name:"Phone apps",exact:true}).click();await expect(page.locator(".fc-phone-apps")).toBeVisible();
+  await page.keyboard.press("Escape");await expect(open).toBeFocused();
+  await page.keyboard.press("KeyM");await expect(map).toBeVisible();await page.keyboard.press("KeyM");await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+test("expanded map fits the real game canvas styles on desktop",async({page})=>{
+  await page.setViewportSize({width:960,height:600});
+  await page.getByRole("button",{name:"Open map (M)",exact:true}).click();
+  const box=await page.getByRole("application",{name:"Map",exact:true}).boundingBox();
+  expect(box!.width).toBeGreaterThan(300);expect(Math.abs(box!.width-box!.height)).toBeLessThan(2);
+  expect(box!.y+box!.height).toBeLessThanOrEqual(600);
+});
+test("compass and map stay on screen in short touch landscape",async({page})=>{
+  await page.setViewportSize({width:667,height:375});
+  for(const selector of [".fc-compass",".fc-minimap"]){const box=await page.locator(selector).boundingBox();expect(box).not.toBeNull();expect(box!.y).toBeGreaterThanOrEqual(0);expect(box!.y+box!.height).toBeLessThanOrEqual(375);expect(box!.x+box!.width).toBeLessThanOrEqual(667);}
+  await page.getByRole("button",{name:"Open map (M)",exact:true}).click();await expect(page.getByRole("application",{name:"Map",exact:true})).toBeVisible();
+});
+test("gamepad can reach map zoom controls after the map header",async({page})=>{
+  await page.evaluate(()=>{const pad={connected:true,axes:[0,0],buttons:Array.from({length:16},()=>({pressed:false,value:0}))};Object.assign(window,{padHarness:pad});Object.defineProperty(navigator,"getGamepads",{configurable:true,value:()=>[pad]});});
+  await page.getByRole("button",{name:"Open map (M)",exact:true}).click();await page.getByRole("button",{name:"Phone apps",exact:true}).focus();
+  const down=async()=>{for(const pressed of [true,false])await page.evaluate(async value=>{const w=window as unknown as {padHarness:{buttons:{pressed:boolean;value:number}[]}};w.padHarness.buttons[13]={pressed:value,value:value?1:0};await new Promise<void>(resolve=>requestAnimationFrame(()=>requestAnimationFrame(()=>resolve())));},pressed);};
+  await down();await expect(page.getByRole("button",{name:"Close",exact:true})).toBeFocused();
+  await down();await expect(page.getByRole("button",{name:"Zoom map in",exact:true})).toBeFocused();
+});
 test("mobile phone, vendor and startup form remain usable and isolate gameplay",async({page})=>{
   const errors:string[]=[];page.on("pageerror",error=>errors.push(error.message));
   await expect(page.getByRole("button",{name:"Open phone"})).toBeVisible();

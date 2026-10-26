@@ -24,6 +24,12 @@ const SCUFF_RANGE_M = 90;
 /** A car below this condition smokes, more as it drops. */
 const SMOKE_BELOW = 45;
 
+/** Borrow the exact displayed frame after the vehicle renderer has updated. */
+export interface ImpactVehicleFrames {
+  player(id: string, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean;
+  agent(id: number, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean;
+}
+
 interface Particle {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
@@ -50,13 +56,21 @@ export class ImpactLayer {
   private readonly scuffs: THREE.InstancedMesh;
   private readonly tmp = new THREE.Object3D();
   private readonly color = new THREE.Color();
+  private readonly vehicleMatrix = new THREE.Matrix4();
+  private readonly vehicleBounds = new THREE.Box3();
+  private readonly point = new THREE.Vector3();
+  private readonly quaternion = new THREE.Quaternion();
+  private readonly rotation = new THREE.Euler(0, 0, 0, "YXZ");
+  private readonly unit = new THREE.Vector3(1, 1, 1);
+  private readonly frames?: ImpactVehicleFrames;
   private lastEvent = 0;
   private smokeClock = 0;
   private puff = 0;
   /** Sparks burst so far (for tests and the debug handle). */
   bursts = 0;
 
-  constructor(scene: THREE.Scene) {
+  constructor(scene: THREE.Scene, frames?: ImpactVehicleFrames) {
+    this.frames = frames;
     this.root.name = "impacts";
     this.sparkGeo.setAttribute("position", new THREE.BufferAttribute(this.sparkPos, 3).setUsage(THREE.DynamicDrawUsage));
     this.smokeGeo.setAttribute("position", new THREE.BufferAttribute(this.smokePos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -99,9 +113,13 @@ export class ImpactLayer {
       const x = lerp(p.x, c.x), y = lerp(p.y, c.y), z = lerp(p.z, c.z), h = c.heading;
       const d = imp?.cars[id];
       if (!d) continue;
-      n = this.scuffBody(n, x, y, z, h, CAR.halfLength, CAR.halfWidth, CAR.bodyHeight * 0.7, d);
+      if (this.frames) {
+        if (!this.frames.player(id, this.vehicleMatrix, this.vehicleBounds)) continue;
+      } else this.fallbackFrame(x, y, z, h, CAR.halfLength, CAR.halfWidth, CAR.bodyHeight);
+      n = this.scuffBody(n, d);
       if (emit && d.condition < SMOKE_BELOW && rand(++this.puff, 1) < 0.35 + (SMOKE_BELOW - d.condition) / SMOKE_BELOW) {
-        this.spawn(this.smoke, SMOKE, x + Math.sin(h) * (CAR.halfLength - 0.6), y + 1.1, z - Math.cos(h) * (CAR.halfLength - 0.6), 0.3 * (rand(this.puff, 2) - 0.5), 0.8, 0.3 * (rand(this.puff, 3) - 0.5), SMOKE_LIFE_S);
+        this.point.set(0, 1.1, this.vehicleBounds.min.z + .6).applyMatrix4(this.vehicleMatrix);
+        this.spawn(this.smoke, SMOKE, this.point.x, this.point.y, this.point.z, 0.3 * (rand(this.puff, 2) - 0.5), 0.8, 0.3 * (rand(this.puff, 3) - 0.5), SMOKE_LIFE_S);
       }
     }
     const agents = (curr.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
@@ -115,7 +133,10 @@ export class ImpactLayer {
         }
         continue;
       }
-      n = this.scuffBody(n, a.x, a.y, a.z, a.heading, a.halfLength ?? ROBOTAXI_BODY.halfLength, a.halfWidth ?? ROBOTAXI_BODY.halfWidth, (a.height ?? ROBOTAXI_BODY.height) * 0.65, a.dents);
+      if (this.frames) {
+        if (!this.frames.agent(a.id, this.vehicleMatrix, this.vehicleBounds)) continue;
+      } else this.fallbackFrame(a.x, a.y, a.z, a.heading, a.halfLength ?? ROBOTAXI_BODY.halfLength, a.halfWidth ?? ROBOTAXI_BODY.halfWidth, a.height ?? ROBOTAXI_BODY.height);
+      n = this.scuffBody(n, a.dents);
     }
     this.scuffs.count = n;
     this.scuffs.instanceMatrix.needsUpdate = true;
@@ -168,19 +189,25 @@ export class ImpactLayer {
     (geo.getAttribute("position") as THREE.BufferAttribute).needsUpdate = true;
   }
 
-  /** Crumple scuffs on the dented sides of one body: dark, a little proud of the panel, bigger for a deeper dent. */
-  private scuffBody(n: number, x: number, y: number, z: number, heading: number, hl: number, hw: number, midY: number, d: Readonly<Dents>): number {
+  /** Snapshot-only callers may omit frames; game rendering always provides the displayed body. */
+  private fallbackFrame(x: number, y: number, z: number, heading: number, hl: number, hw: number, height: number): void {
+    this.vehicleMatrix.compose(this.point.set(x, y, z), this.quaternion.setFromEuler(this.rotation.set(0, -heading, 0)), this.unit);
+    this.vehicleBounds.min.set(-hw, 0, -hl); this.vehicleBounds.max.set(hw, height, hl);
+  }
+
+  /** Small scuffs stay in the displayed model's frame, including pitch, roll and fit scale. */
+  private scuffBody(n: number, d: Readonly<Dents>): number {
     const sides: Array<[number, number, number]> = [[d.front, 1, 0], [d.rear, -1, 0], [d.right, 0, 1], [d.left, 0, -1]];
-    const fx = Math.sin(heading), fz = -Math.cos(heading);
+    const b = this.vehicleBounds, width = b.max.x - b.min.x, length = b.max.z - b.min.z, height = b.max.y - b.min.y;
     for (const [amount, f, r] of sides) {
       if (amount < 0.05 || n >= SCUFFS) continue;
-      const ox = f * (hl + 0.01) , or = r * (hw + 0.01);
-      const lx = fx * ox - fz * or, lz = fz * ox + fx * or;
-      this.tmp.position.set(x + lx, y + midY * (f !== 0 ? 0.75 : 1), z + lz);
-      this.tmp.rotation.set(0, -heading, 0);
-      const span = 0.5 + amount * (f !== 0 ? 1.4 * hw : 1.6 * hl * 0.6);
-      this.tmp.scale.set(f !== 0 ? span : 0.04, 0.25 + amount * 0.45, f !== 0 ? 0.04 : span);
+      this.tmp.position.set(r ? r > 0 ? b.max.x : b.min.x : (b.min.x + b.max.x) / 2,
+        b.min.y + height * (f ? .35 : .42), f ? f > 0 ? b.min.z : b.max.z : (b.min.z + b.max.z) / 2);
+      this.tmp.rotation.set(0, 0, 0);
+      const span = Math.min((f ? width : length) * .7, .4 + amount * (f ? width * .7 : length * .48));
+      this.tmp.scale.set(f ? span : .02, Math.min(height * .32, .15 + amount * .3), f ? .02 : span);
       this.tmp.updateMatrix();
+      this.tmp.matrix.premultiply(this.vehicleMatrix);
       this.scuffs.setMatrixAt(n, this.tmp.matrix);
       this.color.setRGB(0.32 - amount * 0.22, 0.31 - amount * 0.22, 0.3 - amount * 0.21);
       this.scuffs.setColorAt(n, this.color);
