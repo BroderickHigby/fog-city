@@ -4,10 +4,13 @@
 // per-tile instance buffers are.
 
 import * as THREE from "three";
+import { PointsNodeMaterial } from "three/webgpu";
+import { attribute } from "three/tsl";
 import type { SharedMaterials } from "./materials.ts";
 import type { Spot } from "./roads.ts";
 import { MeshBuilder, addTree, type MeshData } from "./tile-geometry.ts";
 import type { GroundFn } from "./types.ts";
+import { isGpuMaterialsEnabled } from "./node-materials.ts";
 
 export function geometryFromMeshData(d: MeshData): THREE.BufferGeometry {
   const g = new THREE.BufferGeometry();
@@ -98,13 +101,13 @@ function mergeNonIndexed(parts: THREE.BufferGeometry[]): THREE.BufferGeometry {
 }
 
 export interface NightMaterials {
-  glow: THREE.PointsMaterial;
+  glow: THREE.PointsMaterial | PointsNodeMaterial;
   pool: THREE.MeshBasicMaterial;
 }
 
 export function createNightMaterials(): NightMaterials {
   const p = getProtos();
-  const glow = new THREE.PointsMaterial({
+  const glowOptions: THREE.PointsMaterialParameters = {
     name: "fc:lamp-glow",
     size: 7,
     sizeAttenuation: true,
@@ -114,7 +117,14 @@ export function createNightMaterials(): NightMaterials {
     depthWrite: false,
     blending: THREE.AdditiveBlending,
     fog: true,
-  });
+  };
+  const glow = isGpuMaterialsEnabled() ? new PointsNodeMaterial(glowOptions) : new THREE.PointsMaterial(glowOptions);
+  if (glow instanceof PointsNodeMaterial) {
+    // Native WebGPU Points are one pixel and have no gl_PointCoord. Render the
+    // same radial map on real sprite corners, instanced at the lamp heads.
+    glow.positionNode = attribute("fcLampPosition", "vec3");
+    glow.alphaToCoverage = false;
+  }
   const pool = new THREE.MeshBasicMaterial({
     name: "fc:lamp-pool",
     map: p.poolTex,
@@ -194,15 +204,33 @@ export function buildTileProps(
     pools.name = "lamp-pools";
     pools.renderOrder = 2;
     lampHeads = glowPos;
-    const glowGeo = new THREE.BufferGeometry();
-    glowGeo.setAttribute("position", new THREE.BufferAttribute(glowPos, 3));
-    glowGeo.computeBoundingSphere();
-    const glow = new THREE.Points(glowGeo, night.glow);
+    let glow: THREE.Points | THREE.Sprite;
+    if (night.glow instanceof PointsNodeMaterial) {
+      const sprites = new THREE.Sprite(night.glow);
+      // Sprite's default geometry is shared globally. Only this small wrapper
+      // and the per-tile lamp-position buffer belong to the tile's lifecycle.
+      sprites.geometry = sprites.geometry.clone();
+      const positions = new THREE.InstancedBufferAttribute(glowPos, 3);
+      sprites.geometry.setAttribute("fcLampPosition", positions);
+      sprites.count = lamps.length;
+      // Sprite's default culling tests one sprite at the origin. This instanced
+      // batch instead has a fixed world-space bound around its actual lamp heads.
+      const bounds = new THREE.Box3().setFromBufferAttribute(positions).getBoundingSphere(new THREE.Sphere());
+      bounds.radius += night.glow.size;
+      const worldBounds = new THREE.Sphere();
+      sprites.intersectsFrustum = frustum => frustum.intersectsSphere(worldBounds.copy(bounds).applyMatrix4(sprites.matrixWorld));
+      glow = sprites;
+    } else {
+      const points = new THREE.BufferGeometry();
+      points.setAttribute("position", new THREE.BufferAttribute(glowPos, 3));
+      points.computeBoundingSphere();
+      glow = new THREE.Points(points, night.glow);
+    }
     glow.name = "lamp-glow";
     glow.renderOrder = 3;
     glow.matrixAutoUpdate = false;
     group.add(glow);
-    owned.push(glowGeo);
+    owned.push(glow.geometry);
     nightOnly.push(pools, glow);
   }
 
