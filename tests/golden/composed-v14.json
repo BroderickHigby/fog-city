@@ -1,0 +1,95 @@
+{
+  "simVersion": 14,
+  "scenarios": {
+    "city": {
+      "hashes": [
+        "7de3e8f5",
+        "fb62c1db",
+        "c0dc04d5",
+        "04fb1e86",
+        "302ba643",
+        "f3eafd35"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 36,
+        "combat:weapon.water": 39,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    },
+    "service": {
+      "hashes": [
+        "42cf0e9b",
+        "c0b51e2a",
+        "6411b611",
+        "85bb337e",
+        "e3748ad3",
+        "d5f70d94",
+        "0107692f",
+        "522e8e41",
+        "ebe34aa9"
+      ],
+      "coverage": {
+        "agents:final": 2,
+        "identities:final": 2,
+        "services:service.delivered": 1,
+        "services:service.dispatched": 1,
+        "services:service.retired": 1
+      }
+    },
+    "mission": {
+      "hashes": [
+        "21f610f9",
+        "57f2edb4",
+        "03506782",
+        "73684b77",
+        "0d81ef3f",
+        "525e3d43"
+      ],
+      "coverage": {
+        "agents:final": 2,
+        "combat:projectile.ended": 44,
+        "combat:weapon.water": 46,
+        "identities:final": 2,
+        "missions:mission.stage": 1
+      }
+    },
+    "city-wave3": {
+      "hashes": [
+        "3fc648f4",
+        "1e9d825b",
+        "4bf2f4b4",
+        "bc7b6b09",
+        "ee91c724",
+        "e29a7cc6"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    },
+    "city-wave3-rain": {
+      "hashes": [
+        "ae1f4ee6",
+        "51db3fce",
+        "ea15c971",
+        "7eb0716f",
+        "61beb749",
+        "d86c624f"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3,
+        "weather:rain": 900,
+        "weather:wet": 900
+      }
+    }
+  }
+}

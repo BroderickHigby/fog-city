@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "Combined impacts, dynamics and natural dodge release transition13→14",
+  "simVersion": 14,
+  "hashes": [
+    "232bf4a4",
+    "75997b69",
+    "862266bf",
+    "afedf3b0",
+    "5d8abe4d"
+  ]
+}

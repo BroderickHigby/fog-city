@@ -66,7 +66,8 @@ import {
 } from "./agent-packing.ts";
 import { channelIntensities } from "./lights.ts";
 import type { ModelRegistry } from "./model-registry.ts";
-import { HIP, SHOULDER, STRIDE_M, newLook, personLook, personParts, type PersonLook } from "./person.ts";
+import { leapDrawOffset } from "./human-motion.ts";
+import { HIP, SHOULDER, STRIDE_M, WALK_ARM, WALK_LEG, dodgePose, newLook, personLook, personParts, strideFor, type PersonLook, type PersonPose } from "./person.ts";
 import { CROWD_NEAR_MAX, type CrowdHumans } from "./crowd-humans.ts";
 
 /** Ambient agents' allocation within the design's 40-call total character budget. */
@@ -90,7 +91,7 @@ export class PartMesh {
     g.setIndex(geometry.index);
     this.capacity = capacity;
     this.triangles = triangleCount(geometry);
-    this.cue = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2);
+    this.cue = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
     this.cue.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute("fcCue", this.cue);
     this.cols = [];
@@ -119,8 +120,10 @@ export class PartMesh {
     if (i >= this.capacity) return false;
     m.toArray(this.mesh.instanceMatrix.array as Float32Array, i * 16);
     const c = this.cue.array as Float32Array;
-    c[i * 2] = cue ? cue.brake : 0;
-    c[i * 2 + 1] = cue ? cue.flash : 0;
+    c[i * 4] = cue ? cue.brake : 0;
+    c[i * 4 + 1] = cue ? cue.flash : 0;
+    c[i * 4 + 2] = cue?.rust ?? 0;
+    c[i * 4 + 3] = cue?.wet ?? 0;
     if (look && this.cols.length === 4) {
       setRgb(this.cols[0]!, i, look.shirt);
       setRgb(this.cols[1]!, i, look.pants);
@@ -137,7 +140,7 @@ export class PartMesh {
     this.mesh.visible = n > 0;
     if (n === 0) return;
     flag(this.mesh.instanceMatrix, n * 16);
-    flag(this.cue, n * 2);
+    flag(this.cue, n * 4);
     for (const a of this.cols) flag(a, n * 3);
   }
 
@@ -175,6 +178,8 @@ const _q = new THREE.Quaternion();
 const _e = new THREE.Euler(0, 0, 0, "YXZ");
 const _p = new THREE.Vector3();
 const _s = new THREE.Vector3();
+/** The override's drawn offset (human-motion.ts leapDrawOffset). */
+const _off = { x: 0, z: 0 };
 const _one = new THREE.Vector3(1, 1, 1);
 
 /** Agent placement: origin on the ground, rotation.y = -heading, nose-up pitch, uniform scale. */
@@ -184,15 +189,18 @@ function baseMatrix(x: number, y: number, z: number, heading: number, pitch: num
   return out.compose(_p.set(x, y, z), _q, _s.setScalar(scale));
 }
 
-/** base x T(pivot) x Ry(ry) x Rx(rx). */
-function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4): THREE.Matrix4 {
-  _e.set(rx, ry, 0, "YXZ");
+/** base x T(pivot) x Ry(ry) x Rx(rx) x Rz(rz). */
+function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx: number, ry: number, out: THREE.Matrix4, rz = 0): THREE.Matrix4 {
+  _e.set(rx, ry, rz, "YXZ");
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
 }
 
 // ---------------------------------------------------------------- people (agents and players)
+
+/** A plain walk (person.ts dodgePose with no dodge, at walking speed). */
+const WALK_POSE: Readonly<PersonPose> = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
 
 /** Instanced people: body, two arms, two legs per person; also draws players on foot. */
 export class PeopleRig {
@@ -220,17 +228,20 @@ export class PeopleRig {
     this.legs.begin();
   }
 
-  /** One person: `swing` is sin(gait phase) times the gait amount (-1..1). */
-  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number): void {
+  /**
+   * One person: `swing` is sin(gait phase) times the gait amount (-1..1); `pose` (person.ts
+   * dodgePose) leans the body and scales the swing for a run, a startle, a stumble (default: a walk).
+   */
+  add(x: number, y: number, z: number, heading: number, look: Readonly<PersonLook>, swing: number, pose: Readonly<PersonPose> = WALK_POSE, cue: Readonly<AgentCue> | null = null): void {
     if (this.body.count >= this.body.capacity) return;
-    baseMatrix(x, y, z, heading, 0, look.scale, _base);
-    this.body.push(_base, null, look);
-    const leg = 0.42 * swing;
-    const arm = 0.34 * swing;
-    this.legs.push(partMatrix(_base, -HIP[0], HIP[1], HIP[2], leg, 0, _m), null, look);
-    this.legs.push(partMatrix(_base, HIP[0], HIP[1], HIP[2], -leg, 0, _m), null, look);
-    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m), null, look);
-    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m), null, look);
+    baseMatrix(x, y, z, heading, pose.lean, look.scale, _base);
+    this.body.push(_base, cue, look);
+    const leg = pose.legGain * swing;
+    const arm = pose.armGain * swing;
+    this.legs.push(partMatrix(_base, -HIP[0], HIP[1], HIP[2], leg, 0, _m), cue, look);
+    this.legs.push(partMatrix(_base, HIP[0], HIP[1], HIP[2], -leg, 0, _m), cue, look);
+    this.arms.push(partMatrix(_base, -SHOULDER[0], SHOULDER[1], SHOULDER[2], -arm, 0, _m, -pose.armOut), cue, look);
+    this.arms.push(partMatrix(_base, SHOULDER[0], SHOULDER[1], SHOULDER[2], arm, 0, _m, pose.armOut), cue, look);
   }
 
   end(): void {
@@ -321,6 +332,8 @@ interface Anim {
   z: number;
   heading: number;
   seen: number;
+  /** Horizontal speed as drawn (smoothed over frames), m/s: what a person's gait and pose follow. */
+  v: number;
 }
 
 export interface AgentRenderInfo {
@@ -370,12 +383,24 @@ export class AgentLayer {
   private scratch = { idx: new Int32Array(0), key: new Float64Array(0) };
   private wasNear = new Set<number>();
   private readonly nearPeople: number[] = [];
+  /** Each near person's wetness (the combat look) by pose index, for the plain body when the crowd does not draw them. */
+  private readonly nearPeopleWet = new Map<number, number>();
+  private readonly personCue: AgentCue = { brake: 0, flash: 0, rust: 0, wet: 0, brakeUntil: 0 };
   private anims = new Map<number, Anim>();
   private frameNo = 0;
   private readonly cue: AgentCue = { brake: 0, flash: 0, brakeUntil: 0 };
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
   private brakeUntil = new Map<number, number>();
   private readonly look = newLook();
+  /**
+   * Look-dev only (debug handle previewCombatLook): per agent id, a combat look drawn instead of
+   * the decorated one. Never set in play; the sim never sees it.
+   */
+  private lookOverride: ReadonlyMap<number, VisualCombat & { height?: number }> | null = null;
+  /** Rust-stained water pooled under each heap (the sim's puddle): a flat, glossy disc. */
+  private readonly puddles: THREE.InstancedMesh;
+  private puddleCount = 0;
+  private readonly pose: PersonPose = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
@@ -401,6 +426,15 @@ export class AgentLayer {
         this.install(view, extractParts(r.model, AGENT_RIGS[kind]));
       });
     }
+    const disc = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
+    const puddleMat = new THREE.MeshStandardMaterial({ color: 0x2b1a10, roughness: 0.06, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, name: "fc:heap-puddle" });
+    this.puddles = new THREE.InstancedMesh(disc, puddleMat, PUDDLES_MAX);
+    this.puddles.name = "agents:puddles";
+    this.puddles.count = 0;
+    this.puddles.frustumCulled = false;
+    this.puddles.receiveShadow = shadows;
+    this.puddles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+    this.group.add(this.puddles);
     this.people = new PeopleRig(this.capNear, this.peopleMaterial, "agents:people", shadows);
     this.group.add(this.people.group);
     this.peopleMid = this.adopt(new PartMesh(personParts().mid, this.peopleMaterial, this.capMid, "agents:people:mid", true));
@@ -414,12 +448,12 @@ export class AgentLayer {
     return part;
   }
 
-  /** Every part mesh's instance capacity, by mesh name (tests check it against the budget rule). */
+  /** Every part mesh's instance capacity, by mesh name (tests check it against the budget rule). Puddles are not parts. */
   capacities(): Record<string, number> {
     const out: Record<string, number> = {};
     this.group.traverse((o) => {
       const m = o as THREE.InstancedMesh;
-      if (m.isInstancedMesh) out[m.name] = m.instanceMatrix.count;
+      if (m.isInstancedMesh && m !== this.puddles) out[m.name] = m.instanceMatrix.count;
     });
     return out;
   }
@@ -447,6 +481,24 @@ export class AgentLayer {
    */
   setBags(full: boolean | null): void {
     this.bags = full;
+  }
+
+  /** Look-dev only: draw these agents with these combat looks (null: as the sim says). */
+  setCombatLookOverride(looks: ReadonlyMap<number, VisualCombat & { height?: number }> | null): void {
+    this.lookOverride = looks;
+  }
+
+  /**
+   * The robots of the last frame nearest (x, z), nearest first (look-dev): walking robots before
+   * road vehicles (a robotaxi is disabled, never toppled, by the sim).
+   */
+  nearestRobots(x: number, z: number, n: number): number[] {
+    const out: Array<{ id: number; d: number }> = [];
+    for (const [, b] of this.pairs) {
+      if (b.kind === "person") continue;
+      out.push({ id: b.id, d: Math.hypot(b.x - x, b.z - z) + (AGENT_SPEC[b.kind].road ? 1e6 : 0) });
+    }
+    return out.sort((p, q) => p.d - q.d).slice(0, n).map((p) => p.id);
   }
 
   /** Scale the light channels for night (0 day .. 1 night). */
@@ -503,6 +555,13 @@ export class AgentLayer {
       const b = pairs[i]![1];
       const w = this.windows.get(b.id)!;
       const p = interpolateAgent(w.from, w.to, windowAlpha(w, tick, alpha), this.poses[i]!);
+      // The override moved this body at once: drawn as a shove aside from where it was (human-motion.ts).
+      if (b.dodge && b.dodge.leap && b.dodge.phase === "dive") {
+        leapDrawOffset(b.dodge, alpha, _off);
+        p.x = b.x + _off.x;
+        p.y = b.y;
+        p.z = b.z + _off.z;
+      }
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -518,7 +577,9 @@ export class AgentLayer {
     this.people.begin();
     this.peopleMid.begin();
     this.peopleFar.begin();
+    this.puddleCount = 0;
     this.nearPeople.length = 0;
+    this.nearPeopleWet.clear();
     let drawn = 0;
     let near = 0;
     for (let i = 0; i < n; i++) {
@@ -530,6 +591,11 @@ export class AgentLayer {
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
       const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
       if((b as AgentState&{visualFlash?:boolean}).visualFlash)cue.flash=Math.sin(time*9)>0?1:0;
+      const override = this.lookOverride?.get(b.id);
+      const combat = override ?? visualCombat(b);
+      const height = override?.height ?? visualHeight(b);
+      cue.rust = combat.rust;
+      cue.wet = combat.wet;
       if (cue.brakeUntil > held) this.brakeUntil.set(b.id, cue.brakeUntil);
       drawn++;
       if (b.kind === "person") {
@@ -538,20 +604,26 @@ export class AgentLayer {
           this.wasNear.add(b.id);
           near++;
           this.nearPeople.push(i);
+          this.nearPeopleWet.set(i, combat.wet);
         } else {
           baseMatrix(pose.x, pose.y, pose.z, pose.heading, 0, this.look.scale, _base);
-          (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, null, this.look);
+          (tier === TIER_MID ? this.peopleMid : this.peopleFar).push(_base, cue, this.look);
         }
         continue;
       }
       const view = this.kinds.get(b.kind)!;
+      if (combat.topple >= 1 && height > 0.05 && this.puddleCount < PUDDLES_MAX) {
+        const r = AGENT_SPEC[b.kind].radius * 1.8;
+        _m.compose(_p.set(pose.x, pose.y + 0.03, pose.z), _q.identity(), _s.set(r, 1, r * 0.8));
+        this.puddles.setMatrixAt(this.puddleCount++, _m);
+      }
       if (tier === TIER_NEAR && view.source === "file") {
         this.wasNear.add(b.id);
         near++;
         this.drawNear(view, b, pose, cue, dt);
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
-        _base.scale(_s.set(1,visualHeight(b),1));
+        collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
       }
     }
@@ -574,10 +646,12 @@ export class AgentLayer {
     this.crowd?.begin(dt, Math.max(0, remaining - reserveFallback));
     for (const i of this.nearPeople) {
       const b = pairs[i]![1], pose = this.poses[i]!;
-      if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.speed, dt)) continue;
-      const anim = this.anim(b.id, pose, dt);
+      // (Its drawn speed: a dodging person moves whichever way it goes, a sidestep sideways.)
+      const anim = this.anim(b.id, pose, dt, 0.35, 2.7, 1.3, true);
+      if (this.crowd?.add(b.id, pose.x, pose.y, pose.z, pose.heading, b.dodge ? anim.v : b.speed, dt, b.dodge)) continue;
       personLook(b.id, this.look);
-      this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount);
+      this.personCue.wet = this.nearPeopleWet.get(i) ?? 0;
+      this.people.add(pose.x, pose.y, pose.z, pose.heading, this.look, Math.sin(anim.gait) * anim.amount, dodgePose(b.dodge, anim.v, this.pose), this.personCue);
     }
     let calls = 0;
     let tris = 0;
@@ -591,6 +665,12 @@ export class AgentLayer {
       tally(v.mid);
       tally(v.far);
       for (const p of v.near) tally(p.part);
+    }
+    this.puddles.count = this.puddleCount;
+    if (this.puddleCount > 0) {
+      this.puddles.instanceMatrix.needsUpdate = true;
+      calls++;
+      tris += this.puddleCount * 20;
     }
     this.people.end();
     this.crowd?.end();
@@ -639,12 +719,16 @@ export class AgentLayer {
     this.scratch = { idx: new Int32Array(cap), key: new Float64Array(cap) };
   }
 
-  /** The animation state of a near agent, advanced to this frame's pose. */
-  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3): Anim {
+  /**
+   * The animation state of a near agent, advanced to this frame's pose. A person (`person`) steps
+   * by the distance it is drawn to move whichever way it goes (a sidestep swings its legs too),
+   * with longer steps the faster it goes (strideFor), so its feet never slide.
+   */
+  private anim(id: number, pose: AgentPose, dt: number, wheelRadius = 0.35, wheelbase = 2.7, cruise = 1.3, person = false): Anim {
     let an = this.anims.get(id);
     const fresh = !an || this.frameNo - an.seen > 2;
     if (!an) {
-      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0 };
+      an = { wheel: 0, steer: 0, gait: (id * 1.7) % (Math.PI * 2), amount: 0, x: pose.x, z: pose.z, heading: pose.heading, seen: 0, v: 0 };
       this.anims.set(id, an);
     }
     let dist = 0;
@@ -663,8 +747,9 @@ export class AgentLayer {
       an.steer = 0;
     }
     an.wheel = rollWheel(an.wheel, dist, wheelRadius);
-    an.gait = advanceGait(an.gait, dist, STRIDE_M);
-    const want = gaitAmount(pose.speed, cruise);
+    if (dt > 0) an.v += (Math.abs(dist) / dt - an.v) * Math.min(1, dt * 12);
+    an.gait = advanceGait(an.gait, dist, person ? strideFor(an.v) : STRIDE_M);
+    const want = gaitAmount(person ? an.v : pose.speed, cruise);
     an.amount += (want - an.amount) * Math.min(1, dt * 5);
     an.x = pose.x;
     an.z = pose.z;
@@ -679,8 +764,10 @@ export class AgentLayer {
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
     baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
-    _base.scale(_s.set(1,visualHeight(b),1));
-    const swing = Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
+    const override = this.lookOverride?.get(b.id);
+    collapse(_base, b, override ?? visualCombat(b), override?.height ?? visualHeight(b));
+    // A seized robot's limbs and wheels stop where they are.
+    const swing = cue.rust && cue.rust >= 1 ? 0 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
       if (p.bagContents && !bagFull(b, this.bags)) continue;
       let rx = 0;
@@ -711,6 +798,8 @@ export class AgentLayer {
       v.far.dispose();
       for (const p of v.near) p.part.dispose();
     }
+    this.puddles.geometry.dispose();
+    (this.puddles.material as THREE.Material).dispose();
     this.people.dispose();
     this.peopleMid.dispose();
     this.peopleFar.dispose();
@@ -728,6 +817,43 @@ export function bagFull(a: Readonly<AgentState>, override: boolean | null = null
   if (override !== null) return override;
   const tell = (a as unknown as { tell?: unknown }).tell;
   return tell !== "emptyBag";
+}
+
+/**
+ * The combat presentation an agent carries (render-only; runtime-actors.ts decorates it from the
+ * sim's combat targets): rust 0..1, wetness 0..1, and how far it has toppled (0 standing, 1 lying
+ * on its side, as a heap). Undecorated agents: none of it.
+ */
+export interface VisualCombat {
+  rust: number;
+  wet: number;
+  topple: number;
+}
+const _combat: VisualCombat = { rust: 0, wet: 0, topple: 0 };
+export function visualCombat(a: Readonly<AgentState>): VisualCombat {
+  const v = a as AgentState & { visualRust?: number; visualWet?: number; visualTopple?: number };
+  const f = (x: number | undefined): number => (typeof x === "number" && Number.isFinite(x) ? Math.max(0, Math.min(1, x)) : 0);
+  _combat.rust = f(v.visualRust);
+  _combat.wet = f(v.visualWet);
+  _combat.topple = f(v.visualTopple);
+  return _combat;
+}
+
+/** Heaps drawn with a puddle under them at once. */
+export const PUDDLES_MAX = 64;
+
+/** Most a collapsing robot tips over (radians): onto its side, short of upside down. */
+export const TOPPLE_RAD = 1.35;
+const _rz = new THREE.Matrix4();
+
+/**
+ * The slump: a seized robot tips sideways (left or right by its id) about its foot as it sinks,
+ * ending on its side as a heap. The sim's height scale squashes the tipped body along the
+ * vertical, so its width cannot stand taller than the heap. Applied after the placement matrix.
+ */
+export function collapse(base: THREE.Matrix4, a: Readonly<Pick<AgentState, "id">>, c: Readonly<VisualCombat>, height: number): void {
+  base.scale(_s.set(1, height, 1));
+  if (c.topple > 0) base.multiply(_rz.makeRotationZ((a.id % 2 === 0 ? 1 : -1) * TOPPLE_RAD * c.topple * c.topple * (3 - 2 * c.topple)));
 }
 
 function visualHeight(a:Readonly<AgentState>):number {const scale=(a as AgentState&{visualHeightScale?:number}).visualHeightScale;return typeof scale==="number"&&Number.isFinite(scale)?Math.max(.05,Math.min(1,scale)):1;}

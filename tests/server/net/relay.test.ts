@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
 import { hashState, SIM_VERSION, type SimState } from "../../../src/sim/index.ts";
 import { NET_VERSION } from "../../../src/net/protocol.ts";
 import { botSweepView } from "../../../src/sim/modes/botsweep.ts";
@@ -57,6 +58,15 @@ describe("relay lobby", () => {
     expect(a.seat.value?.token).not.toBe(b.seat.value?.token);
   });
 
+  it("shows each player's vetted profile name and look, numbering a repeated name, and keeps device tokens private", async () => {
+    const h = await relay(), a = make(h, { name: ["quiet", "heron"], look: 4 }), b = make(h, { name: ["quiet", "heron"], look: 1 });
+    a.client.create(); await until(() => !!last(a)?.code);
+    b.client.join(last(a).code); await until(() => last(a).members.length === 2);
+    expect(last(a).members.map((m) => [m.name, m.look])).toEqual([["Quiet Heron", 4], ["Quiet Heron 2", 1]]);
+    // Members carry no device token or its hash; seats keep only the hash, for stats.
+    expect(Object.keys(last(b).members[0]!).sort()).toEqual(["connected", "host", "id", "look", "name", "ready", "spectator"]);
+  });
+
   it("only the host starts, and only when everyone is ready", async () => {
     const h = await relay(), a = make(h), b = make(h);
     a.client.create(); await until(() => !!last(a)?.code);
@@ -70,8 +80,9 @@ describe("relay lobby", () => {
     expect(a.client.match!.matchId).toBe(b.client.match!.matchId);
   });
 
-  it("refuses joining a started match, a fifth player, and unknown codes", async () => {
-    const h = await relay(), [a] = await match(h);
+  it("refuses joining a finished match and unknown codes", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    a.client.end(); await play(h, [a, b], 3);
     const late = make(h); late.client.join(last(a).code);
     await until(() => last(late)?.status === "error");
     expect(last(late).message).toMatch(/already started/);
@@ -182,6 +193,161 @@ describe("relay Clean Streets", () => {
   });
 });
 
+describe("relay persistence", () => {
+  it("records a finished match once and serves the leaderboard (names only) and each device's own stats", async () => {
+    const { openSqliteStore } = await import("../../../server/store/sqlite.ts");
+    const store = openSqliteStore(":memory:");
+    try {
+      const h = await relay({ store }), [a, b] = await match(h);
+      await play(h, [a, b], 10);
+      a.client.end(); await play(h, [a, b], 3);
+      expect(room(h).phase).toBe("results");
+      const base = h.url.replace("ws:", "http:").replace("/relay", "");
+      const board = await (await fetch(`${base}/leaderboard?mode=botSweep&period=week`)).json() as { entries: Array<{ name: string; matches: number }> };
+      expect(board.entries.map((e) => e.name).sort()).toEqual(last(a).members.map((m) => m.name).sort());
+      expect(JSON.stringify(board)).not.toMatch(/[a-f0-9]{32}/);
+      const token = (a.client as unknown as { options: { identity(): { token: string } } }).options.identity().token;
+      const me = await (await fetch(`${base}/me`, { headers: { "x-fogcity-device": token } })).json() as { stats: { matches: number } };
+      expect(me.stats.matches).toBe(1);
+      expect((await fetch(`${base}/me`)).status).toBe(400);
+      expect((await fetch(`${base}/leaderboard?mode=nope`)).status).toBe(400);
+      // Results stay up; ticking on never records the match again.
+      await play(h, [a, b], 5);
+      expect(store.stats(createHash("sha256").update(token).digest("hex"))!.matches).toBe(1);
+    } finally { store.close(); }
+  });
+
+  it("caps leaderboard requests per IP", async () => {
+    const { openSqliteStore } = await import("../../../server/store/sqlite.ts");
+    const store = openSqliteStore(":memory:");
+    try {
+      const h = await relay({ store }), base = h.url.replace("ws:", "http:").replace("/relay", "");
+      const codes: number[] = [];
+      for (let i = 0; i < 32; i++) codes.push((await fetch(`${base}/leaderboard?mode=botSweep`)).status);
+      expect(codes.filter((c) => c === 200)).toHaveLength(30);
+      expect(codes.at(-1)).toBe(429);
+    } finally { store.close(); }
+  });
+});
+
+describe("relay social", () => {
+  it("relays preset quick-chat phrases only, at most one per 1.5 s per player", async () => {
+    const h = await relay(), a = make(h), b = make(h);
+    const heard: Array<[string, number]> = [];
+    (b.client as unknown as { options: { onChat(from: string, phrase: number): void } }).options.onChat = (from, phrase) => heard.push([from, phrase]);
+    a.client.create(); await until(() => !!last(a)?.code);
+    b.client.join(last(a).code); await until(() => last(a).members.length === 2);
+    a.client.quickChat(0); a.client.quickChat(1); await settle(60);
+    expect(heard).toEqual([["p1", 0]]);
+    h.clock.t += 1500; a.client.quickChat(5); await until(() => heard.length === 2);
+    expect(heard[1]).toEqual(["p1", 5]);
+    const s = await raw(h.url); s.send({ type: "chat", text: "free text" }); await until(() => !!s.closed);
+    expect(s.messages.at(-1)).toMatchObject({ code: "invalid_message" });
+  });
+
+  it("lets a player join a running match and adds them to it on every peer", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    await play(h, [a, b], 20);
+    const c = make(h); c.client.join(last(a).code);
+    await until(() => !!c.client.match, "join-in-progress snapshot");
+    expect(last(c).playerId).toBe("p3");
+    await play(h, [a, b, c], 61);
+    const { modeSessionOf } = await import("../../../src/sim/modes/session.ts");
+    expect(Object.keys(modeSessionOf(room(h).state!)!.match.players)).toEqual(["p1", "p2", "p3"]);
+    expect(room(h).state!.players.p3).toBeDefined();
+    for (const p of [a, b, c]) expect(hashState(p.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    // A fourth fits; a fifth does not.
+    const d = make(h); d.client.join(last(a).code); await until(() => !!d.client.match);
+    const e = make(h); e.client.join(last(a).code); await until(() => last(e)?.status === "error");
+    expect(last(e).message).toMatch(/four players/);
+  });
+
+  it("lets spectators watch without a body, input or seat, and rematches back to the lobby", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    const s = make(h); s.client.spectate(last(a).code);
+    await until(() => !!s.client.match, "spectator snapshot");
+    expect(last(s).playerId).toBe("s1");
+    expect(last(a).members.find((m) => m.id === "s1")).toMatchObject({ spectator: true });
+    s.client.sample({ throttle: 1, steer: 0, brake: 0, actions: 2 });
+    await play(h, [a, b], 61);
+    while (s.client.match!.queued) s.client.advance(60);
+    expect(room(h).state!.players.s1).toBeUndefined();
+    expect(hashState(s.client.match!.confirmed)).toBe(hashState(room(h).state!));
+    expect(room(h).size).toBe(2);
+    a.client.end(); await play(h, [a, b], 3);
+    await until(() => last(s).results !== null);
+    b.client.rematch(); await until(() => last(b).message === "Only the host can do that.");
+    a.client.rematch(); await until(() => last(b).phase === "lobby");
+    expect(last(a).members.filter((m) => !m.spectator).every((m) => !m.ready)).toBe(true);
+    a.client.ready(true); b.client.ready(true); await until(() => last(a).members.filter((m) => !m.spectator).every((m) => m.ready));
+    a.client.start(); await until(() => last(a).phase === "match" && a.client.match!.matchId !== last(a).results?.matchId);
+    expect(Object.keys(room(h).state!.players).sort()).toEqual(["p1", "p2"]);
+  });
+});
+
+describe("relay operations", () => {
+  it("serves readiness and Prometheus metrics, and logs structured events without tokens or full codes", async () => {
+    const lines: string[] = [];
+    const { jsonLogger } = await import("../../../server/ops/log.ts");
+    const h = await relay({ logger: jsonLogger((line) => lines.push(line)) }), [a, b] = await match(h);
+    await play(h, [a, b], 30);
+    const base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect((await fetch(`${base}/ready`)).status).toBe(200);
+    const metrics = await (await fetch(`${base}/metrics`)).text();
+    expect(metrics).toContain('fogcity_relay_rooms{label="match"} 1');
+    expect(metrics).toContain("fogcity_relay_matches_started_total 1");
+    expect(metrics).toMatch(/fogcity_relay_tick_ms_p99 [0-9.]+/);
+    expect(metrics).toContain("fogcity_relay_hash_mismatches 0");
+    const events = lines.map((l) => JSON.parse(l) as { event: string; level: string });
+    expect(events.map((e) => e.event)).toEqual(expect.arrayContaining(["room.created", "match.started"]));
+    const code = last(a).code, token = a.seat.value!.token;
+    for (const line of lines) { expect(line).not.toContain(code); expect(line).not.toContain(token); }
+  });
+
+  it("refuses a start past maxMatches without dropping the lobby, then starts once a match ends", async () => {
+    const h = await relay({ limits: { maxMatches: 1 } }), [a, b] = await match(h);
+    const c = make(h), d = make(h);
+    c.client.create(); await until(() => !!last(c)?.code, "second room");
+    d.client.join(last(c).code); await until(() => last(c).members.length === 2, "second lobby");
+    c.client.ready(true); d.client.ready(true); await until(() => last(c).members.every((m) => m.ready), "second ready");
+    c.client.start();
+    await until(() => /busy/.test(last(c).message ?? ""), "matches_full message");
+    expect(last(c).status).toBe("connected");
+    expect(last(c).phase).toBe("lobby");
+    const base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect(await (await fetch(`${base}/metrics`)).text()).toContain("fogcity_relay_matches_refused_total 1");
+    a.client.end(); await play(h, [a, b], 3);
+    expect(room(h).phase).toBe("results");
+    c.client.start();
+    await until(() => !!c.client.match && !!d.client.match, "second match starts");
+  });
+
+  it("protects metrics with a bearer token when configured", async () => {
+    const h = await relay({ metricsToken: "s3cret" }), base = h.url.replace("ws:", "http:").replace("/relay", "");
+    expect((await fetch(`${base}/metrics`)).status).toBe(401);
+    expect((await fetch(`${base}/metrics`, { headers: { authorization: "Bearer s3cret" } })).status).toBe(200);
+  });
+
+  it("drains for a restart: refuses newcomers, warns players, ends running matches with results and payouts", async () => {
+    const h = await relay(), [a, b] = await match(h);
+    await play(h, [a, b], 20);
+    // Keep the relay ticking in real time while it drains.
+    const pump = setInterval(() => { for (const p of [a, b]) p.client.sample({ throttle: 0, steer: 0, brake: 0, actions: 0 }); h.tick(); for (const p of [a, b]) p.client.advance(1); }, 5);
+    try {
+      const drained = h.relay.drain(200, 2000);
+      await until(() => last(a).drainingUntil > 0, "draining notice");
+      const base = h.url.replace("ws:", "http:").replace("/relay", "");
+      expect((await fetch(`${base}/ready`)).status).toBe(503);
+      const late = make(h); late.client.quick(); await until(() => last(late)?.status === "error");
+      expect(last(late).message).toMatch(/restarting/);
+      await drained;
+      expect(room(h).phase).toBe("results");
+      await until(() => a.results === 1 && b.results === 1, "results before shutdown");
+      expect(last(a).results!.result.reason).toBe("ended");
+    } finally { clearInterval(pump); }
+  });
+});
+
 describe("relay transport seam", () => {
   it("runs the lobby over any transport with WebSocket semantics (here the ws package's client)", async () => {
     const h = await relay();
@@ -190,7 +356,7 @@ describe("relay transport seam", () => {
     const { WORLD } = await import("./harness.ts");
     const sent: string[] = [];
     const infos: Array<{ phase: string; code: string }> = [];
-    const custom = new RelayClient({ url: h.url, world: WORLD, worldName: "dev", fingerprint: FINGERPRINT, reconnectAttempts: 0, onChange: (i) => infos.push(i), onSeat: () => {},
+    const custom = new RelayClient({ url: h.url, identity: () => ({ token: "cd".repeat(16), name: ["salty", "pumice"], look: 2 }), world: WORLD, worldName: "dev", fingerprint: FINGERPRINT, reconnectAttempts: 0, onChange: (i) => infos.push(i), onSeat: () => {},
       transport: (url, handlers) => {
         const ws = new WsSocket(url);
         ws.on("open", () => handlers.onOpen()); ws.on("message", (d) => handlers.onMessage(String(d))); ws.on("close", () => handlers.onClose());
@@ -211,7 +377,7 @@ describe("relay versions", () => {
     const h = await relay();
     for (const hello of [{ sim: SIM_VERSION - 1, net: NET_VERSION }, { sim: SIM_VERSION, net: NET_VERSION + 1 }]) {
       const s = await raw(h.url);
-      s.send({ type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, ...hello });
+      s.send({ type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16), ...hello });
       await until(() => !!s.closed);
       expect(s.messages[0]).toMatchObject({ type: "error", code: "version_mismatch" });
     }
@@ -334,7 +500,7 @@ describe("relay abuse limits", () => {
 
   it("caps rooms per IP and rooms per relay", async () => {
     const h = await relay({ limits: { maxRoomsPerIp: 2, maxRooms: 3 } });
-    const hello = { type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION };
+    const hello = { type: "hello", action: "create", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16) };
     const sockets = [await raw(h.url), await raw(h.url), await raw(h.url)];
     for (const s of sockets) s.send(hello);
     await until(() => !!sockets[2]!.closed);
@@ -375,7 +541,7 @@ describe("relay abuse limits", () => {
     const codes: string[] = [];
     for (let i = 0; i < 4; i++) {
       const s = await raw(h.url);
-      s.send({ type: "hello", action: "join", code: "ABCDEFGH", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION });
+      s.send({ type: "hello", action: "join", code: "ABCDEFGH", world: "dev", fingerprint: FINGERPRINT, sim: SIM_VERSION, net: NET_VERSION, profile: { name: ["quiet", "heron"], look: 0 }, device: "ab".repeat(16) });
       await until(() => !!s.closed);
       codes.push(String(s.messages.at(-1)?.code));
     }

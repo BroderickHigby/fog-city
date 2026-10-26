@@ -95,8 +95,7 @@ export class VisualQuality {
     this.resize(size.x, size.y);
   }
 
-  setPreset(preset: LightingPreset): void {
-    const look = presentationLook(preset.name);
+  setPreset(preset: LightingPreset, look: PresentationLook = presentationLook(preset.name)): void {
     this.grade.uniforms.contrast!.value = look.contrast;
     this.grade.uniforms.saturation!.value = look.saturation;
     (this.grade.uniforms.balance!.value as THREE.Vector3).set(...look.balance);

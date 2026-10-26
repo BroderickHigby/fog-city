@@ -27,6 +27,11 @@ function withRobots(state:SimState,runtime:ReturnType<typeof createAgentsRuntime
 }
 
 describe("authoritative agent runtime",()=>{
+  it("keeps explicit spawn metadata and tidy firmware validation strict",()=>{
+    expect(()=>createAgentsRuntime(initial(),{spawns:[spawn("reverse",{speed:-1})]})).toThrow("Invalid runtime metadata");
+    expect(()=>createAgentsRuntime(initial(),{spawns:[spawn("tidy",{model:"tidy",firmware:"bad"})]})).toThrow("Invalid runtime metadata");
+    expect(()=>createAgentsRuntime(initial(),{spawns:[spawn("size",{halfLength:0})]})).toThrow("Invalid runtime metadata");
+  });
   it("keeps firmware and protected classifications stable and state serializable",()=>{
     const sim=initial(),spawns=[spawn(),spawn("child",{numericId:11,model:"person",firmware:"none",child:true}),spawn("pigeon",{numericId:12,model:"pigeon",firmware:"none"})];
     const old=JSON.stringify(sim),runtime=planAgentRuntime(world,freeze(sim),{},{spawns});

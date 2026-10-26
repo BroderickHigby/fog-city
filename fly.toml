@@ -2,7 +2,14 @@
 # coordinator sets up the app with the owner, then `fly deploy` from the repository root.
 # Set ALLOWED_ORIGINS to the static game's origin(s) before the first deploy.
 app = "fog-city-relay"
+# San Jose: closest to the game's players (San Francisco). Rooms live on the machine that made them,
+# so this is a single-region, single-machine app until room routing exists (server/README.md, Capacity).
 primary_region = "sjc"
+
+# Deploys send SIGTERM; the relay drains (RELAY_DRAIN_SECONDS, default 90: running matches play on,
+# then end and pay out) and exits. kill_timeout must outlast the drain plus a few seconds.
+kill_signal = "SIGTERM"
+kill_timeout = "120s"
 
 [build]
   dockerfile = "server/deploy/Dockerfile"
@@ -13,19 +20,43 @@ primary_region = "sjc"
   # Fly puts the real client address in this header; per-IP limits use it.
   CLIENT_IP_HEADER = "fly-client-ip"
 
+  # Match history and leaderboards (server/README.md, Data and retention).
+  RELAY_DB_PATH = "/data/relay.sqlite"
+
+  # One dedicated core runs two matches in real time (server/README.md, Capacity).
+  RELAY_MAX_MATCHES = "2"
+  RELAY_DRAIN_SECONDS = "90"
+  # METRICS_TOKEN: set with `fly secrets set METRICS_TOKEN=...`, never here.
+
+[mounts]
+  source = "relay_data"
+  destination = "/data"
+
 [http_service]
   internal_port = 8787
   force_https = true
+  # Autoscale: off. Stopping a machine ends its matches, and a second machine cannot serve the
+  # first one's room codes yet, so keep exactly one machine running (`fly scale count 1`). Scale up
+  # the machine size instead once rooms run on worker threads (server/README.md, Capacity).
   auto_stop_machines = "off"
+  auto_start_machines = false
   min_machines_running = 1
+  [http_service.concurrency]
+    # WebSockets: four players and a few spectators per room, 16 rooms.
+    type = "connections"
+    soft_limit = 100
+    hard_limit = 128
+  # Readiness: 503 while draining, so the proxy stops routing new players to it during a deploy.
   [[http_service.checks]]
     method = "GET"
-    path = "/health"
-    interval = "30s"
+    path = "/ready"
+    interval = "15s"
     timeout = "5s"
     grace_period = "60s"
 
 [[vm]]
-  # The SF sim world takes ~0.9 GB; each live match about a third of a CPU core.
+  # performance-1x: one dedicated vCPU, 2 GB. The world takes ~0.9 GB, two running matches ~0.6 GB
+  # more, and the relay's event loop uses one core. shared-cpu machines are throttled under this
+  # steady load: do not use them. Measured numbers: server/README.md, Capacity.
+  size = "performance-1x"
   memory = "2gb"
-  cpus = 2

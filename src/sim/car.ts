@@ -1,4 +1,14 @@
-// Arcade car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
+// Car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
+//
+// v15 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
+// 5.5 s (drive limited by what the tyres put down, then by the motor's power, CAR.powerPerKg / v)
+// and about 195 km/h flat out (power meets drag). The tyres share one grip budget, tyreMu g scaled
+// by the road's traction (a friction circle): braking or drive leaves less for cornering. Braking
+// and accelerating move weight between the axles (CAR.weightTransfer): the front axle's grip caps
+// how fast the car turns (understeer at the limit), the rear's how well it holds a slide (it lets
+// go first under hard braking). The brakes are ABS-limited to the tyres' grip (about 36 m from
+// 100 km/h dry, longer wet), a handbrake turn kicks the tail out (CAR.handbrakeKick), and the
+// wheels turn more slowly at speed. The rest below is the model that carries all of that.
 //
 // Model, per tick:
 //  - Velocity is (speed, lateral) in the car's frame. Yaw rotates the frame but not the
@@ -31,35 +41,68 @@
 //    bounce on hard hits) and scraping friction slows the slide, so the car slides along
 //    walls. A hit is counted once per impact event: a contact that starts at least
 //    hitCooldown ticks after the previous one, at hitMinSpeed or more into the surface.
+//  - Bodies that can be shoved (another car, a robotaxi: a Circle with a `body`) are not walls:
+//    the first time in a tick the car closes on one, the two exchange momentum along the contact
+//    normal (masses CAR.mass and body.mass, restitution CAR.bodyRestitution), the car's share
+//    turns it about its centre (an off-centre hit spins it), and the impulse is reported in
+//    `contacts` so step.ts (impacts.ts) can give the other body its share. The car is still held
+//    out of the body's circles, which stand where the body was at the start of the tick.
 
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
-import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle } from "./collide.ts";
+import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle, type ImpactBody } from "./collide.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
 export const CAR = {
-  /** Engine top speed on the flat, m/s (~108 km/h). Gravity can take you past it downhill. */
-  maxSpeed: 30,
+  /**
+   * About the top speed on the flat, m/s (~195 km/h), where the motor's power meets drag and
+   * rolling resistance (v15 dynamics: a modern EV). Gravity can take you past it downhill; other
+   * code uses it as "the car's natural top speed".
+   */
+  maxSpeed: 54,
+  /** Hard cap on the speed along the body, m/s (downhill), and the fastest reverse. */
+  speedCap: 62,
   maxReverse: 8,
-  /** Engine acceleration at low speed, m/s^2; fades out over the top engineFade of maxSpeed. */
-  accel: 9.5,
-  engineFade: 0.35,
+  /**
+   * Drive: at most `accel` m/s^2 (what the tyres put down from rest), and no more than
+   * `powerPerKg` / v (the motor's power, W per kg): 0 to 100 km/h in about 5 s.
+   */
+  accel: 6,
+  powerPerKg: 110,
   reverseAccel: 5,
-  brakeDecel: 22,
-  /** Brake deceleration while drifting (the brake acts as a light handbrake). */
+  /** Brake demand at full pedal, m/s^2; ABS holds it to what the tyres can give (tyreMu g). */
+  brakeDecel: 11,
+  /** Brake deceleration while drifting (the brake is the handbrake: rear wheels locked). */
   handbrakeDecel: 4,
+  /** A handbrake turn starting kicks the tail out at this yaw rate, rad/s (toward the steer). */
+  handbrakeKick: 0.9,
   rolling: 0.25,
   /** Aerodynamic drag coefficient: a = aero * v^2. */
-  aero: 0.0012,
+  aero: 0.0006,
   wheelbase: 2.7,
   maxSteer: 0.6,
+  /** Wheel angle rate, rad/s, slowing with speed (steerRate / (1 + v / steerRateRef)): calm at speed. */
   steerRate: 3.2,
+  steerRateRef: 25,
   steerSpeedRef: 11,
-  /** Max lateral acceleration with full grip, m/s^2. */
-  gripAccel: 18,
+  /**
+   * Tyres: the friction coefficient of the four together on a dry road (scaled by traction in
+   * the wet). Drive or braking and cornering share it (a friction circle): sqrt(long^2 + lat^2)
+   * <= tyreMu g.
+   */
+  tyreMu: 1.05,
+  /** Max lateral acceleration with full grip, m/s^2 (tyreMu g). */
+  gripAccel: 10.3,
+  /**
+   * Weight transfer: braking at a m/s^2 loads the front axle by weightTransfer * a / g (more
+   * front grip: sharper turn-in) and lightens the rear as much (it lets go first); accelerating
+   * does the opposite (understeer). Clamped to +-maxTransfer.
+   */
+  weightTransfer: 0.5,
+  maxTransfer: 0.35,
   /** Lateral friction while fully sliding, m/s^2. */
-  driftGripAccel: 9,
+  driftGripAccel: 6,
   driftYawBoost: 0.6,
   maxDriftYaw: 1.9,
   /** rad/s of counter-yaw per radian of slip angle while sliding. */
@@ -104,7 +147,50 @@ export const CAR = {
   /** Legacy Phase 0 collision radius (kept for consumers that still read it). */
   radius: 1.6,
   bounce: 0.25,
+  /** Kilograms, for momentum exchange with other bodies (impacts.ts). */
+  mass: 1400,
+  /** Yaw moment of inertia per unit mass, m^2: (length^2 + width^2) / 12 of the body box. */
+  yawK2: 1.91,
+  /** Restitution of a car against a body it can shove (bumpers give a little). */
+  bodyRestitution: 0.25,
+  /** How much of the off-centre impulse becomes spin (arcade: a little more than a rigid box), and its cap, rad/s. */
+  spinGain: 1.2,
+  maxSpinKick: 2.5,
+  /** Coulomb friction between the bodies along the contact, as a share of the normal impulse. */
+  bodyFriction: 0.15,
 } as const;
+
+/**
+ * The most a car's velocity can change in one second on its own (not counting a hit on a body,
+ * which dodge.ts bounds separately), m/s^2, a safe upper bound on the model above: the rear
+ * axle's grip with full weight transfer (x1.5 sliding catch-up), the stronger of braking and
+ * drive, drag at the speed cap, rolling, understeer scrub, and gravity on any slope.
+ */
+export const CAR_MAX_DV_PER_S =
+  CAR.gripAccel * (1 + CAR.maxTransfer) * 1.5 + Math.max(CAR.brakeDecel, CAR.accel) + CAR.aero * CAR.speedCap * CAR.speedCap + CAR.rolling + CAR.understeerScrub + CAR.gravity;
+
+/** The hardest a car's tyres can turn it, as lateral acceleration, m/s^2 (front grip with full weight transfer). */
+export const CAR_MAX_TURN_ACCEL = CAR.gripAccel * (1 + CAR.maxTransfer);
+
+/**
+ * A car's hit on a body it can shove, from stepCar: the impulse on the car (kg m/s) along the
+ * contact normal (nx, nz), pointing out of the body toward the car; the body takes -j.
+ */
+export interface CarContact {
+  /** The body (ImpactBody.key). */
+  key: string;
+  j: number;
+  nx: number;
+  nz: number;
+  /** Friction impulse on the car along the contact's tangent (tx, tz), kg m/s. */
+  jt: number;
+  tx: number;
+  tz: number;
+  /** Where the bodies touched, and how fast they closed, m/s. */
+  x: number;
+  z: number;
+  speed: number;
+}
 
 const SINCE_CONTACT_CAP = 600;
 
@@ -131,6 +217,66 @@ export function makeCar(x: number, z: number, heading: number, y = 0): CarState 
     personBumps: 0,
     nearMisses: 0,
   };
+}
+
+/** A body that shoves and is shoved: mass (kg), yaw inertia per unit mass (m^2), centre and world velocity. */
+export interface Shover {
+  mass: number;
+  k2: number;
+  x: number;
+  z: number;
+  vx: number;
+  vz: number;
+}
+
+/**
+ * One hit of `self` on a body it can shove (`circle` is the slice of `body` it touched, the
+ * normal (nx, nz) points out of the body toward self): self's velocity after exchanging momentum
+ * along the normal (with `restitution`) and a little friction along the contact, the spin the
+ * off-centre impulse gives self (rad/s, + = clockwise, capped), and the contact (the body takes
+ * the opposite impulse at the same point). Null when they are not closing.
+ */
+export function bodyHit(
+  self: Readonly<Shover>,
+  body: Readonly<ImpactBody>,
+  circle: Readonly<Circle>,
+  nx: number,
+  nz: number,
+  restitution: number,
+): { vx: number; vz: number; kick: number; contact: CarContact } | null {
+  const rvx = self.vx - body.vx;
+  const rvz = self.vz - body.vz;
+  const vn = rvx * nx + rvz * nz;
+  if (vn >= 0) return null;
+  // (A prop hit below its break speed does not give: an immovable body.)
+  const inv = 1 / self.mass + (body.breakSpeed !== undefined && -vn < body.breakSpeed ? 0 : 1 / body.mass);
+  const j = ((1 + restitution) * -vn) / inv;
+  // Friction along the contact, against the sliding, at most bodyFriction of the normal impulse.
+  const tx = -nz;
+  const tz = nx;
+  const vt = rvx * tx + rvz * tz;
+  const jt = clamp(-vt / inv, -CAR.bodyFriction * j, CAR.bodyFriction * j);
+  const jx = j * nx + jt * tx;
+  const jz = j * nz + jt * tz;
+  // The touching point: on the circle, toward self.
+  const px = circle.x + nx * circle.r;
+  const pz = circle.z + nz * circle.r;
+  const kick = spinKick(self.mass, self.k2, px - self.x, pz - self.z, jx, jz);
+  return { vx: self.vx + jx / self.mass, vz: self.vz + jz / self.mass, kick, contact: { key: body.key, j, nx, nz, jt, tx, tz, x: px, z: pz, speed: -vn } };
+}
+
+/** A body's velocity once it has taken the opposite of contact `k`'s impulse. */
+export function bodyAfter(body: Readonly<ImpactBody>, k: Readonly<CarContact>): { vx: number; vz: number } {
+  if (body.breakSpeed !== undefined && k.speed < body.breakSpeed) return { vx: body.vx, vz: body.vz };
+  return { vx: body.vx - (k.j * k.nx + k.jt * k.tx) / body.mass, vz: body.vz - (k.j * k.nz + k.jt * k.tz) / body.mass };
+}
+
+/**
+ * The spin (rad/s, + = clockwise) an impulse (jx, jz) at offset (ox, oz) from a body's centre
+ * gives it (a point's velocity from yaw rate w is w * (-oz, ox)), scaled by CAR.spinGain and capped.
+ */
+export function spinKick(mass: number, k2: number, ox: number, oz: number, jx: number, jz: number): number {
+  return clamp((CAR.spinGain * (-oz * jx + ox * jz)) / (mass * k2), -CAR.maxSpinKick, CAR.maxSpinKick);
 }
 
 /** The car's collision rectangle. */
@@ -226,6 +372,7 @@ export function stepCar(
   obstacles: readonly Circle[] = [],
   /** Road surface grip 0..1 (1 dry; rain and flooding lower it: src/sim/fog tractionAt). Scales cornering grip and braking. */
   traction = 1,
+  contacts: CarContact[] = [],
 ): CarState {
   const G = CAR.gravity;
   const mu = traction > 0 && traction < 1 ? traction : 1;
@@ -242,14 +389,29 @@ export function stepCar(
   const absV = speed < 0 ? -speed : speed;
   const steerIn = input.steer < 0 ? -input.steer : input.steer;
 
-  // Speed-sensitive steering lock.
+  // Speed-sensitive steering lock, and a wheel that turns more calmly at speed.
   const steerLimit = CAR.maxSteer / (1 + absV / CAR.steerSpeedRef);
-  const steer = approach(c.steer, input.steer * steerLimit, CAR.steerRate * DT);
+  const steer = approach(c.steer, input.steer * steerLimit, (CAR.steerRate / (1 + absV / CAR.steerRateRef)) * DT);
+
+  // The tyres' grip budget (a friction circle) and what drive or braking takes of it this tick,
+  // with the weight transfer that goes with it: load = +1 braking at 1 g, -1 accelerating at 1 g.
+  const muG = CAR.tyreMu * G * mu;
+  const thr0 = input.throttle;
+  const wantBrake = (thr0 > 0 && speed < -0.1) || (thr0 < 0 && speed > 0.1) ? (thr0 < 0 ? -thr0 : thr0) : 0;
+  const pedal = Math.min(1, wantBrake + (input.brake > 0 && !(input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) ? input.brake : 0));
+  const drive = thr0 > 0 && speed >= -0.1 ? thr0 * Math.min(CAR.accel, CAR.powerPerKg / Math.max(absV, 1)) : 0;
+  const longUse = Math.min(muG, Math.max(pedal * CAR.brakeDecel, drive));
+  const latBudget = Math.sqrt(Math.max(0, muG * muG - longUse * longUse));
+  const transfer = clamp((CAR.weightTransfer * (pedal * Math.min(CAR.brakeDecel, muG) - drive)) / G, -CAR.maxTransfer, CAR.maxTransfer);
+  const frontGrip = latBudget * (1 + transfer);
+  const rearGrip = latBudget * (1 - transfer);
 
   let drifting = false;
   let scrub = 0;
   if (onGround) {
     if (input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) {
+      // Handbrake turn: the rear wheels lock and let go; the tail kicks out toward the steer.
+      if (grip >= 0.95) yawRate += (input.steer < 0 ? -1 : 1) * CAR.handbrakeKick;
       grip = Math.max(0, grip - CAR.gripDrop * DT);
       drifting = true;
     } else {
@@ -258,7 +420,8 @@ export function stepCar(
     }
     const slip = 1 - grip;
     const kin = (speed / CAR.wheelbase) * dtan(steer);
-    const gripLim = (CAR.gripAccel * mu) / Math.max(absV, 1);
+    // The front axle's grip limits how fast the car can turn (understeer at the limit).
+    const gripLim = frontGrip / Math.max(absV, 1);
     const lim = Math.max(gripLim, CAR.maxDriftYaw * slip);
     const want = kin * (1 + CAR.driftYawBoost * slip);
     const wantAbs = want < 0 ? -want : want;
@@ -284,16 +447,10 @@ export function stepCar(
   if (onGround) {
     const thr = input.throttle;
     let engine = 0;
-    let brake = 0;
-    if (thr > 0) {
-      if (speed < -0.1) brake += CAR.brakeDecel * thr;
-      else engine += CAR.accel * thr * clamp((CAR.maxSpeed - speed) / (CAR.maxSpeed * CAR.engineFade), 0, 1);
-    } else if (thr < 0) {
-      if (speed > 0.1) brake += CAR.brakeDecel * -thr;
-      else engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
-    }
-    if (input.brake > 0) brake += (drifting ? CAR.handbrakeDecel : CAR.brakeDecel) * input.brake;
-    brake *= mu;
+    // Brakes, held by ABS to the tyres' grip (wet roads stop longer); the handbrake while drifting.
+    const brake = Math.min(muG, pedal * CAR.brakeDecel) + (drifting ? CAR.handbrakeDecel * input.brake * mu : 0);
+    if (thr > 0 && speed >= -0.1) engine += Math.min(drive, muG);
+    else if (thr < 0 && speed <= 0.1) engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
     const sF = g0.slopeF;
     const gravF = (-G * sF) / Math.sqrt(1 + sF * sF);
     speed += (engine + gravF) * DT;
@@ -303,7 +460,9 @@ export function stepCar(
     const sR = g0.slopeR;
     lateral += ((-G * sR) / Math.sqrt(1 + sR * sR)) * DT;
     const v2 = speed * speed + lateral * lateral;
-    const latCap = (CAR.driftGripAccel + (CAR.gripAccel * 1.5 - CAR.driftGripAccel) * grip) * mu;
+    // The rear axle holds the slide: what the friction circle leaves it (less under braking),
+    // down to the sliding friction while drifting.
+    const latCap = CAR.driftGripAccel * mu + (rearGrip * 1.5 - CAR.driftGripAccel * mu) * grip;
     const newLat = approach(lateral, 0, latCap * DT);
     if (grip < 1 && speed > 1) {
       const keep = Math.sqrt(Math.max(0, v2 - newLat * newLat));
@@ -322,7 +481,7 @@ export function stepCar(
     speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
     lateral -= CAR.aero * lateral * (lateral < 0 ? -lateral : lateral) * DT;
   }
-  speed = clamp(speed, -15, 50);
+  speed = clamp(speed, -15, CAR.speedCap);
 
   // Move in substeps, sliding along whatever we touch.
   let x = c.x;
@@ -376,6 +535,34 @@ export function stepCar(
         vz -= vn * res.nz;
       }
       break;
+    }
+    const body = res.person ? undefined : res.circle?.body;
+    if (body) {
+      // Another car or a robotaxi: momentum is exchanged once a tick; after that the car only
+      // stops closing on it (it moves at the body's velocity along the normal).
+      // (After the exchange the body moves at its new velocity: bodyAfter.)
+      const hit = contacts.find((k) => k.key === body.key);
+      const bv = hit ? bodyAfter(body, hit) : body;
+      const rvx = vx - bv.vx;
+      const rvz = vz - bv.vz;
+      const vn = rvx * res.nx + rvz * res.nz;
+      if (vn < 0) {
+        if (-vn > impact) {
+          impact = -vn;
+          impactPerson = false;
+        }
+        if (hit) {
+          vx -= vn * res.nx;
+          vz -= vn * res.nz;
+        } else {
+          const h = bodyHit({ mass: CAR.mass, k2: CAR.yawK2, x, z, vx, vz }, body, res.circle!, res.nx, res.nz, CAR.bodyRestitution)!;
+          vx = h.vx;
+          vz = h.vz;
+          yawRate += h.kick;
+          contacts.push(h.contact);
+        }
+      }
+      continue;
     }
     const vn = vx * res.nx + vz * res.nz;
     if (vn < 0) {

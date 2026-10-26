@@ -1,4 +1,5 @@
 import { AGENT_SPEC, agentsOf } from "../agents.ts";
+import { agentActorId } from "../identity.ts";
 import { playerPose, ridesByAgent } from "../ride.ts";
 import type { SimState } from "../contract.ts";
 import { groundHeight, nearbyBuildings, type World } from "../world.ts";
@@ -26,6 +27,18 @@ function actorMetadata(options: CombatAdapterOptions, id: string): CombatActorMe
   return metadata as CombatActorMetadata;
 }
 
+type Building = ReturnType<typeof nearbyBuildings>[number];
+const wallOf = new WeakMap<Building, Wall>();
+/** A building's wall box. Buildings are static world data, so each is measured once; callers get a copy. */
+function buildingWall(building: Building): Wall {
+  let wall = wallOf.get(building);
+  if (!wall) {
+    wall = {id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.underY??building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1])),footprint:building.footprint};
+    wallOf.set(building, wall);
+  }
+  return {...wall};
+}
+
 /**
  * Compatibility bridge for the current wave-1 actors. This does not register a system
  * or invent bad firmware. The actor lane supplies classifications and the core lane
@@ -40,8 +53,14 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   // design.md: a robotaxi with a rider aboard never seizes; it pulls over and the rider steps out.
   const ridden=ridesByAgent(state);
   const actors:CombatActor[]=agentsOf(state).map(agent=> {
-    const id=`agent:${agent.id}`, spec=AGENT_SPEC[agent.kind], person=agent.kind==="person";
-    return {kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi",...actorMetadata(options,id),...(agent.kind==="robotaxi"&&ridden.has(agent.id)?{occupied:true}:{}),id,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:agent.speed};
+    const id=agentActorId(agent.id), spec=AGENT_SPEC[agent.kind], person=agent.kind==="person";
+    // The defaults, then the actor lane's metadata (its defined descriptive fields), then the body.
+    const actor:Record<string,unknown>={kind:person?"person":"robot",firmware:person?"none":"good",model:agent.kind==="robotaxi"?"robotaxi":agent.kind==="sidewalkBot"?"trundle":"footman",radius:spec.radius,height:agent.kind==="sidewalkBot"?0.7:1.8,protected:person,obeysTraffic:agent.kind==="robotaxi"};
+    const source=options.actorMetadata?.[id] as Readonly<Record<string,unknown>>|undefined;
+    if(source)for(const field of METADATA_FIELDS){const value=source[field];if(value!==undefined)actor[field]=value;}
+    if(agent.kind==="robotaxi"&&ridden.has(agent.id))actor.occupied=true;
+    actor.id=id;actor.x=agent.x;actor.y=agent.y;actor.z=agent.z;actor.heading=agent.heading;actor.speed=agent.speed;
+    return actor as unknown as CombatActor;
   });
   for (const player of players) {
     const id=`player:${player.id}`;
@@ -53,7 +72,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
   for (const player of players) for (const building of nearbyBuildings(world,player.x,player.z,40)) {
     if (seen.has(building.id)) continue;
     seen.add(building.id);
-    walls.push({id:building.id,minX:Math.min(...building.footprint.map(p=>p[0])),maxX:Math.max(...building.footprint.map(p=>p[0])),minY:building.underY??building.baseY,maxY:building.topY,minZ:Math.min(...building.footprint.map(p=>p[1])),maxZ:Math.max(...building.footprint.map(p=>p[1])),footprint:building.footprint});
+    walls.push(buildingWall(building));
   }
   return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),

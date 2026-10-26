@@ -4,14 +4,25 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { HAIR_ALPHA_CUT, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, MIXAMO_DODGE_FILE, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw, motionFor } from "../../src/render/player-body.ts";
+import type { DodgeState } from "../../src/sim/contract.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
+const dodgeBytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_DODGE_FILE}`, import.meta.url)));
 const motionBytes = new Uint8Array(readFileSync(new URL(`../../public/${MIXAMO_MOTION_FILE}`, import.meta.url)));
+const mixamoDodgeBytes = new Uint8Array(readFileSync(new URL(`../../public/${MIXAMO_DODGE_FILE}`, import.meta.url)));
 const importedBytes = async (path: string): Promise<Uint8Array> => {
   if (path === PLAYER_BODY_FILE) return bytes;
   if (path === MIXAMO_MOTION_FILE) return motionBytes;
+  if (path === PLAYER_DODGE_FILE) return dodgeBytes;
+  if (path === MIXAMO_DODGE_FILE) return mixamoDodgeBytes;
   throw new Error(`Unexpected asset ${path}`);
+};
+const dive = (over: Partial<DodgeState>): DodgeState => ({ phase: "dive", sx: 0, sz: 0, tx: 4, tz: 0, t: 30, dur: 70, peak: 0, hop: 0, leap: false, vx: 4, vz: 0, vmax: 4.8, ...over });
+/** The model with its own baked clips and the dodge clips only (no Mixamo locomotion bank). */
+const files = async (path: string): Promise<Uint8Array> => {
+  if (path === MIXAMO_MOTION_FILE) throw new Error("no bank");
+  return importedBytes(path);
 };
 // Geometry/skeleton unit tests stub image upload; browser tests load the actual embedded textures.
 beforeEach(() => {
@@ -269,9 +280,12 @@ describe("generic online player avatar", () => {
     await vi.waitFor(() => expect(actors.group.getObjectByName("players:bodies")).toBeDefined());
     actors.setFoot("p2", { ...pose, x: 12 });
     actors.update(1 / 60);
-    expect(load.mock.calls).toHaveLength(2);
+    // The human, its locomotion bank and its dodge clips, once each, for every player.
+    expect(load.mock.calls).toHaveLength(4);
     expect(load).toHaveBeenCalledWith(PLAYER_BODY_FILE);
     expect(load).toHaveBeenCalledWith(MIXAMO_MOTION_FILE);
+    expect(load).toHaveBeenCalledWith(PLAYER_DODGE_FILE);
+    expect(load).toHaveBeenCalledWith(MIXAMO_DODGE_FILE);
     expect(actors.walkers).toBe(2);
     expect(actors.walkersFromFile).toBe(2);
     expect((actors.group.getObjectByName("players:people:body") as THREE.InstancedMesh).count).toBe(0);
@@ -335,5 +349,76 @@ describe("generic online player avatar", () => {
     expect(actors.group.getObjectByName("players:bodies")).toBeUndefined();
     expect(actors.walkersFromFile).toBe(0);
     expect(() => actors.dispose()).not.toThrow();
+  });
+
+  it("dodging plays real clips (the dodge stream): a startled push-off, a run or sprint at the body's speed, a flinch on a sidestep, a stumble for the override's shove, brushing off after; every clip binds to the avatar's bones", async () => {
+    const humans = await PlayerBodies.load(files, false);
+    disposables.push(humans);
+    // A crowd body (Rocketbox locomotion: no jog).
+    const all = (m: string) => m !== "jog";
+    expect(motionFor(4.8, dive({ t: 3 }), all)).toBe("runStart");
+    expect(motionFor(3, dive({}), all)).toBe("run");
+    expect(motionFor(5.5, dive({}), all)).toBe("sprint");
+    expect(motionFor(1, dive({ tx: 1 }), all)).toBe("flinch");
+    expect(motionFor(0, dive({ leap: true, t: 0, dur: 14 }), all)).toBe("stumble");
+    expect(motionFor(0, dive({ phase: "recover", t: 3, dur: 36 }), all)).toBe("recover");
+    expect(motionFor(0, null, all)).toBe("idle");
+    // The player (the Mixamo locomotion): a dodge runs with the same jog and run it moves with.
+    const mixamo = () => true;
+    expect(motionFor(4.8, dive({ t: 3 }), mixamo)).toBe("runStart");
+    expect(motionFor(1, dive({}), mixamo)).toBe("jog");
+    expect(motionFor(4.8, dive({}), mixamo)).toBe("jog");
+    expect(motionFor(5.5, dive({}), mixamo)).toBe("run");
+    expect(motionFor(1, dive({ tx: 1 }), mixamo)).toBe("flinch");
+    expect(motionFor(0, dive({ leap: true, t: 0, dur: 14 }), mixamo)).toBe("stumble");
+    expect(motionFor(0, dive({ phase: "recover", t: 3, dur: 36 }), mixamo)).toBe("recover");
+    for (const [v, m] of [[0, "idle"], [1.39, "walk"], [3, "jog"], [7, "run"]] as const) expect(motionFor(v, null, mixamo)).toBe(m);
+    // Without the clips: the plain locomotion.
+    const plain = (m: string) => m === "idle" || m === "walk" || m === "run";
+    expect(motionFor(0, dive({ leap: true }), plain)).toBe("idle");
+    expect(motionFor(5.5, dive({}), plain)).toBe("run");
+    // Real clips, bound to real bones: playing the stumble moves the skeleton.
+    humans.begin();
+    humans.add("p1", 0, 0, 0, 0, 0, 1 / 60);
+    humans.end();
+    const root = body(humans.group, "p1");
+    const pelvis = root.getObjectByName("Bip01_Pelvis")!;
+    const spine = root.getObjectByName("Bip01_Spine")!;
+    expect(pelvis).toBeDefined();
+    const rest = spine.quaternion.clone();
+    for (let i = 0; i < 20; i++) {
+      humans.begin();
+      humans.add("p1", 0, 0, 0, 0, 0, 1 / 60, undefined, dive({ leap: true, t: i, dur: 24 }));
+      humans.end();
+    }
+    expect(spine.quaternion.angleTo(rest)).toBeGreaterThan(0.05);
+  });
+  it.each([30, 60])("blends the player's Mixamo walk, jog and run with every dodge phase, shoes on the ground, at %i Hz", async hz => {
+    const humans = await PlayerBodies.load(importedBytes, false);
+    disposables.push(humans);
+    // Walking, then a dodge as the sim draws it: the startle, speeding up through the jog into a
+    // run, the override's shove, recovering, and walking on.
+    const plan: Array<[number, number, DodgeState | null]> = [[0.5, 1.39, null]];
+    for (let t = 0; t < 60; t++) plan.push([1 / 60, Math.min(5.5, 1.39 + t * 0.12), dive({ t, dur: 90, vmax: 6 })]);
+    for (let t = 0; t < 30; t++) plan.push([1 / 60, 0.4, dive({ leap: true, t, dur: 30 })]);
+    for (let t = 0; t < 40; t++) plan.push([1 / 60, 0, dive({ phase: "recover", t, dur: 40 })]);
+    plan.push([0.6, 1.39, null]);
+    const seen: string[] = [];
+    for (const [seconds, speed, dodge] of plan) {
+      for (let frame = 0; frame < Math.max(1, Math.round(seconds * hz)); frame++) {
+        humans.begin(); humans.add("p1", 0, 0, 0, 0, speed, 1 / hz, undefined, dodge); humans.end();
+        const root = body(humans.group, "p1");
+        const motion = root.userData.motion as string;
+        if (seen.at(-1) !== motion) seen.push(motion);
+        root.updateMatrixWorld(true);
+        const soles = shoeSoles(root);
+        expect(soles.length).toBeGreaterThan(50);
+        expect(Math.min(...soles), `${motion} at ${hz} Hz`).toBeGreaterThan(-0.06);
+        expect(Math.min(...soles), `${motion} at ${hz} Hz`).toBeLessThan(0.12);
+        expect(root.position.toArray()).toEqual([0, 0, 0]);
+      }
+    }
+    expect(seen).toEqual(["walk", "runStart", "jog", "run", "stumble", "recover", "walk"]);
+    expect(body(humans.group, "p1").userData.motionSource).toBe("mixamo");
   });
 });

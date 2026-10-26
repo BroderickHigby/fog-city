@@ -11,7 +11,7 @@ const world = buildWorld([], null, null, {
 });
 const state = createBotSweep(world, { id: "match-1", seed: 3, players: ["p1"], spawn: { x: 0, z: 0, heading: 0 } });
 const welcome: ServerMessage = { type: "welcome", net: NET_VERSION, sim: SIM_VERSION, code: "ABCDEFGH", playerId: "p1", token: "a".repeat(32), expiresAt: 1_000_000 };
-const room: ServerMessage = { type: "room", phase: "match", mode: "botSweep", members: [{ id: "p1", name: "Misty Otter", ready: true, connected: true, host: true }], matchId: "match-1", visibility: "private", bots: 0 };
+const room: ServerMessage = { type: "room", phase: "match", mode: "botSweep", members: [{ id: "p1", name: "Misty Otter", look: 0, ready: true, connected: true, host: true, spectator: false }], matchId: "match-1", visibility: "private", bots: 0 };
 const snapshot = (reason: "start" | "rejoin" | "mismatch" | "behind", ack: number): ServerMessage =>
   ({ type: "snapshot", matchId: "match-1", reason, state, hash: hashState(state), ack });
 
@@ -21,7 +21,7 @@ afterEach(() => { for (const client of clients.splice(0)) client.dispose(); vi.u
 
 function harness(): { client: RelayClient; connections: Connection[] } {
   const connections: Connection[] = [];
-  const client = new RelayClient({ url: "ws://localhost/relay", world, worldName: "dev", fingerprint: "abcd1234", onChange: () => {}, onSeat: () => {},
+  const client = new RelayClient({ url: "ws://localhost/relay", identity: () => ({ token: "cd".repeat(16), name: ["salty", "pumice"], look: 2 }), world, worldName: "dev", fingerprint: "abcd1234", onChange: () => {}, onSeat: () => {},
     transport: (_url, handlers) => {
       let open = false;
       const sent: ClientMessage[] = [];

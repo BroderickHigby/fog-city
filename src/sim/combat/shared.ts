@@ -24,7 +24,13 @@ export function emit(state:CombatState, kind:string, sourceId="", targetId="", a
 }
 export function actorById(ctx:CombatContext,id:string):CombatActor|undefined { return ctx.actors.find(a=>a.id===id); }
 export function playerById(ctx:CombatContext,id:string):CombatPlayer|undefined { return ctx.players.find(p=>p.id===id); }
-export function sortedActors(ctx:CombatContext):CombatActor[] { return [...ctx.actors].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0); }
+const actorOrder=new WeakMap<readonly CombatActor[],CombatActor[]>();
+/** Actors by id. A context's actor list is a read-only snapshot, so its order is sorted once. */
+export function sortedActors(ctx:CombatContext):CombatActor[] {
+  let sorted=actorOrder.get(ctx.actors);
+  if(!sorted||sorted.length!==ctx.actors.length){sorted=[...ctx.actors].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);actorOrder.set(ctx.actors,sorted);}
+  return [...sorted];
+}
 export function sortedPlayers(ctx:CombatContext):CombatPlayer[] { return [...ctx.players].sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0); }
 export function newlyPressed(p:PlayerCombat, action:string, pressed:boolean):boolean { return pressed && !p.held.includes(action); }
 /** Bound arbitrary finite input angles before deterministic polynomial trig. */

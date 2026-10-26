@@ -38,9 +38,10 @@ describe("longitudinal", () => {
     expect(c.lateral).toBe(0);
   });
 
-  it("brakes from top speed to a stop in under 2 s", () => {
-    let c = drive(flat, makeCar(0, 0, 0), I(1), 60 * 6);
-    c = drive(flat, c, I(0, 0, 1), 120);
+  it("brakes from top speed to a stop in under 6 s (v12: ABS at the tyres' grip, about 1 g)", () => {
+    let c = drive(flat, makeCar(0, 0, 0), I(1), 60 * 40);
+    expect(c.speed).toBeGreaterThan(50);
+    c = drive(flat, c, I(0, 0, 1), 60 * 6);
     expect(c.speed).toBe(0);
   });
 
@@ -54,7 +55,8 @@ describe("longitudinal", () => {
   it("throttle while rolling backwards brakes first, then drives forward", () => {
     let c = drive(flat, makeCar(0, 0, 0), I(-1), 120);
     expect(c.speed).toBeLessThan(0);
-    c = drive(flat, c, I(1), 30);
+    // (v12 brakes at about 1 g: half a second more to stop from reverse before driving on.)
+    c = drive(flat, c, I(1), 60);
     expect(c.speed).toBeGreaterThan(0);
   });
 });
@@ -67,8 +69,9 @@ describe("steering and grip", () => {
   });
 
   it("full grip at speed turns without sliding (understeer, not oversteer)", () => {
+    // (Holding its speed through the turn: v12 full throttle would take grip from cornering.)
     let c = drive(flat, makeCar(0, 0, 0), I(1), 60 * 5);
-    c = drive(flat, c, I(1, 1), 120);
+    c = drive(flat, c, I(0.4, 1), 120);
     expect(c.grip).toBe(1);
     expect(Math.abs(c.lateral)).toBeLessThan(0.5);
     expect(c.yawRate).toBeGreaterThan(0.3); // turning right
@@ -151,10 +154,10 @@ describe("collision with buildings", () => {
     expect(c.hits).toBe(1);
     expect(c.impactSpeed).toBeGreaterThan(14);
     expect(c.impactSpeed).toBeLessThan(25);
-    // Back off and hit it again: a second impact.
-    c = drive(wall, c, I(-1), 90);
+    // Back off and hit it again: a second impact. (v12: a gentler launch needs a longer run-up.)
+    c = drive(wall, c, I(-1), 150);
     expect(c.sinceContact).toBeGreaterThan(CAR.hitCooldown);
-    c = drive(wall, c, I(1), 120);
+    c = drive(wall, c, I(1), 180);
     expect(c.hits).toBe(2);
   });
 
@@ -253,7 +256,8 @@ describe("slopes and airtime", () => {
   });
 
   it("cresting the same hill slowly keeps the wheels on the ground", () => {
-    const slow = overCrest(11, 0.2);
+    // (v12: a little more throttle holds the same crest speed up the hill.)
+    const slow = overCrest(11, 0.35);
     expect(slow.crestSpeed).toBeGreaterThan(8);
     expect(slow.crestSpeed).toBeLessThan(14);
     expect(slow.maxAir).toBe(0);

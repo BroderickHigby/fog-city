@@ -55,6 +55,18 @@ function missionBays(world: World, missionId: string, rules: readonly ParkingRul
   return bounded;
 }
 
+const onEdges = new WeakMap<readonly { edge: string }[], Map<string, readonly { edge: string }[]>>();
+/** The rules on these edges, in rule order. Every tick asks again with the same rule list and
+ * (almost always) the same edges, so the filtered lists are kept per rule list and edge set. */
+function rulesOnEdges<T extends { edge: string }>(rules: readonly T[], edges: ReadonlySet<string>): T[] {
+  const key = [...edges].sort().join("\u0001");
+  let byKey = onEdges.get(rules);
+  if (!byKey) { byKey = new Map(); onEdges.set(rules, byKey); }
+  let hit = byKey.get(key) as readonly T[] | undefined;
+  if (!hit) { hit = edges.size ? rules.filter(rule => edges.has(rule.edge)) : []; if (byKey.size > 64) byKey.clear(); byKey.set(key, hit); }
+  return [...hit];
+}
+
 /** Called by the shared game composition after physical movement. */
 export function buildMissionParkingWorld(context: SimSystemContext, rules: readonly ParkingRule[], cleaning: readonly CleaningRule[], holiday = false): MissionParkingWorld {
   const calendar = gameTime(context.state);
@@ -72,7 +84,7 @@ export function buildMissionParkingWorld(context: SimSystemContext, rules: reado
   const edges = new Set([...all.values()].map(bay => bay.edge));
   return {
     bays: [...all.values()], targets,
-    rules: rules.filter(rule => edges.has(rule.edge)), cleaning: cleaning.filter(rule => edges.has(rule.edge)),
+    rules: rulesOnEdges(rules, edges), cleaning: rulesOnEdges(cleaning, edges),
     clock: { isoWeekday: calendar.weekday || 7, minute: calendar.hour * 60 + calendar.minute, weekOfMonth: Math.ceil(calendar.day / 7), holiday },
     vehicles: Object.keys(context.state.players).sort().map(playerId => { const car = context.state.players[playerId]!.car; return { playerId, x:car.x, y:car.y, z:car.z, heading:car.heading, speed:car.speed, lateral:car.lateral, halfLength:CAR.halfLength, halfWidth:CAR.halfWidth, height:CAR.bodyHeight }; }),
   };

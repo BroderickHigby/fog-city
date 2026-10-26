@@ -9,6 +9,7 @@
 //    or Math.sin/cos/exp (their last bits are implementation-defined);
 //  - iterate players with sortedIds().
 
+import type { PropPlacement } from "../../src/sim/props.ts";
 import {
   Action,
   buildWorld,
@@ -48,6 +49,8 @@ export interface ScenarioWorldLayers {
   gameplay?:GameplayWorldData|null;
   sidewalks?:PipelineSidewalks|null;
   transit?:TransitLayer|null;
+  /** World detail's street props (src/io/world-load.ts), when the world has them. */
+  streetProps?:readonly PropPlacement[]|null;
   parking?:ParkingLayer|null;
   streetCleaning?:StreetCleaningLayer|null;
 }
@@ -57,6 +60,7 @@ export function makeWorld(tiles: readonly TileCollider[], roads: unknown, bounda
   if(layers.transit)world.transit=layers.transit;
   if(layers.parking)world.parking=layers.parking;
   if(layers.streetCleaning)world.streetCleaning=layers.streetCleaning;
+  if(layers.streetProps)(world as World&{props?:readonly PropPlacement[]}).props=layers.streetProps;
   return world;
 }
 

@@ -9,13 +9,17 @@ import { fcUniforms, injectUniforms } from "./materials.ts";
 export const FOLIAGE_NEAR_LIMIT = 192;
 export const FOLIAGE_FAR_LIMIT = 4096;
 export const FOLIAGE_NEAR_M = 110;
-export const FOLIAGE_FAR_M = 1400;
+export const FOLIAGE_FAR_M = 700;
 const REPICK_M = 12;
 const ALPHA_CUTOFF = 0.42;
 const LEAVES_PER_SPRAY = 46;
-/** Leaf cards per crown, near and far. */
+/**
+ * Leaf cards per crown, near and far. The far tier draws up to FOLIAGE_FAR_LIMIT trees (the
+ * street-tree data fills it: about 4,000 within 1.4 km of the Ferry Building), so a far tree is
+ * a capless trunk, the opaque core and a few large cards: about 60 triangles, not 226.
+ */
 export const NEAR_CARDS = 140;
-export const FAR_CARDS = 40;
+export const FAR_CARDS = 16;
 /** The opaque inner crown, as a fraction of the crown's radius and height: gaps between cards show deep foliage, not sky. */
 const CORE_SCALE = 0.72;
 const CORE_COLOR = 0x46582f;
@@ -121,9 +125,9 @@ function colorGeometry(geometry: THREE.BufferGeometry, color: THREE.Color, shade
   return geometry;
 }
 
-function branch(a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, detail: number): THREE.BufferGeometry {
+function branch(a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, detail: number, open = false): THREE.BufferGeometry {
   const axis = b.clone().sub(a), length = axis.length();
-  const geometry = new THREE.CylinderGeometry(r1, r0, length, detail, 2);
+  const geometry = new THREE.CylinderGeometry(r1, r0, length, detail, open ? 1 : 2, open);
   geometry.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), axis.normalize()));
   geometry.translate((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2);
   return colorGeometry(geometry, new THREE.Color(0x6a5841), 0.92);
@@ -144,8 +148,9 @@ export function createFoliagePrototype(species: Species, far: boolean): Prototyp
   const height = species === 0 ? 6.6 : 10.5;
   const crownY = species === 0 ? 4.55 : 7.5;
   const radius = species === 0 ? 2.35 : 2.1;
-  bark.push(branch(new THREE.Vector3(0, -0.1, 0), new THREE.Vector3(0.13, crownY + 0.8, 0.05), 0.23, 0.07, far ? 5 : 9));
-  const limbs = far ? 4 : 11;
+  bark.push(branch(new THREE.Vector3(0, -0.1, 0), new THREE.Vector3(0.13, crownY + 0.8, 0.05), 0.23, 0.07, far ? 4 : 9, far));
+  // Far trees are seen from beyond FOLIAGE_NEAR_M: limbs inside the crown do not show.
+  const limbs = far ? 0 : 11;
   for (let i = 0; i < limbs; i++) {
     const angle = i * 2.39996, reach = radius * (0.57 + random() * 0.33), y = crownY - 1.0 + random() * 1.45;
     const start = new THREE.Vector3(0.08, species === 0 ? 2.1 + i * 0.11 : 3.3 + i * 0.2, 0);
@@ -167,7 +172,7 @@ export function createFoliagePrototype(species: Species, far: boolean): Prototyp
     const inward = 0.68 + random() * 0.32;
     const x = Math.cos(angle) * radius * ring * inward, z = Math.sin(angle) * radius * ring * inward;
     const y = crownY + vertical * crownHeight;
-    const size = far ? 1.55 + random() * 0.3 : 0.82 + random() * 0.34;
+    const size = far ? 2.35 + random() * 0.4 : 0.82 + random() * 0.34;
     const geometry = new THREE.PlaneGeometry(size, size * 1.12);
     const normal = new THREE.Vector3(x * 0.55, (y - crownY) * 0.4 + 0.1, z * 0.55).normalize();
     if (normal.lengthSq() < 0.1) normal.set(0, 0, 1);
@@ -230,6 +235,8 @@ export class FoliageLayer {
   private disposed = false;
   private nearCount = 0;
   private farCount = 0;
+  /** A pose for a tree at (x, z) other than its placement (a knocked-over tree, impact-layer.ts), or null. */
+  private override: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null = null;
   /** True once real street trees (street-detail) replace the tiles' procedural ones. */
   private placedTrees = false;
 
@@ -277,6 +284,12 @@ export class FoliageLayer {
       mesh.visible = false;
     });
     this.tiles.set(id, record); this.dirty = true;
+  }
+
+  /** Draw some trees in another pose (knocked over); repicks on the next update. */
+  setOverride(fn: ((x: number, z: number, matrix: THREE.Matrix4) => THREE.Matrix4 | null) | null): void {
+    this.override = fn;
+    this.dirty = true;
   }
 
   /**
@@ -327,7 +340,8 @@ export class FoliageLayer {
       const tier = this.tiers[placement.species]![tierIndex]!;
       const count = counts[placement.species]![tierIndex]!;
       if (count >= tier.capacity || (!near && this.farCount >= FOLIAGE_FAR_LIMIT)) continue;
-      tier.bark.setMatrixAt(count, placement.matrix); tier.leaves.setMatrixAt(count, placement.matrix);
+      const matrix = this.override?.(placement.x, placement.z, placement.matrix) ?? placement.matrix;
+      tier.bark.setMatrixAt(count, matrix); tier.leaves.setMatrixAt(count, matrix);
       tier.leaves.setColorAt(count, placement.tint); tier.bark.setColorAt(count, placement.tint);
       counts[placement.species]![tierIndex] = count + 1;
       if (near) this.nearCount++; else this.farCount++;

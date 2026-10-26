@@ -36,7 +36,28 @@
 // v13: unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk
 // reserve, and the Tank I/II upgrades (same tankTier) add 2 m of reach each. No field changes:
 // a v12 save keeps its saved water value, which no longer limits the stream.
-export const SIM_VERSION = 13;
+// v14: cars shove, spin and dent other cars and robotaxis (src/sim/impacts.ts): ext.impacts, and
+// optional AgentState.knock/dents. An upgraded v13 save keeps every field.
+// Combined v14: cars bowl robots over (impacts.ts); robots no longer dodge a player's car.
+// Combined v14: street props a car can break (props.ts, impacts.ts): optional ext.impacts.props.
+// Combined v14 also adds modern-EV acceleration, friction-circle tyres, ABS braking and handbrake.
+// Vehicle fields are unchanged; the combined release also preserves optional damage/prop state.
+// v14: the forced-update conversion budget is live (2 x the bad robots now active that were not
+// converted) instead of 2 x the count at the runtime's first tick, which froze every forced
+// update once the city admitted more robots. No field changes (baseBadCount stays saved).
+// v14 (city life): the game composition shifts the street mix toward robots by district and hour
+// without adding bodies (content/city-life.json; AgentsRuntimeState.density), stages the Ambient
+// Director's cards as street incidents (src/sim/agents/incidents.ts; AgentsRuntimeState.incidents
+// and nextIncident), and a chasing robot pressed against a vehicle steps out instead of freezing.
+// Traffic flow (same version): robots on foot no longer take vehicles for robots to update (a
+// Footman stood at a robotaxi's nose for good), and a robotaxi on a short link between two
+// junctions contends for the one ahead instead of holding the one behind (SHORT_LINK_M).
+// All new fields are optional: the upgrade only restamps.
+// v14 (the dodge stream, 2026-10-23): people get out of a vehicle's way on their feet, the way
+// people do: a sidestep, a jog or a sprint at human speeds (about 2.5-6 m/s) with limited
+// acceleration, never a hop or a flight. DodgeState gains the body's velocity (vx, vz) and the
+// dodge's top speed (vmax); a person's hop is always 0. upgradeState lifts the previous version.
+export const SIM_VERSION = 14;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
@@ -166,9 +187,11 @@ export interface CarState {
  * v4: a body getting out of a vehicle's way (src/sim/dodge.ts): a dive to a clear spot, then a
  * moment to recover. While it lasts the body ignores its own controls (a player) or its path (an
  * agent), and its y includes the hop.
+ * v14: a person's "dive" is on their feet (a sidestep, a jog or a sprint toward (tx, tz) at up to
+ * vmax, speeding up and slowing down at human rates); only robots still hop.
  */
 export interface DodgeState {
-  /** "dive": in the air, from (sx, sz) to (tx, tz); "recover": landed, getting up. */
+  /** "dive": on the way from (sx, sz) to (tx, tz); "recover": there, catching their breath. */
   phase: "dive" | "recover";
   sx: number;
   sz: number;
@@ -182,10 +205,16 @@ export interface DodgeState {
   /** Height above the ground now, metres (0 while recovering). */
   hop: number;
   /**
-   * The clearance override put it at (tx, tz) at once: a superhuman leap (renderers draw it as
-   * a big hop over the arc). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
+   * The clearance override put it at (tx, tz) at once (renderers draw a person's as a stumble
+   * or a shove aside, never a flight). Otherwise it moves from (sx, sz) to (tx, tz) over the dive.
    */
   leap: boolean;
+  // ---- v14 additions ----
+  /** The body's horizontal velocity now, m/s (0 while recovering and after a leap). */
+  vx: number;
+  vz: number;
+  /** The most this dodge moves the body at, m/s (more when it scrambles). */
+  vmax: number;
 }
 
 /** A player on foot. Present only while PlayerState.mode === "foot". */

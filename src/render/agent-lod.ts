@@ -278,6 +278,9 @@ export function gaitAmount(speed: number, cruise: number): number {
 export interface AgentCue {
   brake: number;
   flash: number;
+  /** Combat presentation (render-only, runtime-actors.ts): rust 0..1 and wetness 0..1, set by the caller; agentCue leaves them alone. */
+  rust?: number;
+  wet?: number;
   /** Render time (s) until which slowing keeps the brake lights on; carried per agent between frames. */
   brakeUntil: number;
 }

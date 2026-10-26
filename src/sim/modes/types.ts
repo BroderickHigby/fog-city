@@ -40,5 +40,7 @@ export interface MatchContext {
   paused?:boolean;
   /** A recorded host/server decision to end the match now (SimEvent "mode.end"). */
   endRequested?:boolean;
+  /** Players joining the running match this tick (SimEvent "mode.join"), with their team. */
+  joins?:ReadonlyArray<{id:string;team:number}>;
 }
 export interface MatchPayout {xp:number;cashCents:number;achievements:string[];factionClockMoves:number}

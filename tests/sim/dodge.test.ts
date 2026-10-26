@@ -5,12 +5,15 @@
 // the real city is tests/sim/dodge-soak.test.ts.
 import { describe, expect, it } from "vitest";
 import {
+  CAR_MAX_TURN_ACCEL,
   AGENT_SPEC,
   CAR,
   DODGE_MIN_SPEED,
   DODGE_PROFILE,
+  EMERGENCY_BOOST,
   FOOT,
   LANDING_EXTRA_M,
+  LANDING_PER_MPS,
   SAMPLE_S,
   SLIP_RAD,
   advanceDodge,
@@ -45,10 +48,12 @@ import {
   type AgentsExt,
   type BoundaryFile,
   type BuildingCollider,
+  type DodgeState,
   type Ground,
   type SimState,
   type Vehicle,
   type World,
+  withoutStreetProps,
 } from "../../src/sim/index.ts";
 import { deepFreeze } from "../helpers.ts";
 import { emptyWorld, gridCity, terrainWorld } from "./fixtures.ts";
@@ -66,12 +71,12 @@ function carVehicle(x: number, z: number, heading: number, speed: number, latera
 }
 
 describe("the predicted footprint", () => {
-  it("looks 0.6 s ahead, 0.025 s more per m/s, at most 1.5 s", () => {
-    expect(horizonS(0)).toBe(0.6);
-    expect(horizonS(10)).toBeCloseTo(0.85, 12);
-    expect(horizonS(20)).toBeCloseTo(1.1, 12);
-    expect(horizonS(38)).toBe(1.5);
-    expect(horizonS(60)).toBe(1.5);
+  it("looks 1 s ahead, 0.05 s more per m/s, at most 2.5 s (v14: people on foot need the time)", () => {
+    expect(horizonS(0)).toBe(1);
+    expect(horizonS(10)).toBeCloseTo(1.5, 12);
+    expect(horizonS(20)).toBeCloseTo(2, 12);
+    expect(horizonS(30)).toBe(2.5);
+    expect(horizonS(60)).toBe(2.5);
   });
 
   it("is empty below DODGE_MIN_SPEED", () => {
@@ -123,8 +128,9 @@ describe("the predicted footprint", () => {
     const turned = Math.atan2(arc.at(-1)!.fx, -arc.at(-1)!.fz);
     expect(turned).toBeCloseTo(0.5 * arc.at(-1)!.t, 6);
     expect(Math.atan2(line.at(-1)!.fx, -line.at(-1)!.fz)).toBeCloseTo(turned, 9);
-    // The hardest turn: CAR.gripAccel / speed rad/s, bending further east than the arc.
-    expect(Math.atan2(hard.at(-1)!.fx, -hard.at(-1)!.fz)).toBeCloseTo((CAR.gripAccel / 20) * hard.at(-1)!.t, 6);
+    // The hardest turn: CAR_MAX_TURN_ACCEL / speed rad/s (the front's grip with full weight
+    // transfer, v12 dynamics), bending further east than the arc.
+    expect(Math.atan2(hard.at(-1)!.fx, -hard.at(-1)!.fz)).toBeCloseTo((CAR_MAX_TURN_ACCEL / 20) * hard.at(-1)!.t, 6);
     expect(hard.at(-1)!.x).toBeGreaterThan(arc.at(-1)!.x + 1);
     // A robotaxi keeps to its route: no such guess.
     expect(predictPaths({ ...v, spread: 0 })).toHaveLength(2);
@@ -170,8 +176,9 @@ describe("the predicted footprint", () => {
 describe("where a body dives", () => {
   const person = (x: number, z: number, id = 1) => ({ x, z, y: 0, r: 0.3, cls: "person" as const, id });
 
-  it("square to the path, to the side it is on, just clear of the footprint plus margin and the landing extra", () => {
+  it("square to the path, to the side it is on, just clear of the footprint plus margin and the landing extra (v14: more from a faster car holding its line)", () => {
     const v = carVehicle(0, 30, 0, 25); // north at 25 m/s, at the person (x 0.4 right of its line)
+    const extra = LANDING_EXTRA_M + LANDING_PER_MPS * 25;
     for (const [x, side] of [
       [0.4, 1],
       [-0.4, -1],
@@ -181,9 +188,9 @@ describe("where a body dives", () => {
       const to = chooseDive(ground(flat), b, hit, [v], [])!;
       expect(Math.sign(to.x - b.x)).toBe(side);
       expect(Math.abs(to.z - b.z)).toBeLessThan(1e-9);
-      expect(sweepClearance(v, to.x, to.z)).toBeGreaterThanOrEqual(b.r + 0.75 + LANDING_EXTRA_M - 1e-9);
+      expect(sweepClearance(v, to.x, to.z)).toBeGreaterThanOrEqual(b.r + 0.75 + extra - 1e-9);
       // ... and not much further than that (the nearest clear spot on the line).
-      expect(sweepClearance(v, to.x, to.z)).toBeLessThan(b.r + 0.75 + LANDING_EXTRA_M + 0.3);
+      expect(sweepClearance(v, to.x, to.z)).toBeLessThan(b.r + 0.75 + extra + 0.3);
     }
   });
 
@@ -202,7 +209,7 @@ describe("where a body dives", () => {
   it("its side blocked by a building: the other side, never into or through the building", () => {
     // A building's face 0.6 m right of the person (east), the car coming north 0.4 m to their left.
     const w = buildWorld([{ tileId: "b", buildings: [box("b", 1.0, -20, 20, 20)], ground: null }]);
-    const v = carVehicle(-0.4, 30, 0, 25);
+    const v = carVehicle(-0.4, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v14)
     const b = person(0.1, 0);
     const to = chooseDive(ground(w), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
     expect(to.x).toBeLessThan(-0.4); // across the car's path, to the west
@@ -214,7 +221,7 @@ describe("where a body dives", () => {
     const boundary: BoundaryFile = { version: 1, seaLevelY: 0, edges: [], shore: [{ closed: false, points: [[1, -200], [1, 200]] }] };
     const w = buildWorld([{ tileId: "f", buildings: [], ground: null }], null, boundary);
     expect(w.walls!.segments.length).toBe(1);
-    const v = carVehicle(-0.3, 30, 0, 25);
+    const v = carVehicle(-0.3, 50, 0, 25); // (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v14)
     const b = person(0.2, 0);
     const to = chooseDive(ground(w), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
     expect(to.x).toBeLessThan(0);
@@ -229,8 +236,8 @@ describe("where a body dives", () => {
   });
 
   it("never into another vehicle's path: with a second car coming down its side, it dives the other way", () => {
-    const v = carVehicle(0, 30, 0, 25); // north, on the person's line
-    const w = carVehicle(2.6, -22, Math.PI, 25); // south, 2.6 m east (the person's side)
+    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v14)
+    const w = carVehicle(2.6, -36, Math.PI, 25); // south, 2.6 m east (the person's side)
     expect(sweepClearance(w, 2.6, 0)).toBeLessThan(0); // its path does cross the person's row
     const b = person(0.3, 0);
     const to = chooseDive(ground(flat), b, sweepHit(v, b.x, b.z, 1.05)!, [v, w], [])!;
@@ -239,7 +246,7 @@ describe("where a body dives", () => {
   });
 
   it("never through a stopped vehicle: with a robotaxi waiting on its side, it dives the other way, not through it", () => {
-    const v = carVehicle(0, 30, 0, 25); // north, on the person's line
+    const v = carVehicle(0, 50, 0, 25); // north, on the person's line (50 m: about when someone sees it coming, horizonS(25) = 2.25 s; on foot they need the time, v14)
     const base = (scene(flat, [], [{ id: 9, x: 2.4, z: 0, kind: "robotaxi" }]).ext.agents as AgentsExt).list[0]!;
     const parked = vehicleOfAgent({ ...base, speed: 0, heading: 0 }, null, 1 / 60); // waiting 2.4 m east
     expect(parked.paths).toEqual([]);
@@ -255,32 +262,39 @@ describe("where a body dives", () => {
   });
 
   it("not along a line the car reaches first: too close for one side, it takes a spot it reaches in time", () => {
-    // The car's nose 1.2 m from the person, at 30 m/s, the person at its left front corner: the
-    // far side is unreachable in time, so it dives left (its own side) however far.
-    const v = carVehicle(0.5, 3.4 + 0.3, 0, 30);
+    // The car's nose 10 m from the person, at 15 m/s (0.67 s), the person at its left front corner:
+    // on foot the far side (across the car's front) is out of reach in time, so it goes left (its
+    // own side). (v14: was 1.2 m at 30 m/s, a distance only the old 9 m/s leap covered.)
+    const v = carVehicle(0.5, 10 + 2.5, 0, 15);
     const b = person(-0.6, 0);
     const to = chooseDive(ground(flat), b, sweepHit(v, b.x, b.z, 1.05)!, [v], [])!;
     expect(to.x).toBeLessThan(b.x);
   });
 
-  it("the dive itself: lerp from start to landing with a hop peaking mid-way, then a recovery, then done", () => {
+  it("the dive itself, on foot: it speeds up at the profile's rate to its top speed, slows to a stop on the spot, never leaves the ground, then recovers and is done", () => {
     const prof = DODGE_PROFILE.person;
-    let d = { phase: "dive" as const, sx: 0, sz: 0, tx: 2.4, tz: 0, t: 0, dur: 18, peak: prof.peak, hop: 0, leap: false };
-    const xs: number[] = [];
-    const hops: number[] = [];
-    let n = advanceDodge(d, prof);
+    let d: DodgeState = { phase: "dive", sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 60, peak: prof.peak, hop: 0, leap: false, vx: 0, vz: 0, vmax: prof.speed };
+    const xs: number[] = [0];
+    const vs: number[] = [0];
+    let n = advanceDodge(d, prof, 0, 0);
     while (n.dodge && n.dodge.phase === "dive") {
+      expect(n.dodge.hop).toBe(0);
       xs.push(n.x);
-      hops.push(n.dodge.hop);
-      d = n.dodge as typeof d;
-      n = advanceDodge(d, prof);
+      vs.push((n.x - xs[xs.length - 2]!) * 60);
+      d = n.dodge;
+      n = advanceDodge(d, prof, n.x, n.z);
     }
-    expect(xs).toHaveLength(17);
-    expect(xs.every((x, i) => i === 0 || x > xs[i - 1]!)).toBe(true);
-    expect(Math.max(...hops)).toBeCloseTo(prof.peak, 2);
-    expect(hops[8]).toBeCloseTo(prof.peak, 9); // t = 9 of 18
+    xs.push(n.x);
+    vs.push((n.x - xs[xs.length - 2]!) * 60);
+    expect(xs.every((x, i) => i === 0 || x >= xs[i - 1]!)).toBe(true);
+    // Never faster than its top speed, never changing speed faster than its acceleration (a hair for rounding).
+    expect(Math.max(...vs)).toBeLessThanOrEqual(prof.speed + 1e-9);
+    for (let i = 1; i < vs.length; i++) expect(Math.abs(vs[i]! - vs[i - 1]!) * 60).toBeLessThanOrEqual(prof.accel * 1.01);
+    // 3 m from a standstill at 7 m/s^2 and back to a stop: about 1.3 s, not 0.33 s at 9 m/s.
+    expect(xs.length / 60).toBeGreaterThan(1.1);
+    expect(xs.length / 60).toBeLessThan(1.5);
     expect(n.dodge!.phase).toBe("recover");
-    expect([n.x, n.z]).toEqual([2.4, 0]);
+    expect([n.x, n.z]).toEqual([3, 0]);
     let ticks = 0;
     let r = n;
     while (r.dodge) {
@@ -288,48 +302,57 @@ describe("where a body dives", () => {
       ticks++;
     }
     expect(ticks).toBe(prof.recover);
-    expect([r.x, r.z]).toEqual([2.4, 0]);
+    expect([r.x, r.z]).toEqual([3, 0]);
   });
 
-  it("a dive turned toward a new landing carries on from where the body is, from about the same point of the dive: no restart, no jump", () => {
+  it("does not snap a moving dive onto a newly nearby target and stop abruptly", () => {
     const prof = DODGE_PROFILE.person;
-    const at = (d: { sx: number; sz: number; tx: number; tz: number; t: number; dur: number }): [number, number] => [d.sx + ((d.tx - d.sx) * d.t) / d.dur, d.sz + ((d.tz - d.sz) * d.t) / d.dur];
-    let d = { phase: "dive" as const, sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 20, peak: prof.peak, hop: 0, leap: false };
-    for (let i = 0; i < 5; i++) d = advanceDodge(d, prof).dodge as typeof d;
-    // A quarter of the way, turned 90 degrees: 3 m to go at dive speed.
-    const rest = Math.ceil(3 / prof.speed / (1 / 60) - 1e-9);
-    const turned = redirectDive(prof, d, 0.75, 0, 0.75, 3);
-    const [x, z] = at(turned);
-    expect(x).toBeCloseTo(0.75, 9);
-    expect(z).toBeCloseTo(0, 9);
-    expect([turned.t, turned.dur, turned.hop]).toEqual([5, 5 + rest, d.hop]);
-    const n = advanceDodge(turned, prof);
-    expect(Math.hypot(n.x - 0.75, n.z)).toBeLessThan((prof.speed * 1.01) / 60);
-    expect(n.z).toBeGreaterThan(0); // on the new line
-    expect(Math.abs(n.dodge!.hop - d.hop)).toBeLessThan(0.05);
-    // Turned every tick toward the same landing, it still gets there on time, its progress
-    // rising all the way (it never freezes mid-dive, never starts over).
-    let r = turned;
-    let pos: [number, number] = [0.75, 0];
-    const us: number[] = [];
-    for (let i = 0; i < 60 && r.phase === "dive"; i++) {
-      const m = advanceDodge(r, prof);
+    const d: DodgeState = { phase: "dive", sx: 0, sz: 0, tx: .02, tz: 0, t: 20, dur: 60, peak: 0, hop: 0, leap: false, vx: 1.5, vz: 0, vmax: prof.speed };
+    const n = advanceDodge(d, prof, 0, 0);
+    expect(n.dodge!.phase).toBe("dive");
+    const vx = n.x * 60;
+    expect(Math.abs(vx - d.vx) * 60).toBeLessThanOrEqual(prof.accel * 1.01);
+    expect(n.dodge!.vx).toBeCloseTo(vx, 12);
+  });
+
+  it("a dive turned toward a new landing carries on from where the body is, keeping its velocity: no restart, no jump, no instant turn", () => {
+    const prof = DODGE_PROFILE.person;
+    let d: DodgeState = { phase: "dive", sx: 0, sz: 0, tx: 3, tz: 0, t: 0, dur: 60, peak: prof.peak, hop: 0, leap: false, vx: 0, vz: 0, vmax: prof.speed };
+    let x = 0;
+    let z = 0;
+    for (let i = 0; i < 20; i++) {
+      const m = advanceDodge(d, prof, x, z);
+      d = m.dodge!;
+      x = m.x;
+      z = m.z;
+    }
+    const v0 = Math.hypot(d.vx, d.vz);
+    expect(v0).toBeGreaterThan(1.5); // under way east
+    // Turned 90 degrees: north of where it is now.
+    const turned = redirectDive(prof, d, x, z, x, z - 3);
+    expect([turned.sx, turned.sz, turned.t, turned.vx, turned.vz]).toEqual([x, z, d.t, d.vx, d.vz]);
+    const n = advanceDodge(turned, prof, x, z);
+    // It carries on east this tick, turning only as fast as it can change its velocity.
+    expect(n.x - x).toBeGreaterThan(0);
+    expect(Math.hypot(n.dodge!.vx - d.vx, n.dodge!.vz - d.vz)).toBeLessThanOrEqual((prof.accel / 60) * 1.0001);
+    // Turned every tick toward the same landing, it still gets there and stops.
+    let r: DodgeState = turned;
+    let pos: [number, number] = [x, z];
+    for (let i = 0; i < 240 && r.phase === "dive"; i++) {
+      const m = advanceDodge(r, prof, pos[0], pos[1]);
       pos = [m.x, m.z];
       if (!m.dodge || m.dodge.phase !== "dive") break;
-      r = redirectDive(prof, m.dodge, m.x, m.z, 0.75, 3);
-      us.push(r.t / r.dur);
+      r = redirectDive(prof, m.dodge, m.x, m.z, x, z - 3);
     }
-    expect(us.length).toBeLessThanOrEqual(rest);
-    for (let i = 1; i < us.length; i++) expect(us[i]!).toBeGreaterThan(us[i - 1]!);
-    expect(pos[0]).toBeCloseTo(0.75, 9);
-    expect(pos[1]).toBeCloseTo(3, 9);
+    expect(pos[0]).toBeCloseTo(x, 9);
+    expect(pos[1]).toBeCloseTo(z - 3, 9);
   });
 });
 
 describe("the clearance override", () => {
   const person = (x: number, z: number) => ({ x, z, y: 0, r: 0.3, cls: "person" as const, id: 1 });
 
-  it("puts a body inside a car at the nearest spot outside its reach plus the clearance", () => {
+  it("puts a body inside a car at the nearest spot outside its reach plus the clearance that is also clear of its path by the body's margin (v14: so it is not needed again a moment later)", () => {
     const v = carVehicle(0, 0, 0, 20);
     const b = person(0.5, -1);
     const to = overrideSpot(ground(flat), b, [v], [], 0.3)!;
@@ -337,9 +360,11 @@ describe("the clearance override", () => {
     expect(boxDistance(to.x, to.z, v.x, v.z, v.fx, v.fz, v.hl, v.hw)).toBeGreaterThanOrEqual(0.6);
     // Clear of everywhere the car can be by the next tick, by the clearance.
     expect(zoneDistance(v, to.x, to.z)).toBeGreaterThanOrEqual(0.6);
-    // Out of the near side (east), about 0.95 - 0.5 + 0.6 m away plus the car's reach.
+    // Out of the near side (east), clear of its predicted path by the margin: about
+    // 0.95 - 0.5 + 0.3 + 0.75 m away (half its width, less where the body is, its radius and margin).
     expect(to.x).toBeGreaterThan(1.5);
-    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(0.95 - 0.5 + 0.6 + v.inflate + 0.15);
+    expect(sweepClearance(v, to.x, to.z, false)).toBeGreaterThanOrEqual(b.r + DODGE_PROFILE.person.margin - 1e-9);
+    expect(Math.hypot(to.x - b.x, to.z - b.z)).toBeLessThan(0.95 - 0.5 + b.r + DODGE_PROFILE.person.margin + 0.3);
   });
 
   it("pinned against a building, it leaps over the car to the other side, never into or through the building", () => {
@@ -439,18 +464,24 @@ describe("the dodge in step()", () => {
     expect(p.mode).toBe("go");
   });
 
-  it("a diving agent hops (y above the ground), is in mode dive then recover, and ignores its path meanwhile", () => {
+  it("a dodging person stays on the ground (v14: no hop), is in mode dive then recover, runs at no more than a scramble's pace and ignores its path meanwhile", () => {
     let s = scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed: 25 }], [{ id: 1, x: 0.2, z: 0 }]);
     const modes = new Set<string>();
     let maxHop = 0;
+    let ran = 0;
     drive(flat, s, 200, (k) => {
       const p = agentsOf(k)[0]!;
       modes.add(p.mode);
-      maxHop = Math.max(maxHop, p.y - meshGroundHeight(flat, p.x, p.z));
-      if (p.dodge) expect(p.speed).toBe(0);
+      maxHop = Math.max(maxHop, Math.abs(p.y - meshGroundHeight(flat, p.x, p.z)));
+      if (p.dodge) {
+        // (Its speed is along its facing while it runs: what the renderer draws it running at.)
+        expect(Math.abs(p.speed)).toBeLessThanOrEqual(DODGE_PROFILE.person.speed * EMERGENCY_BOOST + 1e-9);
+        ran = Math.max(ran, Math.abs(p.speed));
+      } else if (p.mode === "recover") expect(p.speed).toBe(0);
     });
     expect([...modes].sort()).toEqual(["dive", "go", "recover"]);
-    expect(maxHop).toBeGreaterThan(DODGE_PROFILE.person.peak * 0.9);
+    expect(maxHop).toBeLessThan(1e-9);
+    expect(ran).toBeGreaterThan(1);
     void s;
   });
 
@@ -464,7 +495,10 @@ describe("the dodge in step()", () => {
       const f = s.players.b!.foot!;
       if (f.dodge) {
         dived++;
-        expect(f.speed).toBe(0);
+        // On their feet, at no more than a scramble's pace along their facing.
+        expect(f.y).toBeCloseTo(meshGroundHeight(flat, f.x, f.z), 9);
+        expect(Math.abs(f.speed)).toBeLessThanOrEqual(DODGE_PROFILE.player.speed * EMERGENCY_BOOST + 1e-9);
+        expect(f.sprint).toBe(false);
       }
     }
     expect(dived).toBeGreaterThan(DODGE_PROFILE.player.minTicks);
@@ -484,7 +518,7 @@ describe("the dodge in step()", () => {
     expect(dodgeExtOf(a).contacts).toBe(0);
   });
 
-  it("robots dodge too (the Footman hops, the Trundle skids), and stay solid to cars", () => {
+  it("robots do not dodge a player's car (v12, owner request): it bowls them over; they are never under the override", () => {
     expect(agentDodgeClass({ id: 1, kind: "errandRobot" })).toBe("errandRobot");
     expect(agentDodgeClass({ id: 1, kind: "sidewalkBot" })).toBe("sidewalkBot");
     expect(agentDodgeClass({ id: 1, kind: "robotaxi" })).toBeNull();
@@ -493,10 +527,14 @@ describe("the dodge in step()", () => {
       { id: 1, x: 0.2, z: 0, kind: "errandRobot" },
       { id: 2, x: -0.2, z: -10, kind: "sidewalkBot" },
     ]);
-    s = drive(flat, s, 240);
-    for (const r of agentsOf(s)) expect(Math.abs(r.x)).toBeGreaterThan(CAR.halfWidth + AGENT_SPEC[r.kind].radius + 0.75);
-    expect(s.players.a!.car.hits).toBe(0);
-    expect(dodgeExtOf(s).dives).toBe(2);
+    let knocked = 0;
+    s = drive(flat, s, 240, (k) => {
+      for (const r of agentsOf(k)) if (r.knock && r.knock.t === 0 && r.knock.phase === "slide") knocked++;
+    });
+    // Nobody dived: both were hit and knocked over (impacts.ts), and the car kept going.
+    expect(dodgeExtOf(s).dives).toBe(0);
+    expect(knocked).toBeGreaterThanOrEqual(2);
+    expect(s.players.a!.car.z).toBeLessThan(-30);
   });
 
   it("children get the wider berth: they dive further and earlier", () => {
@@ -548,7 +586,8 @@ describe("the dodge in step()", () => {
   });
 
   it("in traffic on the grid city with a player at full throttle along a crowded sidewalk: dives, and no contact", () => {
-    const world = gridCity(true);
+    // (No street props: since v13 the sidewalk's mature trees would stop the car, props.ts.)
+    const world = withoutStreetProps(gridCity(true));
     let s = createInitialState(world, 9, ["p1"], { x: 20, z: 106, heading: Math.PI / 2 });
     for (let t = 0; t < 600; t++) {
       const c = s.players.p1!.car;

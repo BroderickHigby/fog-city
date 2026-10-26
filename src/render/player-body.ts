@@ -1,37 +1,73 @@
 // The player's authored human model is independent of world quality settings. Geometry,
 // clips and base materials are shared; every player owns a skeleton and animation mixer.
+// The player moves with the Mixamo locomotion bank (MIXAMO_MOTION_FILE: idle, walk, jog, run) when
+// it loads, else the model's own baked clips. Getting out of a car's way (the sim's dodge) plays
+// real clips on the same skeleton: Rocketbox's from PLAYER_DODGE_FILE (assets/imports/rocketbox/
+// clips.py: a startled push-off, a sprint, pulling up, brushing off once clear) and Mixamo's from
+// MIXAMO_DODGE_FILE (assets/imports/mixamo/build.ts: a stumble back for the override, a flinch on
+// a sidestep), between the jog or run matched to the body's speed (human-motion.ts).
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
+import type { DodgeState } from "../sim/contract.ts";
+import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
+/** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
+export const PLAYER_DODGE_FILE = "models/anim/dodge-clips.glb";
+export { motionFor };
+/** Blend between clips, seconds (a dodge's clips change faster than a walk's). */
+const FADE_S = 0.25;
+const DODGE_FADE_S = 0.12;
+const JOG_FADE_S = 0.1;
+/** The Mixamo locomotion's own speeds (mixamo-motion.json: jog, and run as the Shift sprint), m/s. */
+const MIXAMO_JOG_MPS = 3;
+const MIXAMO_RUN_MPS = 7;
 /** Drawn yaw closes on the sim heading at this rate (1/s); a turn over TURN_SNAP_RAD snaps. */
 export const TURN_RATE = 14;
 export const TURN_SNAP_RAD = 2.6;
 /** Hair cards are cut out at this alpha rather than blended: no sorting against the head, and they shadow. */
 export const HAIR_ALPHA_CUT = 0.45;
-type Motion = "idle" | "walk" | "jog" | "run";
 export const MIXAMO_MOTION_FILE = "models/mixamo-motion.json";
+/** The Mixamo dodge clips (stumble, flinch) on the same rig: assets/imports/mixamo/build.ts --set dodge. */
+export const MIXAMO_DODGE_FILE = "models/anim/mixamo-dodge.json";
 type ByteLoader = (path: string) => Promise<Uint8Array>;
-const motionBanks = new WeakMap<ByteLoader, Promise<THREE.AnimationClip[]>>();
+const motionBanks = new WeakMap<ByteLoader, Map<string, Promise<THREE.AnimationClip[]>>>();
 
-/** One shared bank for player clones; older/offline asset sets retain their baked motions. */
-function mixamoMotions(bytes: ByteLoader): Promise<THREE.AnimationClip[]> {
-  let bank = motionBanks.get(bytes);
+/** A Mixamo motion bank (assets/imports/mixamo/build.ts) holding at least `needs`: shared per loader; [] when missing or unsupported. */
+function mixamoBank(bytes: ByteLoader, file: string, needs: readonly string[]): Promise<THREE.AnimationClip[]> {
+  let banks = motionBanks.get(bytes);
+  if (!banks) motionBanks.set(bytes, banks = new Map());
+  let bank = banks.get(file);
   if (!bank) {
-    bank = bytes(MIXAMO_MOTION_FILE).then(data => {
+    bank = bytes(file).then(data => {
       const json = JSON.parse(new TextDecoder().decode(data));
       if (json.version !== 1 || json.rig !== "rocketbox" || !Array.isArray(json.clips)) throw new Error("Unsupported Mixamo motion bank");
       const clips: THREE.AnimationClip[] = json.clips.map((clip: Parameters<typeof THREE.AnimationClip.parse>[0]) => THREE.AnimationClip.parse(clip));
-      if (!["idle", "walk", "jog", "run"].every(name => clips.some(clip => clip.name === name && clip.duration > 0 && clip.validate()))) throw new Error("Incomplete Mixamo motion bank");
+      if (!needs.every(name => clips.some(clip => clip.name === name && clip.duration > 0 && clip.validate()))) throw new Error("Incomplete Mixamo motion bank");
       return clips;
     }).catch(() => {
-      motionBanks.delete(bytes);
+      banks.delete(file);
       return [];
     });
-    motionBanks.set(bytes, bank);
+    banks.set(file, bank);
   }
   return bank;
+}
+
+/** One shared bank for player clones; older/offline asset sets retain their baked motions. */
+function mixamoMotions(bytes: ByteLoader): Promise<THREE.AnimationClip[]> {
+  return mixamoBank(bytes, MIXAMO_MOTION_FILE, ["idle", "walk", "jog", "run"]);
+}
+
+/**
+ * The dodge bank's clips for a body loaded from `file`. Its hip height is the player's
+ * (generic-player.glb): another character keeps the rotations and its own hip height.
+ */
+async function mixamoDodge(bytes: ByteLoader, file: string): Promise<THREE.AnimationClip[]> {
+  const clips = await mixamoBank(bytes, MIXAMO_DODGE_FILE, ["stumble", "flinch"]);
+  if (file === PLAYER_BODY_FILE) return clips;
+  return clips.map(clip => new THREE.AnimationClip(clip.name, clip.duration, clip.tracks.filter(track => track.name !== "Bip01_Pelvis.position")));
 }
 export interface BodyRenderCost { drawCalls: number; triangles: number }
 
@@ -94,13 +130,29 @@ export class PlayerBodies {
   private readonly bodies = new Map<string, Body>();
   private readonly walkSpeed: number;
   private readonly runSpeed: number;
+  private readonly sprintSpeed: number;
   private readonly gltf: GLTF;
+  private readonly clips: THREE.AnimationClip[];
   private readonly shadows: boolean;
   private drawnCount = 0;
   private disposed = false;
 
-  private constructor(gltf: GLTF, shadows: boolean) {
+  private constructor(gltf: GLTF, shadows: boolean, dodge: GLTF | null, mixamoDodge: THREE.AnimationClip[]) {
     this.gltf = gltf;
+    this.clips = [...gltf.animations, ...(dodge?.animations ?? []), ...mixamoDodge];
+    let sprint = 5.8;
+    dodge?.scene.traverse(object => {
+      const raw: unknown = object.userData.clips;
+      if (typeof raw !== "string") return;
+      try {
+        for (const c of JSON.parse(raw) as Array<{ name?: unknown; sourceSpeed?: unknown }>) {
+          if (c.name === "sprint" && typeof c.sourceSpeed === "number" && c.sourceSpeed > 0) sprint = c.sourceSpeed;
+        }
+      } catch {
+        // (No clip notes: the default.)
+      }
+    });
+    this.sprintSpeed = sprint;
     this.shadows = shadows;
     let speed = 1.39, runSpeed = 3.2;
     gltf.scene.traverse(object => {
@@ -128,13 +180,21 @@ export class PlayerBodies {
 
   /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */
   static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, file: string = PLAYER_BODY_FILE): Promise<PlayerBodies> {
-    const [buffer, motions] = await Promise.all([bytes(file), file === PLAYER_BODY_FILE ? mixamoMotions(bytes) : Promise.resolve([])]);
+    const [buffer, motions] = await Promise.all([bytes(file), file === PLAYER_BODY_FILE ? mixamoMotions(bytes) : Promise.resolve([] as THREE.AnimationClip[])]);
     const gltf = await new GLTFLoader().parseAsync(buffer.slice().buffer as ArrayBuffer, "");
     if (motions.length) {
       gltf.animations = motions;
       gltf.scene.userData.motionSource = "mixamo";
     }
-    return new PlayerBodies(gltf, shadows);
+    // The dodge clips are optional: without them a dodge plays the plain locomotion.
+    let dodge: GLTF | null = null;
+    try {
+      const clips = await bytes(PLAYER_DODGE_FILE);
+      dodge = await new GLTFLoader().parseAsync(clips.slice().buffer as ArrayBuffer, "");
+    } catch {
+      dodge = null;
+    }
+    return new PlayerBodies(gltf, shadows, dodge, await mixamoDodge(bytes, file));
   }
 
   private body(id: string, tint?: THREE.Color): Body {
@@ -169,10 +229,18 @@ export class PlayerBodies {
     });
     const mixer = new THREE.AnimationMixer(root);
     const action = (name: Motion): THREE.AnimationAction | null => {
-      const clip = this.gltf.animations.find(candidate => candidate.name === name);
-      return clip ? mixer.clipAction(clip) : null;
+      const clip = this.clips.find(candidate => candidate.name === name);
+      if (!clip) return null;
+      const a = mixer.clipAction(clip);
+      if (ONCE.has(name)) {
+        a.setLoop(THREE.LoopOnce, 1);
+        a.clampWhenFinished = true;
+      }
+      return a;
     };
-    const body: Body = { root, mixer, actions: { idle: action("idle"), walk: action("walk"), jog: action("jog"), run: action("run") }, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
+    const actions = {} as Record<Motion, THREE.AnimationAction | null>;
+    for (const m of MOTIONS) actions[m] = action(m);
+    const body: Body = { root, mixer, actions, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
     body.actions.idle?.play();
     this.group.add(root);
     this.bodies.set(id, body);
@@ -184,7 +252,8 @@ export class PlayerBodies {
     this.drawnCount = 0;
   }
 
-  add(id: string, x: number, y: number, z: number, heading: number, speed: number, dt: number, tint?: THREE.Color): void {
+  /** One player on foot this frame: `speed` along their facing, `dodge` the sim's (null: walking). */
+  add(id: string, x: number, y: number, z: number, heading: number, speed: number, dt: number, tint?: THREE.Color, dodge: Readonly<DodgeState> | null = null): void {
     if (this.disposed) return;
     const body = this.body(id, tint);
     body.seen = true;
@@ -193,21 +262,25 @@ export class PlayerBodies {
     body.yaw = easeYaw(body.yaw, heading, dt);
     body.root.rotation.set(0, -body.yaw, 0);
     const velocity = Math.abs(speed);
-    const runAt = body.actions.jog ? 5 : 3.2;
-    const wanted: Motion = velocity >= runAt && body.actions.run ? "run" : velocity >= 2.4 && body.actions.jog ? "jog" : velocity >= 0.2 && body.actions.walk ? "walk" : "idle";
+    const wanted = motionFor(velocity, dodge, m => body.actions[m] !== null);
     body.root.userData.motion = wanted;
     if (wanted !== body.current) {
       const from = body.actions[body.current];
       const to = body.actions[wanted];
       if (to) {
         to.reset().play();
-        // Enter the imported jog promptly: a longer idle blend folds the shoes into the ground.
-        if (from) to.crossFadeFrom(from, body.actions.jog && wanted === "jog" ? 0.1 : 0.25, false);
+        // Enter the imported jog promptly (a longer blend from idle folds the shoes into the
+        // ground); a dodge's clips change faster than a walk's.
+        if (from) to.crossFadeFrom(from, wanted === "jog" ? JOG_FADE_S : dodge || ONCE.has(body.current) ? DODGE_FADE_S : FADE_S, false);
         body.current = wanted;
       }
     }
     const action = body.actions[body.current];
-    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed)) : body.current === "jog" ? Math.max(0.7, Math.min(2, velocity / 3)) : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (body.actions.jog ? 7 : this.runSpeed))) : 1;
+    // Locomotion plays at the body's speed over the clip's own (no foot sliding).
+    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed))
+      : body.current === "jog" ? Math.max(0.7, Math.min(2, velocity / MIXAMO_JOG_MPS))
+      : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (body.actions.jog ? MIXAMO_RUN_MPS : this.runSpeed)))
+      : body.current === "sprint" ? Math.max(0.7, Math.min(1.5, velocity / this.sprintSpeed)) : 1;
     body.mixer.update(Math.max(0, dt));
     this.drawnCount++;
   }

@@ -3,7 +3,9 @@
 
 import type { CombatState } from "../sim/combat-contract.ts";
 
-export type EffectSound = "splash" | "melt-fizz" | "rust-creak" | "moat-jingle" | "robotaxi-horn";
+export type EffectSound =
+  | "splash" | "melt-fizz" | "rust-creak" | "moat-jingle" | "robotaxi-horn"
+  | "door-open" | "door-close" | "impact" | "step-1" | "step-2" | "step-3" | "step-4";
 
 export interface EffectCue {
   sound: EffectSound;
@@ -11,6 +13,10 @@ export interface EffectCue {
   gain: number;
   /** -1 (left) .. 1 (right) relative to the listener's heading. */
   pan: number;
+  /** Playback rate (pitch and speed), default 1. */
+  rate?: number;
+  /** Start this many seconds from now, default 0. */
+  delayS?: number;
 }
 
 export interface Listener {
@@ -134,6 +140,12 @@ export class EffectCueTracker {
         this.splashTimes.push(nowMs);
         cues.push({ sound: "splash", ...where });
       } else if (event.kind === "robot.slumping" || event.kind === "robot.heap") {
+        // The heap lands with a clatter (the impact sample, low and slow), as well as the fizz.
+        if (event.kind === "robot.heap") {
+          const pos = targetPos(event.targetId);
+          const where = pos ? at(pos.x, pos.z, 10, ROBOT_RANGE_M) : { gain: 1, pan: 0 };
+          cues.push({ sound: "impact", gain: 0.55 * where.gain, pan: where.pan, rate: 0.55 });
+        }
         // The fizz runs from the slump into the heap: one per robot.
         if (event.kind === "robot.heap" && this.slumped.has(event.targetId)) continue;
         this.slumped.add(event.targetId);

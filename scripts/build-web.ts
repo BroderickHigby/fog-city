@@ -415,8 +415,9 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   }
 
   // Retargeted motions share the byte-provider path in loose and packed builds.
-  const motions = "models/mixamo-motion.json";
-  if (existsSync(join(pub, motions))) single(motions, new Uint8Array(readFileSync(join(pub, motions))));
+  for (const motions of ["models/mixamo-motion.json", "models/anim/mixamo-dodge.json", "models/anim/mixamo-crowd.json"]) {
+    if (existsSync(join(pub, motions))) single(motions, new Uint8Array(readFileSync(join(pub, motions))));
+  }
 
   // Optional licensed surface scans use the same relative byte provider as models.
   const surfaceDir = join(pub, "textures", "surfaces");

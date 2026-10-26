@@ -24,11 +24,13 @@
     "pusher": {
       "kind": "badRobot",
       "archetype": "updatePusher",
-      "level": 3
+      "level": 3,
+      "posted": true
     },
     "guest": {
       "kind": "goodRobot",
-      "archetype": "errandFootman"
+      "archetype": "errandFootman",
+      "posted": true
     },
     "sticker": {
       "kind": "badRobot",
@@ -155,7 +157,7 @@
       },
       "hint": "Reach the marked turntable when the associates corner you.",
       "next": "bell",
-      "timeLimitS": 180,
+      "timeLimitS": 420,
       "onFail": "retry"
     },
     {

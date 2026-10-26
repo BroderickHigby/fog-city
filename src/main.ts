@@ -26,6 +26,7 @@
 // in the chase camera, mouse or touch drag on the view (or the pad's right stick) orbits round you.
 
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
+import * as THREE from "three";
 import { installDebugHandle } from "./debug.ts";
 import { FramePacer } from "./frame-pacer.ts";
 import { openAssets } from "./io/assets.ts";
@@ -40,6 +41,10 @@ import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { CombatLayer } from "./render/combat-layer.ts";
+import { ImpactLayer } from "./render/impact-layer.ts";
+import { PropDamage } from "./render/prop-damage.ts";
+import { propIndex } from "./sim/props.ts";
+import { meshGroundHeight } from "./sim/world.ts";
 import { SprayTracker } from "./render/held-blaster.ts";
 import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
 import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
@@ -56,6 +61,8 @@ import { missionParkingDestination } from "./sim/missions/parking-world.ts";
 import { agentsRuntimeOf } from "./sim/agents/runtime.ts";
 import { renderWithRuntimeActors } from "./render/runtime-actors.ts";
 import { gameplaySnapshot } from "./sim/player/adapter.ts";
+import { gameTime } from "./sim/clock/calendar.ts";
+import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/index.ts";
 import { RIDE_DESTINATION_EVENT, boardableTaxi } from "./sim/ride.ts";
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
@@ -64,6 +71,7 @@ import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from 
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { leapDrawOffset } from "./render/human-motion.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
 import {
   Action,
@@ -87,8 +95,13 @@ import {
 } from "./sim/index.ts";
 
 const LOCAL_PLAYER = "p1";
+/** The override's drawn offset for a player on foot (render/human-motion.ts). */
+const leapOff = { x: 0, z: 0 };
 const SEED = 1;
-const GAME_WAVE = 3;
+/** The released wave. ?wave=4 previews the next wave's missions (QA and browser tests only). */
+const RELEASED_WAVE = 3;
+const PREVIEW_WAVE = Number(new URLSearchParams(location.search).get("wave"));
+const GAME_WAVE: 3 | 4 = PREVIEW_WAVE === 4 ? 4 : RELEASED_WAVE;
 /** The sim catches up at most this much per frame (a slow frame slows the game, never jumps it). */
 const MAX_FRAME_S = 0.25;
 const CAMERA_MODES: readonly CameraMode[] = ["chase", "first-person", "fly"];
@@ -216,6 +229,7 @@ async function boot(): Promise<void> {
       radius: numParam(params, "radius") ?? 1500,
       shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
       quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
+      gpuMemory: params.get("gpumem") === "1",
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
@@ -226,6 +240,7 @@ async function boot(): Promise<void> {
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
       landmarks: landmarksDoc,
+      tide: { line: TIDE_PROMENADE, nearM: WEATHER.promenadeNearM, farM: WEATHER.promenadeFarM, floods: (x, z) => promenadeAt(world, x, z) },
     },
   );
   // ?debug=1 exposes the renderer for diagnostics and graphics-recovery browser checks.
@@ -258,7 +273,7 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const audio=createGameAudioDirector({host:container,missions:MISSIONS});void audio.load();
+  const audio=createGameAudioDirector({host:container,missions:MISSIONS,weather:(s,x,z)=>weatherView(world,s,x,z)});void audio.load();
   const restoreSave=(data:Parameters<typeof validateSavedProgression>[0]):void=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
@@ -287,9 +302,19 @@ async function boot(): Promise<void> {
   };
   // Online Bot Sweep (src/ui/multiplayer.ts): absent without a configured relay. The city waits,
   // unstepped, while a match owns the screen.
-  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+  const projected=new THREE.Vector3();let lookIds:string[]=[];
+  const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,
+    onLooks:looks=>{for(const id of lookIds)if(!(id in looks))view.actors.setLookSlot(id,null);lookIds=Object.keys(looks);for(const id of lookIds)view.actors.setLookSlot(id,looks[id]!);},
+    project:(x,y,z)=>{const cam=view.camera;projected.set(x,y,z);const distance=projected.distanceTo(cam.position);projected.project(cam);if(projected.z>1||projected.z<-1)return null;const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(projected.x+1)/2*r.width,y:r.top+(1-projected.y)/2*r.height,distance};},onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
+  const impactLayer=new ImpactLayer(view.scene);
+  const props=propIndex(world);
+  const propDamage=new PropDamage(view.scene,{prop:id=>props.byId.get(id),
+    hydrants:(world.gameplay?.refills??[]).filter(r=>r.kind==="hydrant").map(r=>({id:`hydrant:${r.id}`,x:r.x,z:r.z})),
+    ground:(x,z)=>meshGroundHeight(world,x,z),setFoliageOverride:fn=>view.setFoliageOverride(fn)});
+  if (params.get("debug") === "1") (window as unknown as { __fogcityImpacts?: ImpactLayer }).__fogcityImpacts = impactLayer;
+  if (params.get("debug") === "1") (window as unknown as { __fogcityProps?: PropDamage }).__fogcityProps = propDamage;
   const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
   send({kind:"mission-start",targetId:"hot-desk"});
@@ -301,6 +326,7 @@ async function boot(): Promise<void> {
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
+  let nextWeather = 0;
 
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
     prev = curr;
@@ -404,6 +430,9 @@ async function boot(): Promise<void> {
     renderInfo: () => view.info(),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
+    previewCombatLook: (stages) => view.previewCombatLook(stages),
+    setTimeOfDay: (name) => view.setTimeOfDay(name),
+    renderStats: () => view.renderStats(),
     loseContext: () => view.renderer.forceContextLoss(),
     restoreContext: () => view.renderer.forceContextRestore(),
     setCameraMode: (m) => view.setCameraMode(m),
@@ -543,6 +572,14 @@ async function boot(): Promise<void> {
         f.z = lerp(fa.z, fb.z, alpha);
         f.heading = fa.heading + wrapAngle(fb.heading - fa.heading) * alpha;
         f.speed = lerp(fa.speed, fb.speed, alpha);
+        f.dodge = fb.dodge;
+        // The override moved them at once: drawn as a shove aside (render/human-motion.ts).
+        if (fb.dodge && fb.dodge.leap && fb.dodge.phase === "dive") {
+          leapDrawOffset(fb.dodge, alpha, leapOff);
+          f.x = fb.x + leapOff.x;
+          f.y = fb.y;
+          f.z = fb.z + leapOff.z;
+        }
       }
       view.setFoot(id, onFoot ? P.foot : null);
       if (id === me_) {
@@ -570,12 +607,24 @@ async function boot(): Promise<void> {
     const sprays = sprayTracker.update(shown.ext.combat?.projectiles);
     for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
-    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out));
+    combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out),dtFrame);
+    impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
+    propDamage.update(shown,dtFrame,target.x,target.z);
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
-    const minute = gameMinuteOfDay(shown, clockStart);
+    // The sim's calendar is the game clock when its clock system runs; the light follows it
+    // unless a look is pinned (?tod=, ?night=1, N). The weather is read at the camera.
+    const calendar = shown.ext.clock ? gameTime(shown) : null;
+    const minute = calendar ? calendar.hour * 60 + calendar.minute + calendar.second / 60 : gameMinuteOfDay(shown, clockStart);
+    if (calendar) view.setDaylight(calendar.month, calendar.day, minute / 60);
+    if (now >= nextWeather) {
+      nextWeather = now + 100;
+      const cam = view.camera.position;
+      view.setWeather(weatherView(world, shown, cam.x, cam.z));
+    }
     local.id = me_;
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
     if (!guard.contextLost) view.render();
+    multiplayer.overlay();
 
     const info = view.info(renderInfo);
     const me = shown.players[me_];

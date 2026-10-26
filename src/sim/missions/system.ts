@@ -1,11 +1,14 @@
 import { observeMission } from "./observed.ts";
 import { prepareMissionParking } from "./mechanics/runtime.ts";
+import { DUEL_WIN_CENTS, DUEL_WIN_QUARTERS, prepareMissionBell } from "./mechanics/bell.ts";
 import { clamp } from "../dmath.ts";
 import { toLocal } from "../../geo/project.ts";
 import type { Mission,Place,Step } from "../../content/missions.ts";
 import { commands,distanceSquared,event,facts,sortedBodies,validId } from "../player/common.ts";
 import type { GameplayContext,GameplayFact,HeatState,MissionProgress,MissionState,PlayerGameplayState } from "../player/types.ts";
 
+/** Completion facts with a single measured producer; copies from any other source are dropped. */
+const MEASURED_FACTS=new Set(["demo.parkedLegally","demo.robotPresented","botCheck.falsePositiveSeen","bell.duelStarted","bell.cue","bell.ring","bell.roundWon","bell.roundLost","bell.duelWon","bell-duel.lost"]);
 export function createMissionProgress():MissionProgress{return {missionId:"",stepId:"",status:"idle",startedTick:0,stepStartedTick:0,deadlineTick:0,questionIndex:0,objectiveCount:0,objectiveIds:[],meters:{},completedIds:[],rewardedIds:[],retryFrom:"",outcome:"",commandSequence:0,visits:0};}
 export function createMissions(tick=0):MissionState{return {version:1,tick,nextId:1,players:{},factCursors:{},events:[]};}
 export function missionPlace(place:Place):{x:number;y:number;z:number}{return {...toLocal(place.lat,place.lon),y:0};}
@@ -16,12 +19,23 @@ function attemptId(playerId:string,tick:number):string {let hash=2166136261;for(
 function start(progress:MissionProgress,mission:Mission,tick:number,playerId:string):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;if((mission.wave??2)>=3)progress.actorAttempt=attemptId(playerId,tick);else delete progress.actorAttempt;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
-export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState):MissionState {
+export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:number,heat:HeatState,player:PlayerGameplayState,seed=0):MissionState {
  const state:MissionState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};
  const parking=ctx.wave>=3?prepareMissionParking(previous.parking,previous,ctx,tick):undefined;
  if(parking)state.parking=parking.state;
  // Authored completion facts have a single producer. External copies cannot bypass measurement.
- const incoming=facts({...ctx,facts:[...ctx.facts.filter(f=>!["demo.parkedLegally","demo.robotPresented","botCheck.falsePositiveSeen"].includes(f.kind)),...parking?.facts??[]]},tick,state.factCursors);
+ const bell=ctx.wave>=4?prepareMissionBell(previous.bell,previous,ctx,heat,tick,seed):undefined;
+ if(bell)state.bell=bell.state;
+ const incoming=facts({...ctx,facts:[...ctx.facts.filter(f=>!MEASURED_FACTS.has(f.kind)),...parking?.facts??[],...bell?.facts??[]]},tick,state.factCursors);
+ // The duel's beats are public (UI cues, audio) and its result moves heat, cash and the player.
+ for(const fact of bell?.facts??[]){
+  event(state,fact.kind,fact.playerId,fact.actorId??"",fact.amount??0,fact.detail??"");
+  if(fact.kind==="bell.duelWon"){
+   const quarters=heat.players[fact.playerId]?.vcQuarters??0;
+   if(quarters>DUEL_WIN_QUARTERS)event(state,"mission.vc",fact.playerId,"bell-duel",(DUEL_WIN_QUARTERS-quarters)/4);
+   event(state,"mission.cash",fact.playerId,"bell-duel",DUEL_WIN_CENTS);
+  }
+ }
  for(const body of sortedBodies(ctx)){
   const old=previous.players[body.id]??createMissionProgress();const own:MissionProgress={...old,meters:{...old.meters},completedIds:[...old.completedIds],rewardedIds:[...old.rewardedIds],objectiveIds:[...old.objectiveIds]};state.players[body.id]=own;
   const eligible=ctx.missions.filter(m=>(m.wave??2)<=ctx.wave).sort((a,b)=>(a.campaign??0)-(b.campaign??0)||(a.id<b.id?-1:1));

@@ -191,3 +191,92 @@ export function personLook(id: number, out: PersonLook): PersonLook {
   out.scale = 0.93 + (hash(id, 5) % 1000) / 1000 * 0.14;
   return out;
 }
+
+// ---------------------------------------------------------------- dodging
+
+/**
+ * How the placeholder person stands and swings its limbs this frame, beyond the walk: `lean`
+ * pitches the whole body about the feet (+ forward), `legGain` and `armGain` scale the gait's
+ * swing (radians at full swing), `armOut` raises both arms out to the sides (radians).
+ */
+export interface PersonPose {
+  lean: number;
+  legGain: number;
+  armGain: number;
+  armOut: number;
+}
+
+/** Walking swing, radians at full swing (the gait's amplitude before this file's dodge poses). */
+export const WALK_LEG = 0.42;
+export const WALK_ARM = 0.34;
+/**
+ * Running: the swing grows to RUN_LEG / RUN_ARM and the body leans forward by up to RUN_LEAN as
+ * the speed goes from RUN_FROM to RUN_FULL m/s. Measured off the Rocketbox clips the player
+ * plays (thigh and upper-arm segments in the sagittal plane): m_walk_neutral thigh +-0.44 rad
+ * (WALK_LEG); m_run_fast_01 (5.8 m/s) thigh +-0.75, upper arm +-0.49, trunk 0.12-0.17 forward.
+ */
+export const RUN_LEG = 0.75;
+export const RUN_ARM = 0.5;
+export const RUN_LEAN = 0.15;
+export const RUN_FROM = 1.8;
+export const RUN_FULL = 4.5;
+/** Steps lengthen from STRIDE_M walking to RUN_STRIDE_M at a full run, metres per step (m_run_fast_01: 1.75 m a step at 5.8 m/s). */
+export const RUN_STRIDE_M = 1.6;
+/** The startle at the start of a dodge, seconds: arms flare and the body rocks back, then runs. */
+export const STARTLE_S = 0.25;
+
+/** Metres per step at `speed` m/s (so the feet never slide: the gait advances with distance). */
+export function strideFor(speed: number): number {
+  const k = runAmount(speed);
+  return STRIDE_M + (RUN_STRIDE_M - STRIDE_M) * k;
+}
+
+function runAmount(speed: number): number {
+  const v = Math.abs(speed);
+  return v <= RUN_FROM ? 0 : v >= RUN_FULL ? 1 : (v - RUN_FROM) / (RUN_FULL - RUN_FROM);
+}
+
+/** The dodge as the renderer needs it (contract.ts DodgeState). */
+export interface DodgeLike {
+  phase: "dive" | "recover";
+  t: number;
+  dur: number;
+  leap: boolean;
+}
+
+/**
+ * The pose of a person moving at `speed` m/s (horizontal, from the drawn motion) in `dodge`
+ * (null: walking or standing). Fills and returns `out`. A dodge reads as a startle (arms flare,
+ * a rock back) for STARTLE_S, then a run whose swing and lean follow the speed; the override's
+ * leap as a stumble (rocked back, arms thrown out, then caught); the recovery as a breath with
+ * the hands coming down. Never a hop: the body stays on its feet.
+ */
+export function dodgePose(dodge: Readonly<DodgeLike> | null, speed: number, out: PersonPose): PersonPose {
+  const k = runAmount(speed);
+  out.lean = RUN_LEAN * k;
+  out.legGain = WALK_LEG + (RUN_LEG - WALK_LEG) * k;
+  out.armGain = WALK_ARM + (RUN_ARM - WALK_ARM) * k;
+  out.armOut = 0;
+  if (!dodge) return out;
+  const tS = dodge.t / 60;
+  if (dodge.phase === "dive" && dodge.leap) {
+    const u = dodge.dur > 0 ? Math.min(1, dodge.t / dodge.dur) : 1;
+    const s = Math.sin(Math.PI * u);
+    out.lean = -0.28 * s;
+    out.armOut = 1.1 * s;
+    out.legGain = WALK_LEG * 0.6;
+    return out;
+  }
+  if (dodge.phase === "dive" && tS < STARTLE_S) {
+    const s = 1 - tS / STARTLE_S;
+    out.lean = out.lean * (1 - s) - 0.1 * s;
+    out.armOut = 0.6 * s;
+    return out;
+  }
+  if (dodge.phase === "recover") {
+    const u = dodge.dur > 0 ? Math.min(1, dodge.t / dodge.dur) : 1;
+    out.lean = 0.12 * (1 - u) * (1 - u);
+    out.armOut = 0.15 * (1 - u);
+  }
+  return out;
+}

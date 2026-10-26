@@ -6,6 +6,7 @@
 // Each person keeps one character (picked from its agent id) for as long as it lives. A body
 // unseen for CROWD_FORGET_S is disposed, so memory follows the people near the camera.
 import * as THREE from "three";
+import type { DodgeState } from "../sim/contract.ts";
 import { PlayerBodies, type BodyRenderCost } from "./player-body.ts";
 
 export const CROWD_FILES: readonly string[] = [
@@ -79,13 +80,14 @@ export class CrowdHumans {
    * Draw person `id` this frame. False when its character has not loaded yet or the crowd is
    * full: the caller draws the procedural person instead.
    */
-  add(id: number, x: number, y: number, z: number, heading: number, speed: number, dt: number): boolean {
+  /** `dodge`: the agent's (sim/dodge.ts) while it gets out of a car's way, else null: picks the dodge clips (human-motion.ts). */
+  add(id: number, x: number, y: number, z: number, heading: number, speed: number, dt: number, dodge: Readonly<DodgeState> | null = null): boolean {
     if (this.disposed || this.drawnCount >= CROWD_NEAR_MAX) return false;
     const bodies = this.kinds[characterFor(id, this.kinds.length)];
     if (!bodies) return false;
     const cost = bodies.renderCost;
     if (this.calls + cost.drawCalls > this.drawBudget) return false;
-    bodies.add(String(id), x, y, z, heading, speed, dt);
+    bodies.add(String(id), x, y, z, heading, speed, dt, undefined, dodge);
     this.seen.set(id, this.time);
     this.drawnCount++;
     this.calls += cost.drawCalls;

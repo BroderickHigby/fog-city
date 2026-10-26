@@ -5,9 +5,10 @@ import { planServiceRuntime } from "./service-runtime.ts";
 import {decodeMissionScene,planSceneActors} from "./scene-actors.ts";
 import { planMissionActors, stageActorId } from "./mission-actors.ts";
 import {pendingMissionStages} from "./mission-staging.ts";
+import {incidentPlace,planIncident,stageRequests,type Incident} from "./incidents.ts";
 import type { CombatActorMetadata, CombatAdapterOptions } from "../combat/adapter.ts";
 import {
-  agentsRuntimeOf, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
+  agentsRuntimeOf, fallbackGraph, naturalBadCount, observeAgentRuntime, planAgentRuntime, runtimeCombatActors,
   runtimeAttackRequests, type AgentRuntimeOptions, type AgentMotionProposal,
 } from "./runtime.ts";
 
@@ -85,7 +86,37 @@ export function createAgentsSystem(provider: AgentRuntimeProvider = () => ({}), 
         }
       }
     }
+    // Street incidents (v11 city life): the director's cards staged a short walk from the player.
+    const previousRuntime=agentsRuntimeOf(state);
+    const incidents:Record<string,Incident>={};let nextIncident=previousRuntime?.nextIncident??1;
+    for(const id of Object.keys(previousRuntime?.incidents??{}).sort()){
+      const incident=previousRuntime!.incidents![id]!;
+      // Kept while any of its robots is still about.
+      if(incident.actorIds.some(actorId=>previousRuntime!.actors[actorId]&&!previousRuntime!.actors[actorId]!.retired))incidents[id]=incident;
+    }
+    if(allocate&&options.director){
+      const graph=options.graph??context.world.sidewalks??fallbackGraph(context.world);
+      for(const request of stageRequests(state)){
+        const player=state.players[request.playerId],card=options.director.cards.find(c=>c.id===request.cardId);
+        if(!player||!card||!graph)continue;
+        if(Object.keys(incidents).filter(id=>incidents[id]!.playerId===request.playerId).length>=options.director.maxActive)continue;
+        const body=player.mode==="foot"&&player.foot?player.foot:player.car;
+        const bad=card.actors.some(a=>a.kind==="badRobot"||a.kind==="rogueTaxi"||a.kind==="moatVan");
+        const allowed=(x:number,z:number)=>!bad||!options.protectedArea?.(x,z);
+        const place=incidentPlace(graph,card,body,options.director.stageM,`${state.seed}:${state.tick}:${request.playerId}`,allowed);
+        if(!place)continue;
+        const plan=planIncident(context.world,state,card,nextIncident,request.playerId,place,graph,allowed,spawns);
+        if(!plan.length)continue;
+        const reserved=allocate(state,plan.map(actor=>actor.id));state=reserved.state;
+        for(const actor of plan)spawns.push({...actor,numericId:reserved.ids[actor.id]!});
+        const id=`incident:${nextIncident}`;nextIncident++;
+        incidents[id]={id,cardId:card.id,playerId:request.playerId,tick:state.tick,x:place.x,z:place.z,
+          actorIds:plan.map(actor=>actor.id).sort((a,b)=>(plan.find(p=>p.id===a)!.firmware==="bad"?0:1)-(plan.find(p=>p.id===b)!.firmware==="bad"?0:1)||(a<b?-1:a>b?1:0)),
+          targetIds:plan.filter(actor=>actor.firmware==="bad").map(actor=>actor.id).sort()};
+      }
+    }
     const runtime=planAgentRuntime(context.world,state,context.inputs,{...options,spawns,vehicleControls:{...options.vehicleControls,...service?.controls,...transit?.controls}});
+    if(options.director||Object.keys(incidents).length){runtime.incidents=incidents;runtime.nextIncident=nextIncident;}
     if(service){runtime.services=service.state;for(const id of service.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     if(transit){runtime.transit=transit.state;for(const id of transit.retirements)if(runtime.actors[id])runtime.actors[id]!.retired=true;}
     runtime.missionBindings=bindings;
@@ -121,7 +152,7 @@ export function agentsCombatOptions(state: Readonly<SimState>): CombatAdapterOpt
     if (runtime?.actors[actor.id]?.legacyId !== null) actorMetadata[actor.id] = actor;
     else extraActors.push(actor);
   }
-  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:runtime.baseBadCount*2}:{}) };
+  return { actorMetadata, extraActors, attacks: runtimeAttackRequests(state),...(runtime?{conversionCap:naturalBadCount(state,runtime)*2}:{}) };
 }
 
 /** Core composes the configured provider once world navigation and service data are loaded. */

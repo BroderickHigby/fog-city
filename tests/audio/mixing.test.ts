@@ -147,11 +147,11 @@ describe("effect cues", () => {
     expect(t.update(combat([], [event("projectile.ended", { amount: 1, detail: "range" }), event("projectile.ended", { amount: 2, detail: "actor" })]), listener, [], 1, false)).toEqual([]);
   });
 
-  it("creaks on a seize and fizzes once from slump to heap", () => {
+  it("creaks on a seize, fizzes once from slump to heap, and clatters on the heap", () => {
     const t = new EffectCueTracker();
     const robot: HummingActor = { id: "r1", x: 0, z: -20, retired: false, tellIds: [], hiddenTellId: null };
     const cues = t.update(combat([], [event("robot.seized", { targetId: "r1" }), event("robot.slumping", { targetId: "r1" }), event("robot.heap", { targetId: "r1" })]), listener, [robot], 0, false);
-    expect(cues.map((c) => c.sound)).toEqual(["rust-creak", "melt-fizz"]);
+    expect(cues.map((c) => c.sound)).toEqual(["rust-creak", "melt-fizz", "impact"]); // one fizz; the heap also clatters
     expect(Math.abs(cues[0]!.pan)).toBeLessThan(0.01); // straight ahead
   });
 

@@ -7,7 +7,7 @@ import { hashState, SIM_VERSION } from "../sim/index.ts";
  * different world data or sim versions; it is not a security boundary. Rendered models are left
  * out: they never reach the sim.
  */
-export function worldFingerprint(files: Pick<WorldFiles, "manifest" | "boundary" | "gameplay" | "sidewalks">): string {
+export function worldFingerprint(files: Pick<WorldFiles, "manifest" | "boundary" | "gameplay" | "sidewalks" | "streetProps">): string {
   const manifest = files.manifest;
   const tiles = manifest.tiles as ReadonlyArray<{ id: string; stats?: unknown }>;
   return hashState({
@@ -18,5 +18,7 @@ export function worldFingerprint(files: Pick<WorldFiles, "manifest" | "boundary"
     refills: files.gameplay?.refills ?? [],
     source: files.gameplay?.sourceSnapshot ?? "",
     sidewalks: files.sidewalks ? [files.sidewalks.nodes.length, files.sidewalks.edges.length] : null,
+    // Street props a car can hit (src/sim/props.ts); left out when absent, so older ids hold.
+    ...(files.streetProps ? { streetProps: files.streetProps.length } : {}),
   });
 }
