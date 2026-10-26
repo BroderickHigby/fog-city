@@ -92,18 +92,27 @@ export class AvatarGround {
   }
 
   heightAt(x: number, y: number, z: number): number {
-    if (![x, y, z].every(Number.isFinite)) return y;
+    return this.sampleAt(x, y, z, y) ?? y;
+  }
+
+  /** The actual local floor under a shoe probe, including a downhill point below the body. */
+  surfaceAt(x: number, referenceY: number, z: number): number | undefined {
+    return this.sampleAt(x, referenceY, z, referenceY - MAX_LIFT_M);
+  }
+
+  private sampleAt(x: number, y: number, z: number, minimum: number): number | undefined {
+    if (![x, y, z].every(Number.isFinite)) return undefined;
     const cell = this.cells.get(cellKey(Math.floor(x / CELL_M), Math.floor(z / CELL_M)));
-    if (!cell) return y;
-    let height = y;
+    if (!cell) return undefined;
+    let height: number | undefined;
     for (const triangles of cell.values()) for (const triangle of triangles) {
-      if (triangle.maxY < height || triangle.minY > y + MAX_LIFT_M) continue;
+      if (triangle.maxY < (height ?? minimum) || triangle.minY > y + MAX_LIFT_M) continue;
       const a = ((triangle.bz - triangle.cz) * (x - triangle.cx) + (triangle.cx - triangle.bx) * (z - triangle.cz)) / triangle.denominator;
       const b = ((triangle.cz - triangle.az) * (x - triangle.cx) + (triangle.ax - triangle.cx) * (z - triangle.cz)) / triangle.denominator;
       const c = 1 - a - b;
       if (Math.min(a, b, c) < -1e-8) continue;
       const candidate = a * triangle.ay + b * triangle.by + c * triangle.cy;
-      if (candidate >= height && candidate <= y + MAX_LIFT_M) height = candidate;
+      if (candidate >= (height ?? minimum) && candidate <= y + MAX_LIFT_M) height = candidate;
     }
     return height;
   }

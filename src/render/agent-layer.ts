@@ -24,6 +24,8 @@
 // Until a kind's model has loaded (or if it never does), its agents draw as the box proxy.
 
 import * as THREE from "three";
+import { carAppearance, type CarAppearance } from "./car-appearance.ts";
+import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
 import {
@@ -83,6 +85,9 @@ export class PartMesh {
   count = 0;
   private readonly cue: THREE.InstancedBufferAttribute;
   private readonly cols: THREE.InstancedBufferAttribute[];
+  private readonly carPaint: THREE.InstancedBufferAttribute;
+  private readonly carAccent: THREE.InstancedBufferAttribute;
+  private readonly carMotion: THREE.InstancedBufferAttribute;
 
   constructor(geometry: THREE.BufferGeometry, material: THREE.Material, capacity: number, name: string, slots: boolean) {
     // Share the vertex data; the instanced attributes are this mesh's own.
@@ -94,6 +99,10 @@ export class PartMesh {
     this.cue = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4);
     this.cue.setUsage(THREE.DynamicDrawUsage);
     g.setAttribute("fcCue", this.cue);
+    this.carPaint = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 4), 4).setUsage(THREE.DynamicDrawUsage);
+    this.carAccent = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 3), 3).setUsage(THREE.DynamicDrawUsage);
+    this.carMotion = new THREE.InstancedBufferAttribute(new Float32Array(capacity * 2), 2).setUsage(THREE.DynamicDrawUsage);
+    g.setAttribute("fcCarPaint", this.carPaint); g.setAttribute("fcCarAccent", this.carAccent); g.setAttribute("fcCarMotion", this.carMotion);
     this.cols = [];
     if (slots) {
       for (const k of ["fcColA", "fcColB", "fcColC", "fcColD"]) {
@@ -115,7 +124,7 @@ export class PartMesh {
     this.count = 0;
   }
 
-  push(m: THREE.Matrix4, cue: Readonly<AgentCue> | null, look: Readonly<PersonLook> | null): boolean {
+  push(m: THREE.Matrix4, cue: Readonly<AgentCue> | null, look: Readonly<PersonLook> | null, car?: CarAppearance, wheel = 0, steer = 0): boolean {
     const i = this.count;
     if (i >= this.capacity) return false;
     m.toArray(this.mesh.instanceMatrix.array as Float32Array, i * 16);
@@ -130,6 +139,11 @@ export class PartMesh {
       setRgb(this.cols[2]!, i, look.skin);
       setRgb(this.cols[3]!, i, look.hair);
     }
+    if (car) {
+      this.carPaint.setXYZW(i, car.paint.r, car.paint.g, car.paint.b, car.style);
+      this.carAccent.setXYZ(i, car.accent.r, car.accent.g, car.accent.b);
+    }
+    this.carMotion.setXY(i, wheel, steer);
     this.count = i + 1;
     return true;
   }
@@ -141,7 +155,19 @@ export class PartMesh {
     if (n === 0) return;
     flag(this.mesh.instanceMatrix, n * 16);
     flag(this.cue, n * 4);
+    flag(this.carPaint, n * 4); flag(this.carAccent, n * 3); flag(this.carMotion, n * 2);
     for (const a of this.cols) flag(a, n * 3);
+  }
+
+  /** Share a coarser vehicle batch when the character draw budget is full. */
+  transferInto(target: PartMesh): boolean {
+    if(target.count+this.count>target.capacity) return false;
+    const offset=target.count;
+    (target.mesh.instanceMatrix.array as Float32Array).set((this.mesh.instanceMatrix.array as Float32Array).subarray(0,this.count*16),offset*16);
+    for(const [source,dest] of [[this.cue,target.cue],[this.carPaint,target.carPaint],[this.carAccent,target.carAccent],[this.carMotion,target.carMotion]]) {
+      (dest!.array as Float32Array).set((source!.array as Float32Array).subarray(0,this.count*source!.itemSize),offset*dest!.itemSize);
+    }
+    target.count+=this.count; this.count=0; return true;
   }
 
   dispose(): void {
@@ -270,6 +296,11 @@ export const AGENT_MODEL_KEY: Readonly<Record<Exclude<AgentKind, "person">, stri
   sidewalkBot: "sidewalk-bot",
 };
 
+/** Mirrors and bumpers of the ordinary car fit entirely inside its shared traffic body. */
+export function civilianModelScale(size: {width:number;length:number}): number {
+  return Math.min(1,AGENT_SPEC.robotaxi.halfWidth*2/size.width,AGENT_SPEC.robotaxi.halfLength*2/size.length);
+}
+
 const NONE: Channel = { type: "none" };
 
 /**
@@ -353,7 +384,7 @@ export interface AgentRenderInfo {
 
 export class AgentLayer {
   readonly group = new THREE.Group();
-  private readonly material = packedMaterial(false);
+  private readonly material = packedMaterial(false, true);
   private readonly peopleMaterial = packedMaterial(true);
   private readonly kinds = new Map<AgentKind, KindView>();
   private readonly people: PeopleRig;
@@ -366,6 +397,7 @@ export class AgentLayer {
   private readonly capMid: number;
   private readonly capNear: number;
   private disposed = false;
+  private supportHeight: (x: number, y: number, z: number) => number = (_x, y) => y;
 
   private lastPrev: SimState | null = null;
   private lastCurr: SimState | null = null;
@@ -401,6 +433,10 @@ export class AgentLayer {
   private readonly puddles: THREE.InstancedMesh;
   private puddleCount = 0;
   private readonly pose: PersonPose = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
+  private civilianNear: PartMesh | null = null;
+  private civilianFar: PartMesh | null = null;
+  private civilianWheelRadius = 0.36;
+  private civilianScale = 1;
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
@@ -426,6 +462,29 @@ export class AgentLayer {
         this.install(view, extractParts(r.model, AGENT_RIGS[kind]));
       });
     }
+    void registry.get("player-car").then(r => {
+      if (this.disposed || r.source !== "file" || !r.model) return;
+      const model = extractParts(r.model, AGENT_RIGS.robotaxi.filter(part => part.name !== "doorR"));
+      const pieces: THREE.BufferGeometry[] = [];
+      for (const part of model.parts) {
+        if (!part.geometry) continue;
+        const geometry = part.geometry.clone().translate(part.pivot.x,part.pivot.y,part.pivot.z);
+        const wheels = geometry.getAttribute("fcWheel") as THREE.BufferAttribute;
+        const code = part.channel.type === "steer-spin" ? 2 : part.channel.type === "spin" ? 1 : 0;
+        for (let i=0;i<wheels.count;i++) wheels.setXYZW(i,part.pivot.x,part.pivot.y,part.pivot.z,code);
+        pieces.push(geometry);
+      }
+      const geometry = mergePacked(pieces);
+      this.civilianWheelRadius = model.wheelRadius;
+      const size=model.bounds.getSize(new THREE.Vector3());
+      this.civilianScale=civilianModelScale({width:size.x,length:size.z});
+      this.civilianNear = this.adopt(new PartMesh(geometry,this.material,this.capNear,"agents:civilian:near",false));
+      const reduced = proxyOf(model,0.20);
+      this.civilianFar = this.adopt(new PartMesh(reduced,this.material,this.capFar,"agents:civilian:far",false));
+      geometry.dispose(); reduced.dispose();
+      for(const piece of pieces) piece.dispose();
+      for(const part of model.parts) part.geometry?.dispose();
+    });
     const disc = new THREE.CircleGeometry(1, 20).rotateX(-Math.PI / 2);
     const puddleMat = new THREE.MeshStandardMaterial({ color: 0x2b1a10, roughness: 0.06, metalness: 0, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2, name: "fc:heap-puddle" });
     this.puddles = new THREE.InstancedMesh(disc, puddleMat, PUDDLES_MAX);
@@ -509,6 +568,11 @@ export class AgentLayer {
     this.crowd = crowd;
   }
 
+  /** Match ambient bodies to the same loaded street surfaces as the player's avatar. */
+  setSupportHeight(height: (x: number, y: number, z: number) => number): void {
+    this.supportHeight = height;
+  }
+
   setNight(night: number): void {
     const [h, t, s] = channelIntensities(night);
     agentUniforms.fcLightK.value.x = h;
@@ -562,6 +626,7 @@ export class AgentLayer {
         p.y = b.y;
         p.z = b.z + _off.z;
       }
+      p.y = this.supportHeight(p.x, p.y, p.z);
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -574,6 +639,7 @@ export class AgentLayer {
       v.far.begin();
       for (const p of v.near) p.part.begin();
     }
+    this.civilianNear?.begin(); this.civilianFar?.begin();
     this.people.begin();
     this.peopleMid.begin();
     this.peopleFar.begin();
@@ -611,6 +677,14 @@ export class AgentLayer {
         }
         continue;
       }
+      if (isCivilianTraffic(b) && this.civilianNear && this.civilianFar) {
+        const anim = this.anim(b.id,pose,dt,this.civilianWheelRadius*this.civilianScale,2.7*this.civilianScale,10);
+        baseMatrix(pose.x,pose.y,pose.z,pose.heading,pose.pitch,this.civilianScale,_base);
+        const part = tier === TIER_NEAR ? this.civilianNear : this.civilianFar;
+        part.push(_base,cue,null,carAppearance(Math.floor(b.id/8)),anim.wheel,-anim.steer);
+        if(tier === TIER_NEAR) { near++; this.wasNear.add(b.id); }
+        continue;
+      }
       const view = this.kinds.get(b.kind)!;
       if (combat.topple >= 1 && height > 0.05 && this.puddleCount < PUDDLES_MAX) {
         const r = AGENT_SPEC[b.kind].radius * 1.8;
@@ -624,16 +698,19 @@ export class AgentLayer {
       } else {
         baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base);
         collapse(_base, b, combat, height);
-        (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null);
+        (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
       }
     }
     // First account for the instanced tiers. Reserve the procedural rig's three calls whenever
     // any near person cannot fit as a skinned body, so overflow never disappears or exceeds the
     // allocation. Hand the remaining calls to the nearest people, independently of agent ids.
-    let fixedCalls = Number(this.peopleMid.count > 0) + Number(this.peopleFar.count > 0);
+    let fixedCalls = Number(this.peopleMid.count > 0) + Number(this.peopleFar.count > 0) + Number((this.civilianNear?.count ?? 0)>0) + Number((this.civilianFar?.count ?? 0)>0) + Number(this.puddleCount>0);
     for (const v of this.kinds.values()) {
       fixedCalls += Number(v.mid.count > 0) + Number(v.far.count > 0);
       for (const p of v.near) fixedCalls += Number(p.part.count > 0);
+    }
+    if(fixedCalls > AGENT_DRAW_CALL_BUDGET-(this.nearPeople.length?3:0) && this.civilianNear?.count && this.civilianFar?.count) {
+      if(this.civilianNear.transferInto(this.civilianFar)) fixedCalls--;
     }
     const remaining = Math.max(0, AGENT_DRAW_CALL_BUDGET - fixedCalls);
     this.nearPeople.sort((a, b) => {
@@ -666,6 +743,7 @@ export class AgentLayer {
       tally(v.far);
       for (const p of v.near) tally(p.part);
     }
+    if(this.civilianNear) tally(this.civilianNear); if(this.civilianFar) tally(this.civilianFar);
     this.puddles.count = this.puddleCount;
     if (this.puddleCount > 0) {
       this.puddles.instanceMatrix.needsUpdate = true;
@@ -787,7 +865,7 @@ export class AgentLayer {
         case "none":
           break;
       }
-      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null);
+      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
     }
   }
 
@@ -798,6 +876,7 @@ export class AgentLayer {
       v.far.dispose();
       for (const p of v.near) p.part.dispose();
     }
+    this.civilianNear?.dispose(); this.civilianFar?.dispose();
     this.puddles.geometry.dispose();
     (this.puddles.material as THREE.Material).dispose();
     this.people.dispose();
@@ -901,7 +980,7 @@ function taper(w: number, h: number, d: number, kx: number, kz: number, x: numbe
 export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferGeometry {
   const dark = surf(0x1b1d20, 0.8);
   if (kind === "robotaxi") {
-    const white = surf(0xeceee9, 0.3, 0.05);
+    const white = { ...surf(0xeceee9, 0.3, 0.05), paint: 1 };
     const glass = surf(0x1b232b, 0.08, 0.6);
     const band = surf(0x0e1319, 0.06, 0.4);
     const head = surf(0xf4f6f8, 0.2, 0, 1, 0xf2f7ff);

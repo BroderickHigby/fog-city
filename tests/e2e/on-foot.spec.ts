@@ -42,9 +42,9 @@ test("on foot: F exits, the walker moves, F near the car re-enters", async ({ pa
     expect((await renderInfo(page))?.walkers, "players drawn on foot").toBe(1);
   }
 
-  // W jogs, and the HUD shows the jog (v11: FOOT.walk 3.0 m/s = 11 km/h), not the parked car's 0.
+  // W jogs, and the HUD shows the jog (v15: FOOT.walk 3.5 m/s = 13 km/h), not the parked car's 0.
   await page.keyboard.down("KeyW");
-  await page.waitForFunction(() => /\b(9|1[0-2]) km\/h .*on foot/.test(document.getElementById("hud")?.textContent ?? ""), null, { timeout: 60_000 });
+  await page.waitForFunction(() => /\b13 km\/h .*on foot/.test(document.getElementById("hud")?.textContent ?? ""), null, { timeout: 60_000 });
   await page.waitForFunction(
     (w) => {
       const f = ((window as unknown as FogWindow).__fogcity!.state().players.p1 as unknown as { foot?: { x: number; z: number } | null }).foot;

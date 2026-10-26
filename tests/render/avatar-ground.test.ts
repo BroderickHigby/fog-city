@@ -33,6 +33,21 @@ describe("avatar alignment with rendered floors", () => {
     expect(ground.heightAt(11, 2, -18)).toBeCloseTo(2.125);
   });
 
+  it("samples both uphill and downhill shoe positions without mistaking a bridge for support", () => {
+    const ground = new AvatarGround();
+    ground.addTile(tile("hill", 0.1, "fc:road-uv", 0.1));
+    ground.addTile(tile("terrain", 0, "fc:ground", 0.1));
+    ground.addTile(tile("overpass", 6, "fc:freeway-uv"));
+    expect(ground.surfaceAt(1, 0.3, 1)).toBeCloseTo(0.2);
+    expect(ground.surfaceAt(3, 0.3, 1)).toBeCloseTo(0.4);
+    expect(ground.heightAt(1, 0.3, 1)).toBe(0.3); // Body placement remains upward-only.
+    expect(ground.surfaceAt(10, 0.3, 10)).toBeUndefined();
+    ground.removeTile("hill");
+    expect(ground.surfaceAt(1, 0.3, 1)).toBeCloseTo(0.1);
+    ground.clear();
+    expect(ground.surfaceAt(1, 0.3, 1)).toBeUndefined();
+  });
+
   it("does not snap onto roofs, bridges or steep/degenerate geometry", () => {
     const ground = new AvatarGround();
     ground.addTile(tile("roof", 0.1, "fc:building"));

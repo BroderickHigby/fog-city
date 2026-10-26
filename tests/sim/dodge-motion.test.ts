@@ -103,8 +103,8 @@ describe("the save upgrade to people dodging on their feet (v14; dodges in fligh
     expect(hashState(old)).toBe(saved.hash);
     const before = canonicalJson(old);
     const up = upgradeState(old);
-    expect(SIM_VERSION).toBe(14);
-    expect(up.version).toBe(14);
+    expect(SIM_VERSION).toBe(15);
+    expect(up.version).toBe(SIM_VERSION);
     expect(canonicalJson(old)).toBe(before);
     const ob = old.players.b!.foot!;
     const ub = up.players.b!.foot!;
@@ -134,7 +134,7 @@ describe("the save upgrade to people dodging on their feet (v14; dodges in fligh
     });
     expect(people).toBeGreaterThan(0);
     expect(robots).toBeGreaterThan(0);
-    expect({ ...up, players: {}, ext: {} }).toEqual({ ...old, version: 14, players: {}, ext: {} });
+    expect({ ...up, players: {}, ext: {} }).toEqual({ ...old, version: SIM_VERSION, players: {}, ext: {} });
     expect(upgradeState(up)).toBe(up);
     // Through v10..v13 (no field changes) the same; a v13 save takes the same step.
     expect(upgradeState({ ...old, version: 13 })).toEqual(up);

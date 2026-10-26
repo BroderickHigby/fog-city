@@ -57,7 +57,10 @@
 // people do: a sidestep, a jog or a sprint at human speeds (about 2.5-6 m/s) with limited
 // acceleration, never a hop or a flight. DodgeState gains the body's velocity (vx, vz) and the
 // dodge's top speed (vmax); a person's hop is always 0. upgradeState lifts the previous version.
-export const SIM_VERSION = 14;
+// v15: ambient civilian cars share road-following and passing behavior, and the player's
+// jog/sprint speeds rise to 3.5/8 m/s. This combined behavior stamp keeps every v14 saved
+// field, including active missions, wallets, traffic, damage and dodges, without reshaping.
+export const SIM_VERSION = 15;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

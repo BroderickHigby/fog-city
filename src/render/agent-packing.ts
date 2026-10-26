@@ -21,6 +21,7 @@
 // animates (wheels, limbs) or will (the robotaxi's sliding door), each baked relative to its pivot.
 
 import * as THREE from "three";
+import { CAR_ART_GLSL } from "./car-appearance.ts";
 import { injectUniforms } from "./materials.ts";
 import { channelRatio, lightChannel } from "./lights.ts";
 import { clusterSimplify } from "./simplify.ts";
@@ -38,6 +39,8 @@ export interface PackedSurface {
   channel: number;
   /** 0..1: a sharp clear lacquer over the base (car paint, glass); 0 elsewhere. */
   clearcoat?: number;
+  /** Recolour only vehicle paint; never glass, sensors, wheels or lamps. */
+  paint?: number;
   /** People only: weights of the shirt, trousers, skin and hair instance colours. */
   slot?: readonly [number, number, number, number];
 }
@@ -53,6 +56,7 @@ export function surfaceOf(m: THREE.Material): PackedSurface {
   const emissive: [number, number, number] = channel > 0 && e ? [e.r * k, e.g * k, e.b * k] : [0, 0, 0];
   return {
     color,
+    paint: /^paint(?:_|\.|$)/.test(m.name) ? 1 : 0,
     roughness: typeof s.roughness === "number" ? s.roughness : 0.8,
     metalness: typeof s.metalness === "number" ? s.metalness : 0,
     emissive,
@@ -107,6 +111,8 @@ export function packGeometry(src: THREE.BufferGeometry, s: PackedSurface, matrix
   }
   if (!nrm) g.computeVertexNormals();
   fill(g, "color", 3, n, s.color);
+  fill(g, "fcWheel", 4, n, [0,0,0,0]);
+  fill(g, "fcPaint", 1, n, [s.paint ?? 0]);
   fill(g, "fcPbr", 3, n, [s.roughness, s.metalness, s.clearcoat ?? 0]);
   fill(g, "fcEmit", 4, n, [s.emissive[0], s.emissive[1], s.emissive[2], s.channel]);
   if (slots) fill(g, "fcSlot", 4, n, s.slot ?? [0, 0, 0, 0]);
@@ -177,6 +183,16 @@ varying vec3 vFcPbr;
 varying vec3 vFcEmit;
 varying vec2 vFcCombat;
 varying vec3 vFcObj;
+#ifdef FC_VEHICLE
+attribute vec4 fcWheel;
+attribute vec2 fcCarMotion;
+attribute float fcPaint;
+attribute vec4 fcCarPaint;
+attribute vec3 fcCarAccent;
+varying vec4 vFcCarPaint;
+varying vec3 vFcCarAccent;
+varying float vFcPaint;
+#endif
 #ifdef FC_SLOTS
 attribute vec4 fcSlot;
 attribute vec3 fcColA;
@@ -190,6 +206,11 @@ const VERTEX_MAIN = /* glsl */ `
   vFcPbr = fcPbr;
   vFcCombat = fcCue.zw;
   vFcObj = position;
+#ifdef FC_VEHICLE
+  vFcPaint = fcPaint;
+  vFcCarPaint = fcCarPaint;
+  vFcCarAccent = fcCarAccent;
+#endif
   {
     float ch = fcEmit.w;
     float k = 0.0;
@@ -212,6 +233,12 @@ varying vec3 vFcPbr;
 varying vec3 vFcEmit;
 varying vec2 vFcCombat;
 varying vec3 vFcObj;
+#ifdef FC_VEHICLE
+varying vec4 vFcCarPaint;
+varying vec3 vFcCarAccent;
+varying float vFcPaint;
+${CAR_ART_GLSL}
+#endif
 float fcAgHash( vec3 p ) {
   p = fract( p * 0.3183099 + 0.1 );
   p *= 17.0;
@@ -235,6 +262,9 @@ float fcAgNoise( vec3 x ) {
  * (they stay put as it moves); the finer octave fades out before it can shimmer.
  */
 const COMBAT_COLOR = /* glsl */ `
+  #ifdef FC_VEHICLE
+  if (vFcPaint > 0.5) diffuseColor.rgb = mix(vFcCarPaint.rgb, vFcCarAccent, fcCarArt(vFcObj,vFcCarPaint.w));
+  #endif
   float fcRust = vFcCombat.x;
   float fcRustCover = 0.0;
   if ( fcRust > 0.001 ) {
@@ -254,6 +284,26 @@ function patchAgentShader(shader: THREE.WebGLProgramParametersWithUniforms): voi
   Object.assign(shader.uniforms, agentUniforms);
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${VERTEX_PARS}`)
+    .replace("#include <beginnormal_vertex>", `#include <beginnormal_vertex>
+#ifdef FC_VEHICLE
+if(fcWheel.w > 0.5) {
+  float c = cos(fcCarMotion.x), s = sin(fcCarMotion.x);
+  objectNormal.yz = mat2(c,s,-s,c)*objectNormal.yz;
+  if(fcWheel.w > 1.5) { c = cos(fcCarMotion.y); s = sin(fcCarMotion.y); objectNormal.xz = mat2(c,-s,s,c)*objectNormal.xz; }
+}
+#endif
+`)
+    .replace("#include <begin_vertex>", `#include <begin_vertex>
+#ifdef FC_VEHICLE
+if(fcWheel.w > 0.5) {
+  vec3 q = transformed - fcWheel.xyz;
+  float c = cos(fcCarMotion.x), s = sin(fcCarMotion.x);
+  q.yz = mat2(c,s,-s,c)*q.yz;
+  if(fcWheel.w > 1.5) { c = cos(fcCarMotion.y); s = sin(fcCarMotion.y); q.xz = mat2(c,-s,s,c)*q.xz; }
+  transformed = q + fcWheel.xyz;
+}
+#endif
+`)
     .replace("#include <color_vertex>", `#include <color_vertex>\n${VERTEX_MAIN}`);
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", `#include <common>\n${FRAGMENT_PARS}`)
@@ -270,14 +320,15 @@ function patchAgentShader(shader: THREE.WebGLProgramParametersWithUniforms): voi
 }
 
 /** The packed agent material; `slots` = people (per-instance clothing and skin colours). */
-export function packedMaterial(slots: boolean): THREE.MeshStandardMaterial {
+export function packedMaterial(slots: boolean, vehicles = false): THREE.MeshStandardMaterial {
   // People are cloth and skin; vehicles and robots get a physical material for the clearcoat.
   const m = slots
     ? new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, name: "fc:agent-people" })
     : new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 1, metalness: 0, clearcoat: 1, clearcoatRoughness: CLEARCOAT_ROUGHNESS, name: "fc:agent" });
   if (slots) m.defines = { FC_SLOTS: "" };
+  if (vehicles) m.defines = { ...m.defines, FC_VEHICLE: "" };
   m.onBeforeCompile = patchAgentShader;
-  m.customProgramCacheKey = () => (slots ? "fc:agent-slots:v2" : "fc:agent:v2");
+  m.customProgramCacheKey = () => (slots ? "fc:agent-slots:v2" : vehicles ? "fc:agent-vehicle:v2" : "fc:agent:v2");
   return m;
 }
 

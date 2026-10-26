@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v14.json";
+import currentReplay from "../golden/wave2-v15-civilian-pace.json";
 import { deepFreeze, loadWorld } from "../helpers.ts";
 import { loadDevWorldWithRoads } from "./fixtures.ts";
 
@@ -85,7 +85,8 @@ describe("wave-2 shared interface", () => {
       for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
       // v11 changed the on-foot pace, which the log's last (walking) segment uses; v14 changes how
       // people dodge (on their feet), which this replay's traffic does. The v7 and v11 fixtures
-      // stay as the record; this pins v14, normalizing only the version header.
+      // stay as the record. The combined v15 release adds civilian traffic and faster walking;
+      // its separate pin normalizes only the version header.
       expect(hashState({ ...state, version: currentReplay.simVersion })).toBe(currentReplay.hashes[i]);
       // The old v11 prefix-equality assertion predates v14 dodge velocity/profile fields and
       // combined vehicle dynamics. Historical v11 data stays unchanged; this release pins its own payload.

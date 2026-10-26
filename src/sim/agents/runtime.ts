@@ -1,3 +1,4 @@
+import { isCivilianTraffic } from "../civilian-traffic.ts";
 import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
 import { agentActorId } from "../identity.ts";
 import { playerPose } from "../ride.ts";
@@ -185,7 +186,7 @@ function legacySpawn(agent:AgentState,seed:number,options:AgentRuntimeOptions):R
 
 export function createAgentsRuntime(state:Readonly<SimState>,options:AgentRuntimeOptions={}):AgentsRuntimeState{
   const actors:Record<string,RuntimeActor>={};
-  for(const agent of [...agentsOf(state)].sort((a,b)=>a.id-b.id)) {const spawn=legacySpawn(agent,state.seed,options);actors[spawn.id]=initialize(spawn,state.tick,agent.id);}
+  for(const agent of [...agentsOf(state)].filter(a=>!isCivilianTraffic(a)).sort((a,b)=>a.id-b.id)) {const spawn=legacySpawn(agent,state.seed,options);actors[spawn.id]=initialize(spawn,state.tick,agent.id);}
   for(const spawn of [...(options.spawns??[])].sort((a,b)=>compare(a.id,b.id))){if(actors[spawn.id])throw new Error("Duplicate runtime actor ID");actors[spawn.id]=initialize(spawn,state.tick,null);}
   if(keys(actors).length>MAX_RUNTIME_ACTORS)throw new Error("Runtime actor budget exceeded");
   return {version:1,tick:state.tick,actors,missionBindings:{},baseBadCount:keys(actors).filter(id=>actors[id]!.firmware==="bad").length,lastCombatTick:-1,attacks:[],proposals:[],events:[]};
@@ -218,7 +219,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   const share=(id:string,actor:RuntimeActor):void=>{state.actors[id]=actor;borrowed.add(id);};
   const bound=new Set(Object.keys(previous.missionBindings).map(key=>previous.missionBindings[key]!));
   const embodied=new Set((sim.ext.agents?.list??[]).map(actor=>actor.runtimeId??agentActorId(actor.id)));
-  for(const agent of [...agentsOf(sim)].sort((a,b)=>a.id-b.id)){
+  for(const agent of [...agentsOf(sim)].filter(a=>!isCivilianTraffic(a)).sort((a,b)=>a.id-b.id)){
     const id=agentActorId(agent.id), old=previous.actors[id];known.add(id);
     if(shared&&old&&old.x===agent.x&&old.y===agent.y&&old.z===agent.z&&old.heading===agent.heading&&old.speed===Math.abs(agent.speed))share(id,old);
     else state.actors[id]=old?{...old,x:agent.x,y:agent.y,z:agent.z,heading:agent.heading,speed:Math.abs(agent.speed)}:initialize(legacySpawn(agent,sim.seed,options),sim.tick,agent.id);
@@ -231,6 +232,7 @@ function synchronize(previous:AgentsRuntimeState,sim:Readonly<SimState>,options:
   }
   for(const id of keys(previous.actors)){
     const old=previous.actors[id]!;
+    if(old.legacyId!==null && isCivilianTraffic({id:old.legacyId,kind:old.model==="robotaxi"?"robotaxi":"person"})) continue;
     if(known.has(id)||old.retired&&!bound.has(id)&&!embodied.has(id))continue;
     // Ordinary traffic needs its original lane-route body. Once population
     // culling removes that body, retain no motionless virtual replacement.

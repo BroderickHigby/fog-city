@@ -5,13 +5,13 @@
 //   node scripts/golden/composed.ts --update   re-record the pins (say why in the commit)
 //
 // A pin should change only with a deliberate behaviour change on the composed path; bump
-// SIM_VERSION when that change also changes the state format.
+// SIM_VERSION for deliberate behavior changes too; old saves still need an explicit upgrade.
+// Named release pins preserve earlier branches that already wrote overlapping v15/v16 stamps.
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { recordComposedGolden, type ComposedGolden } from "../../tests/helpers/composed-golden.ts";
-import { SIM_VERSION } from "../../src/sim/contract.ts";
 
-const file = join(import.meta.dirname, `../../tests/golden/composed-v${SIM_VERSION}.json`);
+const file = join(import.meta.dirname, "../../tests/golden/composed-v15-civilian-pace.json");
 const golden = recordComposedGolden();
 const text = JSON.stringify(golden, null, 2) + "\n";
 if (process.argv.includes("--update")) {

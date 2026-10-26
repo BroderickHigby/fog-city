@@ -125,10 +125,9 @@ describe("getting out and back in", () => {
 describe("walking", () => {
   const start = (world: World): SimState => run(world, createInitialState(world, 1, ["p1"], { x: 0, z: 0, heading: 0 }), PRESS, 1);
 
-  it("jogs briskly by default and Shift (Action.sprint) sprints fast, with a short ramp (v11)", () => {
-    expect(FOOT.walk).toBeGreaterThanOrEqual(2.8);
-    expect(FOOT.sprint).toBeGreaterThanOrEqual(6.5);
-    expect(FOOT.sprint).toBeLessThanOrEqual(7.5);
+  it("jogs briskly by default and Shift (Action.sprint) sprints fast, with a short ramp (v15)", () => {
+    expect(FOOT.walk).toBe(3.5);
+    expect(FOOT.sprint).toBe(8);
     let s = run(wall, start(wall), F(1), 30);
     expect(s.players.p1!.foot!.speed).toBeCloseTo(FOOT.walk, 5);
     s = run(wall, s, F(1, 0, 0, Action.sprint), 30);

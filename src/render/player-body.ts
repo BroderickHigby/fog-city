@@ -11,6 +11,7 @@ import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { DodgeState } from "../sim/contract.ts";
 import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
+import { HumanFeet, type HumanSupportHeight } from "./human-feet.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
 /** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
@@ -99,6 +100,7 @@ export function bodyRenderCost(root: THREE.Object3D): BodyRenderCost {
 interface Body {
   root: THREE.Object3D;
   mixer: THREE.AnimationMixer;
+  feet: HumanFeet;
   actions: Record<Motion, THREE.AnimationAction | null>;
   current: Motion;
   materials: THREE.Material[];
@@ -136,6 +138,7 @@ export class PlayerBodies {
   private readonly shadows: boolean;
   private drawnCount = 0;
   private disposed = false;
+  private supportHeight: HumanSupportHeight | undefined;
 
   private constructor(gltf: GLTF, shadows: boolean, dodge: GLTF | null, mixamoDodge: THREE.AnimationClip[]) {
     this.gltf = gltf;
@@ -200,7 +203,10 @@ export class PlayerBodies {
   private body(id: string, tint?: THREE.Color): Body {
     const existing = this.bodies.get(id);
     if (existing) return existing;
-    const root = cloneSkinned(this.gltf.scene);
+    const content = cloneSkinned(this.gltf.scene);
+    const root = new THREE.Group();
+    root.userData = { ...content.userData };
+    root.add(content);
     const materials: THREE.Material[] = [];
     const skeletons = new Set<THREE.Skeleton>();
     const tinted = new Map<THREE.Material, THREE.Material>();
@@ -240,12 +246,15 @@ export class PlayerBodies {
     };
     const actions = {} as Record<Motion, THREE.AnimationAction | null>;
     for (const m of MOTIONS) actions[m] = action(m);
-    const body: Body = { root, mixer, actions, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
+    const body: Body = { root, mixer, feet: new HumanFeet(root, content), actions, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
     body.actions.idle?.play();
     this.group.add(root);
     this.bodies.set(id, body);
     return body;
   }
+
+  /** Actual rendered support under each posed shoe; optional for previews and unloaded tiles. */
+  setSupportHeight(height: HumanSupportHeight): void { this.supportHeight = height; }
 
   begin(): void {
     for (const body of this.bodies.values()) body.seen = false;
@@ -282,6 +291,7 @@ export class PlayerBodies {
       : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (body.actions.jog ? MIXAMO_RUN_MPS : this.runSpeed)))
       : body.current === "sprint" ? Math.max(0.7, Math.min(1.5, velocity / this.sprintSpeed)) : 1;
     body.mixer.update(Math.max(0, dt));
+    body.feet.update(Boolean(body.actions.jog) && (wanted === "jog" || wanted === "run"), this.supportHeight);
     this.drawnCount++;
   }
 

@@ -155,6 +155,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    (0: it sets off again from a standstill) and a top speed (its profile's); a person's or a
  *    player's hop is taken off their height and set to 0, and a leap's drawn hop with it (peak
  *    0). Robots keep their hop. Nothing else changes.
+ *  - v14 -> v15: civilian traffic and a faster on-foot pace change behavior only. Preserve
+ *    every existing field and optional extension; do not rebuild traffic or progression.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -168,6 +170,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 11) return upgradeState({ ...s, version: 12 });
   if (s.version === 12) return upgradeState({ ...s, version: 13 });
   if (s.version === 13) return upgradeState(upgradeDodgeOnFoot(s, 14));
+  if (s.version === 14) return upgradeState({ ...s, version: 15 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

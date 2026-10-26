@@ -9,6 +9,7 @@
 // steps out first (combat/effects.ts marks it `occupied`; step.ts lets the rider out on its
 // pull-over). Rogue robotaxis are always empty: nobody boards one.
 
+import { isCivilianTraffic } from "./civilian-traffic.ts";
 import { sortedIds, type PlayerRide, type PlayerState, type SimState } from "./contract.ts";
 import { AGENTS_EXT_KEY, ROBOTAXI_BODY, type AgentState, type AgentsExt } from "./agents.ts";
 import { dcos, dsin } from "./dmath.ts";
@@ -92,7 +93,7 @@ export function boardableTaxi(world: World, state: Readonly<SimState>, x: number
   let best: AgentState | null = null;
   let bestD = Infinity;
   for (const a of list) {
-    if (a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null) continue;
+    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null) continue;
     if (ridden.has(a.id) || Math.abs(a.speed) > RIDE.boardSpeed) continue;
     const d = distanceToTaxi(a, x, z);
     if (d > RIDE.boardRange || d >= bestD) continue;
@@ -125,7 +126,7 @@ export function hailableTaxi(world: World, state: Readonly<SimState>, x: number,
   let best: AgentState | null = null;
   let bestD = Infinity;
   for (const a of list) {
-    if (a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null || ridden.has(a.id)) continue;
+    if (isCivilianTraffic(a) || a.kind !== "robotaxi" || a.runtimeId !== undefined || a.vehicle !== undefined || a.dodge !== null || ridden.has(a.id)) continue;
     const mine = state.players[self]?.hail?.agentId === a.id;
     if (hailed.has(a.id) && !mine) continue;
     const d = Math.sqrt((a.x - x) * (a.x - x) + (a.z - z) * (a.z - z));

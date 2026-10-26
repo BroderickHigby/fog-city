@@ -3,11 +3,11 @@
 // its wheels rolling (rotation.x -= distance / radius) and steering; and, while the player is
 // on foot, an animated human from generic-player.glb, with a procedural placeholder while it loads.
 // Car lights are light_* materials: NightLights scales them with the rest of the city.
-// Each player has a colour from their id (playerColorIndex): the first keeps the model's own
-// paint, the others get the GLB's recolourable `paint` material cloned in their colour, so
+// Each player gets paint and original artwork from their id (playerColorIndex), so
 // players are told apart, and every client colours the same player the same way.
 
 import * as THREE from "three";
+import { CAR_PALETTES, carAppearance, paintCar } from "./car-appearance.ts";
 import { PlayerBodies } from "./player-body.ts";
 import { HeldBlasters, type SprayCue } from "./held-blaster.ts";
 import { PeopleRig, castShadows } from "./agent-layer.ts";
@@ -38,9 +38,9 @@ export interface WalkerPose extends Pose {
 
 /**
  * Player car colours (sRGB). The first slot supplies the procedural fallback colour;
- * a loaded car in slot 0 keeps its authored paint. Other slots replace its `paint` material.
+ * all loaded cars get paint-only artwork; windows, tyres and lights keep their authored materials.
  */
-export const CAR_COLORS = [0xe0552b, 0x2d6fc8, 0xe0b23a, 0x3a9a6a, 0xe8e4da, 0x6a3fa0];
+export const CAR_COLORS = CAR_PALETTES.map(palette => palette[0]);
 
 /**
  * A player's colour slot, from the id alone (so every client agrees): "p<n>" takes n - 1, so
@@ -221,6 +221,7 @@ export class Actors {
   private readonly people: PeopleRig;
   private readonly pose: PersonPose = { lean: 0, legGain: 0.42, armGain: 0.34, armOut: 0 };
   private bodies: PlayerBodies | null = null;
+  private supportHeight: ((x: number, y: number, z: number) => number | undefined) | undefined;
   private blasters: HeldBlasters | null = null;
   private readonly sprays = new Map<string, SprayCue>();
   private disposed = false;
@@ -242,6 +243,7 @@ export class Actors {
       if (!this.disposed) console.warn("water blaster prop: not drawn:", error);
     });
     if (bytes) void PlayerBodies.load(bytes, shadows).then(bodies => {
+      if (this.supportHeight) bodies.setSupportHeight(this.supportHeight);
       if (this.disposed) { bodies.dispose(); return; }
       this.bodies = bodies;
       this.group.add(bodies.group);
@@ -277,8 +279,13 @@ export class Actors {
     v.car = car;
     v.carSource = source;
     v.wheels = findWheels(car);
-    // The procedural car is built in its colour; a loaded model is recoloured (slot 0 keeps its paint).
-    v.ownMaterials = source === "file" ? recolorCar(car, v.colorIndex === 0 ? null : CAR_COLORS[v.colorIndex]!) : [];
+    const fallbackPaint = new Set<THREE.Material>();
+    if(source === "fallback") car.traverse(node => {
+      const mesh=node as THREE.Mesh;
+      if(mesh.isMesh) for(const m of Array.isArray(mesh.material)?mesh.material:[mesh.material]) if(baseName(m.name)==="paint") fallbackPaint.add(m);
+    });
+    v.ownMaterials = paintCar(car, carAppearance(v.colorIndex,true));
+    for(const material of fallbackPaint) material.dispose();
     car.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) castShadows(o, this.shadows);
     });
@@ -295,7 +302,7 @@ export class Actors {
       this.lights.untrack(v.car);
       disposeTree(v.car);
     }
-    for (const m of v.ownMaterials) m.dispose();
+    if(v.carSource === "file") for (const m of v.ownMaterials) m.dispose();
     v.ownMaterials = [];
   }
 
@@ -351,6 +358,11 @@ export class Actors {
       });
     }
     return v;
+  }
+
+  setSupportHeight(height: (x: number, y: number, z: number) => number | undefined): void {
+    this.supportHeight = height;
+    this.bodies?.setSupportHeight(height);
   }
 
   setCar(id: string, pose: CarPose): void {

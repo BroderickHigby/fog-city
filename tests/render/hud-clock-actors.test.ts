@@ -100,11 +100,11 @@ describe("exit hint", () => {
 });
 
 describe("player car colours", () => {
-  it("gives every player a colour slot from the id alone: p1..p6 all differ, p1 keeps the model's paint", () => {
-    const slots = ["p1", "p2", "p3", "p4", "p5", "p6"].map((id) => playerColorIndex(id));
+  it("gives twelve player paint palettes deterministic unique slots and wraps after the twelfth", () => {
+    const slots = Array.from({length:12},(_,i)=>playerColorIndex(`p${i+1}`));
     expect(slots[0]).toBe(0);
     expect(new Set(slots).size).toBe(CAR_COLORS.length);
-    expect(playerColorIndex("p7")).toBe(0);
+    expect(playerColorIndex("p13")).toBe(0);
     expect(playerColorIndex("guest-42")).toBe(playerColorIndex("guest-42"));
     for (const id of ["alice", "bob", "p0", "p999"]) {
       expect(playerColorIndex(id)).toBeGreaterThanOrEqual(0);

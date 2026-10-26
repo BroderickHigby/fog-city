@@ -29,15 +29,15 @@ import { ROOF_STEP_M, circleBlocked, circleBlockedBand, segmentBlocked, surfaceH
 
 export const FOOT = {
   /**
-   * Default on-foot pace at full forward, m/s (v11): a brisk jog, as in GTA, not a stroll.
+   * Default on-foot pace at full forward, m/s (v15): a brisk jog, as in GTA, not a stroll.
    * Partial stick throttle walks slower.
    */
-  walk: 3.0,
-  /** Sprinting speed (Action.sprint or the brake held), m/s (v11). */
-  sprint: 7.0,
+  walk: 3.5,
+  /** Sprinting speed (Action.sprint or the brake held), m/s (v15). */
+  sprint: 8.0,
   /** Stepping backwards, m/s. */
   back: 1.4,
-  /** m/s^2: a standing start reaches the jog in 0.3 s and the sprint in 0.7 s. */
+  /** m/s^2: a standing start reaches the jog in 0.35 s and the sprint in 0.8 s. */
   accel: 10,
   decel: 14,
   /** Turning rate at full steer, rad/s. */

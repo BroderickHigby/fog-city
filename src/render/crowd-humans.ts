@@ -8,6 +8,7 @@
 import * as THREE from "three";
 import type { DodgeState } from "../sim/contract.ts";
 import { PlayerBodies, type BodyRenderCost } from "./player-body.ts";
+import type { HumanSupportHeight } from "./human-feet.ts";
 
 export const CROWD_FILES: readonly string[] = [
   "Female_Adult_01", "Female_Adult_03", "Female_Adult_05", "Female_Adult_07", "Female_Adult_09", "Female_Adult_11",
@@ -38,6 +39,7 @@ export class CrowdHumans {
   private calls = 0;
   private tris = 0;
   private disposed = false;
+  private supportHeight: HumanSupportHeight | undefined;
 
   constructor(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, files: readonly string[] = CROWD_FILES) {
     this.group.name = "crowd:humans";
@@ -45,6 +47,7 @@ export class CrowdHumans {
     files.forEach((file, i) => {
       void PlayerBodies.load(bytes, shadows, file).then((bodies) => {
         if (this.disposed) { bodies.dispose(); return; }
+        if (this.supportHeight) bodies.setSupportHeight(this.supportHeight);
         bodies.group.name = `crowd:${i}`;
         this.kinds[i] = bodies;
         this.group.add(bodies.group);
@@ -52,6 +55,12 @@ export class CrowdHumans {
         console.warn(`[fog-city] crowd model ${file}: ${error instanceof Error ? error.message : String(error)}`);
       });
     });
+  }
+
+  /** Apply actual road/ground support to current characters and ones still loading. */
+  setSupportHeight(height: HumanSupportHeight): void {
+    this.supportHeight = height;
+    for (const bodies of this.kinds) bodies?.setSupportHeight(height);
   }
 
   /** Characters loaded so far. */

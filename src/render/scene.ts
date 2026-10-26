@@ -342,8 +342,10 @@ export class SceneRenderer {
     this.actors = new Actors(this.registry, this.lights, this.shadows,
       available && !available.has(PLAYER_BODY_FILE) ? undefined : modelBytes,
       available && !available.has(BLASTER_FILE) ? undefined : modelBytes);
+    this.actors.setSupportHeight((x, y, z) => this.avatarGround.surfaceAt(x, y, z));
     this.scene.add(this.actors.group);
     this.agents = new AgentLayer(this.registry, {}, this.shadows);
+    this.agents.setSupportHeight((x, y, z) => this.avatarGround.heightAt(x, y, z));
     this.scene.add(this.agents.group);
     // The nearest pedestrians as skinned Rocketbox people, when the build carries the crowd.
     const crowdFiles = CROWD_FILES.filter((f) => !available || available.has(f));
@@ -354,6 +356,7 @@ export class SceneRenderer {
         if (!response.ok) throw new Error(`Crowd model: ${response.status} ${path}`);
         return new Uint8Array(await response.arrayBuffer());
       }, this.shadows, crowdFiles);
+      this.crowd.setSupportHeight((x, y, z) => this.avatarGround.surfaceAt(x, y, z));
       this.agents.setCrowd(this.crowd);
       this.scene.add(this.crowd.group);
     }
@@ -645,7 +648,7 @@ export class SceneRenderer {
   }
 
   setCar(id: string, pose: CarPose): void {
-    this.actors.setCar(id, pose);
+    this.actors.setCar(id, { ...pose, y: this.avatarGround.heightAt(pose.x, pose.y, pose.z) });
   }
 
   /** This frame's spray for player `id` (held-blaster.ts), or null. */

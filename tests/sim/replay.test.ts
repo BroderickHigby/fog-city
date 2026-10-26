@@ -78,7 +78,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(14);
+    expect(SIM_VERSION).toBe(15);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -163,14 +163,14 @@ describe("legacy SIM_VERSION 4 replays", () => {
   );
 
   it(
-    "the replays are pinned at v14 (a change here needs the next SIM_VERSION)",
+    "the replays are pinned at v15 (civilian traffic and faster on-foot pace)",
     () => {
       const a = replay(1500).hashes;
       const b = dodgeReplay(600).hashes;
       // (Printed so a deliberate change can be re-pinned from the log.)
-      if (JSON.stringify(a) !== JSON.stringify(PINNED_V14) || JSON.stringify(b) !== JSON.stringify(PINNED_V14_DODGE)) console.info(`[replay pins] PINNED_V14 ${JSON.stringify(a)} PINNED_V14_DODGE ${JSON.stringify(b)}`);
-      expect(a).toEqual(PINNED_V14);
-      expect(b).toEqual(PINNED_V14_DODGE);
+      if (JSON.stringify(a) !== JSON.stringify(PINNED_V15) || JSON.stringify(b) !== JSON.stringify(PINNED_V15_DODGE)) console.info(`[replay pins] PINNED_V15 ${JSON.stringify(a)} PINNED_V15_DODGE ${JSON.stringify(b)}`);
+      expect(a).toEqual(PINNED_V15);
+      expect(b).toEqual(PINNED_V15_DODGE);
     },
     LONG_RUN_MS,
   );
@@ -189,3 +189,8 @@ describe("legacy SIM_VERSION 4 replays", () => {
 // Combined v14 deliberately also includes impacts, breakable props and new vehicle dynamics.
 const PINNED_V14: string[] = ["98560089", "580be1a8", "4a814c8f", "ccf041b4", "5b09a0e5"];
 const PINNED_V14_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "2b2bc817", "0ce66233", "360c0f1e"];
+
+// Combined v15 adds civilian passing cars and a faster jog/sprint. Historical v14 pins above
+// remain the record; regenerate these only after both behavior changes are frozen.
+const PINNED_V15: string[] = ["98560089", "580be1a8", "d54e5435", "774fd1a8", "8368ab84"];
+const PINNED_V15_DODGE: string[] = ["64bae003", "d6038e50", "08d9fede", "2b2bc817", "0ce66233", "360c0f1e"];
