@@ -362,8 +362,8 @@ const BUILDING_FRAGMENT = /* glsl */ `
       vec2 filterWidth = max( fwidth( roof ), vec2( 0.0001 ) );
       float joint = 1.0 - smoothstep( 0.003, 0.003 + filterWidth.x, edge.x )
                         * smoothstep( 0.003, 0.003 + filterWidth.y, edge.y );
-      float patch = fcHash( floor( roof ) + fcSeed * 31.0 );
-      diffuseColor.rgb *= 1.0 + fcArchitectureDetail * ( ( patch - 0.5 ) * 0.055 - joint * 0.08 );
+      float fcRoofPatchTone = fcHash( floor( roof ) + fcSeed * 31.0 );
+      diffuseColor.rgb *= 1.0 + fcArchitectureDetail * ( ( fcRoofPatchTone - 0.5 ) * 0.055 - joint * 0.08 );
       fcRelief -= joint * fcArchitectureDetail * 0.004;
     }
   }
