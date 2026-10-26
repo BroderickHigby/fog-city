@@ -18,6 +18,9 @@ import { SignCell, type CornerRecord, type CurbRecord } from "./street-signs.ts"
 import { StorefrontCell, type StorefrontRecord } from "./storefront-signs.ts";
 import { STREET_DETAIL_INDEX, buildMarkingMeshes, decodeJunction, type MarkingJunction } from "./street-markings.ts";
 import type { GroundFn } from "./types.ts";
+import type { RoadGraph } from "./types.ts";
+import type { TileCollider } from "../sim/world.ts";
+import { GrassLayer } from "./grass.ts";
 
 const CELL_M = 200;
 const NEAR_M = 450;
@@ -75,6 +78,8 @@ export interface StreetDetailOptions {
   json: <T>(path: string) => Promise<T>;
   ground: GroundFn;
   materials: SharedMaterials;
+  roads?: RoadGraph | null;
+  colliders?: ReadonlyMap<string, TileCollider>;
   foliage?: {
     setPlacements(key: string, list: readonly TreePlacement[]): void;
     removePlacements(key: string): void;
@@ -86,6 +91,7 @@ const isPlaced = (r: unknown): r is { id: string; x: number; z: number } =>
 
 export class StreetDetailLayer {
   readonly group = new THREE.Group();
+  readonly grass: GrassLayer;
   private readonly opts: StreetDetailOptions;
   private readonly cells = new Map<string, Cell>();
   private readonly paint: THREE.MeshStandardMaterial;
@@ -100,6 +106,8 @@ export class StreetDetailLayer {
   constructor(opts: StreetDetailOptions) {
     this.opts = opts;
     this.group.name = "street-detail";
+    this.grass = new GrassLayer(opts);
+    this.group.add(this.grass.group);
     this.paint = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0, name: "fc:road-paint" });
     this.paint.polygonOffset = true;
     this.paint.polygonOffsetFactor = -2;
@@ -158,11 +166,13 @@ export class StreetDetailLayer {
         if (isPlaced(r) && typeof (r as StorefrontRecord).heading === "number") this.cellAt(r.x, r.z).shops.push(r as StorefrontRecord);
       }
     });
+    await layer("grass", doc => this.grass.setData(doc));
     this.lastX = Number.NaN;
   }
 
   /** Build the cells near (x, z) a few at a time; drop the far ones; light the signals for `tick`. */
   update(x: number, z: number, tick = 0): void {
+    this.grass.update(x, z);
     if (!(Math.abs(x - this.lastX) < 25 && Math.abs(z - this.lastZ) < 25)) {
       this.lastX = x;
       this.lastZ = z;
@@ -191,7 +201,7 @@ export class StreetDetailLayer {
 
   /** True when every cell near the camera is built. */
   settled(): boolean {
-    return this.queue.length === 0 && this.treeQueue.length === 0;
+    return this.queue.length === 0 && this.treeQueue.length === 0 && this.grass.settled();
   }
 
   info(): StreetDetailInfo {
@@ -220,6 +230,7 @@ export class StreetDetailLayer {
   dispose(): void {
     for (const c of this.cells.values()) { this.drop(c); this.dropTrees(c); }
     this.paint.dispose();
+    this.grass.dispose();
   }
 
   private build(cell: Cell): void {

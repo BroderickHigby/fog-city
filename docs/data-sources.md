@@ -53,6 +53,49 @@ The gameplay datasets (hydrants, fountains, transit, signals, crosswalks, Street
 parking, cable car track) are in [Gameplay data](#gameplay-data-the-wave-2-spike), with the
 procedural fallback for each one that has no usable open dataset.
 
+### Render-only lawns
+
+`public/tiles/sf/street-grass.json` contains **2,844 Lawn pieces** from San Francisco
+Recreation and Parks [Functional Areas, `38b7-6db3`](https://data.sf.gov/resource/38b7-6db3.json).
+Only `functional_area_type = 'Lawn'` is included. Natural Area and Non-landscaped Greenspace
+are excluded: those categories do not establish turf. This is a render-only layer, indexed
+by `street-detail.json`; it changes no collision pack, world manifest or simulation version.
+
+The official [dataset metadata](https://data.sf.gov/api/views/38b7-6db3.json) was re-read on
+2026-10-26 and reports `licenseId: PDDL`, **Open Data Commons Public Domain Dedication and
+License 1.0**. The layer credits San Francisco Recreation and Parks via DataSF. No
+OpenStreetMap records, files, extract or producer dependency are included in this lawn layer.
+
+The geometry is the **2026-10-23 compiled DataSF snapshot**, not a fresh download. Its
+source was the separate DataSF file at
+[`50d77eb3`](https://github.com/BroderickHigby/fog-city/commit/50d77eb3e984e5384d2bcc6668a87791615285dd),
+`public/tiles/sf/street-landcover.json` (SHA-256
+`78db0160dcfc2fc559a5e077734d5d80921bcbd6461960ce20dde76f8fea8c76`). The input committed in
+`pipeline/data/sf-lawns-2026-10-23.json.gz` contains only its projected/clipped Lawn records.
+The committed input preserves all 2,850 source pieces and its 21 polygons with holes. The
+runtime layer excludes only six pieces whose bounding boxes are wholly outside the current
+SF manifest bounds `[-11000,-4500,3500,10500]`: RPD functional area `806432`, about 223 km
+east of the origin. It does not clip or alter any included geometry. The **2,844 SF pieces**
+retain their coordinates, 100 m cell cuts and all **19 included polygons with holes**. The old
+compiled source repeated 19 IDs (54 excess IDs) across distinct polygons; 73 affected pieces
+receive a stable geometry-hash suffix and retain the original ID as `sourceId`.
+
+`pipeline/grass-snapshot.json` pins the compressed and decompressed input hashes and records
+the original raw-response hash from the upstream snapshot. That original response was **not
+refetched or independently rehashed** by this adaptation. Rebuilding needs only committed
+files, native Node APIs and no Git ref, ignored cache or network:
+
+```sh
+node pipeline/build-grass.ts
+node pipeline/build-grass.ts --check
+```
+
+The producer verifies both input hashes and writes the lawn asset and its optional index
+entry. Rebuilding street paint/signs/trees preserves that registration when the lawn file
+exists. `tests/pipeline/grass.test.ts` checks unchanged rings, unique stable IDs, cell bounds,
+literal Lawn selection, source provenance and byte-identical offline output. The renderer
+owns terrain following, roads/paths/building/water exclusion and nearby grass detail.
+
 ## Tiles: the whole city
 
 `pipeline/areas.json` defines worlds. World `sf` has a `citywide` box (north 37.834, west

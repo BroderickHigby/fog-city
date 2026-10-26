@@ -23,6 +23,7 @@ import { buildMarkings, stopApproaches, type Junction, type MarkingStats } from 
 import { Ground } from "./lib/terrain.ts";
 import { STREET_DETAIL_INDEX } from "../src/render/street-markings.ts";
 import { decodeWorldColliders } from "./lib/world-colliders.ts";
+import { GRASS_FILE, GRASS_ATTRIBUTION } from "./build-grass.ts";
 
 export const MARKINGS_FILE = "street-markings.json";
 export const FURNITURE_FILE = "street-furniture.json";
@@ -34,6 +35,7 @@ export const LAYER_LINE_KEYS: Record<string, readonly string[]> = {
   [FURNITURE_FILE]: ["signals", "stopSigns"],
   [SIGNS_FILE]: ["corners", "curb"],
   [TREES_FILE]: ["trees"],
+  [GRASS_FILE]: ["grass"],
 };
 
 const STYLE_CODE = { continental: "c", standard: "s" } as const;
@@ -142,13 +144,16 @@ export function buildStreetDetail(
     },
     LAYER_LINE_KEYS[TREES_FILE]!,
   );
+  // The separately pinned DataSF lawn producer owns this optional layer. Preserve its
+  // registration when rebuilding paint/signs/trees; it never needs the download cache.
+  const grass = existsSync(join(dir, GRASS_FILE)) ? read<{ grass: unknown[] }>(GRASS_FILE) : null;
   const index = jsonPretty({
     version: 1,
     world: manifest.world,
     description: "Street-detail layers (render-only): see docs/data-sources.md, Street detail.",
     snapshotDate,
-    attribution: [...attribution, streetDetailAttribution(["trees"])],
-    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, trees: TREES_FILE, ...(existsSync(join(dir, "storefronts.json")) ? { storefronts: "storefronts.json" } : {}) },
+    attribution: [...attribution, streetDetailAttribution(["trees"]), ...(grass ? [GRASS_ATTRIBUTION] : [])],
+    layers: { markings: MARKINGS_FILE, furniture: FURNITURE_FILE, signs: SIGNS_FILE, trees: TREES_FILE, ...(existsSync(join(dir, "storefronts.json")) ? { storefronts: "storefronts.json" } : {}), ...(grass ? { grass: GRASS_FILE } : {}) },
     counts: {
       junctions: stats.junctions,
       continentalCrosswalks: stats.crosswalks.continental,
@@ -159,6 +164,7 @@ export function buildStreetDetail(
       signPosts: signs.corners.length,
       curbSigns: signs.curb.length,
       trees: trees.trees.length,
+      ...(grass ? { grassPieces: grass.grass.length } : {}),
     },
   });
   return { files: { [STREET_DETAIL_INDEX]: index, [MARKINGS_FILE]: markings, [FURNITURE_FILE]: furnitureFile, [SIGNS_FILE]: signsFile, [TREES_FILE]: treesFile }, stats: { ...stats, stopSigns: { matched: stops.matched, unmatched: stops.unmatched }, furniture: { signals: furniture.signals.length, stopSigns: furniture.stopSigns.length }, signs: { ...signs.stats, posts: signs.corners.length } } };

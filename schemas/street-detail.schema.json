@@ -54,6 +54,10 @@
         "storefronts": {
           "type": "string",
           "pattern": "^[a-z0-9-]+\\.json$"
+        },
+        "grass": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+\\.json$"
         }
       }
     },

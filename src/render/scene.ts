@@ -38,6 +38,7 @@ import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 import { trackGpuMemory, type GpuMemory } from "./gpu-memory.ts";
 import { StreetDetailLayer, type StreetDetailInfo } from "./street-detail.ts";
+import type { GrassInfo } from "./grass.ts";
 
 export type { CameraMode } from "./cameras.ts";
 
@@ -86,6 +87,7 @@ export interface WorldData {
 export interface RenderInfo {
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
+  grass?: GrassInfo;
   drawCalls: number;
   triangles: number;
   tilesLoaded: number;
@@ -332,6 +334,8 @@ export class SceneRenderer {
       json: assets ? (path) => assets.json(path) : fetchJson,
       ground: world.ground,
       materials: this.materials,
+      roads: world.roads,
+      colliders: world.colliders,
     });
     this.scene.add(this.streetDetail.group);
     void this.streetDetail.load();
@@ -815,6 +819,7 @@ export class SceneRenderer {
     out.cameraFar = this.camera.far;
     out.streetDetail = this.streetDetail.info();
     out.buildingDetail = this.streamer.buildingDetailInfo();
+    out.grass = this.streetDetail.grass.info();
     return out;
   }
 

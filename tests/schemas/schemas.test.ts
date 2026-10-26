@@ -40,6 +40,7 @@ const EXTRAS: Record<string, string> = {
   "street-furniture.json": "street-furniture",
   "street-signs.json": "street-signs",
   "street-trees.json": "street-trees",
+  "street-grass.json": "street-grass",
 };
 
 describe("world tiles validate", () => {

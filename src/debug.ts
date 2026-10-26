@@ -4,12 +4,15 @@
 
 import type { InputFrame, SimEvent, SimInput, SimState } from "./sim/contract.ts";
 import type { BuildingDetailStats } from "./render/building-character.ts";
+import type { GrassInfo } from "./render/grass.ts";
 
 export type CameraModeName = "chase" | "first-person" | "fly";
 
 export interface RenderInfo {
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
+  /** Terrain-following lawn surfaces and bounded nearby blade detail. */
+  grass?: GrassInfo;
   /** Draw calls and triangles of the last rendered frame (renderer.info). */
   drawCalls: number;
   triangles: number;
