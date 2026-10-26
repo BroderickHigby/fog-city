@@ -3,10 +3,13 @@
 // read-only render stats plus render-only controls (night, cameras) for screenshots.
 
 import type { InputFrame, SimEvent, SimInput, SimState } from "./sim/contract.ts";
+import type { BuildingDetailStats } from "./render/building-character.ts";
 
 export type CameraModeName = "chase" | "first-person" | "fly";
 
 export interface RenderInfo {
+  /** Bounded nearby architectural geometry and its style mix. */
+  buildingDetail?: BuildingDetailStats;
   /** Draw calls and triangles of the last rendered frame (renderer.info). */
   drawCalls: number;
   triangles: number;

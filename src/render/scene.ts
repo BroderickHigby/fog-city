@@ -21,6 +21,7 @@ import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
@@ -83,6 +84,8 @@ export interface WorldData {
 }
 
 export interface RenderInfo {
+  /** Bounded nearby architectural geometry and its style mix. */
+  buildingDetail?: BuildingDetailStats;
   drawCalls: number;
   triangles: number;
   tilesLoaded: number;
@@ -811,6 +814,7 @@ export class SceneRenderer {
     out.farBudget = { radius: f.radius, queued: f.queued, loading: f.loading, failed: f.failed };
     out.cameraFar = this.camera.far;
     out.streetDetail = this.streetDetail.info();
+    out.buildingDetail = this.streamer.buildingDetailInfo();
     return out;
   }
 

@@ -11,6 +11,7 @@
 // window materials read it too. Changing it never recompiles anything.
 
 import * as THREE from "three";
+import { WINDOW_PROFILE_GLSL } from "./building-window-profile.ts";
 
 export interface FogSettings {
   /** Base density at ground level (1/m). */
@@ -130,12 +131,16 @@ export function setFog(f: FogSettings, fog: THREE.FogExp2): void {
 
 const BUILDING_VERTEX_PARS = /* glsl */ `
 attribute vec4 _facade;
+// Per-building identity/base/height/family supplied once when a tile loads.
+attribute vec4 _building;
+varying vec4 vFcBuilding;
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
 varying vec3 vFcBuildingWorld;
 `;
 
 const BUILDING_FRAGMENT_PARS = /* glsl */ `
+varying vec4 vFcBuilding;
 varying vec2 vFcUv;
 varying vec4 vFcFacade;
 varying vec3 vFcBuildingWorld;
@@ -154,6 +159,22 @@ float fcNoise( vec2 p ) {
 float fcBand( float lo, float hi, float x, float w ) {
   return smoothstep( lo - w, lo + w, x ) - smoothstep( hi - w, hi + w, x );
 }
+float fcLine( float centre, float x, float width, float filterWidth ) {
+  return 1.0 - smoothstep( width, width + max( filterWidth, 0.0001 ), abs( x - centre ) );
+}
+// A shallow semicircular head inside the existing rectangular opening. Its radius is in
+// metres, so a wide bay and a narrow sash do not acquire the same squashed arch.
+float fcOpening( vec2 f, vec4 win, vec2 filterWidth, vec2 cell, float arch ) {
+  float sides = fcBand( win.x, win.y, f.x, filterWidth.x );
+  if ( arch < 0.5 ) return sides * fcBand( win.z, win.w, f.y, filterWidth.y );
+  float rx = max( ( win.y - win.x ) * 0.5, 0.001 );
+  float ry = min( ( win.w - win.z ) * 0.32, rx * cell.x / cell.y );
+  float nx = clamp( ( f.x - ( win.x + win.y ) * 0.5 ) / rx, -1.0, 1.0 );
+  float top = win.w - ry + ry * sqrt( max( 0.0, 1.0 - nx * nx ) );
+  return sides * smoothstep( win.z - filterWidth.y, win.z + filterWidth.y, f.y )
+               * ( 1.0 - smoothstep( top - filterWidth.y, top + filterWidth.y, f.y ) );
+}
+${WINDOW_PROFILE_GLSL}
 // x colW, y floorH, z lit fraction, w shop band height; win = window rect in the cell.
 vec4 fcGrid( float storeyM, float g, out vec4 win ) {
   float floorH = clamp( storeyM, 2.6, 8.0 );
@@ -173,14 +194,31 @@ const BUILDING_FRAGMENT = /* glsl */ `
   float fcLit = 0.0;
   float fcRelief = 0.0;
   float fcGlassVariation = 0.5;
+  float fcFrameMetal = 0.0;
+  float fcSeed = clamp( vFcBuilding.x, 0.0, 1.0 );
+  float fcCharacter = step( 0.0, vFcBuilding.x ) * step( 0.0, vFcBuilding.w );
+  float fcFamily = vFcBuilding.w;
+  float fcStone = fcCharacter * ( 1.0 - step( 0.5, fcFamily ) );
+  float fcDeco = fcCharacter * step( 0.5, fcFamily ) * ( 1.0 - step( 1.5, fcFamily ) );
+  float fcBrick = fcCharacter * step( 1.5, fcFamily ) * ( 1.0 - step( 2.5, fcFamily ) );
+  float fcHome = fcCharacter * step( 2.5, fcFamily ) * ( 1.0 - step( 3.5, fcFamily ) );
+  float fcModern = fcCharacter * step( 3.5, fcFamily );
+  float fcPixelM = max( length( dFdx( vFcUv ) ), length( dFdy( vFcUv ) ) );
+  float fcArchitectureDetail = 1.0 - smoothstep( 0.08, 0.32, fcPixelM );
+  vec3 fcTrimColor = mix( diffuseColor.rgb * 1.14, vec3( 0.53, 0.49, 0.42 ), 0.12 );
+  fcTrimColor = mix( fcTrimColor, mix( diffuseColor.rgb * 1.15, vec3( 0.68, 0.67, 0.60 ), 0.58 ), fcHome );
+  fcTrimColor = mix( fcTrimColor, mix( vec3( 0.085, 0.105, 0.115 ), vec3( 0.17, 0.14, 0.10 ), fcSeed * 0.45 ), fcModern );
+  vec4 fcBaseWin;
+  vec4 fcBaseGrid = fcGrid( vFcFacade.x * 8.0, vFcFacade.y, fcBaseWin );
   vec3 fcLightCol = vec3( 1.0, 0.72, 0.42 );
   float fcGlaze = vFcFacade.y;
   float fcWallDetail = 1.0;
-  // Material colour is already supplied by the SF footprint data. Preserve it, adding only
-  // shallow construction joints and weathering rather than painting arbitrary facades over it.
+  // Keep the source facade palette and add a restrained, stable building-level patina.
+  // Architectural families change openings and construction details, not SF massing.
+  diffuseColor.rgb *= mix( 1.0, 0.965 + fcSeed * 0.07, fcCharacter );
   if ( vFcFacade.w < 0.5 ) {
     float historic = step( 0.01, vFcFacade.z ) * ( 1.0 - step( 0.62, vFcFacade.z ) );
-    float brick = historic * step( diffuseColor.g * 1.14, diffuseColor.r );
+    float brick = max( fcBrick, historic * step( diffuseColor.g * 1.14, diffuseColor.r ) );
     vec2 blockM = mix( vec2( 1.1, 0.44 ), vec2( 0.29, 0.095 ), brick );
     vec2 block = vFcUv / blockM;
     block.x += mod( floor( block.y ), 2.0 ) * 0.5;
@@ -190,7 +228,7 @@ const BUILDING_FRAGMENT = /* glsl */ `
     float mortar = 1.0 - smoothstep( groutWidth.x, groutWidth.x + bw.x, edge.x )
                          * smoothstep( groutWidth.y, groutWidth.y + bw.y, edge.y );
     fcWallDetail = 1.0 - smoothstep( 0.22, 0.75, max( bw.x, bw.y ) );
-    float masonry = ( 1.0 - smoothstep( 0.45, 0.8, fcGlaze ) ) * fcWallDetail;
+    float masonry = ( 1.0 - smoothstep( 0.45, 0.8, fcGlaze ) ) * fcWallDetail * ( 1.0 - fcHome );
     float stoneTone = ( fcHash( floor( block ) ) - 0.5 ) * 0.065;
     diffuseColor.rgb *= 1.0 + masonry * ( stoneTone - mortar * 0.14 );
     float lowerWall = 1.0 - smoothstep( 0.15, 2.3, max( vFcUv.y, 0.0 ) );
@@ -199,9 +237,10 @@ const BUILDING_FRAGMENT = /* glsl */ `
     fcRelief = -mortar * masonry * 0.003;
   }
   if ( vFcFacade.w < 0.5 && fcGlaze > 0.04 ) {
-    vec4 win;
-    vec4 grid = fcGrid( vFcFacade.x * 8.0, fcGlaze, win );
+    vec4 win = fcBaseWin;
+    vec4 grid = fcBaseGrid;
     if ( vFcFacade.z > 0.01 && vFcFacade.z < 0.37 ) win = vec4( 0.5 + ( win.xy - 0.5 ) * 0.78, win.z * 0.8, min( 0.95, win.w + 0.06 ) );
+    win = fcCharacterWindowRect( win, fcFamily, fcSeed );
     vec2 cell = grid.xy;
     bool shop = grid.w > 0.0 && vFcUv.y < grid.w && vFcUv.y > 0.0;
     if ( shop ) { cell = vec2( grid.x * 2.0, grid.w ); win = vec4( 0.08, 0.92, 0.12, 0.8 ); }
@@ -209,34 +248,37 @@ const BUILDING_FRAGMENT = /* glsl */ `
     vec2 f = fract( g );
     vec2 id = floor( g );
     vec2 fw = max( fwidth( g ), vec2( 0.0001 ) );
-    float w = fcBand( win.x, win.y, f.x, fw.x * 0.75 ) * fcBand( win.z, win.w, f.y, fw.y * 0.75 );
-    float avg = ( win.y - win.x ) * ( win.w - win.z );
+    float arch = ( fcStone * step( 0.35, fcSeed ) + fcHome * step( 0.72, fcSeed ) ) * ( shop ? 0.0 : 1.0 );
+    float w = fcOpening( f, win, fw * 0.75, cell, arch );
+    float rx = ( win.y - win.x ) * 0.5;
+    float ry = min( ( win.w - win.z ) * 0.32, rx * cell.x / cell.y );
+    float avg = ( win.y - win.x ) * ( win.w - win.z ) - arch * 0.429204 * rx * ry;
     float far = smoothstep( 0.3, 0.75, max( fw.x, fw.y ) );
     w = mix( w, avg, far );
     float floorMask = ( !shop && vFcUv.y < max( grid.w, 0.8 ) ) || vFcUv.y < 0.0 ? 0.0 : 1.0;
     w *= floorMask;
     fcWin = w;
-    float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0, 0.0 ) );
-    float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 );
+    float h = fcHash( id + vec2( floor( fcGlaze * 31.0 ) * 17.0 + fcSeed * 79.0, fcSeed * 137.0 ) );
+    float cluster = fcHash( floor( id / vec2( 5.0, 3.0 ) ) + 7.3 + fcSeed * 43.0 );
     // Night offices: lit floors cluster, most rooms dark, and lit rooms differ in brightness.
     float litFrac = shop ? 0.75 : grid.z * ( 0.2 + 0.9 * cluster );
     float on = step( 1.0 - litFrac, h );
     fcLit = mix( on * mix( 0.4, 1.0, fract( h * 13.7 ) ), ( shop ? 0.6 : grid.z ) * 0.14, far ) * w;
-    float tone = fcHash( id * 1.7 + 3.1 );
+    float tone = fcHash( id * 1.7 + 3.1 + fcSeed * 29.0 );
     fcGlassVariation = tone;
     fcLightCol = tone > 0.82 ? vec3( 0.75, 0.86, 1.0 ) : ( tone > 0.55 ? vec3( 1.0, 0.85, 0.6 ) : vec3( 1.0, 0.7, 0.4 ) );
     if ( shop ) fcLightCol = vec3( 1.0, 0.82, 0.55 );
 
     // Narrow frames and stone sills read at street distance, then fade to a smooth average.
     vec2 reveal = vec2( 0.065 ) / cell;
-    float outer = fcBand( win.x - reveal.x, win.y + reveal.x, f.x, fw.x )
-                * fcBand( win.z - reveal.y, win.w + reveal.y, f.y, fw.y );
+    float outer = fcOpening( f, win + vec4( -reveal.x, reveal.x, -reveal.y, reveal.y ), fw, cell, arch );
     float frame = max( outer - w, 0.0 ) * ( 1.0 - far ) * floorMask;
     float sill = fcBand( win.x - reveal.x * 1.7, win.y + reveal.x * 1.7, f.x, fw.x )
                * fcBand( win.z - reveal.y * 2.4, win.z - reveal.y * 0.5, f.y, fw.y )
                * ( 1.0 - far ) * floorMask * ( 1.0 - smoothstep( 0.7, 0.95, fcGlaze ) );
-    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 0.54, frame );
-    diffuseColor.rgb = mix( diffuseColor.rgb, diffuseColor.rgb * 1.13, sill );
+    vec3 frameColor = mix( diffuseColor.rgb * 0.54, fcTrimColor, fcCharacter );
+    diffuseColor.rgb = mix( diffuseColor.rgb, frameColor, frame );
+    diffuseColor.rgb = mix( diffuseColor.rgb, mix( diffuseColor.rgb * 1.13, fcTrimColor * 1.08, fcCharacter ), sill );
 
     // View-dependent room depth from the existing facade UV frame. No new textures or meshes.
     vec3 px = dFdx( vFcBuildingWorld ), py = dFdy( vFcBuildingWorld );
@@ -255,6 +297,7 @@ const BUILDING_FRAGMENT = /* glsl */ `
     float blindLines = 0.92 + 0.08 * cos( roomUv.y * 95.0 );
     blindLines = mix( blindLines, 0.96, smoothstep( 0.02, 0.055, fw.y ) );
     vec3 glass = mix( vec3( 0.038, 0.052, 0.065 ), vec3( 0.074, 0.087, 0.092 ), tone );
+    glass = mix( glass, mix( vec3( 0.040, 0.075, 0.085 ), vec3( 0.085, 0.12, 0.14 ), tone ), fcModern * 0.65 );
     glass *= mix( 0.65, 1.0, roomBack );
     vec3 blindColor = mix( vec3( 0.18, 0.17, 0.14 ), vec3( 0.25, 0.26, 0.25 ), h );
     glass = mix( glass, blindColor * blindLines, blind * ( 1.0 - far ) * 0.72 );
@@ -262,8 +305,67 @@ const BUILDING_FRAGMENT = /* glsl */ `
     vec2 paneEdge = min( roomUv, 1.0 - roomUv );
     float revealShade = 1.0 - smoothstep( 0.0, 0.08, min( paneEdge.x, paneEdge.y ) );
     glass *= 1.0 - revealShade * ( 1.0 - far ) * 0.24;
+    // Steel warehouse lights, painted double-hung sash, slender deco transoms and
+    // contemporary curtain-wall divisions share the same source column/floor rhythm.
+    vec2 pane = ( f - win.xz ) / max( win.yw - win.xz, vec2( 0.05 ) );
+    vec2 paneFw = fw / max( win.yw - win.xz, vec2( 0.05 ) );
+    float mullion = 0.0;
+    if ( fcCharacter > 0.5 && far < 0.99 ) {
+      float centre = fcLine( 0.5, pane.x, mix( 0.013, 0.035, fcHome ), paneFw.x );
+      float transom = fcLine( mix( 0.74, 0.49, fcHome ), pane.y, mix( 0.014, 0.026, fcHome ), paneFw.y );
+      mullion = max( centre, transom );
+      if ( fcBrick > 0.5 ) {
+        vec2 panes = vec2( 3.0 + step( 0.55, fcSeed ), 2.0 );
+        vec2 edge = min( fract( pane * panes ), 1.0 - fract( pane * panes ) );
+        vec2 filters = paneFw * panes;
+        mullion = 1.0 - smoothstep( 0.025, 0.025 + filters.x, edge.x )
+                        * smoothstep( 0.025, 0.025 + filters.y, edge.y );
+      }
+      mullion *= ( 1.0 - far ) * fcArchitectureDetail;
+      glass = mix( glass, frameColor, mullion );
+    }
+    fcWin *= 1.0 - mullion;
+    fcLit *= 1.0 - mullion;
+    fcFrameMetal = fcModern * max( frame, mullion * w );
     diffuseColor.rgb = mix( diffuseColor.rgb, glass, w * 0.94 );
-    fcRelief += ( -w * 0.035 + frame * 0.007 + sill * 0.014 ) * ( 1.0 - far );
+    fcRelief += ( -w * 0.035 + frame * 0.007 + sill * 0.014 + mullion * w * 0.006 ) * ( 1.0 - far );
+  }
+  if ( fcCharacter > 0.5 && fcArchitectureDetail > 0.001 ) {
+    if ( vFcFacade.w < 0.5 ) {
+      float localY = vFcBuildingWorld.y - vFcBuilding.y;
+      float floorY = mod( max( localY, 0.0 ), fcBaseGrid.y );
+      float course = fcBand( 0.0, mix( 0.10, 0.18, fcDeco ), floorY, fcPixelM );
+      float grouped = fcBaseGrid.x * ( 2.0 + step( 0.55, fcSeed ) );
+      float bayX = mod( vFcUv.x, grouped );
+      float pier = fcBand( 0.0, 0.15 + fcDeco * 0.08, bayX, fcPixelM );
+      float top = vFcBuilding.z - localY;
+      float cornice = fcBand( 0.0, 0.38 + fcStone * 0.18, top, fcPixelM );
+      float plinth = fcBand( 0.0, 0.65, localY, fcPixelM );
+      float ornament = max( course * ( fcStone * 0.55 + fcDeco * 0.8 + fcHome * 0.25 ), pier * ( fcStone * 0.3 + fcDeco * 0.75 ) );
+      ornament = max( ornament, cornice * ( fcStone + fcDeco + fcHome * 0.5 ) );
+      ornament *= fcArchitectureDetail;
+      diffuseColor.rgb = mix( diffuseColor.rgb, fcTrimColor, clamp( ornament, 0.0, 1.0 ) );
+      diffuseColor.rgb *= 1.0 - plinth * fcArchitectureDetail * ( 0.10 + fcBrick * 0.1 );
+      // Some low residential facades are clapboard; others retain smooth painted stucco.
+      if ( fcHome > 0.5 && fcSeed > 0.55 ) {
+        float lap = fcBand( 0.0, 0.014, mod( max( localY, 0.0 ), 0.20 ), fcPixelM );
+        diffuseColor.rgb *= 1.0 - lap * fcArchitectureDetail * ( 1.0 - fcWin ) * 0.09;
+        fcRelief -= lap * fcArchitectureDetail * ( 1.0 - fcWin ) * 0.002;
+      }
+      fcRelief += ornament * 0.012;
+      fcWin *= 1.0 - clamp( ornament, 0.0, 1.0 );
+      fcLit *= 1.0 - clamp( ornament, 0.0, 1.0 );
+    } else {
+      // Roof expansion joints and muted gravel patches complement the actual roof equipment.
+      vec2 roof = ( vFcUv + fcSeed * 11.0 ) / 3.2;
+      vec2 edge = min( fract( roof ), 1.0 - fract( roof ) );
+      vec2 filterWidth = max( fwidth( roof ), vec2( 0.0001 ) );
+      float joint = 1.0 - smoothstep( 0.003, 0.003 + filterWidth.x, edge.x )
+                        * smoothstep( 0.003, 0.003 + filterWidth.y, edge.y );
+      float patch = fcHash( floor( roof ) + fcSeed * 31.0 );
+      diffuseColor.rgb *= 1.0 + fcArchitectureDetail * ( ( patch - 0.5 ) * 0.055 - joint * 0.08 );
+      fcRelief -= joint * fcArchitectureDetail * 0.004;
+    }
   }
 `;
 
@@ -281,6 +383,7 @@ vec3 fcReliefNormal( vec3 positionView, vec3 surfaceNormal, float height ) {
 
 const BUILDING_ROUGHNESS = /* glsl */ `
   roughnessFactor = mix( roughnessFactor, mix( 0.13, 0.25, fcGlassVariation ), fcWin );
+  roughnessFactor = mix( roughnessFactor, 0.32, fcFrameMetal );
 `;
 
 const BUILDING_EMISSIVE = /* glsl */ `
@@ -291,12 +394,13 @@ function patchBuildingShader(shader: THREE.WebGLProgramParametersWithUniforms): 
   injectUniforms(shader);
   shader.vertexShader = shader.vertexShader
     .replace("#include <common>", `#include <common>\n${BUILDING_VERTEX_PARS}`)
-    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcUv = uv;\n  vFcFacade = _facade;")
+    .replace("#include <begin_vertex>", "#include <begin_vertex>\n  vFcUv = uv;\n  vFcFacade = _facade;\n  vFcBuilding = _building;")
     .replace("#include <project_vertex>", "#include <project_vertex>\n  vFcBuildingWorld = ( modelMatrix * vec4( transformed, 1.0 ) ).xyz;");
   shader.fragmentShader = shader.fragmentShader
     .replace("#include <common>", `#include <common>\n${BUILDING_FRAGMENT_PARS}\n${RELIEF_NORMAL_PARS}`)
     .replace("#include <color_fragment>", `#include <color_fragment>\n${BUILDING_FRAGMENT}`)
     .replace("#include <roughnessmap_fragment>", `#include <roughnessmap_fragment>\n${BUILDING_ROUGHNESS}`)
+    .replace("#include <metalnessmap_fragment>", "#include <metalnessmap_fragment>\n  metalnessFactor = max( metalnessFactor, fcFrameMetal * 0.55 );")
     .replace("#include <emissivemap_fragment>", `#include <emissivemap_fragment>\n${BUILDING_EMISSIVE}`)
     .replace("#include <normal_fragment_maps>", "#include <normal_fragment_maps>\n  normal = fcReliefNormal( -vViewPosition, normal, fcRelief );");
 }
@@ -455,11 +559,13 @@ function roadMaterial(name: string, patch: (s: THREE.WebGLProgramParametersWithU
 export function createSharedMaterials(): SharedMaterials {
   installFog();
   const building = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, name: "fc:building" });
+  Object.assign(building, { defaultAttributeValues: { _facade: [0, 0, 0, 1], _building: [-1, 0, 0, -1] } });
   building.onBeforeCompile = patchBuildingShader;
-  building.customProgramCacheKey = () => "fc:building:v3";
+  building.customProgramCacheKey = () => "fc:building:v4";
   const buildingFlat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0.0, flatShading: true, name: "fc:building-flat" });
+  Object.assign(buildingFlat, { defaultAttributeValues: { _facade: [0, 0, 0, 1], _building: [-1, 0, 0, -1] } });
   buildingFlat.onBeforeCompile = patchBuildingShader;
-  buildingFlat.customProgramCacheKey = () => "fc:building:v3";
+  buildingFlat.customProgramCacheKey = () => "fc:building:v4";
 
   const ground = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.97, metalness: 0, name: "fc:ground" });
   ground.onBeforeCompile = patchGrainShader(0.12, 0.16);

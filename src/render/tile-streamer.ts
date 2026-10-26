@@ -20,6 +20,7 @@
 import * as THREE from "three";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
+import { BuildingDetailLayer, characterizeBuildings, type BuildingCharacter, type BuildingDetailStats } from "./building-character.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { materialFor, tileLayer, type SharedMaterials } from "./materials.ts";
 import { buildTileProps, geometryFromMeshData, type NightMaterials, type TileProps } from "./props.ts";
@@ -93,6 +94,7 @@ interface TileRecord {
   /** The tile's own collider (fallbackCollider), preferred over `colliders` for the fallback build. */
   collider?: TileCollider;
   error?: string;
+  characters:BuildingCharacter[];
 }
 
 export interface StreamerStats {
@@ -124,11 +126,13 @@ export class TileStreamer {
   private hiddenBuildings = new Set<string>();
   private loader: (url: string) => Promise<GLTF>;
   private nightVisible = false;
+  private readonly characters:BuildingDetailLayer;
   radius: number;
   hysteresis: number;
 
   constructor(opts: StreamerOptions) {
     this.opts = opts;
+    this.characters=new BuildingDetailLayer(opts.parent,opts.ground);
     this.radius = opts.radius ?? DEFAULT_RADIUS_M;
     this.hysteresis = opts.hysteresis ?? DEFAULT_HYSTERESIS_M;
     const size = opts.manifest.tileSizeM ?? 500;
@@ -180,7 +184,7 @@ export class TileStreamer {
 
   /** True when nothing is queued, loading or building. */
   settled(): boolean {
-    if (this.dirty || this.queue.length > 0 || this.inFlight > 0) return false;
+    if (this.dirty || this.queue.length > 0 || this.inFlight > 0 || !this.characters.settled()) return false;
     for (const r of this.records.values()) if (r.state === "loading" || r.state === "building") return false;
     return true;
   }
@@ -195,6 +199,7 @@ export class TileStreamer {
       }
     }
     if (!changed) return;
+    this.characters.hide(this.hiddenBuildings);
     for (const r of this.records.values()) if (r.state === "ready") this.applyHidden(r);
   }
 
@@ -215,7 +220,10 @@ export class TileStreamer {
     }
     this.startLoads();
     this.pump(budgetMs);
+    this.characters.update(x,z,Math.min(1,budgetMs));
   }
+
+  buildingDetailInfo():BuildingDetailStats{return this.characters.stats();}
 
   private reselect(x: number, z: number): void {
     this.lastX = x;
@@ -248,6 +256,7 @@ export class TileStreamer {
         group: new THREE.Group(),
         gen: null,
         props: null,
+        characters:[],
         geometries: [],
         ownedMaterials: [],
         textures: [],
@@ -349,7 +358,13 @@ export class TileStreamer {
       // Building ranges: primitive extras (this repo) or node extras (pipeline).
       const nodeRanges = (mesh.userData as { buildings?: unknown }).buildings;
       if (!geo.userData.fcBuildings && Array.isArray(nodeRanges)) geo.userData.fcBuildings = nodeRanges;
-      if (Array.isArray(geo.userData.fcBuildings)) rec.hideable.push(geo);
+      if (Array.isArray(geo.userData.fcBuildings)) {
+        rec.hideable.push(geo);
+        if(mats.some(m=>tileLayer(m.name,mesh.name)==="building")){
+          const colliders=new Map((this.opts.colliders.get(rec.id)?.buildings??[]).map(b=>[b.id,b]));
+          rec.characters.push(...characterizeBuildings(geo,mesh.matrixWorld,colliders));
+        }
+      }
     });
     root.traverse((o) => (o.matrixAutoUpdate = false));
     rec.group.add(root);
@@ -410,6 +425,10 @@ export class TileStreamer {
       const add = (data: TileMeshes["ground"], mat: THREE.Material, name: string): void => {
         if (!data) return;
         const g = geometryFromMeshData(data);
+        if(name==="buildings"){
+          const colliders=new Map((rec.collider??this.opts.colliders.get(rec.id))?.buildings.map(b=>[b.id,b])??[]);
+          rec.characters.push(...characterizeBuildings(g,IDENTITY,colliders));
+        }
         rec.geometries.push(g);
         if (name === "ground") this.opts.tintGround?.(g, IDENTITY);
         const mesh = new THREE.Mesh(g, mat);
@@ -431,6 +450,7 @@ export class TileStreamer {
       rec.group.add(props.group);
     }
     this.applyHidden(rec);
+    this.characters.register(rec.id,rec.characters);
     rec.group.updateMatrixWorld(true);
     rec.state = "ready";
     this.opts.onReady?.(rec.group);
@@ -463,6 +483,7 @@ export class TileStreamer {
     const rec = this.records.get(id);
     if (!rec) return;
     this.records.delete(id);
+    this.characters.unregister(id);
     if (rec.state === "ready") this.opts.onTileVisible?.(id, false);
     rec.dropped = true;
     rec.gen = null;
@@ -479,6 +500,7 @@ export class TileStreamer {
   dispose(): void {
     for (const id of [...this.records.keys()]) this.unload(id);
     this.queue = [];
+    this.characters.dispose();
   }
 }
 
