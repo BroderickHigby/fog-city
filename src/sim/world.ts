@@ -10,6 +10,7 @@ import type { GameplayWorldData } from "./gameplay-world.ts";
 import type { SidewalkGraph } from "./agents/navigation.ts";
 import type { TransitLayer } from "./agents/transit-runtime.ts";
 import type { ParkingLayer, StreetCleaningLayer } from "./parking-data.ts";
+import type { TrafficSignalControls } from "./traffic-signals.ts";
 
 export interface BuildingCollider {
   id: string;
@@ -46,6 +47,8 @@ export interface TileCollider {
 }
 
 export interface World {
+  /** Shared deterministic approach phases for authored signalized intersections. */
+  signals?: TrafficSignalControls;
   /** Immutable legal-parking rules; absence never grants parking permission. */
   parking?: Readonly<ParkingLayer>;
   streetCleaning?: Readonly<StreetCleaningLayer>;

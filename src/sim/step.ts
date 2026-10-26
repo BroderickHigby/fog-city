@@ -163,6 +163,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *    firmware, missions, attacks and every saved extension remain unchanged.
  *  - v17 -> v18: swept full-hull vehicle contacts; every saved field remains unchanged.
  *  - v18 -> v19: fixed-step city-road handling; no field rewrite or progress reset.
+ *  - v19 -> v20: shared traffic signals; no field rewrite or progress reset.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -181,6 +182,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 16) return upgradeState({ ...s, version: 17 });
   if (s.version === 17) return upgradeState({ ...s, version: 18 });
   if (s.version === 18) return upgradeState({ ...s, version: 19 });
+  if (s.version === 19) return upgradeState({ ...s, version: 20 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

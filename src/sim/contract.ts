@@ -73,7 +73,9 @@
 // saves keep all existing fields and nested controller state.
 // v19: fixed-step city-road handling adapted from Slop New York. Existing state fields,
 // collision bodies and v18-and-earlier replay paths are preserved; the save upgrade restamps.
-export const SIM_VERSION = 19;
+// v20: SF signal-controlled approaches share deterministic green/amber/all-red phases with
+// rendered heads. Vehicles already holding a junction clear it; older replay rules stay intact.
+export const SIM_VERSION = 20;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

@@ -18,6 +18,7 @@ import { LandmarkLayer } from "./landmark-layer.ts";
 import { LandmarkFallbacks } from "./landmark-fallback.ts";
 import { filterLandmarkHulls } from "./landmark-mask.ts";
 import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
+import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
 import { NightLights } from "./lights.ts";
 import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
@@ -82,6 +83,7 @@ export interface RenderOptions {
 }
 
 export interface WorldData {
+  signals?: TrafficSignalControls;
   manifest: Manifest;
   base: string;
   colliders: ReadonlyMap<string, TileCollider>;
@@ -404,6 +406,7 @@ export class SceneRenderer {
       ground: world.ground,
       materials: this.materials,
       roads: world.roads,
+      signals: world.signals,
       colliders: world.colliders,
     });
     this.scene.add(this.streetDetail.group);
