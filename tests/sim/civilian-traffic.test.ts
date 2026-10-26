@@ -67,15 +67,19 @@ describe("ordinary passing traffic",()=>{
     }
   });
 
-  it("continues a bounded approach over several connected short road links",()=>{
+  it.each([[false,1800],[true,1800],[true,3600]] as const)("continues a bounded approach over connected short links, oneway=%s tick=%s",(oneway,cadence)=>{
     const nodes=Array.from({length:15},(_,i)=>({id:`s${i}`,x:(i-5)*20,z:0}));
-    const edges=nodes.slice(1).map((node,i)=>({id:`e${i}`,a:nodes[i]!.id,b:node.id,kind:"residential",lanes:2,oneway:false,widthM:11,speedLimitMps:11.18,points:[[nodes[i]!.x,0],[node.x,0]] as [number,number][]}));
+    const edges=nodes.slice(1).map((node,i)=>({id:`e${i}`,a:nodes[i]!.id,b:node.id,kind:"residential",lanes:2,oneway,widthM:11,speedLimitMps:11.18,points:[[nodes[i]!.x,0],[node.x,0]] as [number,number][]}));
     const world=buildWorld([],{version:1,nodes,edges});
-    let state=empty(world,50,-15),ext=admitPassingCars(world,state,1800,state.ext.agents!);
+    let state=empty(world,50,-15),ext=admitPassingCars(world,state,cadence,state.ext.agents!);
     expect(ext.list).toHaveLength(1);expect(ext.list[0]!.trafficRoute!.length).toBeGreaterThanOrEqual(2);expect(ext.list[0]!.trafficRoute!.length).toBeLessThanOrEqual(8);
-    const id=ext.list[0]!.id;state={...state,tick:1800,ext:{agents:ext}};
+    if(oneway) {
+      expect(ext.list[0]!.dir).toBe(1);
+      expect(ext.list[0]!.trafficRoute!.every(leg=>leg.dir===1)).toBe(true);
+    }
+    const id=ext.list[0]!.id;state={...state,tick:cadence,ext:{agents:ext}};
     let closest=Infinity,after=0,roundtrip=false;
-    for(let tick=1801;tick<3600;tick++) {
+    for(let tick=cadence+1;tick<cadence+1800;tick++) {
       const result=stepAgents(world,state,tick)!;state={...state,tick,ext:{agents:result.ext},rng:result.rng};
       const car=agentsOf(state).find(a=>a.id===id);if(!car)break;
       const distance=Math.hypot(car.x-50,car.z+15);closest=Math.min(closest,distance);after=distance;
@@ -85,6 +89,32 @@ describe("ordinary passing traffic",()=>{
     }
     expect(roundtrip).toBe(true);expect(closest).toBeLessThan(25);expect(after-closest).toBeGreaterThan(20);
   });
+
+  it.each([1800,3600])("approaches and passes the clear real-SF 1st St one-way frontage at tick %s",cadence=>{
+    const {world}=sfWorld(),position={x:-444.61485886968313,z:515.3248125807775};
+    let state=empty(world,position.x,position.z);
+    const ext=admitPassingCars(world,state,cadence,state.ext.agents!);
+    expect(ext.list).toHaveLength(1);
+    const first=ext.list[0]!,id=first.id;
+    for(const leg of [{edge:first.edge,dir:first.dir},...(first.trafficRoute??[])]) {
+      const edge=world.roads!.edges[world.roads!.edgeIndex.get(leg.edge)!]!;
+      if(edge.oneway) expect(leg.dir).toBe(1);
+    }
+    expect(Math.hypot(first.x-position.x,first.z-position.z)).toBeGreaterThanOrEqual(SPAWN_MIN_PLAYER_M);
+    state={...state,tick:cadence,ext:{agents:ext}};
+    let closest=Infinity,after=0,continued=false,finished=false;
+    for(let tick=cadence+1;tick<cadence+1800;tick++) {
+      const next=stepAgents(world,state,tick)!;state={...state,tick,ext:{agents:next.ext},rng:next.rng};
+      const car=agentsOf(state).find(a=>a.id===id);if(!car)break;
+      const distance=Math.hypot(car.x-position.x,car.z-position.z);closest=Math.min(closest,distance);after=distance;
+      finished ||= !car.trafficRoute;
+      if(!continued&&car.trafficRoute?.length) {
+        expect(stepAgents(world,JSON.parse(JSON.stringify(state)),tick+1)).toEqual(stepAgents(world,state,tick+1));continued=true;
+      }
+    }
+    expect(continued).toBe(true);expect(finished).toBe(true);
+    expect(closest).toBeLessThan(25);expect(after-closest).toBeGreaterThan(20);
+  },CITY_MS);
 
   it("waits for an occupied upstream junction, then follows its original approach after it clears",()=>{
     const world=gridCity();let state=empty(world,150,-15);

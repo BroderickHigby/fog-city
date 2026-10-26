@@ -2220,8 +2220,19 @@ function civilianApproaches(world: World, body: Body): CivilianApproach[] {
   const graph=world.roads!;
   const edges=new Set<number>();
   for(const area of graph.areas) if((area.cx-body.x)**2+(area.cz-body.z)**2 < 350**2) for(const piece of area.drive) edges.add(piece.edge);
+  // RoadNode.out contains legal outgoing directions only, so reversing it loses one-way
+  // predecessors. Index the legal directed incoming links themselves in this bounded area.
+  const incomingByNode=new Map<number,{edge:number;dir:Dir}[]>();
+  const ordered=[...edges].sort((a,b)=>a-b);
+  for(const index of ordered) {
+    const edge=graph.edges[index]!;
+    for(const dir of [1,-1] as const) if(canDrive(edge,dir)) {
+      const node=endNode(edge,dir),links=incomingByNode.get(node)??[];
+      links.push({edge:index,dir});incomingByNode.set(node,links);
+    }
+  }
   const choices:CivilianApproach[]=[];
-  for(const index of [...edges].sort((a,b)=>a-b)) {
+  for(const index of ordered) {
     const frontage=graph.edges[index]!;
     for(const dir of [1,-1] as const) {
       if(!canDrive(frontage,dir)) continue;
@@ -2241,9 +2252,9 @@ function civilianApproaches(world: World, body: Body): CivilianApproach[] {
             choices.push({edge,dir:direction,lane:slot,s,route:route.slice(1),score:near.dist*4+Math.abs(distance-65)+travel*.01});
           }
           if(route.length>=8 || after+toS>=125) return;
-          const node=graph.nodes[startNode(edge,direction)]!;
-          for(const outward of node.out) {
-            const previous=graph.edges[outward.edge]!,incoming:Dir=outward.dir===1?-1:1;
+          const node=startNode(edge,direction);
+          for(const link of incomingByNode.get(node)??[]) {
+            const previous=graph.edges[link.edge]!,incoming=link.dir;
             if(seen.has(previous.index) || !canDrive(previous,incoming)) continue;
             for(let previousLane=0;previousLane<previous.laneCount[dirIndex(incoming)];previousLane++) {
               if(!previous.laneClear[dirIndex(incoming)][previousLane]) continue;
