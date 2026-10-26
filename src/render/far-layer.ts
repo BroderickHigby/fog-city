@@ -28,6 +28,7 @@ import { TILE_SIZE_M } from "../geo/project.ts";
 import { fcUniforms, injectUniforms } from "./materials.ts";
 import { isGpuMaterialsEnabled } from "./node-materials.ts";
 import { createFarNodeMaterial } from "./gpu-special.ts";
+import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import { disposeObject } from "./tile-streamer.ts";
 import type { Manifest } from "./types.ts";
 import { selectFarCells, type FarBudget } from "./far-selection.ts";
@@ -632,6 +633,7 @@ export class FarLayer {
 
   private drop(root: THREE.Object3D): void {
     root.removeFromParent();
+    disposeRenderObjects(root);
     root.traverse((o) => { if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).geometry.dispose(); });
   }
 

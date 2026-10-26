@@ -290,7 +290,11 @@ export class StreetDetailLayer {
 
   private drop(cell: Cell): void {
     if (!cell.built) return;
-    for (const o of cell.built.meshes) {
+    // Owner groups currently also appear in meshes. Make their retirement explicit
+    // without dispatching duplicate disposal events on the same subtree.
+    const roots = new Set(cell.built.meshes);
+    for (const owner of [cell.built.furniture, cell.built.signs, cell.built.shops]) if (owner) roots.add(owner.group);
+    for (const o of roots) {
       this.group.remove(o);
       disposeRenderObjects(o);
       if (o instanceof THREE.Mesh) o.geometry.dispose();

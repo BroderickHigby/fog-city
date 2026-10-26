@@ -13,9 +13,13 @@ import BindGroup from "three/src/renderers/common/BindGroup.js";
 import StorageBuffer from "three/src/renderers/common/StorageBuffer.js";
 // @ts-expect-error Internal uniform binding, used with the actual manager above.
 import UniformBuffer from "three/src/renderers/common/UniformBuffer.js";
+// @ts-expect-error The regression exercises the installed renderer object teardown.
+import RenderObject from "three/src/renderers/common/RenderObject.js";
 import { AttributeType } from "three/src/renderers/common/Constants.js";
 import { disposeRenderObjects, GpuInstanceOwnership } from "../../src/render/gpu-instance-ownership.ts";
 import { StreetDetailLayer } from "../../src/render/street-detail.ts";
+import { FarLayer } from "../../src/render/far-layer.ts";
+import { PlayerBodies } from "../../src/render/player-body.ts";
 
 function fixture() {
   const info = new Info();
@@ -113,10 +117,56 @@ describe("native instance buffer ownership", () => {
     const retired = vi.fn(), sharedDisposed = vi.fn(), cellOwnerDisposed = vi.fn();
     patch.addEventListener("dispose", retired); sign.addEventListener("dispose", retired); material.addEventListener("dispose", sharedDisposed);
     nested.add(sign); group.add(patch, nested);
-    const cell = { built: { meshes: [patch, nested], furniture: { dispose: cellOwnerDisposed } } };
+    const cell = { built: { meshes: [patch], furniture: { group: nested, dispose: cellOwnerDisposed } } };
     const prototype = StreetDetailLayer.prototype as unknown as { drop(cell: unknown): void };
     prototype.drop.call({ group }, cell);
     expect(retired).toHaveBeenCalledTimes(2); expect(cellOwnerDisposed).toHaveBeenCalledTimes(1);
     expect(sharedDisposed).not.toHaveBeenCalled(); expect(group.children).toHaveLength(0); expect(cell.built).toBeNull();
+  });
+
+  it("releases regional far objects before owned geometries while retaining their shared material", () => {
+    const root = new THREE.Group(), parent = new THREE.Group(), geometry = new THREE.BoxGeometry(), material = new THREE.MeshStandardMaterial();
+    const mesh = new THREE.Mesh(geometry, material), events: string[] = [], materialDisposed = vi.fn();
+    mesh.addEventListener("dispose", () => events.push("object")); geometry.addEventListener("dispose", () => events.push("geometry")); material.addEventListener("dispose", materialDisposed);
+    root.add(mesh); parent.add(root);
+    (FarLayer.prototype as unknown as { drop(root: THREE.Object3D): void }).drop(root);
+    expect(events).toEqual(["object", "geometry"]); expect(root.parent).toBeNull(); expect(materialDisposed).not.toHaveBeenCalled();
+  });
+
+  it("retires skinned body render objects and bone UBOs before skeleton cleanup, while temporary hiding keeps them", () => {
+    const f = fixture(), mesh = new THREE.SkinnedMesh(f.geometry, f.material), skeleton = new THREE.Skeleton(Array.from({ length: 80 }, () => new THREE.Bone()));
+    mesh.bind(skeleton);
+    const root = new THREE.Group(), parent = new THREE.Group(), events: string[] = [];
+    root.add(mesh); parent.add(root);
+    const geometryDisposed = vi.fn(), materialDisposed = vi.fn();
+    f.geometry.addEventListener("dispose", geometryDisposed); f.material.addEventListener("dispose", materialDisposed);
+    const group = new BindGroup("body", [new UniformBuffer("bones80", skeleton.boneMatrices), new UniformBuffer("object", new Float32Array(48))]);
+    // Keep the actual installed RenderObject.dispose/Bindings/Info path while
+    // omitting unrelated shader construction, which requires a graphics device.
+    const ro = Object.create(RenderObject.prototype);
+    Object.assign(ro, { object: mesh, material: f.material, geometry: f.geometry, _sourceMaterial: null,
+      onMaterialDispose() {}, onGeometryDispose() {}, getBindings: () => [group] });
+    const retained = new Set([ro]);
+    ro.onDispose = () => { f.bindings.deleteForRender(ro); retained.delete(ro); };
+    ro.onObjectDispose = () => ro.dispose();
+    mesh.addEventListener("dispose", () => events.push("object")); mesh.addEventListener("dispose", ro.onObjectDispose);
+    f.bindings.getForRender(ro);
+    const originalDispose = skeleton.dispose.bind(skeleton);
+    vi.spyOn(skeleton, "dispose").mockImplementation(() => { events.push("skeleton"); originalDispose(); });
+    const bank = Object.create(PlayerBodies.prototype);
+    bank.bodies = new Map([["crowd", { root, seen: false, yaw: 0, materials: [], skeletons: new Set([skeleton]),
+      mixer: { stopAllAction: () => events.push("stop"), uncacheRoot: () => events.push("uncache") } }]]);
+    bank.end(); bank.remove(new Set(["crowd"]));
+    expect(root.visible).toBe(false); expect(root.parent).toBe(parent);
+    expect(f.info.memory.uniformBuffers).toBe(2); expect(retained.size).toBe(1); expect(events).toHaveLength(0);
+    bank.remove(new Set());
+    expect(events).toEqual(["stop", "uncache", "object", "skeleton"]);
+    expect(f.backend.destroyUniformBuffer).toHaveBeenCalledTimes(2); expect(f.info.memory.uniformBuffersSize).toBe(0);
+    expect(retained.size).toBe(0); expect(bank.bodies.size).toBe(0); expect(root.parent).toBeNull();
+    expect(geometryDisposed).not.toHaveBeenCalled(); expect(materialDisposed).not.toHaveBeenCalled();
+    const nextClone = new THREE.SkinnedMesh(f.geometry, f.material);
+    expect(nextClone.geometry.getAttribute("position").count).toBeGreaterThan(0); expect(nextClone.material).toBe(f.material);
+    bank.remove(new Set()); expect(f.backend.destroyUniformBuffer).toHaveBeenCalledTimes(2);
+    f.ownership.dispose();
   });
 });

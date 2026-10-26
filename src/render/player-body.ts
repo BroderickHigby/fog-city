@@ -12,6 +12,7 @@ import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { DodgeState } from "../sim/contract.ts";
 import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
 import { HumanFeet, type HumanSupportHeight } from "./human-feet.ts";
+import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
 /** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
@@ -312,6 +313,9 @@ export class PlayerBodies {
       if (keep.has(id)) continue;
       body.mixer.stopAllAction();
       body.mixer.uncacheRoot(body.root);
+      // Crowd clones share prototype geometry/materials, so those resource owners
+      // cannot release this clone's renderer objects and bone-matrix UBOs for it.
+      disposeRenderObjects(body.root);
       for (const skeleton of body.skeletons) skeleton.dispose();
       for (const material of body.materials) material.dispose();
       body.root.removeFromParent();
