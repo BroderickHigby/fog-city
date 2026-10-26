@@ -309,7 +309,7 @@ test.describe("online Bot Sweep", () => {
       for (const page of [a, b]) await waitNet(page, `Object.keys(n.match().ext.modes.match.players).sort().join() === "p1,p2"`, 120_000);
       // Quick chat: a preset phrase by key, shown to the other player with B's name.
       const bName = await net(b, (n) => n.info()!.members.find((m) => m.id === "p2")!.name);
-      await b.locator("canvas").first().click({ position: { x: 300, y: 300 } });
+      await b.locator("canvas").first().click({ position: GAME_FOCUS });
       await b.keyboard.press("Digit1");
       await expect(a.getByRole("log", { name: "Chat" })).toContainText(`${bName}: Nice melt!`, { timeout: 30_000 });
       expect((await health()).mismatches).toBe(0);
