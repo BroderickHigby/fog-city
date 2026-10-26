@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "$defs": {
+    "point": {
+      "type": "array",
+      "prefixItems": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "number"
+        }
+      ],
+      "items": false,
+      "minItems": 2,
+      "maxItems": 2
+    },
+    "polygon": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/point"
+      },
+      "minItems": 3,
+      "maxItems": 4096
+    }
+  },
+  "$id": "fog-city/palace-lagoon",
+  "title": "Palace lagoon support contour",
+  "required": [
+    "id",
+    "world",
+    "level",
+    "shoreContourM",
+    "source",
+    "ring",
+    "provenance"
+  ],
+  "properties": {
+    "id": {
+      "const": "palace-lagoon"
+    },
+    "world": {
+      "const": "sf"
+    },
+    "level": {
+      "type": "number"
+    },
+    "shoreContourM": {
+      "type": "number"
+    },
+    "source": {
+      "type": "string",
+      "minLength": 10
+    },
+    "ring": {
+      "$ref": "#/$defs/polygon"
+    },
+    "provenance": {
+      "$ref": "provenance"
+    }
+  }
+}

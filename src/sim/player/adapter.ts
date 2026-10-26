@@ -1,7 +1,7 @@
 import { Action, sortedIds } from "../contract.ts";
 import { playerPose } from "../ride.ts";
 import { dcos,dsin } from "../dmath.ts";
-import { segmentBlocked } from "../world.ts";
+import { groundHeight,segmentBlocked } from "../world.ts";
 import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
 import type { SimSystem,SimSystemContext } from "../system-contract.ts";
 import type { ExtensionKey } from "../extensions.ts";
@@ -51,7 +51,11 @@ export const defaultGameplayProvider:GameplayProvider=context=>{
  const bodies:GameplayBody[]=Object.keys(context.state.players).sort().map(id=>{const player=context.state.players[id]!;const body=playerPose(player);return {id,x:body.x,y:body.y,z:body.z,mode:player.mode,speed:body.speed};});
  const commands=context.events.filter(e=>e.tick===context.state.tick).map(gameplayCommandFromEvent).filter(c=>c!==null);
  const clock=context.state.ext.clock as {day?:number;month?:number}|undefined;
- return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],facts:[...combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),...commandeerFacts(context)],observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
+ // Each of a player's stream particles from last tick to this one, for things water washes that are not actors.
+ const washing=context.state.version>=21&&sortedIds(context.state.ext.activities?.players??{}).some(id=>context.state.ext.activities!.players[id]!.activeActivityId==="plain-words");
+ const shots=washing?new Map((context.previous.ext.combat?.projectiles??[]).map(shot=>[shot.id,shot])):null;
+ const waterTraces=shots?(context.state.ext.combat?.projectiles??[]).filter(shot=>shot.kind==="water"&&shots.has(shot.id)).map(shot=>{const from=shots.get(shot.id)!;return {playerId:shot.ownerId,ax:from.x,az:from.z,ah:from.y-groundHeight(context.world,from.x,from.z),bx:shot.x,bz:shot.z,bh:shot.y-groundHeight(context.world,shot.x,shot.z)};}):undefined;
+ return {...DEFAULT_CATALOG,wave:2,bodies,commands,actors:[],waterTraces,facts:[...combatFacts(context.state.ext.combat?.events??[],context.state.ext.combat),...commandeerFacts(context)],observations:bodies.map(body=>({playerId:body.id,seenByBad:false,seenByAssociate:false,associateWithin200:false,fog:0,protectedArea:false})),day:clock?.day??1,month:clock?.month??1,actions:Object.fromEntries(Object.keys(context.inputs).sort().map(id=>[id,context.inputs[id]!.actions]))};
 };
 export interface ObservedGameplayOptions {
  wave?:number;
@@ -88,7 +92,7 @@ export function createObservedGameplayProvider(options:ObservedGameplayOptions):
 export function makeGameplaySystem(key:"player"|"heat"|"missions"|"economy"|"progression"|"activities",provider:GameplayProvider=defaultGameplayProvider):SimSystem {
  return {key,step(context){
   const ctx=provider(context);finiteContext(ctx);const own=gameplaySnapshot(context),tick=context.state.tick;
-  const result=key==="player"?stepPlayer(own.player,ctx,tick,own.economy,own.heat,own.missions.events):key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events,own.missions.events):key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player,context.state.seed):key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events):key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events}):stepActivities(own.activities,ctx,tick,own.missions,context.state.seed,context.state.version);
+  const result=key==="player"?stepPlayer(own.player,ctx,tick,own.economy,own.heat,own.missions.events):key==="heat"?stepHeat(own.heat,ctx,tick,own.player.events,own.missions.events):key==="missions"?stepMissions(own.missions,ctx,tick,own.heat,own.player,context.state.seed,context.state.version>=21?own.activities:undefined):key==="economy"?stepEconomy(own.economy,ctx,tick,own.missions.events,own.heat,own.player.events,own.activities.events):key==="progression"?stepProgression(own.progression,ctx,tick,{missions:own.missions.events,economy:own.economy.events,player:own.player.events,activities:own.activities.events}):stepActivities(own.activities,ctx,tick,own.missions,context.state.seed,context.state.version);
   return {...context.state,ext:{...context.state.ext,[key]:result}};
  }};
 }

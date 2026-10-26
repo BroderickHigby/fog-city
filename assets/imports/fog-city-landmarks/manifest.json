@@ -1,0 +1,207 @@
+{
+  "ref": "451f4dc7beba9b81420bfb4f8b7a33ee2754dec0",
+  "source": "https://github.com/BroderickHigby/fog-city/commit/451f4dc7beba9b81420bfb4f8b7a33ee2754dec0",
+  "scope": "Original Fog City scripted landmark assets. Existing main Palace/Ferry/R-evolution must remain. Historical placement/collider records require comparison against fetched main; recovery is not acceptance.",
+  "files": [
+    {
+      "path": "public/models/415-mission.glb",
+      "sha256": "93ceb5b50c2c87c571d22c5f557376fe4b2ab998bd082036d472ed8d9773ef50",
+      "bytes": 540368
+    },
+    {
+      "path": "public/models/600-montgomery.glb",
+      "sha256": "ba6a7d5667b1ddbfda3f21c2312a0d62f0a5cf103379afaf65e16b672eeba5bb",
+      "bytes": 432080
+    },
+    {
+      "path": "public/models/coit-tower.glb",
+      "sha256": "6dd09445661b36a0231f024facb41efefd96c0790296e55fb6559e80c476cc0c",
+      "bytes": 45024
+    },
+    {
+      "path": "public/models/city-hall.glb",
+      "sha256": "582fc171dc5a24380161219c736d4e83d4b81282d3191e58236783a761dfad0d",
+      "bytes": 130448
+    },
+    {
+      "path": "public/models/sutro-tower.glb",
+      "sha256": "4d88d627227cf3ac7130fb5f234d22727ba0da0df1268e58014ac534ebd3724a",
+      "bytes": 144856
+    },
+    {
+      "path": "public/models/golden-gate-bridge.glb",
+      "sha256": "e93a14896e0a7f6949815a662be737835074ec850aca4e3b511270254bf3bad2",
+      "bytes": 439664
+    },
+    {
+      "path": "public/models/bay-bridge-west.glb",
+      "sha256": "7fd941298910320655180971db6be391440ecbc826aa077fe085944de761f3f9",
+      "bytes": 667344
+    },
+    {
+      "path": "public/models/grace-cathedral.glb",
+      "sha256": "66938f1a99030e34462a00c47f89520dfbd5df8149e53f376bc96de11fb832c5",
+      "bytes": 42624
+    },
+    {
+      "path": "public/models/dragon-gate.glb",
+      "sha256": "1236ec731421541aef9cd5ae258178eb145d8054a1835988f318e29547354787",
+      "bytes": 49156
+    },
+    {
+      "path": "public/models/mission-dolores.glb",
+      "sha256": "336bed9bdf47e4a5deae64c425f7645a201eb9935ca3c05b0b62dedccb0a80df",
+      "bytes": 22260
+    },
+    {
+      "path": "public/models/conservatory-of-flowers.glb",
+      "sha256": "ab0d32882cb4320356ebb14ccfd4dce8ad30c9127d36db8eeedd6c956e452638",
+      "bytes": 83748
+    },
+    {
+      "path": "public/models/sutro-baths.glb",
+      "sha256": "bee007701b803324aa2d0fb2ef8426b83157c7610b5dc0666913d3e5bd0b4597",
+      "bytes": 78756
+    },
+    {
+      "path": "assets/blender/data/landmark-sites.json",
+      "sha256": "9b34d22bdb63edf67da103364fe6ea0c9da3f6a472681925201bf362f4345860",
+      "bytes": 150708
+    },
+    {
+      "path": "assets/blender/lib/landmark_kit.py",
+      "sha256": "ca8e5063d8044866b711a77dc48e5e8447d9715c5111e15015c3c42b43cff240",
+      "bytes": 10749
+    },
+    {
+      "path": "assets/blender/models/landmarks_interim.py",
+      "sha256": "df7b30f6b2490ee061049006e315617bc5098529a627e89fd6712b453be19e8d",
+      "bytes": 40930
+    },
+    {
+      "path": "assets/blender/models/sutro_tower.py",
+      "sha256": "6ef8733f785a1128f3b8db5adb77562c7ccd573be9e132c9a5511a27f9836124",
+      "bytes": 8967
+    },
+    {
+      "path": "assets/blender/tools/landmark-sites.ts",
+      "sha256": "bb72f16107b93eb62bc2bad022466be6b70541455a18d2b25771947820e00c31",
+      "bytes": 27052
+    },
+    {
+      "path": "content/landmarks.json",
+      "sha256": "7ecd1301a7ae40f1719efcc0cb4ab3c3006f5f08cb36b0d2148fe6886624dfe4",
+      "bytes": 8050
+    },
+    {
+      "path": "tests/assets/landmarks.test.ts",
+      "sha256": "df4cfd02ae9a118852e6429a4789d1f0be95d30effca901eb84922af1c809a56",
+      "bytes": 27301
+    },
+    {
+      "path": "tests/pipeline/landmark-records.test.ts",
+      "sha256": "a347b2437e2ce90354a8d3eecffb1ebf64aa13b447623c657e8ea2e1ebc81bf2",
+      "bytes": 3689
+    }
+  ],
+  "license": "Original Fog City project models and generators; DataSF site measurements. No third-party model or texture library. This is project recovery, not a claim of a blanket external MIT asset licence.",
+  "outputs": [
+    {
+      "file": "public/models/sutro-tower.glb",
+      "bytes": 144856,
+      "sha256": "4d88d627227cf3ac7130fb5f234d22727ba0da0df1268e58014ac534ebd3724a"
+    },
+    {
+      "file": "public/models/golden-gate-bridge.glb",
+      "bytes": 439664,
+      "sha256": "e93a14896e0a7f6949815a662be737835074ec850aca4e3b511270254bf3bad2"
+    },
+    {
+      "file": "public/models/bay-bridge-west.glb",
+      "bytes": 667344,
+      "sha256": "7fd941298910320655180971db6be391440ecbc826aa077fe085944de761f3f9"
+    },
+    {
+      "file": "public/models/600-montgomery.glb",
+      "bytes": 432080,
+      "sha256": "ba6a7d5667b1ddbfda3f21c2312a0d62f0a5cf103379afaf65e16b672eeba5bb"
+    },
+    {
+      "file": "public/models/415-mission.glb",
+      "bytes": 540368,
+      "sha256": "93ceb5b50c2c87c571d22c5f557376fe4b2ab998bd082036d472ed8d9773ef50"
+    },
+    {
+      "file": "public/models/coit-tower.glb",
+      "bytes": 45024,
+      "sha256": "6dd09445661b36a0231f024facb41efefd96c0790296e55fb6559e80c476cc0c"
+    },
+    {
+      "file": "public/models/city-hall.glb",
+      "bytes": 130448,
+      "sha256": "582fc171dc5a24380161219c736d4e83d4b81282d3191e58236783a761dfad0d"
+    },
+    {
+      "file": "public/models/grace-cathedral.glb",
+      "bytes": 42624,
+      "sha256": "66938f1a99030e34462a00c47f89520dfbd5df8149e53f376bc96de11fb832c5"
+    },
+    {
+      "file": "public/models/dragon-gate.glb",
+      "bytes": 49156,
+      "sha256": "1236ec731421541aef9cd5ae258178eb145d8054a1835988f318e29547354787"
+    },
+    {
+      "file": "public/models/sutro-baths.glb",
+      "bytes": 78756,
+      "sha256": "bee007701b803324aa2d0fb2ef8426b83157c7610b5dc0666913d3e5bd0b4597"
+    },
+    {
+      "file": "public/models/mission-dolores.glb",
+      "bytes": 22260,
+      "sha256": "336bed9bdf47e4a5deae64c425f7645a201eb9935ca3c05b0b62dedccb0a80df"
+    },
+    {
+      "file": "public/models/conservatory-of-flowers.glb",
+      "bytes": 83748,
+      "sha256": "ab0d32882cb4320356ebb14ccfd4dce8ad30c9127d36db8eeedd6c956e452638"
+    }
+  ],
+  "archivedSources": [
+    {
+      "file": "source/assets/blender/data/landmark-sites.json",
+      "bytes": 150708,
+      "sha256": "9b34d22bdb63edf67da103364fe6ea0c9da3f6a472681925201bf362f4345860"
+    },
+    {
+      "file": "source/assets/blender/lib/fc.py",
+      "bytes": 23963,
+      "sha256": "4c333497533aea47d385144313b7941f24845e192c48453e305fe79679314ad6"
+    },
+    {
+      "file": "source/assets/blender/lib/landmark_kit.py",
+      "bytes": 10749,
+      "sha256": "ca8e5063d8044866b711a77dc48e5e8447d9715c5111e15015c3c42b43cff240"
+    },
+    {
+      "file": "source/assets/blender/models/bridges.py",
+      "bytes": 21606,
+      "sha256": "c0a1f46c484a7869b9f20a63db9f794d3737286c3d8c0a40ed5cb116ee1169bf"
+    },
+    {
+      "file": "source/assets/blender/models/landmarks_interim.py",
+      "bytes": 40930,
+      "sha256": "df7b30f6b2490ee061049006e315617bc5098529a627e89fd6712b453be19e8d"
+    },
+    {
+      "file": "source/assets/blender/models/sutro_tower.py",
+      "bytes": 8967,
+      "sha256": "6ef8733f785a1128f3b8db5adb77562c7ccd573be9e132c9a5511a27f9836124"
+    },
+    {
+      "file": "source/assets/blender/tools/landmark-sites.ts.source",
+      "bytes": 27052,
+      "sha256": "bb72f16107b93eb62bc2bad022466be6b70541455a18d2b25771947820e00c31"
+    }
+  ]
+}

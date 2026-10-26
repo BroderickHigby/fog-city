@@ -5,11 +5,28 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { ROOT } from "../helpers.ts";
 
 const PHOTO_FILE = /\.(jpe?g|heic|heif)$/i;
 const SKIP_DIRS = new Set(["node_modules", ".git"]);
+// Retrievable third-party acquisition/tool environments are not repository or runtime
+// assets. Skip only these exact ignored caches; public/ and tracked source stay strict.
+const CACHE_PROVENANCE:Record<string,string>={
+  "assets/imports/supertonic-3/raw":"assets/imports/supertonic-3/manifest.json",
+  "assets/imports/vehicle-families/raw":"assets/imports/vehicle-families/prepared-manifest.json",
+  "assets/imports/vehicle-audio/raw":"assets/imports/vehicle-audio/manifest.json",
+};
+const IMPORT_CACHES=Object.keys(CACHE_PROVENANCE);
+function localImportCache(rel:string):boolean {
+  if(!IMPORT_CACHES.includes(rel))return false;
+  try{
+    // A force-added file must still be examined even inside an ignored download folder.
+    if(execFileSync("git",["ls-files","--",rel],{cwd:ROOT}).length)return false;
+    execFileSync("git",["check-ignore","--quiet","--",`${rel}/`],{cwd:ROOT});return true;
+  }catch{return false;}
+}
 
 /** Reviewed generic assets; never a directory-wide exception for private reference photos. */
 const LICENSED = new Map([
@@ -74,6 +91,7 @@ function walk(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
     if (SKIP_DIRS.has(name)) continue;
     const p = join(dir, name);
+    if(localImportCache(relative(ROOT,p).split("\\").join("/")))continue;
     const st = statSync(p);
     if (st.isDirectory()) walk(p, out);
     else if (st.isFile()) out.push(p);
@@ -137,7 +155,16 @@ function generatorOf(rel: string): string | null {
 describe("privacy: the likeness reference photos never enter the repository", () => {
   const files = walk(ROOT);
 
-  it("no .jpg, .jpeg, .heic or .heif file anywhere outside node_modules", () => {
+  it("never treats public assets or tracked import source as an excluded local cache",()=>{
+    for(const path of ["public/models/raw","public/audio/raw","assets/imports/vehicle-families/prepare.ts","assets/imports/vehicle-families/raw-copy","assets/imports/unknown/raw"])
+      expect(localImportCache(path),path).toBe(false);
+    for(const cache of IMPORT_CACHES){
+      expect(existsSync(join(ROOT,CACHE_PROVENANCE[cache]!)),cache).toBe(true);
+      if(existsSync(join(ROOT,cache)))expect(localImportCache(cache),`${cache} must stay ignored`).toBe(true);
+    }
+  });
+
+  it("no .jpg, .jpeg, .heic or .heif in repository assets or outside exact ignored import caches", () => {
     const photos = files.filter((f) => PHOTO_FILE.test(f)).map((f) => relative(ROOT, f));
     expect(photos).toEqual([]);
   });

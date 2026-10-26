@@ -16,6 +16,24 @@ export interface MissionParkingState {
   players: Record<string, ParkingProgress>;
 }
 
+/**
+ * One tick of a legal stop: the accepted car inside a legal target bay, unmoved for two seconds,
+ * then a fresh Interact press. Shared by mission parking and the Search & Park activity.
+ */
+export function advanceParking(before: ParkingProgress | undefined, requestId: string, world: MissionParkingWorld, bayIds: readonly string[], body: GameplayContext["bodies"][number], vehicle: ParkingVehicle, tick: number, continuousTick: boolean, pressed: boolean, expectedStayMinutes?: number): { progress: ParkingProgress; stopped: string | undefined } {
+  if (before?.requestId === requestId && before.completed) return { progress: { ...before }, stopped: undefined };
+  const bay = [...world.bays].sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).find(value => bayIds.includes(value.id)
+    && nearBay(body, value) && checkParking(vehicle, value, { ...world, requests: [] }, tick, expectedStayMinutes).legal);
+  if (!bay) return { progress: { requestId, bayId: "", stoppedSince: -1, completed: false, settledPose: null }, stopped: undefined };
+  const pose = before?.settledPose, dy = pose ? vehicle.y - pose.y : 0;
+  const unchanged = pose && planarDistanceSquared(vehicle.x, vehicle.z, pose.x, pose.z) + dy * dy <= .05 * .05 && Math.abs(wrapAngle(vehicle.heading - pose.heading)) <= .03;
+  const continuous = continuousTick && before?.requestId === requestId && before.bayId === bay.id && before.stoppedSince >= 0 && unchanged;
+  const progress: ParkingProgress = { requestId, bayId: bay.id, stoppedSince: continuous ? before.stoppedSince : tick, completed: false,
+    settledPose: continuous ? pose : { x: vehicle.x, y: vehicle.y, z: vehicle.z, heading: vehicle.heading } };
+  if (tick - progress.stoppedSince >= 120 && pressed) { progress.completed = true; return { progress, stopped: bay.id }; }
+  return { progress, stopped: undefined };
+}
+
 export function prepareMissionParking(previous: MissionParkingState | undefined, missions: MissionState, ctx: GameplayContext, tick: number): { state: MissionParkingState; facts: GameplayFact[] } {
   const old = previous ?? { tick: -1, nextSequence: 1, previousInteract: {}, players: {} };
   if (tick <= old.tick) return { state: old, facts: [] };
@@ -33,22 +51,12 @@ export function prepareMissionParking(previous: MissionParkingState | undefined,
     if (targets.length !== 1 || vehicles.length !== 1) continue;
     const target = targets[0]!, vehicle = vehicles[0]!;
     const requestId = `${mission.id}:${step.id}:${progress.startedTick}:${progress.visits}`;
-    const before = old.players[body.id];
-    if (before?.requestId === requestId && before.completed) { state.players[body.id] = { ...before }; continue; }
-    const bay = [...world.bays].sort((a,b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0).find(value => target.bayIds.includes(value.id)
-      && nearBay(body, value) && checkParking(vehicle, value, { ...world, requests: [] }, tick, target.expectedStayMinutes).legal);
-    if (!bay) { state.players[body.id] = { requestId, bayId: "", stoppedSince: -1, completed: false, settledPose: null }; continue; }
-    const pose = before?.settledPose, dy = pose ? vehicle.y - pose.y : 0;
-    const unchanged = pose && planarDistanceSquared(vehicle.x, vehicle.z, pose.x, pose.z) + dy * dy <= .05 * .05 && Math.abs(wrapAngle(vehicle.heading - pose.heading)) <= .03;
-    const continuous = old.tick === tick - 1 && before?.requestId === requestId && before.bayId === bay.id && before.stoppedSince >= 0 && unchanged;
-    const own: ParkingProgress = { requestId, bayId: bay.id, stoppedSince: continuous ? before.stoppedSince : tick, completed: false,
-      settledPose: continuous ? pose : { x: vehicle.x, y: vehicle.y, z: vehicle.z, heading: vehicle.heading } };
-    if (tick - own.stoppedSince >= 120 && interacting && !old.previousInteract[body.id]) {
-      own.completed = true;
+    const { progress: parked, stopped } = advanceParking(old.players[body.id], requestId, world, target.bayIds, body, vehicle, tick, old.tick === tick - 1, interacting && !old.previousInteract[body.id], target.expectedStayMinutes);
+    if (stopped) {
       const sequence = state.nextSequence++;
-      facts.push({ id: `mission-parking:${sequence}`, source: "world", sequence, tick, kind: "demo.parkedLegally", playerId: body.id, actorId: bay.id, detail: requestId });
+      facts.push({ id: `mission-parking:${sequence}`, source: "world", sequence, tick, kind: "demo.parkedLegally", playerId: body.id, actorId: stopped, detail: requestId });
     }
-    state.players[body.id] = own;
+    state.players[body.id] = parked;
   }
   return { state, facts };
 }

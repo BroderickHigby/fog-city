@@ -138,7 +138,10 @@ under gravity. All values *(tune)*:
   after dark. An SF-only system.
 
 ## The robots
-All designs are original. Good and bad units of one model look identical; the difference is
+All designs are original. Owner update, 26 October 2026: confirmed hostile robots now carry a
+shape-based warning diamond and map cue, with a real attack wind-up indicator. These cues track
+current firmware and disappear on neutralization; benign robots and protected people/animals
+are excluded. The earlier identical-presentation rule is superseded. Other behavioral tells remain:
 behaviour (and, at the easiest subtlety, a scuffed sticker). Every maker name is provisional until
 it passes the name search (see Legal and taste).
 
@@ -1067,7 +1070,10 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - **Sim CPU.** See Simulation scale: step p95 ≤ 0.7 ms per tick for 4 anchors, measured in CI.
 
 ## Legal and taste (also in CLAUDE.md)
-- No real brands, logos or trademarks; invented companies and products; storefronts unnamed.
+- Owner update, 26 October 2026: use recognizable real SF landmark names and accurate marks
+  where supported by source and asset rights. This supersedes blanket name substitution.
+  Original fictional companies remain fictional; do not invent affiliations or scatter unrelated
+  logos around the city. Real landmark labels do not imply sponsorship.
 - **Names are searched before they are used.** A trademark and company-name search happens before
   a name enters content, ids or assets, not at pre-release. Cleared names live in
   `content/cleared-names.json` with the date and source of each search, and the content lint

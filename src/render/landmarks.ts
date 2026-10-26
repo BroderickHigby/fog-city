@@ -22,6 +22,7 @@ export interface LandmarkEntry {
   scale?: number;
   replacesBuildingIds?: string[];
   collider?: Array<[number, number]>;
+  viewpoint?: { lat: number; lon: number };
 }
 
 export interface LandmarkPlacement {
@@ -67,6 +68,7 @@ export function parseLandmarks(doc: unknown): { entries: LandmarkEntry[]; skippe
     const out: LandmarkEntry = { id: e.id, model: e.model, lat: e.lat, lon: e.lon, headingDeg: e.headingDeg };
     if (finite(e.scale) && e.scale > 0) out.scale = e.scale;
     if (Array.isArray(e.replacesBuildingIds)) out.replacesBuildingIds = e.replacesBuildingIds.filter((s) => typeof s === "string");
+    if(e.viewpoint&&finite(e.viewpoint.lat)&&finite(e.viewpoint.lon))out.viewpoint={lat:e.viewpoint.lat,lon:e.viewpoint.lon};
     entries.push(out);
   });
   return { entries, skipped };

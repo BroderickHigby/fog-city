@@ -14,8 +14,8 @@ for (const segment of baseline.segments) {
   for (let tick = 0; tick < segment.ticks; tick++) state = step(world, state, segment.inputs as InputFrame, [], []);
   hashes.push(hashState(state));
 }
-const file = join(import.meta.dirname, "../../tests/golden/wave2-v19-reference-driving.json");
-const text = JSON.stringify({ sourceInput: "wave1-v2.json", sourcePhysics: "v19: fixed-step city-road driving adapted from Slop New York, preserving SF gravity/wet traction and solid vehicle contacts; v18 and earlier fixture bytes are preserved", simVersion: SIM_VERSION, hashes }, null, 2) + "\n";
+const file = join(import.meta.dirname, "../../tests/golden/wave2-v21-consolidated.json");
+const text = JSON.stringify({ sourceInput: "wave1-v2.json", sourcePhysics: "v21: consolidated mission activities and collapsed-robot projectile silhouettes; existing traffic-signal and city-road handling behavior is retained; all earlier fixture bytes are preserved", simVersion: SIM_VERSION, hashes }, null, 2) + "\n";
 if (process.argv.includes("--update")) writeFileSync(file, text);
 else if (readFileSync(file, "utf8") !== text) throw new Error("current core replay pins changed");
 console.log(file);

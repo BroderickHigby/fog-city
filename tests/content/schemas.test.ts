@@ -35,6 +35,8 @@ const SCHEMA_FOR: ReadonlyArray<readonly [RegExp, string]> = [
   [/^content\/bot-tells\.json$/, "bot-tells"],
   [/^content\/missions\/[^/]+\.json$/, "mission"],
   [/^content\/brands\.json$/, "brands"],
+  [/^content\/palace-lagoon\.json$/, "palace-lagoon"],
+  [/^content\/palace-of-fine-arts\.json$/, "palace-of-fine-arts"],
   [/^content\/cleared-names\.json$/, "cleared-names"],
   [/^content\/robot-goals\.json$/, "robot-goals"],
   [/^content\/barks\/[^/]+\.json$/, "barks"],

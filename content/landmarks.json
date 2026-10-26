@@ -8,7 +8,14 @@
       "lon": -122.44840925561012,
       "headingDeg": 84.44334179005355,
       "scale": 1,
-      "replacesBuildingIds": ["201006.0000986", "201006.0000986-tower", "201006.0006360", "201006.0006456", "201006.0156555", "201006.0157252"],
+      "replacesBuildingIds": [
+        "201006.0000986",
+        "201006.0000986-tower",
+        "201006.0006360",
+        "201006.0006456",
+        "201006.0156555",
+        "201006.0157252"
+      ],
       "source": "Original open rotunda and curved colonnades; placement from DataSF footprints, architectural form and dimensions from California Office of Historic Preservation. Collision parts in palace-of-fine-arts.json share the generated model geometry. Exhibition hall remains intact."
     },
     {
@@ -23,15 +30,42 @@
         "201006.0000058-tower"
       ],
       "collider": [
-        [101.38, 50.81],
-        [-101.21, 50.76],
-        [-101.22, 3.02],
-        [-100.93, 2.13],
-        [-22.49, 2.03],
-        [-22.52, -6.84],
-        [22.52, -7.0],
-        [22.56, 2.05],
-        [100.92, 2.01]
+        [
+          101.38,
+          50.81
+        ],
+        [
+          -101.21,
+          50.76
+        ],
+        [
+          -101.22,
+          3.02
+        ],
+        [
+          -100.93,
+          2.13
+        ],
+        [
+          -22.49,
+          2.03
+        ],
+        [
+          -22.52,
+          -6.84
+        ],
+        [
+          22.52,
+          -7
+        ],
+        [
+          22.56,
+          2.05
+        ],
+        [
+          100.92,
+          2.01
+        ]
       ],
       "source": "Origin = clock tower centre; footprint and heading from DataSF building footprints (ynuv-fyni) sf16_bldgid 201006.0000058. Clock nodes clock_*_N/E/S/W name MODEL-frame dials (N = front, -Z), not compass points; placed here they face N 233.8 (SW), E 323.8 (NW), S 53.8 (NE), W 143.8 (SE). See assets/blender/README.md."
     },
@@ -43,20 +77,271 @@
       "headingDeg": 225.3,
       "scale": 1,
       "collider": [
-        [3.6, 0.0],
-        [3.12, 1.8],
-        [1.8, 3.12],
-        [0.0, 3.6],
-        [-1.8, 3.12],
-        [-3.12, 1.8],
-        [-3.6, 0.0],
-        [-3.12, -1.8],
-        [-1.8, -3.12],
-        [-0.0, -3.6],
-        [1.8, -3.12],
-        [3.12, -1.8]
+        [
+          3.6,
+          0
+        ],
+        [
+          3.12,
+          1.8
+        ],
+        [
+          1.8,
+          3.12
+        ],
+        [
+          0,
+          3.6
+        ],
+        [
+          -1.8,
+          3.12
+        ],
+        [
+          -3.12,
+          1.8
+        ],
+        [
+          -3.6,
+          0
+        ],
+        [
+          -3.12,
+          -1.8
+        ],
+        [
+          -1.8,
+          -3.12
+        ],
+        [
+          0,
+          -3.6
+        ],
+        [
+          1.8,
+          -3.12
+        ],
+        [
+          3.12,
+          -1.8
+        ]
       ],
       "source": "Embarcadero Plaza on the Market St axis, facing up Market (Wikipedia coordinate cross-checked against DataSF street centrelines). See assets/blender/README.md."
+    },
+    {
+      "id": "sutro-tower",
+      "model": "models/sutro-tower.glb",
+      "lat": 37.7552405,
+      "lon": -122.452856,
+      "headingDeg": 0,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001431",
+        "201006.0009087",
+        "201006.0062170",
+        "201006.0077893",
+        "201006.0167582",
+        "201006.0168289"
+      ],
+      "source": "Interim proxy: three-legged lattice, published dimensions (297.8 m). Centre and leg bearings from the LiDAR crossarm footprints; replaces the probe's six records and draws each where the sim has it. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.755040810876125,
+        "lon": -122.45423821379217,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n32950000.1"
+      }
+    },
+    {
+      "id": "golden-gate-bridge",
+      "model": "models/golden-gate-bridge.glb",
+      "lat": 37.8139613,
+      "lon": -122.4778914,
+      "headingDeg": 354.4,
+      "scale": 1,
+      "source": "Interim far-visible silhouette: towers, deck, main cables. Axis from the Hwy 101 road end through the published centre; origin = south tower at sea level. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.81066524725909,
+        "lon": -122.47668513561506,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n51483000.0"
+      }
+    },
+    {
+      "id": "bay-bridge-west",
+      "model": "models/bay-bridge-west.glb",
+      "lat": 37.8032496,
+      "lon": -122.3723977,
+      "headingDeg": 40.38,
+      "scale": 1,
+      "source": "Interim far-visible silhouette of the west span: four towers, centre anchorage, double deck, cables. Axis = I-80 edge c14248000; piers where the DEM marks them; origin = mid eastern main span at sea level. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.80930407525294,
+        "lon": -122.37010293215977,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n34144000.0"
+      }
+    },
+    {
+      "id": "600-montgomery",
+      "model": "models/600-montgomery.glb",
+      "lat": 37.7951796,
+      "lon": -122.4027746,
+      "headingDeg": 350.83,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000687",
+        "201006.0000687-tower"
+      ],
+      "source": "Interim shape: tapered four-sided tower with wings and spire (260 m), punched window rows on the sloping faces. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.79560991725228,
+        "lon": -122.40324655255971,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n24758000.4"
+      }
+    },
+    {
+      "id": "415-mission",
+      "model": "models/415-mission.glb",
+      "lat": 37.7897923,
+      "lon": -122.3969124,
+      "headingDeg": 315.04,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000548"
+      ],
+      "source": "Interim shape: the 326 m tower on its record, a rounded-square glass shaft between pale fins, tapering, an open crown of fins over a core lit with plain light (no logo, no lettering). Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.790112162619835,
+        "lon": -122.3978634604596,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n24530000.1"
+      }
+    },
+    {
+      "id": "coit-tower",
+      "model": "models/coit-tower.glb",
+      "lat": 37.8024296,
+      "lon": -122.4058474,
+      "headingDeg": 344.36,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0006230",
+        "201006.0006230-tower"
+      ],
+      "source": "Interim shape: 64 m fluted column with its arcade and crown on the base building record. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.80267858763129,
+        "lon": -122.40583421079081,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "c12479001.R@0"
+      }
+    },
+    {
+      "id": "city-hall",
+      "model": "models/city-hall.glb",
+      "lat": 37.7792763,
+      "lon": -122.419228,
+      "headingDeg": 80.84,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000041",
+        "201006.0000041-tower"
+      ],
+      "source": "Interim shape: the block (record footprint) with pilasters, colonnaded drum, dome and lantern (93 m). Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.77837696430475,
+        "lon": -122.41966854857705,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n24459000.0"
+      }
+    },
+    {
+      "id": "grace-cathedral",
+      "model": "models/grace-cathedral.glb",
+      "lat": 37.7919349,
+      "lon": -122.4135202,
+      "headingDeg": 80.69,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0000550",
+        "201006.0000550-tower"
+      ],
+      "source": "Interim shape: nave and transept roofs on the record footprint, twin towers, rose window, fleche over the crossing (70 m). Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.79149396663481,
+        "lon": -122.4140366934045,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n25091000.3"
+      }
+    },
+    {
+      "id": "dragon-gate",
+      "model": "models/dragon-gate.glb",
+      "lat": 37.7906646,
+      "lon": -122.4055804,
+      "headingDeg": 171.86,
+      "scale": 1,
+      "source": "Prop: the gate across Grant Ave just north of Bush St, portals facing south, spanning the building faces. Blank plaque, no characters. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.79107997501658,
+        "lon": -122.40524630792035,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n50225000.0"
+      }
+    },
+    {
+      "id": "sutro-baths",
+      "model": "models/sutro-baths.glb",
+      "lat": 37.7800396,
+      "lon": -122.5137568,
+      "headingDeg": 0,
+      "scale": 1,
+      "source": "Interim shape: the ruined pool walls and standing water on the DEM's basin shelf at Lands End. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.780801270390356,
+        "lon": -122.51184520154982,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n51559000.0"
+      }
+    },
+    {
+      "id": "mission-dolores",
+      "model": "models/mission-dolores.glb",
+      "lat": 37.7643661,
+      "lon": -122.4269351,
+      "headingDeg": 85.6,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001563",
+        "201006.0001563-tower"
+      ],
+      "source": "Interim shape: the basilica's record in stucco with a tile roof and a stepped Mission Revival front; the domed drum where the LiDAR finds 39 m. Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.76456694270865,
+        "lon": -122.4265332058677,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n25706000.3"
+      }
+    },
+    {
+      "id": "conservatory-of-flowers",
+      "model": "models/conservatory-of-flowers.glb",
+      "lat": 37.7726335,
+      "lon": -122.4602586,
+      "headingDeg": 175.24,
+      "scale": 1,
+      "replacesBuildingIds": [
+        "201006.0001537",
+        "201006.0001537-tower"
+      ],
+      "source": "Interim shape: the glasshouse on its record (white glazing bars), the glazed and ribbed dome over the centre (17 m). Site: assets/imports/fog-city-landmarks/source/assets/blender/data/landmark-sites.json; see assets/imports/fog-city-landmarks/README.md.",
+      "viewpoint": {
+        "lat": 37.77318517605653,
+        "lon": -122.45906769167898,
+        "source": "Nearest dry, supported, unobstructed authored SF sidewalk node at viewing distance; original geometry and road graph unchanged.",
+        "nodeId": "n27192000.1"
+      }
     }
   ]
 }

@@ -19,17 +19,17 @@
       "checkpoints": [
         {
           "id": "arrive",
-          "label": "Pier 70 parking approach",
-          "lat": 37.7605,
-          "lon": -122.3874,
+          "label": "Illinois St at 20th St, Pier 70",
+          "lat": 37.76055,
+          "lon": -122.38757,
           "radiusM": 12
         },
         {
           "id": "park",
-          "label": "Signed space on Illinois St",
-          "lat": 37.761,
-          "lon": -122.3872,
-          "radiusM": 12
+          "label": "Signed spaces on Illinois St, 19th to 20th",
+          "lat": 37.76119,
+          "lon": -122.38763,
+          "radiusM": 30
         }
       ]
     },
@@ -43,17 +43,17 @@
       },
       "timeLimitS": 900,
       "reward": {
-        "cashCents": 30000,
-        "xp": 500
+        "cashCents": 0,
+        "xp": 0
       },
       "repeatable": true,
       "cooldownS": 720,
       "checkpoints": [
         {
           "id": "door",
-          "label": "Ramen house at Pier 70",
-          "lat": 37.7608,
-          "lon": -122.385,
+          "label": "Ramen house door on 20th St, Pier 70",
+          "lat": 37.760781,
+          "lon": -122.384976,
           "radiusM": 20
         }
       ]
@@ -77,22 +77,22 @@
         {
           "id": "south",
           "label": "Columbus Ave at Broadway",
-          "lat": 37.7982,
-          "lon": -122.4075,
+          "lat": 37.79786,
+          "lon": -122.40667,
           "radiusM": 12
         },
         {
           "id": "square",
-          "label": "Washington Square",
-          "lat": 37.8008,
-          "lon": -122.4103,
+          "label": "Columbus Ave at Union St, Washington Square",
+          "lat": 37.80032,
+          "lon": -122.41021,
           "radiusM": 12
         },
         {
           "id": "north",
           "label": "Columbus Ave at Bay St",
-          "lat": 37.8051,
-          "lon": -122.4153,
+          "lat": 37.80517,
+          "lon": -122.41723,
           "radiusM": 12
         }
       ]
@@ -129,9 +129,9 @@
         },
         {
           "id": "finish",
-          "label": "Mission Bay waterfront",
-          "lat": 37.778,
-          "lon": -122.389,
+          "label": "King St at 2nd St, Mission Bay waterfront",
+          "lat": 37.77986,
+          "lon": -122.38959,
           "radiusM": 12
         }
       ]
@@ -155,15 +155,15 @@
         {
           "id": "pickup",
           "label": "Hyde at Union",
-          "lat": 37.7985,
-          "lon": -122.4195,
+          "lat": 37.7992,
+          "lon": -122.41905,
           "radiusM": 12
         },
         {
           "id": "drop",
           "label": "Lombard at Leavenworth",
-          "lat": 37.802,
-          "lon": -122.4185,
+          "lat": 37.8022,
+          "lon": -122.41797,
           "radiusM": 12
         }
       ]
@@ -171,7 +171,7 @@
     {
       "id": "coit-recon",
       "kind": "recon",
-      "wave": 3,
+      "wave": 4,
       "objective": {
         "event": "recon.signalFound",
         "count": 1
@@ -193,9 +193,9 @@
         },
         {
           "id": "view",
-          "label": "Coit Tower overlook",
-          "lat": 37.8024,
-          "lon": -122.4058,
+          "label": "Coit Tower overlook, by the viewers",
+          "lat": 37.802478,
+          "lon": -122.405743,
           "radiusM": 12
         }
       ]
@@ -548,9 +548,132 @@
       "made by humans"
     ],
     "advanceEvery": 4,
-    "southLat": 37.7982,
-    "northLat": 37.8051,
-    "corridor": "Columbus Ave north of Broadway; never Stockton or Grant."
+    "southLat": 37.79786,
+    "northLat": 37.80517,
+    "corridor": "Columbus Ave north of Broadway; never Stockton or Grant.",
+    "boards": [
+      {
+        "id": "board-01",
+        "lat": 37.798135,
+        "lon": -122.406882,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-02",
+        "lat": 37.798835,
+        "lon": -122.407892,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-03",
+        "lat": 37.799179,
+        "lon": -122.40839,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-04",
+        "lat": 37.79982,
+        "lon": -122.409315,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-05",
+        "lat": 37.800224,
+        "lon": -122.409898,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-06",
+        "lat": 37.800805,
+        "lon": -122.410738,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-07",
+        "lat": 37.801386,
+        "lon": -122.411578,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-08",
+        "lat": 37.801849,
+        "lon": -122.412247,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-09",
+        "lat": 37.80237,
+        "lon": -122.413002,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-10",
+        "lat": 37.802232,
+        "lon": -122.413154,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-11",
+        "lat": 37.802951,
+        "lon": -122.413843,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-12",
+        "lat": 37.802812,
+        "lon": -122.413995,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-13",
+        "lat": 37.803413,
+        "lon": -122.414513,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-14",
+        "lat": 37.803277,
+        "lon": -122.414662,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-15",
+        "lat": 37.803935,
+        "lon": -122.415267,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-16",
+        "lat": 37.803796,
+        "lon": -122.415419,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-17",
+        "lat": 37.804457,
+        "lon": -122.416021,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-18",
+        "lat": 37.804262,
+        "lon": -122.416085,
+        "headingDeg": 41
+      },
+      {
+        "id": "board-19",
+        "lat": 37.80492,
+        "lon": -122.41669,
+        "headingDeg": 221
+      },
+      {
+        "id": "board-20",
+        "lat": 37.804841,
+        "lon": -122.416928,
+        "headingDeg": 41
+      }
+    ],
+    "boardSource": "Generated from the road graph: Columbus Ave centre lines between the Broadway (n25321000) and Bay St (n25533000) junctions, fourteen stations at equal spacing (moved up to 20 m to clear junctions), a board on each sidewalk 0.8-2.4 m beyond the kerb where the ground is open, outside the city's Chinatown analysis neighbourhood and at least 15 m from Grant Ave and Stockton St, until there are twenty; headings face the street."
   },
   "benchCards": [
     {
@@ -672,8 +795,35 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:56494111",
+    "contentHash": "fnv1a32:d9434d36",
     "reviewedBy": [],
-    "review": "Imported authored catalog; integration checks are recorded separately. Independent editorial review remains pending."
+    "review": "Consolidated mission recovery; pending independent review."
+  },
+  "coitRecon": {
+    "scanS": 1,
+    "rangeM": 8,
+    "relays": [
+      {
+        "id": "relay-1",
+        "lat": 37.802793,
+        "lon": -122.405743
+      },
+      {
+        "id": "relay-2",
+        "lat": 37.802469,
+        "lon": -122.405346
+      },
+      {
+        "id": "relay-3",
+        "lat": 37.802215,
+        "lon": -122.405962
+      },
+      {
+        "id": "relay-4",
+        "lat": 37.802506,
+        "lon": -122.406139
+      }
+    ],
+    "source": "Four rogue signal relays on open ground 35 m from the overlook, generated from the committed colliders and road graph; the coin-op viewer and audio guide of docs/design.md arrive with wave 4."
   }
 }

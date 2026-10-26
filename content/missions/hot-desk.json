@@ -35,7 +35,7 @@
       },
       "lines": [
         { "speaker": "cofounder", "text": "welcome to sf!! the blaster is in your bag. it's water. it rusts the bad ones. only the bad ones, ideally" },
-        { "speaker": "cofounder", "text": "bad robots look exactly like good ones. watch what they DO" }
+        { "speaker": "cofounder", "text": "warning diamonds mark hostile robots. watch their wind-up, and leave helpful robots alone" }
       ],
       "next": "snatch"
     },

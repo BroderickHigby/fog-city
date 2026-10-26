@@ -3,7 +3,6 @@
 // two latest sim states (agents are interpolated here); it never changes sim state.
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Assets } from "../io/assets.ts";
 import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
@@ -16,6 +15,7 @@ import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
 import { LandmarkFallbacks } from "./landmark-fallback.ts";
+import { landmarkRenderReplacements } from "./landmark-replacements.ts";
 import { filterLandmarkHulls } from "./landmark-mask.ts";
 import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
 import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
@@ -335,7 +335,7 @@ export class SceneRenderer {
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
 
-    const gltf = new GLTFLoader();
+    const gltf = createTileLoader();
     const assets = world.assets;
     this.surfaceTextures = loadSurfaceTextures(this.materials, async path => {
       if (assets) return assets.bytes(path);
@@ -362,7 +362,8 @@ export class SceneRenderer {
       parkPavementRegions(parks)) : undefined;
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
-    const landmarkSources=world.landmarkReplacements?.flatMap(l=>l.sources)??[];
+    const landmarkReplacements=landmarkRenderReplacements(opts.landmarks,world.colliders.values(),world.landmarkReplacements);
+    const landmarkSources=landmarkReplacements.flatMap(l=>l.sources);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
@@ -439,7 +440,7 @@ export class SceneRenderer {
       this.agents.setCrowd(this.crowd);
       this.scene.add(this.crowd.group);
     }
-    this.landmarkFallbacks=new LandmarkFallbacks(world.landmarkReplacements??[],ids=>this.streamer.hideBuildings(ids));
+    this.landmarkFallbacks=new LandmarkFallbacks(landmarkReplacements,ids=>this.streamer.hideBuildings(ids));
     this.prepareShadows(this.landmarkFallbacks.group);
     this.scene.add(this.landmarkFallbacks.group);
     this.landmarks = new LandmarkLayer(

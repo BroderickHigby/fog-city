@@ -14,12 +14,12 @@ SF geography, authored humans and saves. A running preview is not release or per
 
 | Priority | Owner | Work | Status | Acceptance evidence still required |
 | --- | --- | --- | --- | --- |
-| 1 | Integration | Refresh and disposition all 16 older PRs | Read-only audit in progress | File/test mapping and retained holds for each PR |
-| 1 | Integration | Recover missions and side activities | Auditing selective port | Twenty distinct Plain Words boards through controls, Office Hours repeat payout, legal parking, full Coit viewer/audio |
+| 1 | Integration | Refresh and disposition all 16 older PRs | Source audit complete; see PR_DISPOSITION.md | File/test mapping and retained holds for each PR |
+| 1 | Integration | Recover missions and side activities | Selected port and regression repairs in progress | Twenty distinct Plain Words boards through controls, Office Hours repeat payout, legal parking, full Coit viewer/audio |
 | 2 | Integration | Movement, combat readability and capacity | Baseline in progress | Matched drive/walk/fight route, hostile identification and once-only rewards, repeated-route memory, 1 GB case |
 | 3 | Integration | Vehicle registry, body families, recorded audio | Pending | Rights/source/hash records, wheel/contact normalization, listening proof and lifecycle checks |
 | 4 | Integration | Configurable timed taxi mode | Pending | Safe pickup, trip, fare, next passenger, timeout, retry, exit and campaign preservation |
-| 5 | Integration | Phone shell and graphics preferences | Pending | Responsive screens, persistent tiers, override precedence, recovery, preserved progress |
+| 5 | Integration | Phone shell and graphics preferences | Implementation in progress | Responsive screens, persistent tiers, override precedence, recovery, preserved progress |
 | 6 | Integration | SF landmarks and robot models | Pending | Correct position, silhouette, support/collision, reachable viewpoints, rights, LOD and collapse |
 | 7 | Integration | Recorded opening story | Pending | Licensed/consented actual audio, skip/replay, subtitles, voice volume, missing/slow/unlock recovery |
 | 8 | Integration | Contributor guide and integrated QA | Pending | Final packed artifact, serial local verification, independent Standards/Spec review, exact-head deployment/public checks |
@@ -42,3 +42,45 @@ SF geography, authored humans and saves. A running preview is not release or per
 - PR54 OSM/ODbL policy hold remains separate; no OSM-derived data imported.
 - Plain Words real-control completion, Coit full authored scope and structural-route proof remain open.
 - No new gameplay commit pushed, no draft closed, no merge or deployment performed.
+
+## Focused validation during implementation
+
+- 161 tests passed across 25 files: current player reducers, Office Hours booking boundaries, distinct boards, collapsed silhouettes, SIM20 continuation, graphics preference and provenance.
+- 93 tests passed across five files: exact restart checkpoint/continuation, original board geometry/lifecycle, silhouettes, SIM20 migration and provenance (overlapping prior coverage; totals are not additive).
+- Four isolated graphics UI browser tests passed: persistence, input/focus isolation, pending selection, retry and fallback reporting.
+- These are focused checks; full local verification and packed-runtime feature acceptance remain pending.
+
+## Local feature tranche, 26 October 2026
+
+- SIM21 selective mission port, separate legacy activity reducer, distinct board qualification,
+  protected collapsed silhouettes, Office Hours quota/save and shared legal parking are implemented.
+- Phone handset/navigation, persistent graphics/controller and full restart checkpoint are wired.
+  Taxi has an isolated protected-passenger/physical-car reducer, real legal SF curb circuit,
+  Controls entry, shift HUD, retry/exit settlement and exact campaign/reload checkpoint ownership.
+- Hostile warning diamonds and shape-based confirmed map cues use current firmware/phase;
+  neutralized/protected/benign actors are excluded. Existing scanner guesses do not paint targets.
+- Original project landmark GLBs recovered selectively with immutable source/output hashes,
+  named map viewpoints and render-only near/far fallback ownership. Existing Palace/Ferry/R-evolution
+  are retained. This is not structural bridge/support or final visual-route acceptance.
+- Five CC0 Kenney vehicle families and recorded driving layers are connected. Actual body/hub,
+  material, batching and lifecycle checks pass; listening approval remains pending.
+- Six actual original stock-voice opening MP3s total60.01s /724,690 bytes. Existing voice queue,
+  subtitles/ducking, skip/replay and disclosure are wired. The319 separate mission manifest
+  entries remain text-only; opening files do not falsely count as recorded mission dialogue.
+- Contributor guide added at `docs/CONTRIBUTING_FEATURES.md`.
+
+Validation: first complete unit run4353 passed/17 failed/1 skipped (4371 total).
+An untouched `origin/main`66b1e6f control reproduced all12 physical/performance failures,
+including exact deterministic traffic numbers; inherited does not mean accepted. Manifest,
+Palace schema/provenance and forbidden-API integration errors were repaired. Subsequent focused
+batches include65 passing mode/checkpoint/marker/opening tests,28 asset/privacy/opening tests,
+50 director/queue/graphics tests and the separate vehicle-owner focused checks. These batches
+overlap and are not a full-suite replacement. Typecheck passed after current source integration.
+
+Plain Words controls evidence: first attempt8 boards/1 spinner; second16/all4; third18/all4.
+All had zero protected contacts/failures, genuine negative timeouts and no payout. Third source
+fingerprint `3c7a0e26ff92f29ada60456ec10e0fd2ef36c7b9a340258223227ceab5c719f2`.
+Driver timing/navigation faults are being repaired while the authored300s limit remains strict.
+Full20-board acceptance, packed browser replay, full Coit scope, legacy core progression/combat,
+traffic/source repair, low-memory/performance, final screenshots/listening and independent review
+remain OPEN. No gameplay push, merge, production deployment or old-PR closure occurred.

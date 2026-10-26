@@ -10,7 +10,8 @@
 import { DUCK_ATTACK_S, DUCK_RELEASE_S, audible, busGain, masterGain } from "./buses.ts";
 import type { EffectCue, EffectSound } from "./cues.ts";
 import { MusicPlayer, type MusicTrack } from "./music.ts";
-import { VehicleSynth } from "./vehicle-synth.ts";
+import { RecordedDrivingAudio, type DrivingManifest } from "./vehicle-recordings.ts";
+import recordingManifest from "./vehicle-recording-manifest.json" with { type: "json" };
 import { RobotVoices, SYNTH_CUES, beepTones, playTones, type SynthCue } from "./synth-sfx.ts";
 import type { RobotWhirr } from "./robot-sound.ts";
 import { AmbienceSynth } from "./ambience-synth.ts";
@@ -64,12 +65,18 @@ export class GameAudio {
   private musicTracks: readonly MusicTrack[] = [];
   private musicTrack: string | null | undefined = undefined;
   private musicDucked = false;
-  private vehicle: VehicleSynth | null = null;
+  private vehicle: RecordedDrivingAudio | null = null;
   private robots: RobotVoices | null = null;
   private ambience: AmbienceSynth | null = null;
   private ambienceLevels: AmbienceLevels | null = null;
   private impacts: ImpactSynth | null = null;
   private engineOn = false;
+  private disposed = false;
+  private readonly onVisibilityChange = (): void => {
+    const visible = typeof document === "undefined" || document.visibilityState === "visible";
+    this.vehicle?.setVisible(visible);
+    if (visible && !this.disposed) void this.ctx?.resume().catch(() => {});
+  };
   private prefs: AudioPrefs;
   private ducked = false;
   private unlocked = false;
@@ -88,7 +95,9 @@ export class GameAudio {
       try {
         const r = await fetch(this.base + effectUrl(id, (t) => probe?.canPlayType(t) ?? ""));
         if (!r.ok) return;
-        this.bytes.set(id, await r.arrayBuffer());
+        const bytes=await r.arrayBuffer();
+        if(this.disposed)return;
+        this.bytes.set(id,bytes);
         if (this.ctx) await this.decode(id);
       } catch {
         // A missing effect stays silent.
@@ -103,6 +112,7 @@ export class GameAudio {
 
   /** Create or resume the context: call from a user gesture. Safe to call repeatedly. */
   unlock(): void {
+    if (this.disposed) return;
     if (!this.ctx) {
       const Ctor = audioContextCtor();
       if (!Ctor) return;
@@ -121,7 +131,7 @@ export class GameAudio {
       }
       this.applyGains(true);
       // A backgrounded tab can leave the context suspended: resume it when the page shows again.
-      if (typeof document !== "undefined") document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") void this.ctx?.resume().catch(() => {}); });
+      if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibilityChange);
       for (const id of this.bytes.keys()) void this.decode(id);
       this.startMusic();
     }
@@ -140,6 +150,8 @@ export class GameAudio {
     this.applyGains(false);
     // Silent music stops streaming; turning it back up resumes where it was.
     this.music?.setEnabled(this.unlocked && audible(prefs, "music"));
+    this.vehicle?.setEnabled(audible(prefs,"effects"));
+    if(audible(prefs,"effects")) void this.vehicle?.load();
   }
 
   /** Back-compat: the master volume, 0..1. */
@@ -160,14 +172,21 @@ export class GameAudio {
     if (!ctx || !bus || !this.unlocked) return;
     if (!this.vehicle && params) {
       try {
-        this.vehicle = new VehicleSynth(ctx, bus);
+        this.vehicle = new RecordedDrivingAudio(ctx,bus,recordingManifest as unknown as DrivingManifest,{base:this.base});
+        this.vehicle.setEnabled(audible(this.prefs,"effects"));
+        this.vehicle.setVisible(typeof document === "undefined" || document.visibilityState === "visible");
+        if(audible(this.prefs,"effects")) void this.vehicle.load();
       } catch {
         return;
       }
     }
     this.engineOn = params !== null;
-    this.vehicle?.set(params);
+    const frame = params?.recording ?? (params ? {identity:"legacy-car",profile:"light-ice" as const,speedMps:Math.max(0,(params.whineHz-110)/21),grounded:params.roarGain>0,lateralMps:0,grip:1,dtS:0} : null);
+    this.vehicle?.set(frame);
   }
+
+  /** Save restore/new game must cancel old occupied-body one-shots immediately. */
+  resetDriving(): void { this.engineOn=false;this.vehicle?.reset(); }
 
   /** A procedural cue (UI, stingers, money, scan result, the pairing tell) on the effects bus. */
   playSynth(cue: SynthCue, gain = 1, pan = 0): void {
@@ -306,7 +325,7 @@ export class GameAudio {
 
   /** Pause or resume all sound with the game's pause (music keeps playing under the menu). */
   setPaused(paused: boolean): void {
-    if (paused) this.stopSpray();
+    if (paused) {this.stopSpray();this.vehicle?.set(null);this.engineOn=false;}
     else if (this.wantSpray) this.startSpray();
   }
 
@@ -389,7 +408,7 @@ export class GameAudio {
   }
 
   /** For tests and the debug handle. */
-  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; robotVoices: number; ambience: AmbienceLevels | null; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
+  info(): { unlocked: boolean; state: string; effectsLoaded: number; effectsPlayed: Record<string, number>; spray: boolean; engine: boolean; driving: ReturnType<RecordedDrivingAudio["info"]> | null; robotVoices: number; ambience: AmbienceLevels | null; music: ReturnType<MusicPlayer["nowPlaying"]>; musicSwitches: number; ducked: boolean; gains: Record<string, number> } {
     return {
       unlocked: this.isUnlocked(),
       state: this.ctx?.state ?? "none",
@@ -397,6 +416,7 @@ export class GameAudio {
       effectsPlayed: Object.fromEntries(this.played),
       spray: this.spray !== null,
       engine: this.engineOn,
+      driving: this.vehicle?.info() ?? null,
       robotVoices: this.robots?.count() ?? 0,
       ambience: this.ambienceLevels,
       music: this.music?.nowPlaying() ?? null,
@@ -412,6 +432,9 @@ export class GameAudio {
   }
 
   dispose(): void {
+    if(this.disposed)return;
+    this.disposed=true;this.engineOn=false;
+    if(typeof document!=="undefined")document.removeEventListener("visibilitychange",this.onVisibilityChange);
     this.stopSpray();
     this.vehicle?.dispose();
     this.vehicle = null;
@@ -450,7 +473,9 @@ export class GameAudio {
     if (!ctx || !bytes || this.buffers.has(id)) return;
     try {
       // decodeAudioData detaches its argument: decode a copy.
-      this.buffers.set(id, await ctx.decodeAudioData(bytes.slice(0)));
+      const decoded=await ctx.decodeAudioData(bytes.slice(0));
+      if(this.disposed||this.ctx!==ctx)return;
+      this.buffers.set(id,decoded);
       if (id === "spray" && this.wantSpray) this.startSpray();
     } catch {
       // An undecodable effect stays silent.

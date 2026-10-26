@@ -30,7 +30,7 @@ export function validateSavedProgression(data:ProgressionDocument):ProgressionDo
   const wallet=object(data.wallet),progression=object(data.progression),missions=object(data.missions),activities=object(data.activities),player=object(data.player);
   shape(wallet,["cashCents","runwayMonths","reputation","ownedItemIds","ownedSiteIds","settledModeIds"]);
   shape(progression,["xp","rank","tankTier","flowTier","scannerTier","nozzle","gadget","gear","perks","streaks","streakPoints","banked","achievements","doom"]);
-  shape(missions,["completedIds","rewardedIds"]);shape(activities,["completedIds"]);shape(player,["startupKitId","safehouseId","downRounds"]);
+  shape(missions,["completedIds","rewardedIds"]);shape(activities,["completedIds","officeHoursBookings","officeHoursSequence","officeHoursCooldownTicks"]);shape(player,["startupKitId","safehouseId","downRounds"]);
   const banked=object(progression.banked),cleanBank:RecordData={};for(const [key,value]of Object.entries(banked))cleanBank[id(key)]=number(value);
   const xp=number(progression.xp),clean:RecordData={
     wallet:{cashCents:number(wallet.cashCents),runwayMonths:number(wallet.runwayMonths,0,18,false),reputation:number(wallet.reputation,0,100,false),ownedItemIds:list(wallet.ownedItemIds),ownedSiteIds:list(wallet.ownedSiteIds,siteIds),settledModeIds:list(wallet.settledModeIds??[])},
@@ -38,6 +38,12 @@ export function validateSavedProgression(data:ProgressionDocument):ProgressionDo
     missions:{completedIds:list(missions.completedIds,missionIds),rewardedIds:list(missions.rewardedIds)},activities:{completedIds:list(activities.completedIds,activityIds)},
     player:{startupKitId:id(player.startupKitId,kitIds,true),safehouseId:id(player.safehouseId,siteIds,true),downRounds:number(player.downRounds)},
   };
+  if(activities.officeHoursBookings!==undefined){
+    const allowance=object(activities.officeHoursBookings);shape(allowance,["day","count"]);
+    (clean.activities as RecordData).officeHoursBookings={day:number(allowance.day),count:number(allowance.count,0,2)};
+  }
+  if(activities.officeHoursSequence!==undefined)(clean.activities as RecordData).officeHoursSequence=number(activities.officeHoursSequence);
+  if(activities.officeHoursCooldownTicks!==undefined)(clean.activities as RecordData).officeHoursCooldownTicks=number(activities.officeHoursCooldownTicks,0,60*720);
   if(progression.doom!==undefined){
     const doom=object(progression.doom),factions=object(doom.factions),cleanFactions:RecordData={};
     shape(doom,["months","resets","winters","stopped","factions"]);
@@ -64,9 +70,10 @@ export function captureProgression(state:SimState,playerId:string,profile?:JsonO
   const {commandSequence:_command,streakSequence:_streak,...durable}=progression;
   const economy=snapshot.economy as typeof snapshot.economy&{settledModeIds?:string[]},worldProgression=snapshot.progression as typeof snapshot.progression&{doom?:{months:number;resets:number;winters:number;stopped?:boolean;factions:Record<string,{pauser:number;accelerator:number}>}};
   const doom=worldProgression.doom;
+  const activity=snapshot.activities.players[playerId],day=gameTime(state).dayIndex;
   return validateSavedProgression({
     wallet:{cashCents:wallet.cashCents,runwayMonths:wallet.runwayMonths,reputation:wallet.reputation,ownedItemIds:wallet.ownedItemIds,ownedSiteIds:wallet.ownedSiteIds,settledModeIds:economy.settledModeIds??[]},
-    progression:{...durable,...(doom?{doom:{months:doom.months,resets:doom.resets,winters:doom.winters,stopped:doom.stopped??false,factions:doom.factions}}:{})} as unknown as Json,missions:{completedIds:mission.completedIds,rewardedIds:mission.rewardedIds},activities:{completedIds:snapshot.activities.players[playerId]?.completedIds??[]},
+    progression:{...durable,...(doom?{doom:{months:doom.months,resets:doom.resets,winters:doom.winters,stopped:doom.stopped??false,factions:doom.factions}}:{})} as unknown as Json,missions:{completedIds:mission.completedIds,rewardedIds:mission.rewardedIds},activities:{completedIds:activity?.completedIds??[],...(activity?.officeHoursBookings?{officeHoursBookings:{day,count:activity.officeHoursBookings.day===day?activity.officeHoursBookings.count:0},officeHoursSequence:activity.officeHoursSequence??0,officeHoursCooldownTicks:Math.max(0,Math.min(60*720,(activity.cooldowns?.["office-hours"]??0)-state.tick))}:{})},
     player:{startupKitId:player.startupKitId,safehouseId:player.safehouseId,downRounds:player.downRounds},...(profile?{profile}:{}),
   });
 }
@@ -77,12 +84,14 @@ export function restoreProgression(fresh:SimState,data:ProgressionDocument,playe
   const activity=snapshot.activities.players[playerId];if(!activity)throw new SaveError("invalid","Initialize player systems before restoring");
   const {settledModeIds,...savedWallet}=wallet,{doom,...savedProgression}=progression;
   const restoredDoom=doom?{...object(doom),lastDay:gameTime(fresh).dayIndex,pausedUntil:0,winterUntilDay:-1,factCursors:{}}:undefined;
+  const allowance=activities.officeHoursBookings?object(activities.officeHoursBookings):undefined;
+  const restoredActivities={completedIds:activities.completedIds,...(allowance?{officeHoursBookings:{day:gameTime(fresh).dayIndex,count:allowance.count},officeHoursSequence:activities.officeHoursSequence??0,cooldowns:{...activity.cooldowns,"office-hours":fresh.tick+(activities.officeHoursCooldownTicks as number??0)}}:{})};
   const copy=<T>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
   return {...fresh,ext:{...fresh.ext,
     economy:{...snapshot.economy,settledModeIds:copy(settledModeIds??[]),players:{...snapshot.economy.players,[playerId]:{...createWallet(),...copy(savedWallet)}}} as unknown as typeof snapshot.economy,
     progression:{...snapshot.progression,...(restoredDoom?{doom:copy(restoredDoom)}:{}),players:{...snapshot.progression.players,[playerId]:{...createProgressionPlayer(),...copy(savedProgression)}}} as unknown as typeof snapshot.progression,
     player:{...snapshot.player,players:{...snapshot.player.players,[playerId]:{...createPlayerStatus(),...copy(player),status:"active",bridgeUntil:0,resumeTick:0}}} as unknown as typeof snapshot.player,
     missions:{...snapshot.missions,players:{...snapshot.missions.players,[playerId]:{...createMissionProgress(),...copy(mission)}}} as unknown as typeof snapshot.missions,
-    activities:{...snapshot.activities,players:{...snapshot.activities.players,[playerId]:{...activity,...copy(activities),activeCardId:"",activeActivityId:"",cardUntilTick:0}}} as unknown as typeof snapshot.activities,
+    activities:{...snapshot.activities,players:{...snapshot.activities.players,[playerId]:{...activity,...copy(restoredActivities),activeCardId:"",activeActivityId:"",cardUntilTick:0}}} as unknown as typeof snapshot.activities,
   }};
 }

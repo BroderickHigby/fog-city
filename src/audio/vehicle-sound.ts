@@ -1,3 +1,4 @@
+import type { DrivingFrame } from "./vehicle-recordings.ts";
 // What the player's car and feet should sound like this frame, from the sim state the renderer
 // draws. Pure and read-only: the procedural synth (vehicle-synth.ts) and the one-shots follow it.
 //
@@ -10,6 +11,8 @@
 import type { CarState, FootState } from "../sim/contract.ts";
 
 export interface EngineParams {
+  /** Recorded-driving state. Legacy whine fields remain for compatible pure-model callers only. */
+  recording?: DrivingFrame;
   /** The motor's fundamental, Hz. */
   whineHz: number;
   whineGain: number;
@@ -50,6 +53,7 @@ export function engineParams(car: CarState, prev: CarState | null, dtS: number):
   const braking = speed > 7 && accel < -7 ? clamp01((-accel - 7) / 6) : 0;
   const squealGain = car.grounded && speed > 3 ? 0.45 * Math.max(slip, gripLoss, braking) : 0;
   return {
+    recording: {identity:"occupied-car",profile:"light-ice",speedMps:car.speed,grounded:car.grounded,lateralMps:car.lateral,grip:car.grip,dtS:prev ? dtS : 0},
     whineHz: IDLE_WHINE_HZ + WHINE_HZ_PER_MPS * speed,
     whineGain,
     roarCutoff: 220 + 38 * speed,
@@ -66,6 +70,7 @@ export function rideEngineParams(speed: number, prevSpeed: number | null, dtS: n
   const accel = prevSpeed !== null && dtS > 0 ? (Math.abs(speed) - Math.abs(prevSpeed)) / dtS : 0;
   const load = clamp01(accel / 4);
   return {
+    recording: {identity:"occupied-ride",profile:"road-only",speedMps:speed,grounded:true,lateralMps:0,grip:1,dtS:prevSpeed!==null?dtS:0,cabin:true},
     whineHz: IDLE_WHINE_HZ + WHINE_HZ_PER_MPS * Math.abs(speed),
     whineGain: (0.035 + 0.11 * Math.sqrt(s) + 0.07 * load) * RIDE_CABIN,
     roarCutoff: 220 + 38 * Math.abs(speed),

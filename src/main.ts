@@ -38,8 +38,12 @@ import { availableGamepads } from "./input/controller.ts";
 import { uiText } from "./content/ui.ts";
 import { mountGameUI, createGameplayDispatcher, type MapPoint } from "./ui/index.ts";
 import { mountMultiplayer } from "./ui/multiplayer.ts";
+import { mountTaxiModeControl } from "./ui/taxi-mode.ts";
+import { createSfTaxiSession,createSfTaxiStepper,decodeSfTaxiSession,encodeTaxiSession,settleTaxiSession,taxiSessionView,type SfTaxiSession } from "./modes/taxi-session.ts";
+import type { TaxiCommand } from "./sim/modes/taxi.ts";
 import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
+import { activityProjection,activityDestination,mountActivityPanel } from "./ui/activities.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { landmarkBlips } from "./ui/landmarks.ts";
 import { PALACE_LAGOON } from "./render/landmark-water.ts";
@@ -49,7 +53,12 @@ import { PropDamage } from "./render/prop-damage.ts";
 import { propIndex } from "./sim/props.ts";
 import { meshGroundHeight } from "./sim/world.ts";
 import { SprayTracker } from "./render/held-blaster.ts";
-import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, parseGfxRequest, probeGpu } from "./render/gfx.ts";
+import { SOFTWARE_GPU, TIER_SETTINGS, chooseTier, probeGpu } from "./render/gfx.ts";
+import { GfxPreferenceController } from "./render/gfx-preference.ts";
+import { mountGraphicsSettings } from "./ui/graphics-settings.ts";
+import { takeGraphicsCheckpoint,writeGraphicsCheckpoint,type GraphicsCheckpoint } from "./save/graphics-checkpoint.ts";
+import { PlainWordsLayer } from "./render/plain-words.ts";
+import { HostileMarkerLayer } from "./render/hostile-markers.ts";
 import { ContextGuard, RESUME_KEY, SAFE_MODE_KEY, hideGraphicsNotice, showGraphicsNotice } from "./render/context-guard.ts";
 import { createGameAudioDirector } from "./audio/index.ts";
 import { hornBlasts } from "./audio/horn.ts";
@@ -228,8 +237,27 @@ async function boot(): Promise<void> {
   const safeMode = sessionValue(SAFE_MODE_KEY) === "1";
   const rendererRequest = params.get("renderer");
   const gpu = probeGpu();
-  const gfxRequest = parseGfxRequest(params.get("gfx"));
-  const gfx = chooseTier(gfxRequest, gpu, safeMode);
+  const taxiResumeKey="fogcity.taxi-resume.v1";
+  const taxiResumeStorage={getItem:(_key:string)=>sessionStorage.getItem(taxiResumeKey),setItem:(_key:string,value:string)=>sessionStorage.setItem(taxiResumeKey,value),removeItem:(_key:string)=>sessionStorage.removeItem(taxiResumeKey)};
+  let graphicsRestart:GraphicsCheckpoint|null=null;
+  try{graphicsRestart=takeGraphicsCheckpoint(sessionStorage,worldName,GAME_WAVE)??takeGraphicsCheckpoint(taxiResumeStorage,worldName,GAME_WAVE);}catch{/* Storage may be unavailable. */}
+  if(graphicsRestart&&(graphicsRestart.state.seed!==SEED||!graphicsRestart.state.players[LOCAL_PLAYER]))graphicsRestart=null;
+  const graphicsController=new GfxPreferenceController({url:new URL(location.href),caps:gpu,safeMode,apply:async({requested,url})=>{
+    if(multiplayer.inMatch())throw new Error("Exit the online match before changing graphics.");
+    keyboard.releaseAll();
+    // Keep the complete paused simulation, not just completed campaign milestones.
+    // A storage failure throws before navigation, leaving the current game intact.
+    writeGraphicsCheckpoint(sessionStorage,{world:worldName,wave:GAME_WAVE,state:curr,queuedEvents,recordedCommands,requestedMission,...(waypoint?{waypoint}:{}),...(taxiSession?{taxiSession:encodeTaxiSession(taxiSession)}:{})});
+    const applied=chooseTier(safeMode?"auto":requested,gpu,safeMode);
+    setTimeout(()=>{
+      // The controller persists after apply returns. A blocked local store still permits
+      // this session's choice through the link, while its UI reports unavailable storage.
+      if(!graphicsController.get().persisted)url.searchParams.set("gfx",requested);
+      location.replace(url.href);
+    },0);
+    return {...applied,safetyFallback:safeMode};
+  }});
+  const gfx=graphicsController.get(),gfxRequest=gfx.requested;
   const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = await SceneRenderer.create(
     container,
@@ -239,14 +267,14 @@ async function boot(): Promise<void> {
         ? rendererRequest as "webgpu" | "webgl" | "legacy" : safeMode ? "legacy" : "auto",
       // Keep full-detail geometry bounded; the independent far layer retains the skyline.
       radius: numParam(params, "radius") ?? 600,
-      shadows: params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
-      quality: params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
+      shadows: !safeMode && params.has("shadows") ? params.get("shadows") === "1" : tierSettings.shadows,
+      quality: !safeMode && params.has("quality") ? params.get("quality") === "1" : tierSettings.post,
       gpuMemory: params.get("gpumem") === "1",
       timeOfDay: ["golden", "noon", "twilight", "night"].includes(params.get("tod") ?? "")
         ? params.get("tod") as "golden" | "noon" | "twilight" | "night" : undefined,
       night: bootedAtNight,
-      maxPixelRatio: numParam(params, "pr") ?? tierSettings.maxPixelRatio,
-      pixelBudget: params.has("pr") ? undefined : tierSettings.pixelBudget,
+      maxPixelRatio: (!safeMode?numParam(params, "pr"):null) ?? tierSettings.maxPixelRatio,
+      pixelBudget: !safeMode && params.has("pr") ? undefined : tierSettings.pixelBudget,
       tier: gfx.tier,
       governed: gfxRequest === "auto" && !params.has("pr") && !params.has("quality") && !params.has("shadows"),
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
@@ -274,30 +302,40 @@ async function boot(): Promise<void> {
   keyboard.setBlocked(true);
   const pointer = new PointerLook(view.renderer.domElement);
   let prev: SimState = createInitialState(world, SEED, [LOCAL_PLAYER], manifest.spawn);
-  let curr: SimState = prev;
+  let curr: SimState = graphicsRestart?.state??prev;
+  prev=curr;
+  let taxiSession:SfTaxiSession|null=graphicsRestart?.taxiSession?decodeSfTaxiSession(graphicsRestart.taxiSession,world):null;
+  let taxiPrev:SimState|null=taxiSession?.instance??null,taxiWaypoint:MapPoint|undefined;
+  let taxiUiPaused=false,taxiFocusBlocked=false,taxiCommandSequence=taxiSession?.taxi.commandSequence??0,nextTaxiCheckpoint=taxiSession?.instance.tick??0;
+  const taxiCommands:TaxiCommand[]=[];
+  const taxiTick=createSfTaxiStepper(world);
   // Two independent pauses: the debug handle's (tests step the sim by hand and nothing else may
   // advance it) and the UI's (an open modal). Only a UI pause lets a queued command through.
   let debugPaused = captureMode;
   let uiPaused = false;
   let paused = captureMode;
   const setPaused = (): void => {
-    paused = debugPaused || uiPaused;
+    paused = debugPaused || uiPaused || taxiUiPaused || taxiFocusBlocked;
     pacer.reset();
     last = performance.now();
   };
   const pacer = new FramePacer(DT);
   let last = performance.now();
   const systems=createGameSystems({wave:GAME_WAVE});
-  let requestedMission="hot-desk";
-  let waypoint:MapPoint|undefined;
-  let queuedEvents:SimEvent[]=[];
-  const recordedCommands:SimEvent[]=[];
-  const send=createGameplayDispatcher({playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{queuedEvents.push(event);recordedCommands.push(event);}});
+  let requestedMission=graphicsRestart?.requestedMission??"hot-desk";
+  let waypoint:MapPoint|undefined=graphicsRestart?.waypoint;
+  let queuedEvents:SimEvent[]=graphicsRestart?.queuedEvents??[];
+  const recordedCommands:SimEvent[]=graphicsRestart?.recordedCommands??[];
+  let resumedSequence=1;
+  const commandCursor=(value:unknown):void=>{if(!value||typeof value!=="object")return;for(const [key,child] of Object.entries(value)){if(key==="commandSequence"&&typeof child==="number")resumedSequence=Math.max(resumedSequence,child+1);else if(typeof child==="object")commandCursor(child);}};
+  if(graphicsRestart){commandCursor(curr.ext);for(const event of [...queuedEvents,...recordedCommands]){const payload=event.payload as {sequence?:number}|undefined;if(typeof payload?.sequence==="number")resumedSequence=Math.max(resumedSequence,payload.sequence+1);}}
+  const send=createGameplayDispatcher({initialSequence:resumedSequence,playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{if(taxiSession)return;queuedEvents.push(event);recordedCommands.push(event);}});
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const audio=createGameAudioDirector({host:container,missions:MISSIONS,weather:(s,x,z)=>weatherView(world,s,x,z)});void audio.load();
+  const audio=createGameAudioDirector({host:container,missions:MISSIONS,onOpeningReplay:()=>gameUI.setPhoneOpen(false),weather:(s,x,z)=>weatherView(world,s,x,z)});void audio.load();if(graphicsRestart)audio.restore(curr);
   const restoreSave=(data:Parameters<typeof validateSavedProgression>[0]):void=>{
+    if(taxiSession)throw new Error("Bank and exit your taxi shift before loading a campaign save.");
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
     const spawn=site?restoreSpawn(world,site):manifest.spawn;
@@ -305,11 +343,13 @@ async function boot(): Promise<void> {
     curr=restoreProgression(fresh,clean,LOCAL_PLAYER);prev=curr;audio.restore(curr);queuedEvents=[];waypoint=undefined;pacer.reset();last=performance.now();
     const completed=(clean.missions as {completedIds:string[]}).completedIds;const next=nextCampaignMission(completed,GAME_WAVE);requestedMission=next?.id??"";if(next)send({kind:"mission-start",targetId:next.id});
   };
-  const gameUI=mountGameUI(container,{audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",lightingPreset:["noon","golden","twilight","night"].includes(params.get("tod")??"")?params.get("tod") as "noon"|"golden"|"twilight"|"night":bootedAtNight?"night":"live",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
-    pause:value=>{uiPaused=value;setPaused();},
+  const gameUI=mountGameUI(container,{graphicsSettings:doc=>mountGraphicsSettings(doc,{controller:graphicsController}),audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",lightingPreset:["noon","golden","twilight","night"].includes(params.get("tod")??"")?params.get("tod") as "noon"|"golden"|"twilight"|"night":bootedAtNight?"night":"live",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
+    pause:value=>{if(value)taxiControl?.close();uiPaused=value;setPaused();},
+    openTaxi:()=>{gameUI.setPhoneOpen(false);taxiControl.open();},
+    bookOfficeHours:()=>send({kind:"activity-start",targetId:"office-hours"}),
     lighting:preset=>{if(preset==="live")view.setNight(false);else view.setTimeOfDay(preset);},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
-    waypoint:point=>{waypoint=point;sendRideDestination();},
+    waypoint:point=>{if(taxiSession){taxiWaypoint=point;return;}waypoint=point;sendRideDestination();},
     interaction:choiceId=>{
       const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
       const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
@@ -329,8 +369,32 @@ async function boot(): Promise<void> {
   const projected=new THREE.Vector3();let lookIds:string[]=[];
   const multiplayer=mountMultiplayer({host:container,relayUrl:relayUrl(),world,files,worldName,
     onLooks:looks=>{for(const id of lookIds)if(!(id in looks))view.actors.setLookSlot(id,null);lookIds=Object.keys(looks);for(const id of lookIds)view.actors.setLookSlot(id,looks[id]!);},
-    project:(x,y,z)=>{const cam=view.camera;projected.set(x,y,z);const distance=projected.distanceTo(cam.position);projected.project(cam);if(projected.z>1||projected.z<-1)return null;const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(projected.x+1)/2*r.width,y:r.top+(1-projected.y)/2*r.height,distance};},onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
+    project:(x,y,z)=>{const cam=view.camera;projected.set(x,y,z);const distance=projected.distanceTo(cam.position);projected.project(cam);if(projected.z>1||projected.z<-1)return null;const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(projected.x+1)/2*r.width,y:r.top+(1-projected.y)/2*r.height,distance};},onModeChange:inMatch=>{if(inMatch&&taxiSession){taxiCommands.push({sequence:++taxiCommandSequence,kind:"exit"});advanceFrame({[LOCAL_PLAYER]:{...NEUTRAL_INPUT}});}keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
+  const persistTaxi=():void=>{
+    if(!taxiSession)return;
+    try{writeGraphicsCheckpoint(taxiResumeStorage,{world:worldName,wave:GAME_WAVE,state:curr,queuedEvents,recordedCommands,requestedMission,...(waypoint?{waypoint}:{}),taxiSession:encodeTaxiSession(taxiSession)});}
+    catch{taxiControl.setStatus({error:"This browser could not keep a taxi restart checkpoint. Bank and exit before reloading; your entry campaign is safe."});}
+  };
+  const taxiControl=mountTaxiModeControl(gameUI.element,{
+    onModal:open=>{taxiUiPaused=open;keyboard.releaseAll();setPaused();},
+    onFocusChange:focused=>{taxiFocusBlocked=focused;keyboard.releaseAll();setPaused();},
+    onStart:shift=>{void (async()=>{
+      if(multiplayer.inMatch())throw new Error("Exit the online match before starting a taxi shift.");
+      if(taxiSession)return;
+      taxiControl.setStatus({busy:true,error:""});await paint();await saveStore.save("auto",captureProgression(curr,LOCAL_PLAYER));
+      const runId=`taxi-${crypto.randomUUID().replaceAll("-","").slice(0,28)}`;
+      taxiSession=createSfTaxiSession(world,curr,{id:runId,playerId:LOCAL_PLAYER,seed:curr.seed,shiftId:shift},{wave:GAME_WAVE});
+      taxiPrev=taxiSession.instance;taxiCommandSequence=0;taxiCommands.length=0;taxiWaypoint=undefined;nextTaxiCheckpoint=0;
+      keyboard.releaseAll();audio.restore(taxiSession.instance);view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();
+      taxiControl.update(taxiSession,{busy:false});persistTaxi();
+    })().catch(error=>taxiControl.setStatus({busy:false,error:error instanceof Error?error.message:String(error)}));},
+    onCommand:kind=>{if(!taxiSession)return;taxiCommands.push({sequence:++taxiCommandSequence,kind});keyboard.releaseAll();if(!debugPaused)advanceFrame({[LOCAL_PLAYER]:{...NEUTRAL_INPUT}});},
+  });
+  const plainWordsLayer=new PlainWordsLayer(view.scene,ground);
+  const hostileMarkerLayer=new HostileMarkerLayer(view.scene);
+  window.addEventListener("pagehide",()=>{persistTaxi();taxiControl.dispose();plainWordsLayer.dispose();hostileMarkerLayer.dispose();},{once:true});
+  const activityPanel=mountActivityPanel(gameUI.element,uiText,id=>send({kind:"activity-start",targetId:id}));
   const combatLayer=new CombatLayer(view.scene);
   const impactLayer=new ImpactLayer(view.scene, {
     player: (id, matrix, bounds) => view.actors.copyCarFrame(id, matrix, bounds),
@@ -344,8 +408,10 @@ async function boot(): Promise<void> {
   if (params.get("debug") === "1") (window as unknown as { __fogcityProps?: PropDamage }).__fogcityProps = propDamage;
   const sprayTracker=new SprayTracker();
   const unlockAudio=()=>audio.unlock();window.addEventListener("pointerdown",unlockAudio,{once:true});window.addEventListener("keydown",unlockAudio,{once:true});
-  send({kind:"mission-start",targetId:"hot-desk"});
+  if(!graphicsRestart)send({kind:"mission-start",targetId:"hot-desk"});
+  if(graphicsRestart?.taxiSession&&!taxiSession)hud.hint("The taxi checkpoint could not resume. Your saved entry campaign has been restored.",performance.now());
   const diagnostics=params.get("debug")==="1";
+  if(diagnostics)(window as unknown as {__fogcityTaxi?:unknown}).__fogcityTaxi={info:()=>({active:!!taxiSession,taxi:taxiSession?.taxi??null,view:taxiSession?taxiSessionView(taxiSession):null,instanceHash:taxiSession?hashState(taxiSession.instance):null,campaignHash:hashState(curr),instanceTick:taxiSession?.instance.tick??null})};
   // Debug only: a small badge while the sim cannot keep up and game time runs slower (frame-pacer.ts).
   const slowBadge=diagnostics||params.get("perf")==="1"?document.createElement("div"):null;
   if(slowBadge){slowBadge.id="sim-slow";slowBadge.hidden=true;slowBadge.style.cssText="position:fixed;left:8px;bottom:8px;z-index:50;padding:2px 6px;font:12px/1.4 monospace;color:#fff;background:rgba(160,40,20,.8);border-radius:3px;pointer-events:none";document.body.appendChild(slowBadge);}
@@ -353,9 +419,22 @@ async function boot(): Promise<void> {
   const legacyCompass=document.getElementById("compass");if(legacyCompass)legacyCompass.hidden=true;
   /** One game clock, chosen at boot: night mode is a look and never moves it. */
   const clockStart = clockStartMinute(bootedAtNight);
-  let nextWeather = 0;
+  let nextWeather = 0,reportedGraphicsSteps="";
 
   const advanceFrame = (frame: InputFrame, events: readonly SimEvent[] = []): void => {
+    if(taxiSession){
+      const priorAttempt=taxiSession.taxi.attempt;
+      taxiPrev=taxiSession.instance;
+      taxiSession=taxiTick(taxiSession,frame,taxiCommands.splice(0),events);
+      if(taxiSession.taxi.attempt!==priorAttempt){taxiPrev=taxiSession.instance;keyboard.releaseAll();audio.restore(taxiSession.instance);pacer.reset();last=performance.now();}
+      for(const blast of hornBlasts(frame,taxiSession.instance,taxiPrev))audio.playHorn(blast);
+      if(taxiSession.taxi.phase==="exited"){
+        curr=settleTaxiSession(taxiSession).restored!;prev=curr;taxiSession=null;taxiPrev=null;taxiWaypoint=undefined;
+        try{sessionStorage.removeItem(taxiResumeKey);}catch{/* City remains in memory. */}
+        taxiControl.update(null);audio.restore(curr);keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();void autosave.flush();
+      }else if(taxiSession.instance.tick>=nextTaxiCheckpoint){nextTaxiCheckpoint=taxiSession.instance.tick+300;persistTaxi();}
+      return;
+    }
     prev = curr;
     const tick=curr.tick+1,pending=queuedEvents.filter(event=>event.tick===tick);
     queuedEvents=queuedEvents.filter(event=>event.tick>tick);
@@ -420,7 +499,7 @@ async function boot(): Promise<void> {
 
   // Graphics recovery can restore a different starting street. Resolve it before revealing
   // the first view, while retaining the existing progression validation and spawn rules.
-  const resumingAfterReset = sessionValue(RESUME_KEY) === "1";
+  const resumingAfterReset = !graphicsRestart && sessionValue(RESUME_KEY) === "1";
   if (resumingAfterReset) {
     await saveStore.load("auto").then(save => { if (save) restoreSave(save.data); }).catch(() => {});
   }
@@ -428,7 +507,8 @@ async function boot(): Promise<void> {
   await prepareStartingStreets({
     nextFrame: paint,
     render: () => {
-      const player = curr.players[LOCAL_PLAYER]!;
+      const startingState=taxiSession?.instance??curr;
+      const player = startingState.players[LOCAL_PLAYER]!;
       view.setCar(LOCAL_PLAYER, player.car);
       const onFoot = player.mode === "foot" && player.foot !== null;
       view.setFoot(LOCAL_PLAYER, onFoot ? player.foot : null);
@@ -437,9 +517,9 @@ async function boot(): Promise<void> {
       target.heading = body.heading; target.speed = body.speed; target.onFoot = onFoot;
       target.pitch = onFoot || player.ride ? 0 : player.car.pitch;
       target.robotaxiId = player.ride?.agentId;
-      const rendered = renderWithRuntimeActors(curr, Object.values(agentsRuntimeOf(curr)?.actors ?? {}));
+      const rendered = renderWithRuntimeActors(startingState, Object.values(agentsRuntimeOf(startingState)?.actors ?? {}));
       view.setSim(rendered, rendered, 1);
-      view.frame(0, local, NO_FLY_INPUT, gameMinuteOfDay(curr, clockStart));
+      view.frame(0, local, NO_FLY_INPUT, gameMinuteOfDay(startingState, clockStart));
       view.render();
     },
     ready: () => view.startupSurfaceReady(),
@@ -591,11 +671,11 @@ async function boot(): Promise<void> {
     }
     // A UI-paused game still applies a command the modal just queued (an answer, a purchase).
     // Under a debug pause only stepN/stepFrames advance the sim; queued commands wait for them.
-    else if(!debugPaused&&queuedEvents.some(event=>event.tick===curr.tick+1))advance({...NEUTRAL_INPUT});
+    else if(!debugPaused&&(taxiSession?taxiCommands.length>0:queuedEvents.some(event=>event.tick===curr.tick+1)))advance({...NEUTRAL_INPUT});
     const simSeconds = (performance.now() - simStart) / 1000;
     const simCatchingUp = (match ? match.ticksThisFrame : pacer.stats().ticksThisFrame) > 1;
     const alpha = match ? match.alpha : paused ? 1 : pacer.alpha();
-    const shownPrev = match ? match.prev : prev, shown = match ? match.curr : curr, me_ = match ? match.playerId : LOCAL_PLAYER;
+    const shownPrev = match ? match.prev : taxiSession?(taxiPrev??taxiSession.instance):prev, shown = match ? match.curr : taxiSession?.instance??curr, me_ = match ? match.playerId : LOCAL_PLAYER;
 
     // Player ids change only when the sim state does (once per tick at most).
     if (shown.players !== idsFor) {
@@ -692,6 +772,12 @@ async function boot(): Promise<void> {
     multiplayer.overlay();
 
     const info = view.info(renderInfo);
+    const adapted=info.gfx?.steps.join(",")??"";
+    if(gfxRequest==="auto"&&adapted&&adapted!==reportedGraphicsSteps){
+      reportedGraphicsSteps=adapted;
+      const changes=[...(info.gfx?.steps.includes("pixels")?["lower resolution"]:[]),...(info.gfx?.steps.includes("shadows")?["shadows off"]:[]),...(info.gfx?.steps.includes("post")?["effects off"]:[])];
+      graphicsController.reportApplied({tier:gfx.tier,reason:`Auto adapted for smoother rendering: ${changes.join(", ")}.`,safetyFallback:safeMode});
+    }
     if (captureProof && now >= nextCaptureProof) {
       nextCaptureProof = now + 1000;
       const geometries = new Set<THREE.BufferGeometry>(); let meshes = 0;
@@ -738,10 +824,11 @@ async function boot(): Promise<void> {
     hudData.minuteOfDay = minute;
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
+    hostileMarkerLayer.update(shown,me_,view.camera);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
-    if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
-    if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER),mapGeography);const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
+    if(!inOnlineMatch&&!taxiSession)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
+    if(!inOnlineMatch&&!taxiSession&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;plainWordsLayer.update(shown,me_);const activityView=match||taxiSession?{}:activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:taxiSession?{...uiProjection(shown,me_,roads,taxiWaypoint,GAME_WAVE,taxiSessionView(taxiSession).target??undefined,mapGeography),cashCents:uiProjection(curr,LOCAL_PLAYER,null,undefined,GAME_WAVE).cashCents,interaction:undefined,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView),mapGeography);taxiControl.update(taxiSession,{available:!inOnlineMatch&&worldName==="sf",reason:inOnlineMatch?"Exit the online match to start a taxi shift.":worldName!=="sf"?"Taxi shifts use the San Francisco road network.":""});const pace=pacer.stats();gameUI.update({...uiView,...(uiView.map&&activityView.blips?{map:{...uiView.map,blips:[...uiView.map.blips,...activityView.blips]}}:{}),performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
