@@ -80,6 +80,12 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
   const streetName=body?streetNameAt(roads,body.x,body.z):undefined;
+  // Combat owns the popup lifetime and identity; the existing close-ad UI sends
+  // this exact attack ID back through the recorded gameplay-command boundary.
+  const popups=(state.ext.combat?.attacks??[]).filter(attack=>player&&attack.kind==="ad-blast"&&attack.active&&
+    attack.targetId===playerId&&attack.resolveTick<=state.tick&&attack.endTick>state.tick)
+    .sort((a,b)=>a.resolveTick-b.resolveTick||(a.id<b.id?-1:a.id>b.id?1:0))
+    .map(attack=>({id:attack.id,title:uiText("ui.ad.label"),detail:uiText("ui.ad.disclaimer")}));
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
     ...(player?{travelMode:player.mode}:{}),...(streetName?{streetName}:{}),
     ...(player?.ride?{vehicleControl:player.ride.manual?"robotaxi-driver" as const:"robotaxi-passenger" as const}:{}),
@@ -90,6 +96,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     vendorSiteId:vendorSite?.id,
     vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
     phoneApps:["map","botBounty","botCheck","bank","settings"],
+    popups,
     ...(bounties.length?{bounties}:{}),
   };
 }

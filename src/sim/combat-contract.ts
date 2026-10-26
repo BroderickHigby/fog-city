@@ -68,6 +68,8 @@ export interface CombatInput {
   gear?: boolean;
   breakFree?: boolean;
   closeAd?: boolean;
+  /** Recorded UI clicks address exact live popups; these are pulses, not held controls. */
+  closeAdIds?: readonly string[];
   streak?: StreakKind;
   targetX?: number;
   targetZ?: number;

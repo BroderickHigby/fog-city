@@ -1,4 +1,5 @@
-import { Action, type InputFrame } from "../contract.ts";
+import { Action } from "../contract.ts";
+import { gameplayCommandFromEvent } from "../gameplay-contract.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import { combatOf, stepCombatSystem } from "./system.ts";
 import { sortedPlayers } from "./shared.ts";
@@ -6,7 +7,7 @@ import type { CombatContext, CombatInput, CombatInputs, CombatPlayer, CombatStat
 
 export interface CombatSystemSnapshot {
   context: CombatContext;
-  /** An explicit input map replaces the recorded-control defaults, including when empty. */
+  /** An explicit map replaces recorded controls and UI-command defaults, including when empty. */
   inputs?: CombatInputs;
 }
 
@@ -34,7 +35,8 @@ function nearestRefill(ctx: CombatContext, player: CombatPlayer, state: CombatSt
   return nearest?.id;
 }
 
-function recordedInputs(frame: InputFrame, ctx: CombatContext, state: CombatState | undefined): CombatInputs {
+function recordedInputs(system: SimSystemContext, ctx: CombatContext, state: CombatState | undefined): CombatInputs {
+  const frame=system.inputs;
   const mapped: Record<string, CombatInput> = {};
   for (const player of sortedPlayers(ctx)) {
     const recorded = frame[player.id];
@@ -54,6 +56,19 @@ function recordedInputs(frame: InputFrame, ctx: CombatContext, state: CombatStat
     }
     mapped[player.id] = input;
   }
+  // v17's existing UI command boundary supplies click pulses. Only a currently
+  // delivered popup owned by this player qualifies; stale IDs never fall back to
+  // another card. Legacy logs retain the former inert-command behavior.
+  if(system.state.version>=17&&state)for(const event of system.events){
+    if(event.tick!==system.state.tick)continue;
+    const command=gameplayCommandFromEvent(event);
+    if(command?.kind!=="close-ad"||!command.targetId||!Object.hasOwn(mapped,command.playerId))continue;
+    const popup=state.attacks.find(attack=>attack.id===command.targetId&&attack.kind==="ad-blast"&&attack.active&&
+      attack.targetId===command.playerId&&attack.resolveTick<=system.state.tick&&attack.endTick>system.state.tick);
+    if(!popup)continue;
+    const input=mapped[command.playerId]!;
+    input.closeAdIds=[...(input.closeAdIds??[]),popup.id];
+  }
   return mapped;
 }
 
@@ -63,7 +78,7 @@ export function createCombatSystem(provider: CombatContextProvider): SimSystem {
     key: "combat",
     step(system) {
       const snapshot = provider(system);
-      const inputs = snapshot.inputs ?? recordedInputs(system.inputs, snapshot.context, combatOf(system.previous));
+      const inputs = snapshot.inputs ?? recordedInputs(system, snapshot.context, combatOf(system.previous));
       return stepCombatSystem(system.previous, system.state, snapshot.context, inputs);
     },
   };

@@ -221,6 +221,13 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
     if (!Object.hasOwn(state.players, player.id)) continue;
     const own = state.players[player.id]!;
     const matchesPlayer = (attack: PendingAttack): boolean => targetFor(ctx, attack.targetId)?.player?.id === player.id;
+    const clicked=inputs[player.id]?.closeAdIds;
+    if(clicked?.length){
+      const ids=new Set(clicked);
+      const closed=state.attacks.filter(attack=>attack.active&&attack.kind==="ad-blast"&&matchesPlayer(attack)&&ids.has(attack.id));
+      for(const popup of closed)finish(state,popup,"closed");
+      if(closed.length)state.attacks=state.attacks.filter(attack=>!closed.includes(attack));
+    }
     if (newlyPressed(own, "closeAd", inputs[player.id]?.closeAd === true)) {
       const popup = state.attacks.find(attack => attack.active && attack.kind === "ad-blast" && matchesPlayer(attack));
       if (popup) { finish(state, popup, "closed"); state.attacks = state.attacks.filter(attack => attack !== popup); }
