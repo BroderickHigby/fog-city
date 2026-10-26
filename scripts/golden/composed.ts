@@ -11,7 +11,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { recordComposedGolden, type ComposedGolden } from "../../tests/helpers/composed-golden.ts";
 
-const file = join(import.meta.dirname, "../../tests/golden/composed-v17-robot-encounters.json");
+const file = join(import.meta.dirname, "../../tests/golden/composed-v18-solid-vehicles.json");
 const golden = recordComposedGolden();
 const text = JSON.stringify(golden, null, 2) + "\n";
 if (process.argv.includes("--update")) {

@@ -1358,6 +1358,8 @@ function remainingOnPath(g: RoadGraph, a: Readonly<AgentState>): { node: number;
 }
 
 interface Ctx {
+  /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
+  solidVehicles: boolean;
   world: World;
   g: RoadGraph;
   hash: Map<number, Obs[]>;
@@ -1507,7 +1509,7 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   if (have) return have;
   const a = c.byId.get(id);
   if (!a || a.dwell > 0 || a.dodge !== null) return undefined;
-  const p = probe(c.g, a, c.hash, a.ghost > 0, c.scratch, c.routes);
+  const p = probe(c.g, a, c.hash, a.ghost > 0 && !c.solidVehicles, c.scratch, c.routes);
   c.probes.set(id, p);
   return p;
 }
@@ -2404,7 +2406,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const scratch: Obs[] = [];
   for (const a of ext.list) {
     if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
-    probes.set(a.id, probe(g, a, hash, a.ghost > 0, scratch, routes));
+    probes.set(a.id, probe(g, a, hash, a.ghost > 0 && prev.version < 18, scratch, routes));
   }
 
   // Junctions (nodes with 3+ streets): who holds each one (claimed at the line, crossing, or
@@ -2515,7 +2517,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
+  const ctx: Ctx = { solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -2572,7 +2574,7 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
   if (!g || !a) return null;
   const ext = state.ext[AGENTS_EXT_KEY] as AgentsExt;
   const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list, g)]);
-  const pr = probe(g, a, hash, a.ghost > 0, []);
+  const pr = probe(g, a, hash, a.ghost > 0 && state.version < 18, []);
   const rem = remainingOnPath(g, a);
   let holder: number | null = null;
   const nodeId = rem ? g.nodes[rem.node]!.id : null;

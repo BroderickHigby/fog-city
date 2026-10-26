@@ -41,9 +41,9 @@ function inputsAt(t: number): InputFrame {
   return { p1, p2: { throttle: 0.7, steer: t % 120 < 60 ? 0.6 : -0.3, brake: 0, actions: 0 } };
 }
 
-function replay(ticks: number, roundTripAt = -1): { state: SimState; hashes: string[]; footTicks: number } {
+function replay(ticks: number, roundTripAt = -1, version = SIM_VERSION): { state: SimState; hashes: string[]; footTicks: number } {
   const { world, spawn } = loadDevWorldWithRoads();
-  let s = createInitialState(world, 42, ["p1", "p2"], spawn);
+  let s = { ...createInitialState(world, 42, ["p1", "p2"], spawn), version };
   const hashes: string[] = [];
   let footTicks = 0;
   for (let t = 0; t < ticks; t++) {
@@ -60,10 +60,10 @@ function replay(ticks: number, roundTripAt = -1): { state: SimState; hashes: str
  * of the z = 100 street (steering to hold z = 106) while p2 stands on it on foot ahead; people
  * and robots on the sidewalk dive out of the way.
  */
-function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes: string[] } {
+function dodgeReplay(ticks: number, roundTripAt = -1, version = SIM_VERSION): { state: SimState; hashes: string[] } {
   // (No street props: since v13 the sidewalk's mature trees would stop the car, props.ts.)
   const world = withoutStreetProps(gridCity(true));
-  let s: SimState = createInitialState(world, 9, ["p1", "p2"], { x: 20, z: 106, heading: Math.PI / 2 });
+  let s: SimState = { ...createInitialState(world, 9, ["p1", "p2"], { x: 20, z: 106, heading: Math.PI / 2 }), version };
   s = { ...s, players: { ...s.players, p2: { ...s.players.p2!, mode: "foot", car: { ...s.players.p2!.car, x: 50, z: 150 }, foot: makeFoot(150, 0, 106.2, 0) } } };
   const hashes: string[] = [];
   for (let t = 0; t < ticks; t++) {
@@ -78,7 +78,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1): { state: SimState; hashes
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(17);
+    expect(SIM_VERSION).toBe(18);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -165,8 +165,9 @@ describe("legacy SIM_VERSION 4 replays", () => {
   it(
     "the replays are pinned at v15 (civilian traffic and faster on-foot pace)",
     () => {
-      const a = replay(1500).hashes;
-      const b = dodgeReplay(600).hashes;
+      // These payloads were authored under v15; hashing a v18 run with an old header is insufficient.
+      const a = replay(1500, -1, 15).hashes;
+      const b = dodgeReplay(600, -1, 15).hashes;
       // (Printed so a deliberate change can be re-pinned from the log.)
       if (JSON.stringify(a) !== JSON.stringify(PINNED_V15) || JSON.stringify(b) !== JSON.stringify(PINNED_V15_DODGE)) console.info(`[replay pins] PINNED_V15 ${JSON.stringify(a)} PINNED_V15_DODGE ${JSON.stringify(b)}`);
       expect(a).toEqual(PINNED_V15);

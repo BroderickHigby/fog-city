@@ -68,7 +68,10 @@
 // player. The existing water/rust and slapstick attack reducers remain authoritative.
 // Ambient firmware rolls mix sequential IDs before sampling the authored bad-robot share.
 // Older replay versions keep the prior reactive-only behavior; saves retain every field.
-export const SIM_VERSION = 17;
+// v18: full vehicle hulls use relative swept contacts after movement. Traffic jam recovery
+// keeps every physical vehicle solid. Earlier replay versions retain their original motion;
+// saves keep all existing fields and nested controller state.
+export const SIM_VERSION = 18;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 
