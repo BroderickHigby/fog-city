@@ -78,7 +78,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1, version = SIM_VERSION): { 
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(18);
+    expect(SIM_VERSION).toBe(19);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
@@ -149,8 +149,10 @@ describe("legacy SIM_VERSION 4 replays", () => {
   it(
     "a car driven along a crowded sidewalk replays identically, dives and all, through a JSON round trip mid-run",
     () => {
-      const a = dodgeReplay(600);
-      const b = dodgeReplay(600, 333);
+      // The v19 city-road profile changes the route/timing: its second recorded dodge is
+      // tick641, beyond the old600-tick EV window. Keep the same coverage/safety assertions.
+      const a = dodgeReplay(900);
+      const b = dodgeReplay(900, 333);
       const d = dodgeExtOf(a.state);
       expect(d.dives).toBeGreaterThanOrEqual(2);
       expect(d.contacts).toBe(0);

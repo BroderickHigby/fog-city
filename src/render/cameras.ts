@@ -69,6 +69,10 @@ export class CameraRig {
   private pos = new THREE.Vector3();
   private lookAt = new THREE.Vector3();
   private init = false;
+  private targetX = Number.NaN;
+  private targetZ = Number.NaN;
+  private targetOnFoot = false;
+  private targetTaxi: number | undefined;
   /** Chase orbit offsets (render only): yaw from behind the target and pitch above the usual arm, radians. */
   private orbitYaw = 0;
   private orbitPitch = 0;
@@ -225,6 +229,19 @@ export class CameraRig {
       if (!clear) _desired.y = t.y + Math.max(height, 0) + (t.onFoot ? 1.5 : 3);
     }
     _look.set(t.x + ox * 5, t.y + (t.onFoot ? 1.4 : 1.25), t.z + oz * 5);
+    // Slop New York's entity-relative follow: carry horizontal target travel before
+    // easing the framing. World-space lerp adds a speed/frame-time-dependent trail.
+    // Keep height in world space so SF curbs, hills and jumps still ease and clamp.
+    if (this.init && this.targetOnFoot === t.onFoot && this.targetTaxi === t.robotaxiId) {
+      const dx = t.x - this.targetX, dz = t.z - this.targetZ;
+      if (dx * dx + dz * dz > 40 * 40) this.init = false;
+      else {
+        this.pos.x += dx; this.pos.z += dz;
+        this.lookAt.x += dx; this.lookAt.z += dz;
+      }
+    }
+    this.targetX = t.x; this.targetZ = t.z;
+    this.targetOnFoot = t.onFoot; this.targetTaxi = t.robotaxiId;
     if (!this.init) {
       this.pos.copy(_desired);
       this.lookAt.copy(_look);

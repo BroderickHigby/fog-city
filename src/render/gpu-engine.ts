@@ -2,7 +2,7 @@
 // See assets/imports/slop-new-york/LICENSE.md for the retained license.
 // Geometry and gameplay remain Fog City's; these are the renderer/lighting procedures.
 import * as THREE from "three";
-import { WebGPURenderer, RenderPipeline, PMREMGenerator, MeshPhysicalNodeMaterial, BlendMode, MaterialBlending, type RenderTarget, type Node } from "three/webgpu";
+import { WebGPURenderer, RenderPipeline, PMREMGenerator, MeshBasicNodeMaterial, MeshPhysicalNodeMaterial, BlendMode, MaterialBlending, type RenderTarget, type Node } from "three/webgpu";
 import { Fn, uniform, float, vec2, vec3, vec4, dot, mix, min, max, pow, smoothstep, length, screenUV, screenSize,
   pass, mrt, output, normalView, roughness, metalness, positionView, positionWorld, cameraPosition,
   normalize, exp, abs, select, fog, pmremTexture, sin, cos, transformNormalToView } from "three/tsl";
@@ -14,6 +14,7 @@ import { SunLightNode } from "three/addons/lights/SunLightNode.js";
 import { ClusteredLighting } from "three/addons/lighting/ClusteredLighting.js";
 import { sunDirection, type LightingPreset } from "./sky.ts";
 import { presentationLook, type PresentationLook } from "./quality.ts";
+import { RendererWarmup, compileForTarget, type WarmupStats } from "./renderer-warmup.ts";
 
 export type RendererBackendRequest = "auto" | "webgpu" | "webgl" | "legacy";
 export interface GpuEngineOptions { backend?: RendererBackendRequest; shadows: boolean; quality: boolean; high: boolean }
@@ -96,6 +97,8 @@ export class GpuEngine {
     } else (this.previousConsole ?? normalThreeConsole)(type, message, ...parameters);
   };
   private disposed = false;
+  private warmupQueue: RendererWarmup | null = null;
+  private warmTargetReady = false;
   private disposal: Promise<void> | null = null;
 
   constructor(renderer: WebGPURenderer, options: GpuEngineOptions) {
@@ -157,16 +160,30 @@ export class GpuEngine {
     }
   }
 
-  /** Prewarm real admitted geometry; count-zero model placeholders have no valid layout yet. */
+  private warmup(): RendererWarmup {
+    return this.warmupQueue ??= new RendererWarmup(mesh => {
+      if (!this.scene || !this.camera) return Promise.resolve();
+      return compileForTarget(this.renderer, this.postEnabled ? this.scenePass : null, mesh, this.camera, this.scene);
+    }, { onError: error => this.captureError(error) });
+  }
+  /** Configure exactly the post pass formats before capturing shader contexts. */
   async prewarm(scene: THREE.Scene, camera: THREE.Camera): Promise<void> {
-    const hidden: THREE.Object3D[] = [];
-    scene.traverse(object => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh || !mesh.visible) return;
-      if (!mesh.geometry.getAttribute("position")?.count || (mesh as THREE.InstancedMesh).count === 0) { hidden.push(mesh); mesh.visible = false; }
-    });
-    try { await this.renderer.compileAsync(scene, camera); if (this.failureMessage) throw new Error(this.failureMessage); }
-    finally { for (const object of hidden) object.visible = true; }
+    this.scene = scene; this.camera = camera;
+    if (this.pipeline && !this.warmTargetReady) {
+      const visible = scene.visible;
+      try { scene.visible = false; this.pipeline.render(); this.warmTargetReady = true; }
+      finally { scene.visible = visible; }
+    }
+    const queue = this.warmup(); queue.admit(scene); await queue.drain();
+    if (this.failureMessage) throw new Error(this.failureMessage);
+  }
+  admit(root: THREE.Object3D): void { if (!this.disposed) this.warmup().admit(root); }
+  retire(root: THREE.Object3D): Promise<void> | void { return this.warmupQueue?.retire(root); }
+  pumpWarmup(): void { if (!this.disposed) void this.warmupQueue?.pump(); }
+  get warmupInfo(): WarmupStats { return this.warmupQueue?.info() ?? {admitted:0,cachedLayouts:0,pending:0,active:false,compiled:0,cancelled:0,failed:0,lastError:null}; }
+  get shadowCameras(): readonly THREE.Camera[] { return Array.from({length:this.sun.shadow.getViewportCount()},(_,i)=>this.sun.shadow.getCamera(i)); }
+  staticShadowMaterial(side: THREE.Side, shadowSide: THREE.Side | null): THREE.Material {
+    const material = new MeshBasicNodeMaterial({color:0,side}); material.shadowSide=shadowSide; material.userData.skipGpuAdapter=true; return material;
   }
   get failure(): string | null { return this.failureMessage; }
 
@@ -280,15 +297,18 @@ export class GpuEngine {
   }
   resize(): void { /* PassNode tracks the renderer's drawing buffer on each update. */ }
   setShadows(enabled: boolean): void {
+    if (this.renderer.shadowMap.enabled !== enabled) this.warmupQueue?.invalidate();
     this.renderer.shadowMap.enabled = enabled; this.sun.castShadow = enabled;
     if (!enabled) { this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
   }
   private disposePipeline(): void {
-    this.pipeline?.dispose(); this.scenePass?.dispose(); this.bloomPass?.dispose(); this.reflections?.dispose();
+    const pipeline=this.pipeline,pass=this.scenePass,bloom=this.bloomPass,reflections=this.reflections;
     this.pipeline = null; this.scenePass = null; this.bloomPass = null; this.reflections = null;
+    const release=():void=>{pipeline?.dispose();pass?.dispose();bloom?.dispose();reflections?.dispose();};
+    if(this.warmupQueue?.info().active)void this.warmupQueue.idle().then(release,release);else release();
     this.postInfo.enabled = false; this.postInfo.ssr = false; this.postInfo.bloom = false;
   }
-  disablePost(): void { this.postEnabled = false; this.disposePipeline(); this.renderer.toneMappingExposure = this.exposure.value; }
+  disablePost(): void { this.postEnabled = false; this.warmupQueue?.invalidate(); this.disposePipeline(); this.renderer.toneMappingExposure = this.exposure.value; }
   get presentation(): boolean { return this.postEnabled && this.pipeline !== null; }
   get postProcessing(): PostProcessingInfo { return this.postInfo; }
   get shadowCascades(): number { return this.renderer.shadowMap.enabled && this.sun.castShadow && this.sun.shadow.map ? 2 : 0; }
@@ -298,11 +318,15 @@ export class GpuEngine {
   async dispose(): Promise<void> {
     if (this.disposed) { await this.disposal; return; }
     this.disposed = true;
+    this.warmupQueue?.dispose();
     if (THREE.getConsoleFunction() === this.reportConsole) THREE.setConsoleFunction(this.previousConsole ?? normalThreeConsole);
-    this.disposePipeline(); this.pmrem.dispose(); this.environment?.dispose();
-    this.sun.dispose(); this.sky.geometry.dispose(); this.sky.material.dispose();
-    this.water.geometry.dispose(); (this.water.material as THREE.Material).dispose();
-    this.disposal = this.renderer.dispose();
+    this.disposal=(async()=>{
+      await this.warmupQueue?.idle();
+      this.disposePipeline(); this.pmrem.dispose(); this.environment?.dispose();
+      this.sun.dispose(); this.sky.geometry.dispose(); this.sky.material.dispose();
+      this.water.geometry.dispose(); (this.water.material as THREE.Material).dispose();
+      await this.renderer.dispose();
+    })();
     await this.disposal;
   }
 }

@@ -65,7 +65,7 @@ export function stepManualTaxis(world:World,before:Readonly<SimState>,state:SimS
     }
     for(const q of propsNear(world,car.x,car.z,4)) if(!broken?.[q.id]) obstacles.push({x:q.x,z:q.z,r:q.r,person:false,body:{key:`prop:${q.id}`,mass:q.mass,x:q.x,z:q.z,vx:0,vz:0,breakSpeed:q.breakSpeed}});
     const hits:CarContact[]=[];
-    let manualCar=stepCar(world,source,cap===0?{...NEUTRAL_INPUT,brake:1}:controls,obstacles,tractionAt(world,before,car.x,car.z),hits,{halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth,bodyHeight:a.height??ROBOTAXI_BODY.height});
+    let manualCar=stepCar(world,source,cap===0?{...NEUTRAL_INPUT,brake:1}:controls,obstacles,tractionAt(world,before,car.x,car.z),hits,{halfLength:a.halfLength??ROBOTAXI_BODY.halfLength,halfWidth:a.halfWidth??ROBOTAXI_BODY.halfWidth,bodyHeight:a.height??ROBOTAXI_BODY.height},before.version);
     if(cap<Infinity) manualCar={...manualCar,speed:clamp(manualCar.speed,-cap,cap)};
     contacts.set(a.id,hits);
     return {...a,manualCar,x:manualCar.x,y:manualCar.y,z:manualCar.z,heading:manualCar.heading,pitch:manualCar.pitch,speed:manualCar.speed,mode:Math.abs(manualCar.speed)<.05?"wait" as const:"go" as const};

@@ -19,7 +19,7 @@ describe("v7 to current composed gameplay save migration", () => {
     const upgraded = upgradeState(old);
     // v7 -> v8 -> v10 -> v11 -> v12 -> v13 (v9 is reserved for the structural world): behaviour only, every field kept;
     // v13 -> v14 (people dodging on their feet) changes only dodges in flight: this save has none.
-    expect(SIM_VERSION).toBe(18);
+    expect(SIM_VERSION).toBe(19);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgradeState(deepFreeze({ ...old, version: 8 }))).toEqual(upgraded);
     expect(upgradeState(deepFreeze({ ...old, version: 10 }))).toEqual(upgraded);

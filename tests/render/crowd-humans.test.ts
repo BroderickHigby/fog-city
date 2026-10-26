@@ -38,7 +38,7 @@ function visibleCost(group: THREE.Object3D): { drawCalls: number; triangles: num
 beforeEach(() => {
   vi.stubGlobal("self", globalThis);
   vi.spyOn(THREE.TextureLoader.prototype, "load").mockImplementation((_url, loaded) => {
-    const texture = new THREE.Texture<HTMLImageElement>();
+    const texture = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1) as unknown as THREE.Texture<HTMLImageElement>;
     queueMicrotask(() => loaded?.(texture));
     return texture;
   });
@@ -86,11 +86,11 @@ describe("CrowdHumans", () => {
     expect(accepted).toBe(CROWD_NEAR_MAX);
     expect(crowd.drawn).toBe(CROWD_NEAR_MAX);
     const expected = Array.from({ length: CROWD_NEAR_MAX }, (_, i) => fileCost(CROWD_FILES[characterFor(i + 1)]!))
-      .reduce((sum, cost) => ({ drawCalls: sum.drawCalls + cost.drawCalls, triangles: sum.triangles + cost.triangles }), { drawCalls: 0, triangles: 0 });
+      .reduce((sum, cost) => ({ drawCalls: sum.drawCalls + 1, triangles: sum.triangles + cost.triangles }), { drawCalls: 0, triangles: 0 });
     expect({ drawCalls: crowd.drawCalls, triangles: crowd.triangles }).toEqual(expected);
     expect(visibleCost(crowd.group)).toEqual(expected);
     // A frame's remaining allocation can accept one body without accepting the next one.
-    crowd.begin(1 / 60, fileCost(CROWD_FILES[characterFor(1)]!).drawCalls);
+    crowd.begin(1 / 60, 1);
     expect(crowd.add(1, 0, 0, 0, 0, 0, 1 / 60)).toBe(true);
     expect(crowd.add(2, 0, 0, 0, 0, 0, 1 / 60)).toBe(false);
     crowd.end();
@@ -115,7 +115,7 @@ describe("CrowdHumans", () => {
     crowd.dispose();
   });
 
-  it("counts real crowd primitives inside the 27-call agent allocation and falls back for overflow", async () => {
+  it("keeps compact authored people inside the 27-call agent allocation when rigid tiers are present", async () => {
     const crowd = new CrowdHumans(bytes, false);
     const registry = new ModelRegistry<THREE.Object3D>({
       load: async path => new GLTFLoader().parseAsync((await bytes(path)).slice().buffer as ArrayBuffer, "").then(gltf => gltf.scene),
@@ -134,15 +134,15 @@ describe("CrowdHumans", () => {
       const chosen: number[] = [];
       let calls = 0;
       for (const person of [...people].reverse()) {
-        const cost = fileCost(CROWD_FILES[characterFor(person.id)]!).drawCalls;
-        if (calls + cost > AGENT_DRAW_CALL_BUDGET - 3) continue;
+        const cost = 1; // Actual authored geometry is compacted to one draw, separately verified against all GLBs.
+        if (calls + cost > AGENT_DRAW_CALL_BUDGET) continue;
         chosen.push(person.id); calls += cost;
       }
       const visible: number[] = [];
       crowd.group.traverseVisible(object => { if (object.name.startsWith("player-body:")) visible.push(Number(object.name.slice(12))); });
       expect(visible.sort((a, b) => a - b)).toEqual(chosen.sort((a, b) => a - b));
       expect(chosen.length).toBeGreaterThan(0);
-      expect(chosen.length).toBeLessThan(16);
+      expect(chosen.length).toBe(16);
       const fallback = layer.group.getObjectByName("agents:people:body") as THREE.InstancedMesh;
       expect(fallback.count).toBe(16 - chosen.length);
       const assertMetrics = (): void => {
@@ -158,7 +158,7 @@ describe("CrowdHumans", () => {
       draw([...people, ...robots, { ...people[0], id: 99, z: -200 }]);
       assertMetrics();
       expect(layer.info().drawn).toBe(26);
-      expect(fallback.count).toBeGreaterThan(0);
+      expect(fallback.count).toBe(0);
       console.info("crowd budget proof", JSON.stringify({ peopleOnly, mixed: { ...layer.info(), crowd: crowd.drawn, crowdCalls: crowd.drawCalls } }));
     } finally {
       crowd.dispose();

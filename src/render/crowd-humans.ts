@@ -45,7 +45,7 @@ export class CrowdHumans {
     this.group.name = "crowd:humans";
     this.kinds = files.map(() => null);
     files.forEach((file, i) => {
-      void PlayerBodies.load(bytes, shadows, file).then((bodies) => {
+      void PlayerBodies.load(bytes, shadows, file, { compactCrowd: true }).then((bodies) => {
         if (this.disposed) { bodies.dispose(); return; }
         if (this.supportHeight) bodies.setSupportHeight(this.supportHeight);
         bodies.group.name = `crowd:${i}`;

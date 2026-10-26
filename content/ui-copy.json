@@ -220,13 +220,17 @@
     "ui.help.menu": "Phone. In menus, A selects and B closes",
     "ui.help.hold": "(hold)",
     "ui.map.flagged": "Flagged by Bot Check",
-    "ui.map.hostile": "Bad robot, on to you"
+    "ui.map.hostile": "Bad robot, on to you",
+    "ui.map.zoomIn": "Zoom map in",
+    "ui.map.zoomOut": "Zoom map out",
+    "ui.map.recenter": "Center on player",
+    "ui.map.keyboard": "Arrow keys pan. + and − zoom. Enter sets a waypoint."
   },
   "provenance": {
     "source": "agent",
-    "authorSession": "claude-code/session_012u6jdJxkY41mYkqG3yG9Xk",
-    "contentHash": "fnv1a32:ceb6ff98",
+    "authorSession": "codex-targeted-slop-2026-10-26",
+    "contentHash": "fnv1a32:23216b7e",
     "reviewedBy": [],
-    "review": "ui.help.* strings (controls menu) added on owner request, 2026-10-23. Pending independent review; the rest unchanged from lane/content/wave2."
+    "review": "Added four map control labels for the owner-requested SF map improvement; existing characters, help, and gameplay copy retained. Pending independent review."
   }
 }
