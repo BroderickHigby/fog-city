@@ -22,6 +22,8 @@ import type { GroundFn } from "./types.ts";
 import type { RoadGraph } from "./types.ts";
 import type { TileCollider } from "../sim/world.ts";
 import { GrassLayer } from "./grass.ts";
+import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
+import { supplementalSignals } from "./signal-placement.ts";
 
 const CELL_M = 200;
 const NEAR_M = 450;
@@ -80,6 +82,7 @@ export interface StreetDetailOptions {
   ground: GroundFn;
   materials: SharedMaterials;
   roads?: RoadGraph | null;
+  signals?: TrafficSignalControls;
   colliders?: ReadonlyMap<string, TileCollider>;
   foliage?: {
     setPlacements(key: string, list: readonly TreePlacement[]): void;
@@ -130,6 +133,7 @@ export class StreetDetailLayer {
     try {
       index = await json<{ layers?: Record<string, string> }>(base + STREET_DETAIL_INDEX);
     } catch {
+      this.addMissingSignals();
       return;
     }
     const layer = async (name: string, read: (doc: Record<string, unknown>) => void): Promise<void> => {
@@ -154,6 +158,7 @@ export class StreetDetailLayer {
       for (const r of (doc.signals as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).signals.push(r as SignalRecord);
       for (const r of (doc.stopSigns as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).stopSigns.push(r as StopSignRecord);
     });
+    this.addMissingSignals();
     await layer("signs", (doc) => {
       for (const r of (doc.corners as unknown[] | undefined) ?? []) if (isPlaced(r) && Array.isArray((r as CornerRecord).blades)) this.cellAt(r.x, r.z).corners.push(r as CornerRecord);
       for (const r of (doc.curb as unknown[] | undefined) ?? []) if (isPlaced(r)) this.cellAt(r.x, r.z).curb.push(r as CurbRecord);
@@ -168,6 +173,17 @@ export class StreetDetailLayer {
       }
     });
     await layer("grass", doc => this.grass.setData(doc));
+    this.lastX = Number.NaN;
+  }
+
+  private addMissingSignals(): void {
+    const existing = [...this.cells.values()].flatMap(cell => cell.signals);
+    const result = supplementalSignals(existing, { roads: this.opts.roads, controls: this.opts.signals,
+      ground: this.opts.ground, colliders: this.opts.colliders });
+    for (const signal of result.signals) this.cellAt(signal.x, signal.z).signals.push(signal);
+    if (result.signals.length && !this.layers.includes("furniture")) this.layers.push("furniture");
+    if (result.unplaced.length) console.warn(`[fog-city] ${result.unplaced.length} signal approaches have no safe supplemental pole: ` +
+      result.unplaced.slice(0, 8).map(p => `${p.node}/${p.edge} (${p.reason})`).join(", "));
     this.lastX = Number.NaN;
   }
 
@@ -252,7 +268,7 @@ export class StreetDetailLayer {
       built.stopBars = m.stopBars;
     }
     if (cell.signals.length || cell.stopSigns.length) {
-      built.furniture = new FurnitureCell(cell.signals, cell.stopSigns, this.opts.ground);
+      built.furniture = new FurnitureCell(cell.signals, cell.stopSigns, this.opts.ground, this.opts.signals);
       built.furniture.group.name = `street furniture ${cell.key}`;
       built.meshes.push(built.furniture.group);
     }

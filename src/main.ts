@@ -233,7 +233,7 @@ async function boot(): Promise<void> {
   const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = await SceneRenderer.create(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider, landmarkReplacements:files.landmarkReplacements },
+    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider, landmarkReplacements:files.landmarkReplacements, signals:world.signals },
     {
       backend: ["webgpu", "webgl", "legacy"].includes(rendererRequest ?? "")
         ? rendererRequest as "webgpu" | "webgl" | "legacy" : safeMode ? "legacy" : "auto",

@@ -69,8 +69,8 @@ describe("SIM19 city-road reference handling",()=>{
       for(const fore of [-CAR.halfLength,CAR.halfLength])for(const side of [-CAR.halfWidth,CAR.halfWidth])expect(zoneDistance(reach,next.x+fore*fx+side*rx,next.z+fore*fz+side*rz)).toBeLessThanOrEqual(1e-8);
     }
   });
-  it("the normal game step selects19 while18 and standalone callers retain legacy handling",()=>{
-    let state=createInitialState(world,7,["p"],{x:0,z:0,heading:0});expect(state.version).toBe(19);
+  it("the normal game step keeps the19 driving profile while18 and standalone callers retain legacy handling",()=>{
+    let state=createInitialState(world,7,["p"],{x:0,z:0,heading:0});expect(state.version).toBe(20);
     const initial={...state,players:{p:{...state.players.p!,car:{...state.players.p!.car,speed:50/3.6}}}};
     state=initial;let old:SimState={...initial,version:18};
     for(let t=0;t<300;t++){state=step(world,state,{p:idle},[],[]);old=step(world,old,{p:idle},[],[]);}

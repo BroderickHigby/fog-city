@@ -22,6 +22,7 @@ import { buildWorld, type World } from "../sim/world.ts";
 import type { ParkingLayer, StreetCleaningLayer } from "../sim/parking-data.ts";
 import { propsFromStreetDetail, type PropPlacement, type StreetDetailFiles } from "../sim/props.ts";
 import { replaceLandmarkWorld, type LandmarkWorldReplacement } from "./landmark-world.ts";
+import { buildTrafficSignals, type TrafficSignalFile } from "../sim/traffic-signals.ts";
 
 /**
  * The manifest's data layers (manifest.layers) the game loads: boundary (loadWorldFiles) and
@@ -29,7 +30,7 @@ import { replaceLandmarkWorld, type LandmarkWorldReplacement } from "./landmark-
  * of the world's layers; tests/io/assets.test.ts checks that every layer read under src/ is
  * listed here, so a feature that starts reading another layer gets it into the build.
  */
-export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "sidewalks", "transit", "parking", "streetCleaning"];
+export const RUNTIME_LAYERS: readonly string[] = ["boundary", "districts", "gameplay", "sidewalks", "transit", "parking", "streetCleaning", "signals"];
 
 /** The manifest fields the loaders read (schemas/tile-manifest.schema.json). */
 export interface WorldManifestLike {
@@ -52,6 +53,7 @@ export interface WorldFiles<M extends WorldManifestLike = WorldManifestLike> {
   transit?: TransitLayer | null;
   parking?: ParkingLayer | null;
   streetCleaning?: StreetCleaningLayer | null;
+  signals?: TrafficSignalFile | null;
   /** World detail's street props (street-detail.json), when the world has them. */
   streetProps?: PropPlacement[] | null;
   /** Where the colliders came from. */
@@ -69,7 +71,7 @@ export function assembleWorldFiles<M extends WorldManifestLike>(
   colliders: { pack: Uint8Array } | { json: TileCollider[] },
   roads: RoadsFile | null,
   boundary: BoundaryFile | null,
-  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit"|"parking"|"streetCleaning"|"streetProps">={},
+  layers:Pick<WorldFiles,"gameplay"|"sidewalks"|"transit"|"parking"|"streetCleaning"|"streetProps"|"signals">={},
 ): WorldFiles<M> {
   if ("pack" in colliders) {
     const pack = decodeColliderPack(colliders.pack);
@@ -90,6 +92,7 @@ export function buildLoadedWorld(files:WorldFiles):World {
   if(files.transit)world.transit=files.transit;
   if(files.parking)world.parking=files.parking;
   if(files.streetCleaning)world.streetCleaning=files.streetCleaning;
+  if(files.signals&&world.roads)world.signals=buildTrafficSignals(world.roads,files.signals);
   if(files.streetProps)(world as World&{props?:readonly PropPlacement[]}).props=files.streetProps;
   return world;
 }
@@ -108,7 +111,8 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
   const gameplayFile=manifest.layers?.gameplay;
   const sidewalksFile=manifest.layers?.sidewalks,transitFile=manifest.layers?.transit;
   const parkingFile=manifest.layers?.parking,cleaningFile=manifest.layers?.streetCleaning;
-  const [colliders, roads, boundary, gameplay,sidewalks,transit,parking,streetCleaning] = await Promise.all([
+  const signalsFile=manifest.layers?.signals;
+  const [colliders, roads, boundary, gameplay,sidewalks,transit,parking,streetCleaning,signals] = await Promise.all([
     packFile
       ? assets.bytes(base + packFile).then(
           (pack) => ({ pack }),
@@ -132,9 +136,10 @@ export async function loadWorldFiles<M extends WorldManifestLike = WorldManifest
     transitFile?assets.json<TransitLayer>(base+transitFile).catch((err:unknown)=>{throw named("transit layer",transitFile,err);}):Promise.resolve(null),
     parkingFile?assets.json<ParkingLayer>(base+parkingFile).catch((err:unknown)=>{throw named("parking layer",parkingFile,err);}):Promise.resolve(null),
     cleaningFile?assets.json<StreetCleaningLayer>(base+cleaningFile).catch((err:unknown)=>{throw named("street-cleaning layer",cleaningFile,err);}):Promise.resolve(null),
+    signalsFile?assets.json<TrafficSignalFile>(base+signalsFile).catch((err:unknown)=>{throw named("traffic-signals layer",signalsFile,err);}):Promise.resolve(null),
   ]);
   const streetProps=await loadStreetProps(assets,base);
-  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit,parking,streetCleaning,streetProps});
+  return assembleWorldFiles(manifest,colliders,roads,boundary,{gameplay,sidewalks,transit,parking,streetCleaning,streetProps,signals});
 }
 
 /** The street-detail.json index's layers a car can hit. */
