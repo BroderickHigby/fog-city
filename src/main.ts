@@ -476,7 +476,7 @@ async function boot(): Promise<void> {
       else if (code === "KeyN") view.setNight(!view.night);
     }
     const flying = view.rig.mode === "fly";
-    if (flying) readFly(dtFrame);
+    if (flying) { gameUI.hideReticle(); readFly(dtFrame); }
     else {
       // Chase orbit (render only): mouse/touch drag, or the pad's right stick.
       pointer.takeDrag(drag);

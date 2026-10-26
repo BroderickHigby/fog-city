@@ -10,6 +10,7 @@ import { createTouchControls } from "./touch.ts";
 import { createControlsHelp } from "./controls-help.ts";
 import { mountSavePanel } from "./save-panel.ts";
 import { mountCredits } from "./credits.ts";
+import { Action } from "../sim/contract.ts";
 import type { MountedGameUI, PhoneApp, UiMountOptions, UiView } from "./types.ts";
 
 const APPS:readonly PhoneApp[]=["map","botBounty","botCheck","ride","radio","fogcast","messages","bank","playlists","settings"];
@@ -32,13 +33,14 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const mini=node("div","fc-minimap"),canvas=node("canvas");canvas.setAttribute("aria-label",copy("ui.phone.map"));mini.append(canvas);
   const speed=node("div","fc-speed"),perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
   const ads=node("div","fc-ads"),layer=node("div","fc-modal-layer");layer.hidden=true;
-  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");root.append(hud,objective,mini,speed,perf,reticle,ads,layer);host.append(root);
+  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,mini,speed,perf,reticle,ads,layer);host.append(root);
   const touch=options.touch?createTouchControls(doc,controls,copy):undefined;if(touch)root.append(touch.element);
 
   function setModal(next:typeof modal):void {
     if(disposed)return;
     if(!modal&&next)previousFocus=doc.activeElement as HTMLElement|null;
     modal=next;app=undefined;panelStamp="";crisis=false;controls.setBlocked(!!modal);callbacks.pause?.(!!modal);
+    reticle.hidden=true;
     if(touch)touch.element.hidden=!!modal;renderPanel();
     if(!modal)previousFocus?.focus();
   }
@@ -123,5 +125,5 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     // Never replace a focused form while sim snapshots arrive.
     if(modal&&modal!=="startup"&&modal!=="interaction"){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;const active=doc.activeElement as HTMLElement|null;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));return controls.sample();},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));const input=controls.sample();reticle.hidden=(input.actions&(Action.fire|Action.scan|Action.watch|Action.altFire))===0;return input;},hideReticle:()=>{reticle.hidden=true;},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }

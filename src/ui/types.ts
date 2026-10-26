@@ -78,6 +78,8 @@ export interface MountedGameUI {
   readonly element:HTMLElement;
   update(view:UiView):void;
   sampleInput():SimInput;
+  /** Clear targeting presentation when the fly camera owns input. */
+  hideReticle():void;
   setPhoneOpen(open:boolean):void;
   setVendorOpen(open:boolean):void;
   showStartup():void;
