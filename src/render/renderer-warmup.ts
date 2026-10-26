@@ -7,6 +7,21 @@ interface Entry {key:string;generation:number}
 interface Job {mesh:THREE.Mesh;key:string;generation:number;cancelled:boolean}
 export interface WarmupOptions {yieldTask?:()=>Promise<void>;onError?:(error:unknown)=>void}
 
+/** A scene lends admitted objects to its active compiler; resource owners retire that loan. */
+export interface RenderRetirementOwner { retire(root:THREE.Object3D):Promise<void>|void }
+const retirementOwners=new WeakMap<THREE.Object3D,RenderRetirementOwner>();
+export function setRenderRetirementOwner(object:THREE.Object3D,owner:RenderRetirementOwner):void {retirementOwners.set(object,owner);}
+export function clearRenderRetirementOwner(object:THREE.Object3D,owner:RenderRetirementOwner):void {
+  if(retirementOwners.get(object)===owner)retirementOwners.delete(object);
+}
+/** Detach/cancel first. Only the removed subtree's in-flight borrower delays its release. */
+export function retireRenderTree(root:THREE.Object3D,release:()=>void):Promise<void>|void {
+  const barrier=retirementOwners.get(root)?.retire(root);
+  root.removeFromParent();
+  if(barrier)return barrier.then(release,release);
+  release();
+}
+
 function liveGeometry(mesh:THREE.Mesh):boolean {
   return mesh.visible&&!!mesh.geometry?.getAttribute("position")?.count&&(!(mesh as THREE.InstancedMesh).isInstancedMesh||(mesh as THREE.InstancedMesh).count>0)
     &&!mesh.userData.staticShadowProxy;

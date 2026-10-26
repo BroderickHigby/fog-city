@@ -22,7 +22,7 @@ import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type L
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
 import { StaticScene, type StaticSceneStats } from "./static-scene.ts";
-import type { WarmupStats } from "./renderer-warmup.ts";
+import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetirementOwner, type WarmupStats } from "./renderer-warmup.ts";
 import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
@@ -247,8 +247,9 @@ export class SceneRenderer {
   private disposed = false;
   /** Only admitted scene objects are held here; removed tiles immediately release their listeners. */
   private readonly watched = new Set<THREE.Object3D>();
+  private retirementOwner: RenderRetirementOwner | null = null;
   private readonly gpuChildAdded = (event: { child: THREE.Object3D }): void => this.watchGpuTree(event.child);
-  private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => this.unwatchGpuTree(event.child);
+  private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => { this.unwatchGpuTree(event.child); };
   private readonly resizeListener = (): void => this.resize();
   private readonly gpuGround: GroundFn;
   private instanceOwnership: GpuInstanceOwnership | null = null;
@@ -459,6 +460,7 @@ export class SceneRenderer {
   /** Convert only newly admitted subtrees, including asynchronously loaded actor/model roots. */
   private watchGpuTree(root: THREE.Object3D): void {
     if (this.disposed || this.watched.has(root)) return;
+    const owner=this.retirementOwner??={retire:object=>this.unwatchGpuTree(object)};
     root.updateWorldMatrix(true, true);
     if (this.gpu?.backend === "webgpu") {
       this.instanceOwnership ??= new GpuInstanceOwnership(this.gpu.renderer);
@@ -469,18 +471,22 @@ export class SceneRenderer {
     root.traverse(object => {
       if (this.watched.has(object)) return;
       this.watched.add(object);
+      setRenderRetirementOwner(object,owner);
       object.addEventListener("childadded", this.gpuChildAdded);
       object.addEventListener("childremoved", this.gpuChildRemoved);
     });
   }
 
-  private unwatchGpuTree(root: THREE.Object3D): void {
-    this.gpu?.retire(root);
+  private unwatchGpuTree(root: THREE.Object3D): Promise<void> | void {
+    if(!this.watched.has(root))return;
+    const retirement=this.gpu?.retire(root);
     root.traverse(object => {
       object.removeEventListener("childadded", this.gpuChildAdded);
       object.removeEventListener("childremoved", this.gpuChildRemoved);
       this.watched.delete(object);
+      if(this.retirementOwner)clearRenderRetirementOwner(object,this.retirementOwner);
     });
+    return retirement;
   }
 
   private prepareShadows(root: THREE.Object3D): void {
@@ -963,9 +969,12 @@ export class SceneRenderer {
     for (const object of this.watched) {
       object.removeEventListener("childadded", this.gpuChildAdded);
       object.removeEventListener("childremoved", this.gpuChildRemoved);
+      if(this.retirementOwner)clearRenderRetirementOwner(object,this.retirementOwner);
     }
     this.watched.clear();
-    const retirement=this.gpu?.retire(this.scene);
+    // The active borrower may be an already-detached avatar/car, so retire the view's
+    // entire admission queue before releasing shared prototypes and scene resources.
+    const retirement=this.gpu?.retireAll();
     const release=():void=>{
       this.surfaceTextures.dispose();
       this.streamer.dispose();

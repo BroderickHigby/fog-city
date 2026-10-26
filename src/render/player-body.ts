@@ -14,6 +14,7 @@ import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
 import { HumanFeet, type HumanSupportHeight } from "./human-feet.ts";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import { compactCrowdAvatar } from "./crowd-avatar-compact.ts";
+import { retireRenderTree } from "./renderer-warmup.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
 /** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
@@ -140,6 +141,7 @@ export class PlayerBodies {
   private readonly shadows: boolean;
   private drawnCount = 0;
   private disposed = false;
+  private readonly retirements = new Set<Promise<void>>();
   private supportHeight: HumanSupportHeight | undefined;
 
   private constructor(gltf: GLTF, shadows: boolean, dodge: GLTF | null, mixamoDodge: THREE.AnimationClip[]) {
@@ -323,11 +325,13 @@ export class PlayerBodies {
       body.mixer.uncacheRoot(body.root);
       // Crowd clones share prototype geometry/materials, so those resource owners
       // cannot release this clone's renderer objects and bone-matrix UBOs for it.
-      disposeRenderObjects(body.root);
-      for (const skeleton of body.skeletons) skeleton.dispose();
-      for (const material of body.materials) material.dispose();
-      body.root.removeFromParent();
       this.bodies.delete(id);
+      const retirement=retireRenderTree(body.root,()=>{
+        disposeRenderObjects(body.root);
+        for (const skeleton of body.skeletons) skeleton.dispose();
+        for (const material of body.materials) material.dispose();
+      });
+      if(retirement){this.retirements.add(retirement);void retirement.then(()=>this.retirements.delete(retirement));}
     }
   }
 
@@ -336,7 +340,8 @@ export class PlayerBodies {
     this.disposed = true;
     this.remove(new Set());
     this.drawnCount = 0;
-    disposeBodyPrototype(this.gltf.scene);
+    const release=():void=>disposeBodyPrototype(this.gltf.scene);
+    if(this.retirements.size)void Promise.all(this.retirements).then(release,release);else release();
     this.group.removeFromParent();
   }
 }

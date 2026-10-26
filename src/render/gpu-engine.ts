@@ -179,6 +179,11 @@ export class GpuEngine {
   }
   admit(root: THREE.Object3D): void { if (!this.disposed) this.warmup().admit(root); }
   retire(root: THREE.Object3D): Promise<void> | void { return this.warmupQueue?.retire(root); }
+  /** Whole-view shutdown also owns active borrowers whose dynamic roots already detached. */
+  retireAll(): Promise<void> | void {
+    const queue=this.warmupQueue;if(!queue)return;
+    queue.dispose();if(queue.info().active)return queue.idle();
+  }
   pumpWarmup(): void { if (!this.disposed) void this.warmupQueue?.pump(); }
   get warmupInfo(): WarmupStats { return this.warmupQueue?.info() ?? {admitted:0,cachedLayouts:0,pending:0,active:false,compiled:0,cancelled:0,failed:0,lastError:null}; }
   get shadowCameras(): readonly THREE.Camera[] { return Array.from({length:this.sun.shadow.getViewportCount()},(_,i)=>this.sun.shadow.getCamera(i)); }

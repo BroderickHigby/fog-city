@@ -66,7 +66,39 @@ function uv(source: THREE.BufferAttribute | THREE.InterleavedBufferAttribute, re
   return new THREE.BufferAttribute(array, 2);
 }
 function textureTransformIsPlain(texture: THREE.Texture): boolean {
-  return !texture.flipY && texture.offset.x === 0 && texture.offset.y === 0 && texture.repeat.x === 1 && texture.repeat.y === 1 && texture.rotation === 0;
+  return texture.channel === 0 && !texture.flipY && texture.offset.x === 0 && texture.offset.y === 0 && texture.repeat.x === 1 && texture.repeat.y === 1 && texture.rotation === 0;
+}
+
+/** Pack only the newly merged prototype. WebGPU guarantees eight vertex-buffer bindings. */
+function interleavePrototype(geometry: THREE.BufferGeometry): void {
+  const groups = new Map<string, Array<{ name: string; attribute: THREE.BufferAttribute }>>();
+  for (const [name, value] of Object.entries(geometry.attributes)) {
+    // mergeGeometries has already produced owned, ordinary attributes with matching vertex counts.
+    const attribute = value as THREE.BufferAttribute;
+    const key = `${attribute.array.constructor.name}:${attribute.usage}:${attribute.gpuType}`;
+    const group = groups.get(key); if (group) group.push({ name, attribute }); else groups.set(key, [{ name, attribute }]);
+  }
+  for (const group of groups.values()) {
+    const first = group[0]!.attribute, bytes = first.array.BYTES_PER_ELEMENT;
+    // Narrow RGB/integer formats are padded by WebGPU; keep each offset and row four-byte aligned.
+    const width = (attribute: THREE.BufferAttribute): number => Math.ceil(attribute.itemSize * bytes / 4) * 4 / bytes;
+    const stride = group.reduce((sum, entry) => sum + width(entry.attribute), 0);
+    const ArrayType = first.array.constructor as THREE.TypedArrayConstructor;
+    const array = new ArrayType(first.count * stride), data = new THREE.InterleavedBuffer(array, stride);
+    data.setUsage(first.usage);
+    let offset = 0;
+    for (const { name, attribute } of group) {
+      // Copy storage bits directly: normalized integers must not make a float conversion round trip.
+      for (let row = 0; row < first.count; row++) for (let component = 0; component < attribute.itemSize; component++) {
+        array[row * stride + offset + component] = attribute.array[row * attribute.itemSize + component]!;
+      }
+      const packed = new THREE.InterleavedBufferAttribute(data, attribute.itemSize, offset, attribute.normalized);
+      packed.name = attribute.name;
+      // WebGL's integer binding path reads this on the attribute view, not its shared buffer.
+      Object.assign(packed, { gpuType: attribute.gpuType });
+      geometry.setAttribute(name, packed); offset += width(attribute);
+    }
+  }
 }
 
 /** Mutates only this owned prototype, atomically after every image and new resource is ready. */
@@ -120,6 +152,7 @@ export async function compactCrowdAvatar(root: THREE.Object3D, options: Readonly
     }
     merged = mergeGeometries(copies, false);
     if (!merged) throw new Error("Crowd primitive vertex layouts cannot be merged");
+    interleavePrototype(merged);
     merged.computeBoundingBox(); merged.computeBoundingSphere();
     material = new THREE.MeshStandardMaterial({ name: "crowd:compact", map: colorAtlas.texture, normalMap: normalAtlas.texture,
       roughnessMap: roughness, color: materials[0]!.color.clone(), roughness: 1, metalness: 0, side: THREE.DoubleSide,
