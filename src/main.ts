@@ -328,7 +328,10 @@ async function boot(): Promise<void> {
     project:(x,y,z)=>{const cam=view.camera;projected.set(x,y,z);const distance=projected.distanceTo(cam.position);projected.project(cam);if(projected.z>1||projected.z<-1)return null;const r=view.renderer.domElement.getBoundingClientRect();return {x:r.left+(projected.x+1)/2*r.width,y:r.top+(1-projected.y)/2*r.height,distance};},onModeChange:()=>{keyboard.releaseAll();view.actors.remove(new Set());playersKey="";pacer.reset();last=performance.now();},city:{playerId:LOCAL_PLAYER,get:()=>curr,set:state=>{curr=state;prev=state;},save:()=>autosave.flush(),
     restoreAutosave:async()=>{const save=await saveStore.load("auto");if(!save)return false;restoreSave(save.data);return true;}}});
   const combatLayer=new CombatLayer(view.scene);
-  const impactLayer=new ImpactLayer(view.scene);
+  const impactLayer=new ImpactLayer(view.scene, {
+    player: (id, matrix, bounds) => view.actors.copyCarFrame(id, matrix, bounds),
+    agent: (id, matrix, bounds) => view.agents.copyVehicleFrame(id, matrix, bounds),
+  });
   const props=propIndex(world);
   const propDamage=new PropDamage(view.scene,{prop:id=>props.byId.get(id),
     hydrants:(world.gameplay?.refills??[]).filter(r=>r.kind==="hydrant").map(r=>({id:`hydrant:${r.id}`,x:r.x,z:r.z})),
@@ -666,7 +669,6 @@ async function boot(): Promise<void> {
     for (const id of ids) view.setSpray(id, sprays.get(id) ?? null);
     view.setSim(renderWithRuntimeActors(shownPrev,Object.values(agentsRuntimeOf(shownPrev)?.actors??{})),renderWithRuntimeActors(shown,Object.values(agentsRuntimeOf(shown)?.actors??{})),alpha);
     combatLayer.update(shownPrev.ext.combat,shown.ext.combat,alpha,(id,out)=>view.nozzle(id,out),dtFrame);
-    impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
     propDamage.update(shown,dtFrame,target.x,target.z);
     audio.update({state:shown,playerId:me_,paused:paused&&!match,nowMs:now});
     // The sim's calendar is the game clock when its clock system runs; the light follows it
@@ -681,6 +683,7 @@ async function boot(): Promise<void> {
     }
     local.id = me_;
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
+    impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
     if (!guard.contextLost) view.render();
     multiplayer.overlay();
 

@@ -186,6 +186,8 @@ export interface Wheel {
 interface PlayerView {
   car: THREE.Object3D;
   carSource: "file" | "fallback";
+  /** Rest bounds in the car root's local frame, cached at model adoption. */
+  carBounds: THREE.Box3;
   colorIndex: number;
   /** Materials cloned for this car (its paint), disposed with it. */
   ownMaterials: THREE.Material[];
@@ -205,7 +207,7 @@ interface PlayerView {
 }
 
 /** Fit the authored car around its sim origin; its copied world pose is not a model dimension. */
-function fitPlayerCar(car: THREE.Object3D): void {
+function fitPlayerCar(car: THREE.Object3D): THREE.Box3 {
   const bounds = new THREE.Box3();
   const box = new THREE.Box3();
   const rootScale = new THREE.Matrix4().makeScale(car.scale.x, car.scale.y, car.scale.z);
@@ -220,12 +222,14 @@ function fitPlayerCar(car: THREE.Object3D): void {
     }
     for (const child of node.children) visit(child, matrix);
   };
-  visit(car, rootScale);
-  if (bounds.isEmpty()) return;
-  const width = Math.max(Math.abs(bounds.min.x), Math.abs(bounds.max.x));
-  const length = Math.max(Math.abs(bounds.min.z), Math.abs(bounds.max.z));
+  visit(car, new THREE.Matrix4());
+  if (bounds.isEmpty()) return bounds;
+  const fitted = bounds.clone().applyMatrix4(rootScale);
+  const width = Math.max(Math.abs(fitted.min.x), Math.abs(fitted.max.x));
+  const length = Math.max(Math.abs(fitted.min.z), Math.abs(fitted.max.z));
   const scale = Math.min(1, width > 0 ? CAR.halfWidth / width : 1, length > 0 ? CAR.halfLength / length : 1);
   car.scale.multiplyScalar(scale);
+  return bounds;
 }
 
 /** The wheel nodes of a car model (extras {"wheel": "FL", "radius", "steer"}). */
@@ -299,6 +303,15 @@ export class Actors {
     return out;
   }
 
+  /** Copy a visible car's exact drawn transform and rest bounds without allocating. */
+  copyCarFrame(id: string, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean {
+    const v = this.players.get(id);
+    if (this.disposed || !v?.placed || !v.car.visible || this.hidden === id && this.hiddenPart === "car") return false;
+    v.car.updateWorldMatrix(true, false);
+    matrix.copy(v.car.matrixWorld); bounds.copy(v.carBounds);
+    return !bounds.isEmpty();
+  }
+
   /** Players drawn on foot last frame. */
   get walkers(): number {
     return this.people.body.count + (this.bodies?.drawn ?? 0);
@@ -309,7 +322,7 @@ export class Actors {
 
   private adopt(v: PlayerView, car: THREE.Object3D, source: "file" | "fallback"): void {
     car.rotation.order = "YXZ";
-    fitPlayerCar(car);
+    v.carBounds.copy(fitPlayerCar(car));
     v.car = car;
     v.carSource = source;
     v.wheels = findWheels(car);
@@ -358,6 +371,7 @@ export class Actors {
     v = {
       car,
       carSource: now.source,
+      carBounds: new THREE.Box3(),
       colorIndex,
       ownMaterials: [],
       wheels: [],

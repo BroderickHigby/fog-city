@@ -14,6 +14,7 @@
     "ui.hud.objective": "Current objective",
     "ui.hud.speed": "Speed",
     "ui.hud.location": "San Francisco",
+    "ui.hud.compass": "Compass",
     "ui.hud.walkMode": "On foot",
     "ui.hud.walkHint": "Move",
     "ui.hud.runHint": "Run",
@@ -224,13 +225,16 @@
     "ui.map.zoomIn": "Zoom map in",
     "ui.map.zoomOut": "Zoom map out",
     "ui.map.recenter": "Center on player",
+    "ui.map.open": "Open map (M)",
+    "ui.map.navigation": "Navigation",
+    "ui.map.phoneApps": "Phone apps",
     "ui.map.keyboard": "Arrow keys pan. + and − zoom. Enter sets a waypoint."
   },
   "provenance": {
     "source": "agent",
-    "authorSession": "codex-targeted-slop-2026-10-26",
-    "contentHash": "fnv1a32:23216b7e",
+    "authorSession": "codex-compass-map-2026-10-26",
+    "contentHash": "fnv1a32:4758cddc",
     "reviewedBy": [],
-    "review": "Added four map control labels for the owner-requested SF map improvement; existing characters, help, and gameplay copy retained. Pending independent review."
+    "review": "Added compass, map navigation and direct map access labels for the owner request; existing character and gameplay copy retained. Pending independent review."
   }
 }

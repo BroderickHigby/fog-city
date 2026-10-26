@@ -520,6 +520,37 @@ export class AgentLayer {
     return out;
   }
 
+  /** After update(): the visible vehicle's interpolated, grounded frame and model bounds. */
+  copyVehicleFrame(id: number, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean {
+    if (this.disposed || id === this.hiddenAgent) return false;
+    for (let i = 0; i < this.pairs.length; i++) {
+      const actor = this.pairs[i]![1];
+      if (actor.id !== id) continue;
+      const tier = this.tiers[i]!;
+      if (actor.kind !== "robotaxi" || tier === TIER_HIDDEN) return false;
+      const pose = this.poses[i]!;
+      if (isCivilianTraffic(actor) && this.civilianNear && this.civilianFar) {
+        const part = tier === TIER_NEAR && this.civilianNear.count ? this.civilianNear : this.civilianFar;
+        if (!part.mesh.geometry.boundingBox) part.mesh.geometry.computeBoundingBox();
+        bounds.copy(part.mesh.geometry.boundingBox!);
+        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, this.civilianScale, matrix);
+      } else {
+        const view = this.kinds.get("robotaxi")!;
+        if (tier === TIER_NEAR && view.source === "file") bounds.copy(view.model!.bodyBounds);
+        else {
+          const geometry = (tier === TIER_FAR ? view.far : view.mid).mesh.geometry;
+          if (!geometry.boundingBox) geometry.computeBoundingBox();
+          bounds.copy(geometry.boundingBox!);
+        }
+        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, matrix, pose.roll);
+        const override = this.lookOverride?.get(actor.id);
+        collapse(matrix, actor, override ?? visualCombat(actor), override?.height ?? visualHeight(actor));
+      }
+      return !bounds.isEmpty();
+    }
+    return false;
+  }
+
   private install(view: KindView, model: PackedModel): void {
     const size = model.bodyBounds.isEmpty() ? model.bounds : model.bodyBounds;
     view.scale = agentModelScale(view.kind, { length: size.max.z - size.min.z, width: size.max.x - size.min.x });
