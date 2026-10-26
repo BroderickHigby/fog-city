@@ -125,7 +125,7 @@ export class RendererWarmup {
     })();
     return this.running;
   }
-  /** Boot drains only its admitted snapshot; later async arrivals continue under the frame pump. */
+  /** Boot drains its admitted snapshot; the engine cancels later arrivals before live frames. */
   async drain():Promise<void>{const count=this.pending.size+(this.active?1:0);for(let i=0;i<count;i++){if(this.disposed||(!this.active&&!this.pending.size))break;await this.pump();}}
   info():WarmupStats{return{admitted:this.entries.size,cachedLayouts:this.completed.size,pending:this.pending.size,active:this.active!==null,compiled:this.compiled,cancelled:this.cancelled,failed:this.failed,lastError:this.lastError};}
   dispose():void {
