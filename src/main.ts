@@ -670,7 +670,7 @@ async function boot(): Promise<void> {
       const adapter = device?.adapterInfo;
       const proof = {
         ready:view.tilesSettled() && !info.grass?.pending && !info.buildingDetail?.pending,
-        render:info,resources:view.renderStats(),scene:{meshes,geometries:geometries.size,details:detailMeshes},
+        render:info,resources:view.renderStats(),backendMemory:{...view.renderer.info.memory},scene:{meshes,geometries:geometries.size,details:detailMeshes},
         sim:{seed:curr.seed,tick:curr.tick,version:curr.version,assets:assets.mode,colliders:files.colliders},
         camera:{x:view.camera.position.x,y:view.camera.position.y,z:view.camera.position.z,mode:info.cameraMode},
         device:device?{adapter:adapter?{vendor:adapter.vendor,architecture:adapter.architecture,device:adapter.device,description:adapter.description}:null,limits:{maxVertexBuffers:device.limits?.maxVertexBuffers,maxTextureDimension2D:device.limits?.maxTextureDimension2D}}:null,
