@@ -10,7 +10,8 @@ import type { TileCollider } from "../sim/world.ts";
 import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from "./actors.ts";
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
-import { parkShapes, tintParks } from "./parks.ts";
+import { parkShapes, parkPavementRegions, tintParks } from "./parks.ts";
+import { createPavementMask } from "./pavement.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
@@ -346,13 +347,17 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    // Far terrain triangles span 100 m. Include paving just outside a park too,
+    // otherwise a green edge vertex can interpolate across that neighbouring road.
+    const pavement = parks.length ? createPavementMask(world.roads, world.colliders,
+      parkPavementRegions(parks)) : undefined;
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
       load: loadTile,
-      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain),
+      tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain, pavement),
       ground: world.ground,
       budget: softwareFarBudget(rendererName),
     });
@@ -379,7 +384,7 @@ export class SceneRenderer {
         this.far.setTileVisible(id, visible);
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
       },
-      tintGround: (geo, m) => tintParks(geo, m, parks),
+      tintGround: (geo, m) => tintParks(geo, m, parks, undefined, pavement),
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();

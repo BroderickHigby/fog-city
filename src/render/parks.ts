@@ -6,6 +6,7 @@
 // Pure geometry work on vertex colours (COLOR_0), once per tile when it loads; nothing per frame.
 
 import * as THREE from "three";
+import type { PavementMask } from "./pavement.ts";
 
 /** District names (districts.json `name`) whose ground is park. */
 export const PARK_DISTRICTS: readonly string[] = ["Golden Gate Park", "Presidio", "McLaren Park", "Lincoln Park"];
@@ -26,6 +27,11 @@ export interface ParkShape {
   bbox: [number, number, number, number];
   outer: Ring;
   holes: Ring[];
+}
+
+/** Include triangles reaching one far-terrain cell outside a park boundary. */
+export function parkPavementRegions(parks: readonly ParkShape[]): Array<[number, number, number, number]> {
+  return parks.map(p => [p.bbox[0]-100,p.bbox[1]-100,p.bbox[2]+100,p.bbox[3]+100]);
 }
 
 interface DistrictsDoc {
@@ -79,6 +85,7 @@ export function inPark(parks: readonly ParkShape[], x: number, z: number): boole
 
 const _v = new THREE.Vector3();
 const _c = new THREE.Color();
+const _a = new THREE.Vector3(), _b = new THREE.Vector3(), _d = new THREE.Vector3();
 
 /**
  * Tint the vertex colours of a ground mesh inside the parks. `only` filters vertices (world
@@ -90,6 +97,7 @@ export function tintParks(
   matrixWorld: THREE.Matrix4,
   parks: readonly ParkShape[],
   only: (x: number, y: number, z: number) => boolean = () => true,
+  pavement?: Pick<PavementMask, "intersectsTriangle">,
 ): number {
   if (parks.length === 0) return 0;
   const pos = geo.getAttribute("position");
@@ -99,10 +107,24 @@ export function tintParks(
   geo.computeBoundingBox();
   const box = geo.boundingBox!.clone().applyMatrix4(matrixWorld);
   if (!parks.some((p) => !(box.max.x < p.bbox[0] || box.min.x > p.bbox[2] || box.max.z < p.bbox[1] || box.min.z > p.bbox[3]))) return 0;
+  // A road can cross a large terrain triangle without containing any of its vertices.
+  // Preserve every corner's original colour to prevent green interpolation over paving.
+  const paved = pavement ? new Uint8Array(pos.count) : null;
+  if (pavement && paved) {
+    const index = geo.index, count = index?.count ?? pos.count;
+    for (let i = 0; i + 2 < count; i += 3) {
+      const a = index ? index.getX(i) : i, b = index ? index.getX(i + 1) : i + 1, d = index ? index.getX(i + 2) : i + 2;
+      _a.fromBufferAttribute(pos, a).applyMatrix4(matrixWorld);
+      _b.fromBufferAttribute(pos, b).applyMatrix4(matrixWorld);
+      _d.fromBufferAttribute(pos, d).applyMatrix4(matrixWorld);
+      if (!only(_a.x, _a.y, _a.z) && !only(_b.x, _b.y, _b.z) && !only(_d.x, _d.y, _d.z)) continue;
+      if (pavement.intersectsTriangle([_a.x, _a.z], [_b.x, _b.z], [_d.x, _d.z])) paved[a] = paved[b] = paved[d] = 1;
+    }
+  }
   let n = 0;
   for (let i = 0; i < pos.count; i++) {
     _v.fromBufferAttribute(pos, i).applyMatrix4(matrixWorld);
-    if (_v.y < SHORE_Y || !only(_v.x, _v.y, _v.z) || !inPark(parks, _v.x, _v.z)) continue;
+    if (paved?.[i] || _v.y < SHORE_Y || !only(_v.x, _v.y, _v.z) || !inPark(parks, _v.x, _v.z)) continue;
     // A stable per-vertex mix of the two greens.
     const h = Math.abs(Math.sin(_v.x * 0.0123 + _v.z * 0.0371) * 43758.5453) % 1;
     _c.fromBufferAttribute(col as THREE.BufferAttribute, i);

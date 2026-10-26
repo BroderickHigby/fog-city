@@ -5,7 +5,8 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
 import { onFarLattice, tileGrid } from "../../src/render/far-layer.ts";
-import { PARK_DISTRICTS, inPark, parkShapes, tintParks } from "../../src/render/parks.ts";
+import { PARK_DISTRICTS, inPark, parkShapes, parkPavementRegions, tintParks } from "../../src/render/parks.ts";
+import { createPavementMask } from "../../src/render/pavement.ts";
 import type { Manifest } from "../../src/render/types.ts";
 import { readJsonIfExists } from "../helpers.ts";
 
@@ -61,6 +62,33 @@ describe("park tint", () => {
     geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 5, 0, 12.5, 9, 30], 3));
     geo.setAttribute("color", new THREE.Float32BufferAttribute([0.5, 0.5, 0.5, 0.5, 0.5, 0.5], 3));
     expect(tintParks(geo, new THREE.Matrix4().makeTranslation(0, 0, 0), parks, onFarLattice)).toBe(1);
+  });
+
+  it("keeps an entire paved terrain triangle neutral, including crossings between vertices", () => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute([
+      10, 5, 10, 90, 5, 10, 10, 5, 30,
+      10, 5, 70, 30, 5, 70, 10, 5, 90,
+    ], 3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute(Array(6).fill([.5,.45,.4]).flat(), 3));
+    // A narrow road crosses the first triangle between its vertices. The second is lawn.
+    const pavement = { intersectsTriangle: (a: readonly number[], b: readonly number[], c: readonly number[]) => Math.max(a[0]!,b[0]!,c[0]!) > 50 };
+    expect(tintParks(geo, new THREE.Matrix4(), parks, () => true, pavement)).toBe(3);
+    const colors = geo.getAttribute("color");
+    for (let i = 0; i < 3; i++) expect([colors.getX(i),colors.getY(i),colors.getZ(i)]).toEqual([.5,Math.fround(.45),Math.fround(.4)]);
+    for (let i = 3; i < 6; i++) expect(colors.getY(i)).toBeGreaterThan(colors.getX(i));
+    geo.dispose();
+  });
+
+  it("blocks interpolation onto paving just outside the park's own bounds", () => {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute([90,5,90,120,5,90,120,5,120],3));
+    geo.setAttribute("color", new THREE.Float32BufferAttribute([.5,.45,.4,.5,.45,.4,.5,.45,.4],3));
+    const roads = {version:1,nodes:[],edges:[{id:"outside",a:"a",b:"b",kind:"residential" as const,lanes:1,oneway:false,widthM:4,points:[[108,60],[108,140]] as Array<[number,number]>}]};
+    const mask = createPavementMask(roads, undefined, parkPavementRegions(parks));
+    expect(tintParks(geo,new THREE.Matrix4(),parks,undefined,mask)).toBe(0);
+    expect(geo.getAttribute("color").getX(0)).toBe(.5);
+    geo.dispose();
   });
 
   it("the committed sf districts name every park the renderer greens", () => {
