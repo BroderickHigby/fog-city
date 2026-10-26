@@ -71,7 +71,9 @@
 // v18: full vehicle hulls use relative swept contacts after movement. Traffic jam recovery
 // keeps every physical vehicle solid. Earlier replay versions retain their original motion;
 // saves keep all existing fields and nested controller state.
-export const SIM_VERSION = 18;
+// v19: fixed-step city-road handling adapted from Slop New York. Existing state fields,
+// collision bodies and v18-and-earlier replay paths are preserved; the save upgrade restamps.
+export const SIM_VERSION = 19;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

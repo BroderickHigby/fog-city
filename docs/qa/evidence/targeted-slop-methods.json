@@ -1,0 +1,4930 @@
+{
+  "gameCodeHead": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+  "referenceHead": "be65d0ab61b24718b6da8886b7d7bed2d68ac178",
+  "scope": "Native Apple M4 WebGPU, one Chrome155 profile at a time, 960x600 DPR1, golden/high/SSR/bloom, active simulation; different cities and engine revisions. CPU submission time is not GPU execution time. Resource counters and CDP heaps are separate accounting categories, not physical RAM. No long soak, full-city FPS or inherited performance-hold clearance.",
+  "runs": {
+    "baseline": {
+      "artifact": null,
+      "browserVersion": "155.0.8059.86",
+      "readyMs": 1886,
+      "finished": true,
+      "errors": [],
+      "warnings": [
+        "Calling [RenderPassEncoder (unlabeled)].Draw with an index count of 0 is unusual."
+      ],
+      "controlledHeap": {
+        "scope": "Active simulation; same final camera, before/after explicitly requested full GC. Instant JS heap/accounted backing storage, not physical RAM or a leak test.",
+        "before": {
+          "usedSize": 995289096,
+          "totalSize": 1063206912,
+          "embedderHeapUsedSize": 9313248,
+          "backingStorageSize": 142668203
+        },
+        "beforeTick": 1852,
+        "gcWallMs": 363,
+        "after": {
+          "usedSize": 929902604,
+          "totalSize": 949977088,
+          "embedderHeapUsedSize": 8053032,
+          "backingStorageSize": 142668013
+        },
+        "afterTick": 1857
+      },
+      "supplementary": null,
+      "nativeRenderingAccepted": null,
+      "samples": [
+        {
+          "label": "sf-ferry-plaza",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -110.5,
+              5.552624999999999,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412608,
+              -0.48666996145389885,
+              -0.04630839973098335,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 443
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 9771,
+              "frameCalls": 22,
+              "drawCalls": 503,
+              "triangles": 1368371,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 652,
+              "attributesSize": 30672808,
+              "geometries": 183,
+              "indexAttributes": 153,
+              "indexAttributesSize": 2703132,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 344,
+              "programsSize": 2480209,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 18,
+              "storageAttributes": 182,
+              "storageAttributesSize": 4655872,
+              "textures": 60,
+              "texturesSize": 133585716,
+              "uniformBuffers": 567,
+              "uniformBuffersSize": 201280,
+              "total": 174299017
+            }
+          },
+          "scene": {
+            "meshes": 517,
+            "visibleMeshes": 486,
+            "staticMeshes": 417,
+            "instancedMeshes": 329,
+            "instances": 7264,
+            "skinnedMeshes": 6,
+            "proxies": 0,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 260,
+            "materials": 102,
+            "textures": 41,
+            "geometryBytes": 32370817,
+            "materialTextureBytesEstimate": 36904960
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 355,
+              "p50": 9,
+              "p95": 12.099999994039536,
+              "max": 62
+            },
+            "renderSubmissionCpu": {
+              "count": 355,
+              "p50": 6,
+              "p95": 7.4000000059604645,
+              "max": 54.29999998211861
+            },
+            "rafInterval": {
+              "count": 354,
+              "p50": 16.699999999999818,
+              "p95": 16.700000000000728,
+              "max": 50
+            }
+          }
+        },
+        {
+          "label": "sf-market-canyon",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -281.96,
+              5.209195,
+              308.75
+            ],
+            "rotation": [
+              3.092247318154954,
+              0.7847891758118359,
+              -3.106707315445191,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 861
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 18967,
+              "frameCalls": 22,
+              "drawCalls": 546,
+              "triangles": 1863371,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 939,
+              "attributesSize": 44076106,
+              "geometries": 272,
+              "indexAttributes": 233,
+              "indexAttributesSize": 9263460,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 591,
+              "programsSize": 3454706,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 18,
+              "storageAttributes": 323,
+              "storageAttributesSize": 4813568,
+              "textures": 91,
+              "texturesSize": 177156262,
+              "uniformBuffers": 1008,
+              "uniformBuffersSize": 355648,
+              "total": 239119750
+            }
+          },
+          "scene": {
+            "meshes": 708,
+            "visibleMeshes": 667,
+            "staticMeshes": 606,
+            "instancedMeshes": 472,
+            "instances": 11726,
+            "skinnedMeshes": 8,
+            "proxies": 0,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 311,
+            "materials": 115,
+            "textures": 55,
+            "geometryBytes": 38575019,
+            "materialTextureBytesEstimate": 59733333
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 332,
+              "p50": 10,
+              "p95": 14.600000023841858,
+              "max": 255.30000001192093
+            },
+            "renderSubmissionCpu": {
+              "count": 332,
+              "p50": 6.5,
+              "p95": 8.700000017881393,
+              "max": 57.19999998807907
+            },
+            "rafInterval": {
+              "count": 331,
+              "p50": 16.69999999999891,
+              "p95": 16.799999999999272,
+              "max": 250
+            }
+          }
+        },
+        {
+          "label": "sf-camera-out",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -210.5,
+              5.989750000000001,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412607,
+              -0.48666996145388625,
+              -0.04630839973098225,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 1284
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 28273,
+              "frameCalls": 22,
+              "drawCalls": 546,
+              "triangles": 1521410,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 960,
+              "attributesSize": 44375999,
+              "geometries": 275,
+              "indexAttributes": 234,
+              "indexAttributesSize": 9119772,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 575,
+              "programsSize": 3302013,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 18,
+              "storageAttributes": 316,
+              "storageAttributesSize": 4809408,
+              "textures": 96,
+              "texturesSize": 184450781,
+              "uniformBuffers": 994,
+              "uniformBuffersSize": 333232,
+              "total": 246391205
+            }
+          },
+          "scene": {
+            "meshes": 686,
+            "visibleMeshes": 654,
+            "staticMeshes": 586,
+            "instancedMeshes": 456,
+            "instances": 11014,
+            "skinnedMeshes": 6,
+            "proxies": 0,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 302,
+            "materials": 109,
+            "textures": 45,
+            "geometryBytes": 36224592,
+            "materialTextureBytesEstimate": 45009579
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 335,
+              "p50": 10.699999988079071,
+              "p95": 15.299999982118607,
+              "max": 121.40000000596046
+            },
+            "renderSubmissionCpu": {
+              "count": 335,
+              "p50": 6.800000011920929,
+              "p95": 9.300000011920929,
+              "max": 116.7000000178814
+            },
+            "rafInterval": {
+              "count": 334,
+              "p50": 16.69999999999709,
+              "p95": 16.799999999999272,
+              "max": 116.59999999999854
+            }
+          }
+        },
+        {
+          "label": "sf-ferry-return",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -110.5,
+              5.552624999999999,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412608,
+              -0.48666996145389885,
+              -0.04630839973098335,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 1698
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 37381,
+              "frameCalls": 22,
+              "drawCalls": 546,
+              "triangles": 1371276,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 960,
+              "attributesSize": 43971407,
+              "geometries": 275,
+              "indexAttributes": 234,
+              "indexAttributesSize": 8907516,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 578,
+              "programsSize": 3363738,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 18,
+              "storageAttributes": 314,
+              "storageAttributesSize": 4808512,
+              "textures": 96,
+              "texturesSize": 184450781,
+              "uniformBuffers": 988,
+              "uniformBuffersSize": 321728,
+              "total": 245823682
+            }
+          },
+          "scene": {
+            "meshes": 683,
+            "visibleMeshes": 648,
+            "staticMeshes": 584,
+            "instancedMeshes": 454,
+            "instances": 10619,
+            "skinnedMeshes": 5,
+            "proxies": 0,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 304,
+            "materials": 111,
+            "textures": 49,
+            "geometryBytes": 36095868,
+            "materialTextureBytesEstimate": 50601984
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 328,
+              "p50": 10.900000005960464,
+              "p95": 16.900000005960464,
+              "max": 124.90000000596046
+            },
+            "renderSubmissionCpu": {
+              "count": 328,
+              "p50": 7,
+              "p95": 9.400000005960464,
+              "max": 110.5
+            },
+            "rafInterval": {
+              "count": 327,
+              "p50": 16.69999999999709,
+              "p95": 16.80000000000291,
+              "max": 116.70000000000073
+            }
+          }
+        }
+      ]
+    },
+    "reference": {
+      "artifact": null,
+      "browserVersion": "155.0.8059.86",
+      "readyMs": 14343,
+      "finished": true,
+      "errors": [],
+      "warnings": [],
+      "controlledHeap": null,
+      "supplementary": null,
+      "nativeRenderingAccepted": null,
+      "samples": [
+        {
+          "label": "nyc-midtown-canyon",
+          "backend": "webgpu",
+          "revision": "187dev",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              4,
+              2.6471376910463347,
+              470.12792614221723
+            ],
+            "rotation": [
+              -3.0452114117594036,
+              0,
+              -3.141592653589793,
+              "XYZ"
+            ],
+            "fov": 56,
+            "near": 0.35,
+            "far": 60000
+          },
+          "post": {
+            "ssr": true,
+            "bloom": true,
+            "ssrScale": 0.5,
+            "ssrQuality": 0.25,
+            "ssrDistance": 42,
+            "activePreset": "golden"
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 9721,
+              "frameCalls": 22,
+              "drawCalls": 1009,
+              "triangles": 6480213,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 1784,
+              "attributesSize": 86502776,
+              "geometries": 1602,
+              "indexAttributes": 211,
+              "indexAttributesSize": 3357402,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 287,
+              "programsSize": 3348071,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 1472,
+              "storageAttributesSize": 26932224,
+              "textures": 50,
+              "texturesSize": 213946348,
+              "uniformBuffers": 2791,
+              "uniformBuffersSize": 685680,
+              "total": 334772501
+            }
+          },
+          "scene": {
+            "meshes": 19396,
+            "visibleMeshes": 2243,
+            "staticMeshes": 16059,
+            "instancedMeshes": 18962,
+            "instances": 575824,
+            "skinnedMeshes": 0,
+            "proxies": 542,
+            "sharingPipeline": 18679,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 18177,
+            "geometries": 19009,
+            "materials": 191,
+            "textures": 11,
+            "geometryBytes": 170058182,
+            "materialTextureBytesEstimate": 3757397
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 360,
+              "p50": 6.699999988079071,
+              "p95": 7.300000011920929,
+              "max": 8.800000011920929
+            },
+            "renderSubmissionCpu": {
+              "count": 360,
+              "p50": 5.5,
+              "p95": 6,
+              "max": 7.4000000059604645
+            },
+            "rafInterval": {
+              "count": 359,
+              "p50": 16.69999999999709,
+              "p95": 16.700000000000728,
+              "max": 16.80000000000109
+            }
+          }
+        },
+        {
+          "label": "nyc-orbit-out",
+          "backend": "webgpu",
+          "revision": "187dev",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              8.616437827364308,
+              2.6471376910463347,
+              482.0905698004154
+            ],
+            "rotation": [
+              -1.6642824854626428,
+              1.3221213651779162,
+              1.6672313613435035,
+              "XYZ"
+            ],
+            "fov": 56,
+            "near": 0.35,
+            "far": 60000
+          },
+          "post": {
+            "ssr": true,
+            "bloom": true,
+            "ssrScale": 0.5,
+            "ssrQuality": 0.25,
+            "ssrDistance": 42,
+            "activePreset": "golden"
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 19511,
+              "frameCalls": 22,
+              "drawCalls": 816,
+              "triangles": 5139619,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 1859,
+              "attributesSize": 86857828,
+              "geometries": 1749,
+              "indexAttributes": 211,
+              "indexAttributesSize": 3357402,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 287,
+              "programsSize": 3348071,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 1621,
+              "storageAttributesSize": 28356800,
+              "textures": 50,
+              "texturesSize": 213946348,
+              "uniformBuffers": 2991,
+              "uniformBuffersSize": 730112,
+              "total": 336596561
+            }
+          },
+          "scene": {
+            "meshes": 19396,
+            "visibleMeshes": 2239,
+            "staticMeshes": 16059,
+            "instancedMeshes": 18962,
+            "instances": 575757,
+            "skinnedMeshes": 0,
+            "proxies": 542,
+            "sharingPipeline": 18679,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 18177,
+            "geometries": 19009,
+            "materials": 191,
+            "textures": 11,
+            "geometryBytes": 170058182,
+            "materialTextureBytesEstimate": 3757397
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 360,
+              "p50": 6.100000023841858,
+              "p95": 6.699999988079071,
+              "max": 7.600000023841858
+            },
+            "renderSubmissionCpu": {
+              "count": 360,
+              "p50": 5,
+              "p95": 5.299999982118607,
+              "max": 6.4000000059604645
+            },
+            "rafInterval": {
+              "count": 359,
+              "p50": 16.69999999999709,
+              "p95": 16.799999999999272,
+              "max": 16.80000000000291
+            }
+          }
+        },
+        {
+          "label": "nyc-canyon-return",
+          "backend": "webgpu",
+          "revision": "187dev",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              4,
+              2.6471376910463347,
+              470.12792614221723
+            ],
+            "rotation": [
+              -3.0452114117594036,
+              0,
+              -3.141592653589793,
+              "XYZ"
+            ],
+            "fov": 56,
+            "near": 0.35,
+            "far": 60000
+          },
+          "post": {
+            "ssr": true,
+            "bloom": true,
+            "ssrScale": 0.5,
+            "ssrQuality": 0.25,
+            "ssrDistance": 42,
+            "activePreset": "golden"
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 29147,
+              "frameCalls": 22,
+              "drawCalls": 1009,
+              "triangles": 6536297,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 1861,
+              "attributesSize": 86858020,
+              "geometries": 1751,
+              "indexAttributes": 211,
+              "indexAttributesSize": 3357402,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 287,
+              "programsSize": 3348071,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 1623,
+              "storageAttributesSize": 28357568,
+              "textures": 50,
+              "texturesSize": 213946348,
+              "uniformBuffers": 2993,
+              "uniformBuffersSize": 730448,
+              "total": 336597857
+            }
+          },
+          "scene": {
+            "meshes": 19396,
+            "visibleMeshes": 2242,
+            "staticMeshes": 16059,
+            "instancedMeshes": 18962,
+            "instances": 575864,
+            "skinnedMeshes": 0,
+            "proxies": 542,
+            "sharingPipeline": 18679,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 18177,
+            "geometries": 19009,
+            "materials": 191,
+            "textures": 11,
+            "geometryBytes": 170058182,
+            "materialTextureBytesEstimate": 3757397
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 360,
+              "p50": 6.699999988079071,
+              "p95": 7.699999988079071,
+              "max": 9
+            },
+            "renderSubmissionCpu": {
+              "count": 360,
+              "p50": 5.5,
+              "p95": 6.399999976158142,
+              "max": 7.799999982118607
+            },
+            "rafInterval": {
+              "count": 359,
+              "p50": 16.69999999999709,
+              "p95": 16.700000000004366,
+              "max": 16.80000000000291
+            }
+          }
+        }
+      ]
+    },
+    "candidate": {
+      "artifact": {
+        "directory": "/Users/broderickhigby/fog-city-worktrees/slop-city-render/test-results/targeted-b729799a",
+        "declaredSourceSHA": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+        "files": [
+          {
+            "file": "index.html",
+            "bytes": 1677,
+            "sha256": "e67af8d39a54e1b6c052e10f66308a44c99b3c69c2153a2e81248373c6941e9e",
+            "servedMatchesDisk": true
+          },
+          {
+            "file": "assets.index.json",
+            "bytes": 68897,
+            "sha256": "560fabad335940f1cc4020505d0f8c33f64546142eb9057089fc61302737a33e",
+            "servedMatchesDisk": true
+          },
+          {
+            "file": "tiles/sf/manifest.json",
+            "bytes": 220413,
+            "sha256": "4780a327d21f4ac0f316145558bfc72ea3283a95af28cae06bfe1a6f61052dc5",
+            "servedMatchesDisk": true
+          },
+          {
+            "file": "./assets/index-Cv6HRFiM.js",
+            "bytes": 2782187,
+            "sha256": "97587a5188db923fe425f695c18a96cece8045da529e49597c38ab50435ceaa5",
+            "servedMatchesDisk": true
+          }
+        ]
+      },
+      "browserVersion": "155.0.8059.86",
+      "readyMs": 1983,
+      "finished": true,
+      "errors": [],
+      "warnings": [
+        "Calling [RenderPassEncoder (unlabeled)].Draw with an index count of 0 is unusual."
+      ],
+      "controlledHeap": {
+        "scope": "Active simulation; same final camera, before/after explicitly requested full GC. Instant JS heap/accounted backing storage, not physical RAM or a leak test.",
+        "before": {
+          "usedSize": 967640360,
+          "totalSize": 1056030720,
+          "embedderHeapUsedSize": 9173600,
+          "backingStorageSize": 165871295
+        },
+        "beforeTick": 1893,
+        "gcWallMs": 368,
+        "after": {
+          "usedSize": 919449416,
+          "totalSize": 941473792,
+          "embedderHeapUsedSize": 7869280,
+          "backingStorageSize": 165871105
+        },
+        "afterTick": 1897
+      },
+      "supplementary": {
+        "scope": "Ordinary map UI after all performance/GC sampling; this UI modal pauses simulation normally",
+        "mapShots": [
+          "sf-map-city.png",
+          "sf-map-city-canvas.png",
+          "sf-map-recenter.png"
+        ],
+        "mapActions": [
+          "M opens map",
+          "seven ordinary zoom-out button clicks",
+          "five ArrowLeft and four ArrowDown pans",
+          "Center on player",
+          "M closes map"
+        ],
+        "personSkipped": "Error: page.evaluate: Target page, context or browser has been closed"
+      },
+      "nativeRenderingAccepted": false,
+      "samples": [
+        {
+          "label": "sf-ferry-plaza",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -110.5,
+              5.552624999999999,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412608,
+              -0.48666996145389885,
+              -0.04630839973098335,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 452
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 9989,
+              "frameCalls": 22,
+              "drawCalls": 506,
+              "triangles": 1379159,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 628,
+              "attributesSize": 35743360,
+              "geometries": 183,
+              "indexAttributes": 153,
+              "indexAttributesSize": 2797932,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 332,
+              "programsSize": 2365559,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 182,
+              "storageAttributesSize": 4655872,
+              "textures": 54,
+              "texturesSize": 128667040,
+              "uniformBuffers": 546,
+              "uniformBuffersSize": 154592,
+              "total": 174384355
+            }
+          },
+          "scene": {
+            "meshes": 517,
+            "visibleMeshes": 491,
+            "staticMeshes": 421,
+            "instancedMeshes": 329,
+            "instances": 7267,
+            "skinnedMeshes": 2,
+            "proxies": 4,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 260,
+            "materials": 99,
+            "textures": 37,
+            "geometryBytes": 32610185,
+            "geometryBuckets": {
+              "world": {
+                "bytes": 32610185,
+                "meshes": 517
+              },
+              "frustum": {
+                "bytes": 10969996,
+                "meshes": 107
+              },
+              "static": {
+                "bytes": 17536505,
+                "meshes": 421
+              },
+              "proxy": {
+                "bytes": 198144,
+                "meshes": 4
+              }
+            },
+            "frustumEstimate": {
+              "method": "WebGPU clip0..w world bounding spheres; visible hierarchy and camera layers; no scene mutation",
+              "unboundedMeshes": 33
+            },
+            "materialTextureBytesEstimate": 38898784
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 362,
+              "p50": 9,
+              "p95": 11,
+              "max": 33.89999997615814
+            },
+            "renderSubmissionCpu": {
+              "count": 362,
+              "p50": 5.9000000059604645,
+              "p95": 7.0999999940395355,
+              "max": 28.19999998807907
+            },
+            "rafInterval": {
+              "count": 361,
+              "p50": 16.69999999999891,
+              "p95": 16.700000000000728,
+              "max": 33.400000000000546
+            }
+          }
+        },
+        {
+          "label": "sf-market-canyon",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -281.96,
+              5.209195,
+              308.75
+            ],
+            "rotation": [
+              3.092247318154954,
+              0.7847891758118359,
+              -3.106707315445191,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 886
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 19537,
+              "frameCalls": 22,
+              "drawCalls": 544,
+              "triangles": 1899369,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 871,
+              "attributesSize": 56858518,
+              "geometries": 267,
+              "indexAttributes": 228,
+              "indexAttributesSize": 9400992,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 574,
+              "programsSize": 3272101,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 323,
+              "storageAttributesSize": 4813568,
+              "textures": 75,
+              "texturesSize": 169636564,
+              "uniformBuffers": 978,
+              "uniformBuffersSize": 285632,
+              "total": 244267375
+            }
+          },
+          "scene": {
+            "meshes": 709,
+            "visibleMeshes": 668,
+            "staticMeshes": 613,
+            "instancedMeshes": 472,
+            "instances": 11727,
+            "skinnedMeshes": 2,
+            "proxies": 7,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 312,
+            "materials": 110,
+            "textures": 47,
+            "geometryBytes": 38685699,
+            "geometryBuckets": {
+              "world": {
+                "bytes": 38685699,
+                "meshes": 709
+              },
+              "frustum": {
+                "bytes": 24209726,
+                "meshes": 209
+              },
+              "static": {
+                "bytes": 21836343,
+                "meshes": 613
+              },
+              "proxy": {
+                "bytes": 469224,
+                "meshes": 7
+              }
+            },
+            "frustumEstimate": {
+              "method": "WebGPU clip0..w world bounding spheres; visible hierarchy and camera layers; no scene mutation",
+              "unboundedMeshes": 28
+            },
+            "materialTextureBytesEstimate": 56134752
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 343,
+              "p50": 10.800000011920929,
+              "p95": 15.299999982118607,
+              "max": 147.09999999403954
+            },
+            "renderSubmissionCpu": {
+              "count": 343,
+              "p50": 7,
+              "p95": 9.5,
+              "max": 84
+            },
+            "rafInterval": {
+              "count": 342,
+              "p50": 16.69999999999709,
+              "p95": 16.799999999999272,
+              "max": 133.29999999999927
+            }
+          }
+        },
+        {
+          "label": "sf-camera-out",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -210.5,
+              5.989750000000001,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412607,
+              -0.48666996145388625,
+              -0.04630839973098225,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 1310
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 28865,
+              "frameCalls": 22,
+              "drawCalls": 534,
+              "triangles": 1531706,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 882,
+              "attributesSize": 59150555,
+              "geometries": 268,
+              "indexAttributes": 227,
+              "indexAttributesSize": 9257304,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 567,
+              "programsSize": 3208675,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 316,
+              "storageAttributesSize": 4809408,
+              "textures": 78,
+              "texturesSize": 177927745,
+              "uniformBuffers": 976,
+              "uniformBuffersSize": 287856,
+              "total": 254641543
+            }
+          },
+          "scene": {
+            "meshes": 689,
+            "visibleMeshes": 657,
+            "staticMeshes": 593,
+            "instancedMeshes": 456,
+            "instances": 11020,
+            "skinnedMeshes": 2,
+            "proxies": 7,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 307,
+            "materials": 108,
+            "textures": 43,
+            "geometryBytes": 36677352,
+            "geometryBuckets": {
+              "world": {
+                "bytes": 36677352,
+                "meshes": 689
+              },
+              "frustum": {
+                "bytes": 10079780,
+                "meshes": 106
+              },
+              "static": {
+                "bytes": 21743928,
+                "meshes": 593
+              },
+              "proxy": {
+                "bytes": 469224,
+                "meshes": 7
+              }
+            },
+            "frustumEstimate": {
+              "method": "WebGPU clip0..w world bounding spheres; visible hierarchy and camera layers; no scene mutation",
+              "unboundedMeshes": 36
+            },
+            "materialTextureBytesEstimate": 46006491
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 334,
+              "p50": 10.599999994039536,
+              "p95": 15.699999988079071,
+              "max": 131.10000002384186
+            },
+            "renderSubmissionCpu": {
+              "count": 334,
+              "p50": 6.600000023841858,
+              "p95": 9.099999994039536,
+              "max": 122
+            },
+            "rafInterval": {
+              "count": 333,
+              "p50": 16.69999999999709,
+              "p95": 16.799999999999272,
+              "max": 116.70000000000073
+            }
+          }
+        },
+        {
+          "label": "sf-ferry-return",
+          "backend": "webgpu",
+          "revision": "186",
+          "gpu": {
+            "vendor": "apple",
+            "architecture": "metal-3",
+            "device": "",
+            "description": ""
+          },
+          "buffer": {
+            "width": 960,
+            "height": 600,
+            "pixelRatio": 1
+          },
+          "camera": {
+            "position": [
+              -110.5,
+              5.552624999999999,
+              112.5
+            ],
+            "rotation": [
+              -0.09876465031412608,
+              -0.48666996145389885,
+              -0.04630839973098335,
+              "XYZ"
+            ],
+            "fov": 62,
+            "near": 0.5,
+            "far": 20000
+          },
+          "post": {
+            "enabled": true,
+            "ssr": true,
+            "bloom": true,
+            "framesRendered": 1727
+          },
+          "rendererInfo": {
+            "render": {
+              "calls": 38039,
+              "frameCalls": 22,
+              "drawCalls": 543,
+              "triangles": 1366491,
+              "points": 0,
+              "lines": 0,
+              "timestamp": 0
+            },
+            "memory": {
+              "attributes": 890,
+              "attributesSize": 61040879,
+              "geometries": 269,
+              "indexAttributes": 228,
+              "indexAttributesSize": 9125712,
+              "indirectStorageAttributes": 0,
+              "indirectStorageAttributesSize": 0,
+              "programs": 569,
+              "programsSize": 3261343,
+              "readbackBuffers": 0,
+              "readbackBuffersSize": 0,
+              "renderTargets": 17,
+              "storageAttributes": 314,
+              "storageAttributesSize": 4808512,
+              "textures": 81,
+              "texturesSize": 184239501,
+              "uniformBuffers": 973,
+              "uniformBuffersSize": 286656,
+              "total": 262762603
+            }
+          },
+          "scene": {
+            "meshes": 687,
+            "visibleMeshes": 652,
+            "staticMeshes": 591,
+            "instancedMeshes": 454,
+            "instances": 10619,
+            "skinnedMeshes": 2,
+            "proxies": 7,
+            "sharingPipeline": 0,
+            "staticChunks": 0,
+            "spatialChunksInferredFromPipelineLinks": 0,
+            "geometries": 308,
+            "materials": 109,
+            "textures": 46,
+            "geometryBytes": 36600340,
+            "geometryBuckets": {
+              "world": {
+                "bytes": 36600340,
+                "meshes": 687
+              },
+              "frustum": {
+                "bytes": 10969996,
+                "meshes": 107
+              },
+              "static": {
+                "bytes": 21743032,
+                "meshes": 591
+              },
+              "proxy": {
+                "bytes": 469224,
+                "meshes": 7
+              }
+            },
+            "frustumEstimate": {
+              "method": "WebGPU clip0..w world bounding spheres; visible hierarchy and camera layers; no scene mutation",
+              "unboundedMeshes": 33
+            },
+            "materialTextureBytesEstimate": 52319824
+          },
+          "timingMs": {
+            "applicationRafCpu": {
+              "count": 331,
+              "p50": 10.800000011920929,
+              "p95": 17.099999994039536,
+              "max": 120.90000000596046
+            },
+            "renderSubmissionCpu": {
+              "count": 331,
+              "p50": 6.799999982118607,
+              "p95": 9.199999988079071,
+              "max": 115.59999999403954
+            },
+            "rafInterval": {
+              "count": 330,
+              "p50": 16.69999999999709,
+              "p95": 16.80000000000291,
+              "max": 116.59999999999854
+            }
+          }
+        }
+      ]
+    }
+  },
+  "tests": {
+    "head": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+    "finalHead": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+    "clean": true,
+    "node": "v22.22.2",
+    "typecheckExit": 0,
+    "provenanceExit": 0,
+    "unitExit": 0,
+    "groups": {
+      "render": {
+        "files": 24,
+        "passedTests": 227
+      },
+      "ui": {
+        "files": 13,
+        "passedTests": 39
+      },
+      "content": {
+        "files": 3,
+        "passedTests": 119
+      },
+      "sim": {
+        "files": 23,
+        "passedTests": 275
+      },
+      "golden": {
+        "files": 1,
+        "passedTests": 25
+      }
+    },
+    "totalTests": 685,
+    "counts": [
+      "Test Files  64 passed (64)",
+      "Tests  685 passed (685)"
+    ],
+    "duration": "47.18s (tests 85%, import 12%, transform 2%)",
+    "historic": {
+      "base": "a904848f0fd5aeebde4b6cd0a0a5ff7572dd07b4",
+      "head": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+      "historicalJsonFiles": 39,
+      "changed": [],
+      "allUnchanged": true
+    }
+  },
+  "avatarContinuity": {
+    "passed": true,
+    "replay": {
+      "frames": 776,
+      "initialHash": "79c86ac9",
+      "finalHash": "befd82c9",
+      "targetId": 20
+    },
+    "checks": [
+      "Packed served bytes, native Apple/Metal, loaded crowd, actual same-tick draw rosters and27-call cap verified",
+      "Recorded776 ordinary input frames; 2 nearby visible IDs; 0 legacy near appearances"
+    ],
+    "gpu": {
+      "renderer": "ANGLE (Apple, ANGLE Metal Renderer: Apple M4, Unspecified Version)",
+      "error": 0
+    },
+    "errors": [],
+    "legacyNear": [],
+    "transitions": [],
+    "sourceStart": {
+      "revision": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+      "status": "",
+      "renderSourceSHA256": "09cc104043919812c014b63f20a1be27ee4090e1b40450ba974600e5dc0f45e5"
+    },
+    "sourceEnd": {
+      "revision": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+      "status": "",
+      "renderSourceSHA256": "09cc104043919812c014b63f20a1be27ee4090e1b40450ba974600e5dc0f45e5"
+    }
+  },
+  "headroomControl": {
+    "startedAt": "2026-10-26T17:09:17.113Z",
+    "browserHeapMB": 1536,
+    "diagnosticOnly": true,
+    "records": [
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "stop sign backs",
+        "parent": "street furniture -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:sign-back",
+        "original": "fc:sign-back",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "stop sign backs",
+          "parent": "street furniture -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:sign-back",
+          "original": "fc:sign-back",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-back",
+        "stage": "vertex",
+        "codeLength": 4253
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "one-way signs",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:one-way",
+        "original": "fc:one-way",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "one-way signs",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:one-way",
+          "original": "fc:one-way",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:one-way",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "one-way sign backs",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:sign-back",
+        "original": "fc:sign-back",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "one-way sign backs",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:sign-back",
+          "original": "fc:sign-back",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-back",
+        "stage": "vertex",
+        "codeLength": 4253
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "cleaning signs",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:sign-cleaning",
+        "original": "fc:sign-cleaning",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "cleaning signs",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:sign-cleaning",
+          "original": "fc:sign-cleaning",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-cleaning",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "time signs",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:sign-time",
+        "original": "fc:sign-time",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "time signs",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:sign-time",
+          "original": "fc:sign-time",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-time",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "noParking signs",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:sign-noparking",
+        "original": "fc:sign-noparking",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "noParking signs",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:sign-noparking",
+          "original": "fc:sign-noparking",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-noparking",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront sign slots",
+        "parent": "storefront signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-fascia",
+        "original": "fc:storefront-fascia",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront sign slots",
+          "parent": "storefront signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-fascia",
+          "original": "fc:storefront-fascia",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-fascia",
+        "stage": "vertex",
+        "codeLength": 3949
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront brackets",
+        "parent": "storefront signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-bracket",
+        "original": "fc:storefront-bracket",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront brackets",
+          "parent": "storefront signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-bracket",
+          "original": "fc:storefront-bracket",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-bracket",
+        "stage": "vertex",
+        "codeLength": 3949
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "signal heads",
+        "parent": "street furniture -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:signal-head",
+        "original": "fc:signal-head",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "signal heads",
+          "parent": "street furniture -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:signal-head",
+          "original": "fc:signal-head",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:signal-head",
+        "stage": "vertex",
+        "codeLength": 4253
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "pedestrian heads",
+        "parent": "street furniture -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:signal-head",
+        "original": "fc:signal-head",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "pedestrian heads",
+          "parent": "street furniture -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:signal-head",
+          "original": "fc:signal-head",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:signal-head",
+        "stage": "vertex",
+        "codeLength": 4253
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "signal lenses",
+        "parent": "street furniture -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:signal-lens",
+        "original": "fc:signal-lens",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "signal lenses",
+          "parent": "street furniture -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:signal-lens",
+          "original": "fc:signal-lens",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:signal-lens",
+        "stage": "vertex",
+        "codeLength": 3467
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "one-way signs",
+        "parent": "street signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:one-way",
+        "original": "fc:one-way",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "one-way signs",
+          "parent": "street signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:one-way",
+          "original": "fc:one-way",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:one-way",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "one-way sign backs",
+        "parent": "street signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:sign-back",
+        "original": "fc:sign-back",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "one-way sign backs",
+          "parent": "street signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:sign-back",
+          "original": "fc:sign-back",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-back",
+        "stage": "vertex",
+        "codeLength": 4253
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "cleaning signs",
+        "parent": "street signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:sign-cleaning",
+        "original": "fc:sign-cleaning",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "cleaning signs",
+          "parent": "street signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:sign-cleaning",
+          "original": "fc:sign-cleaning",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:sign-cleaning",
+        "stage": "vertex",
+        "codeLength": 4389
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront sign slots",
+        "parent": "storefront signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-fascia",
+        "original": "fc:storefront-fascia",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront sign slots",
+          "parent": "storefront signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-fascia",
+          "original": "fc:storefront-fascia",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-fascia",
+        "stage": "vertex",
+        "codeLength": 3949
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront brackets",
+        "parent": "storefront signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-bracket",
+        "original": "fc:storefront-bracket",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront brackets",
+          "parent": "storefront signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-bracket",
+          "original": "fc:storefront-bracket",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-bracket",
+        "stage": "vertex",
+        "codeLength": 3949
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "palm crowns",
+        "parent": "palms",
+        "grandparent": "street-detail",
+        "material": "fc:palm-fronds",
+        "original": "fc:palm-fronds",
+        "attributes": [
+          "position",
+          "color",
+          "normal"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "palm crowns",
+          "parent": "palms",
+          "grandparent": "street-detail",
+          "material": "fc:palm-fronds",
+          "original": "fc:palm-fronds",
+          "attributes": [
+            "position",
+            "color",
+            "normal"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "codeLength": 4380
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "Mesh",
+        "parent": "crowd_body",
+        "grandparent": "Scene",
+        "material": "crowd:compact",
+        "original": "crowd:compact",
+        "attributes": [
+          "position",
+          "normal",
+          "uv",
+          "tangent",
+          "skinIndex",
+          "skinWeight",
+          "uv1",
+          "uv2"
+        ],
+        "skinned": true,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "Mesh",
+          "parent": "crowd_body",
+          "grandparent": "Scene",
+          "material": "crowd:compact",
+          "original": "crowd:compact",
+          "attributes": [
+            "position",
+            "normal",
+            "uv",
+            "tangent",
+            "skinIndex",
+            "skinWeight",
+            "uv1",
+            "uv2"
+          ],
+          "skinned": true,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "crowd:compact",
+        "stage": "vertex",
+        "codeLength": 7068
+      },
+      {
+        "hook": "createProgram",
+        "name": "crowd:compact",
+        "stage": "fragment",
+        "codeLength": 48519
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -2,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -2,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -2,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -2,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -2,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -2,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -2,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -2,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront blades",
+        "parent": "storefront signs -3,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-blade",
+        "original": "fc:storefront-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront blades",
+          "parent": "storefront signs -3,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-blade",
+          "original": "fc:storefront-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -3,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -3,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -3,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -3,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "street-name blades",
+        "parent": "street signs -3,0",
+        "grandparent": "street-detail",
+        "material": "fc:street-blade",
+        "original": "fc:street-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "street-name blades",
+          "parent": "street signs -3,0",
+          "grandparent": "street-detail",
+          "material": "fc:street-blade",
+          "original": "fc:street-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -3,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -3,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -3,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -3,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "street-name blades",
+        "parent": "street signs -3,-1",
+        "grandparent": "street-detail",
+        "material": "fc:street-blade",
+        "original": "fc:street-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "street-name blades",
+          "parent": "street signs -3,-1",
+          "grandparent": "street-detail",
+          "material": "fc:street-blade",
+          "original": "fc:street-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront blades",
+        "parent": "storefront signs -3,-1",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-blade",
+        "original": "fc:storefront-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront blades",
+          "parent": "storefront signs -3,-1",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-blade",
+          "original": "fc:storefront-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "street-name blades",
+        "parent": "street signs -3,-2",
+        "grandparent": "street-detail",
+        "material": "fc:street-blade",
+        "original": "fc:street-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "street-name blades",
+          "parent": "street signs -3,-2",
+          "grandparent": "street-detail",
+          "material": "fc:street-blade",
+          "original": "fc:street-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -3,-2",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -3,-2",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -3,-2",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -3,-2",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront blades",
+        "parent": "storefront signs -3,-2",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-blade",
+        "original": "fc:storefront-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront blades",
+          "parent": "storefront signs -3,-2",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-blade",
+          "original": "fc:storefront-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront blades",
+        "parent": "storefront signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-blade",
+        "original": "fc:storefront-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront blades",
+          "parent": "storefront signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-blade",
+          "original": "fc:storefront-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -4,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -4,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -4,0",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -4,0",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "street-name blades",
+        "parent": "street signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:street-blade",
+        "original": "fc:street-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "street-name blades",
+          "parent": "street signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:street-blade",
+          "original": "fc:street-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "street-name blades",
+        "parent": "street signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:street-blade",
+        "original": "fc:street-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "street-name blades",
+          "parent": "street signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:street-blade",
+          "original": "fc:street-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "junctions -4,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road",
+        "original": "fc:road",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "junctions -4,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road",
+          "original": "fc:road",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "road paint -4,-1",
+        "parent": "street-detail",
+        "grandparent": "",
+        "material": "fc:road-paint",
+        "original": "fc:road-paint",
+        "attributes": [
+          "position",
+          "normal",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "road paint -4,-1",
+          "parent": "street-detail",
+          "grandparent": "",
+          "material": "fc:road-paint",
+          "original": "fc:road-paint",
+          "attributes": [
+            "position",
+            "normal",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "storefront blades",
+        "parent": "storefront signs -4,-1",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-blade",
+        "original": "fc:storefront-blade",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": true,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "storefront blades",
+          "parent": "storefront signs -4,-1",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-blade",
+          "original": "fc:storefront-blade",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": true,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "far",
+        "parent": "far:f3_0",
+        "grandparent": "far",
+        "material": "fc:far",
+        "original": "fc:far",
+        "attributes": [
+          "position",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "far",
+          "parent": "far:f3_0",
+          "grandparent": "far",
+          "material": "fc:far",
+          "original": "fc:far",
+          "attributes": [
+            "position",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "far",
+        "parent": "far:f1_0",
+        "grandparent": "far",
+        "material": "fc:far",
+        "original": "fc:far",
+        "attributes": [
+          "position",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "far",
+          "parent": "far:f1_0",
+          "grandparent": "far",
+          "material": "fc:far",
+          "original": "fc:far",
+          "attributes": [
+            "position",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "far",
+        "parent": "far:f0_0",
+        "grandparent": "far",
+        "material": "fc:far",
+        "original": "fc:far",
+        "attributes": [
+          "position",
+          "color"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "far",
+          "parent": "far:f0_0",
+          "grandparent": "far",
+          "material": "fc:far",
+          "original": "fc:far",
+          "attributes": [
+            "position",
+            "color"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "bar neons",
+        "parent": "storefront signs -3,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-neon",
+        "original": "fc:storefront-neon",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "bar neons",
+          "parent": "storefront signs -3,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-neon",
+          "original": "fc:storefront-neon",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-neon",
+        "stage": "vertex",
+        "codeLength": 3490
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "bar neons",
+        "parent": "storefront signs -3,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-neon",
+        "original": "fc:storefront-neon",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "bar neons",
+          "parent": "storefront signs -3,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-neon",
+          "original": "fc:storefront-neon",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-neon",
+        "stage": "vertex",
+        "codeLength": 3490
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "bar neons",
+        "parent": "storefront signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-neon",
+        "original": "fc:storefront-neon",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "bar neons",
+          "parent": "storefront signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-neon",
+          "original": "fc:storefront-neon",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-neon",
+        "stage": "vertex",
+        "codeLength": 3490
+      },
+      {
+        "hook": "NodeManager.getForRender",
+        "object": "bar neons",
+        "parent": "storefront signs -4,0",
+        "grandparent": "street-detail",
+        "material": "fc:storefront-neon",
+        "original": "fc:storefront-neon",
+        "attributes": [
+          "position",
+          "normal",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "PerspectiveCamera",
+        "cached": false,
+        "current": {
+          "object": "bar neons",
+          "parent": "storefront signs -4,0",
+          "grandparent": "street-detail",
+          "material": "fc:storefront-neon",
+          "original": "fc:storefront-neon",
+          "attributes": [
+            "position",
+            "normal",
+            "uv"
+          ],
+          "skinned": false,
+          "castShadow": false,
+          "camera": "PerspectiveCamera"
+        }
+      },
+      {
+        "hook": "createProgram",
+        "name": "fc:storefront-neon",
+        "stage": "vertex",
+        "codeLength": 3490
+      }
+    ],
+    "programMax": {
+      "ShadowMaterial:vertex": {
+        "name": "ShadowMaterial",
+        "stage": "vertex",
+        "count": 2,
+        "maxCodeLength": 4288
+      },
+      "ShadowMaterial:fragment": {
+        "name": "ShadowMaterial",
+        "stage": "fragment",
+        "count": 1,
+        "maxCodeLength": 1243
+      },
+      "fc:signal-pole:vertex": {
+        "name": "fc:signal-pole",
+        "stage": "vertex",
+        "count": 10,
+        "maxCodeLength": 4253
+      },
+      "fc:sign-post:vertex": {
+        "name": "fc:sign-post",
+        "stage": "vertex",
+        "count": 6,
+        "maxCodeLength": 4253
+      },
+      "fc:palm-trunk:vertex": {
+        "name": "fc:palm-trunk",
+        "stage": "vertex",
+        "count": 14,
+        "maxCodeLength": 4253
+      },
+      "fc:barber-pole:vertex": {
+        "name": "fc:barber-pole",
+        "stage": "vertex",
+        "count": 2,
+        "maxCodeLength": 4084
+      },
+      "fc:barber-pole:fragment": {
+        "name": "fc:barber-pole",
+        "stage": "fragment",
+        "count": 1,
+        "maxCodeLength": 39903
+      },
+      "fc:sign-cleaning:vertex": {
+        "name": "fc:sign-cleaning",
+        "stage": "vertex",
+        "count": 7,
+        "maxCodeLength": 4389
+      },
+      "fc:stop-sign:vertex": {
+        "name": "fc:stop-sign",
+        "stage": "vertex",
+        "count": 4,
+        "maxCodeLength": 4389
+      },
+      "fc:sign-back:vertex": {
+        "name": "fc:sign-back",
+        "stage": "vertex",
+        "count": 9,
+        "maxCodeLength": 4253
+      },
+      "fc:stop-plaque:vertex": {
+        "name": "fc:stop-plaque",
+        "stage": "vertex",
+        "count": 2,
+        "maxCodeLength": 4389
+      },
+      "fc:sign-tow:vertex": {
+        "name": "fc:sign-tow",
+        "stage": "vertex",
+        "count": 2,
+        "maxCodeLength": 4389
+      },
+      "fc:signal-head:vertex": {
+        "name": "fc:signal-head",
+        "stage": "vertex",
+        "count": 12,
+        "maxCodeLength": 4253
+      },
+      "fc:signal-lens:vertex": {
+        "name": "fc:signal-lens",
+        "stage": "vertex",
+        "count": 6,
+        "maxCodeLength": 3467
+      },
+      "fc:one-way:vertex": {
+        "name": "fc:one-way",
+        "stage": "vertex",
+        "count": 5,
+        "maxCodeLength": 4389
+      },
+      "fc:sign-time:vertex": {
+        "name": "fc:sign-time",
+        "stage": "vertex",
+        "count": 4,
+        "maxCodeLength": 4389
+      },
+      "fc:storefront-fascia:vertex": {
+        "name": "fc:storefront-fascia",
+        "stage": "vertex",
+        "count": 5,
+        "maxCodeLength": 3949
+      },
+      "fc:storefront-bracket:vertex": {
+        "name": "fc:storefront-bracket",
+        "stage": "vertex",
+        "count": 5,
+        "maxCodeLength": 3949
+      },
+      "fc:sign-noparking:vertex": {
+        "name": "fc:sign-noparking",
+        "stage": "vertex",
+        "count": 1,
+        "maxCodeLength": 4389
+      },
+      "fc:palm-fronds:vertex": {
+        "name": "fc:palm-fronds",
+        "stage": "vertex",
+        "count": 15,
+        "maxCodeLength": 4380
+      },
+      "crowd:compact:vertex": {
+        "name": "crowd:compact",
+        "stage": "vertex",
+        "count": 1,
+        "maxCodeLength": 7068
+      },
+      "crowd:compact:fragment": {
+        "name": "crowd:compact",
+        "stage": "fragment",
+        "count": 1,
+        "maxCodeLength": 48519
+      },
+      "fc:storefront-neon:vertex": {
+        "name": "fc:storefront-neon",
+        "stage": "vertex",
+        "count": 4,
+        "maxCodeLength": 3490
+      }
+    },
+    "errors": [],
+    "events": [
+      "original camera regions complete",
+      "original map sequence complete",
+      "trace armed",
+      "camera returned"
+    ],
+    "sha": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+    "heapBeforeMap": {
+      "usedSize": 1183877780,
+      "totalSize": 1264582656,
+      "embedderHeapUsedSize": 20774008,
+      "backingStorageSize": 178519321
+    },
+    "heapAfterMap": {
+      "usedSize": 948025716,
+      "totalSize": 1197096960,
+      "embedderHeapUsedSize": 37667976,
+      "backingStorageSize": 165646802
+    },
+    "before": {
+      "render": {
+        "drawCalls": 543,
+        "triangles": 1478988,
+        "tilesLoaded": 7,
+        "cameraMode": "fly",
+        "presentation": true,
+        "lightingPreset": "golden",
+        "followsClock": false,
+        "weather": {
+          "fog": 0,
+          "wetness": 0,
+          "rain": false,
+          "puddles": 0,
+          "tideM": 0
+        },
+        "streetLightsLit": 0,
+        "crowdDrawn": 2,
+        "crowdLoaded": 12,
+        "foliage": {
+          "near": 55,
+          "far": 1735,
+          "draws": 6
+        },
+        "surfaceTextures": [],
+        "night": false,
+        "tilesPending": 0,
+        "tilesTotal": 583,
+        "tilesFailed": 0,
+        "landmarks": 2,
+        "fps": 13.151630213420306,
+        "pixelRatio": 1,
+        "shadows": true,
+        "agents": 230,
+        "agentsNear": 5,
+        "agentsTotal": 237,
+        "agentDrawCalls": 16,
+        "agentModels": [
+          "robotaxi",
+          "errandRobot",
+          "sidewalkBot"
+        ],
+        "playerCarsFromFile": 1,
+        "walkers": 0,
+        "walkersFromFile": 0,
+        "farCellsTotal": 33,
+        "farCells": 33,
+        "farCellsDrawn": 5,
+        "farTriangles": 471607,
+        "farSeamEdges": 106,
+        "cameraFar": 20000,
+        "backend": "webgpu",
+        "staticScene": {
+          "roots": 7,
+          "frozenObjects": 84,
+          "proxies": 7,
+          "triangles": 18183,
+          "sourceAttributeBytes": 1045950,
+          "proxyAttributeBytes": 251028,
+          "ownedBufferBytes": 360126,
+          "indexUpdates": 0
+        },
+        "warmup": {
+          "admitted": 0,
+          "cachedLayouts": 0,
+          "pending": 0,
+          "active": false,
+          "compiled": 2,
+          "cancelled": 0,
+          "failed": 0,
+          "lastError": null
+        },
+        "shadowCascades": 2,
+        "shadowAtlas": {
+          "width": 4096,
+          "height": 2048
+        },
+        "graphicsError": null,
+        "postProcessing": {
+          "enabled": true,
+          "ssr": true,
+          "bloom": true,
+          "framesRendered": 859
+        },
+        "gfx": {
+          "tier": "high",
+          "pixelBudget": null,
+          "steps": []
+        },
+        "farBudget": {
+          "radius": null,
+          "queued": 0,
+          "loading": 0,
+          "failed": 0
+        },
+        "streetDetail": {
+          "layers": [
+            "markings",
+            "furniture",
+            "signs",
+            "trees",
+            "storefronts",
+            "grass"
+          ],
+          "junctions": 7439,
+          "cellsBuilt": 28,
+          "patches": 100,
+          "crosswalks": 350,
+          "stopBars": 168,
+          "signals": 150,
+          "stopSigns": 19,
+          "signPosts": 212,
+          "blades": 202,
+          "curbSigns": 277,
+          "trees": 6516,
+          "palms": 186,
+          "storefronts": 339
+        },
+        "buildingDetail": {
+          "buildings": 17,
+          "triangles": 55164,
+          "drawCalls": 1,
+          "pending": false,
+          "registered": 684,
+          "styles": {
+            "masonry": 0,
+            "deco": 9,
+            "brick": 0,
+            "residential": 1,
+            "modern": 7
+          }
+        },
+        "grass": {
+          "loaded": true,
+          "areas": 2844,
+          "patches": 34,
+          "blades": 2609,
+          "surfaceTriangles": 8037,
+          "bladeTriangles": 5218,
+          "drawCalls": 2,
+          "pending": false
+        }
+      },
+      "tick": 879
+    },
+    "heapBeforePoint": {
+      "usedSize": 1140723468,
+      "totalSize": 1221017600,
+      "embedderHeapUsedSize": 8911680,
+      "backingStorageSize": 167033414
+    },
+    "last": {
+      "frames": 598,
+      "current": {
+        "object": "Bloom [ Composite ]",
+        "material": "Bloom_comp",
+        "original": "Bloom_comp",
+        "attributes": [
+          "position",
+          "uv"
+        ],
+        "skinned": false,
+        "castShadow": false,
+        "camera": "OrthographicCamera"
+      },
+      "render": {
+        "drawCalls": 619,
+        "triangles": 1473667,
+        "tilesLoaded": 6,
+        "cameraMode": "fly",
+        "presentation": true,
+        "lightingPreset": "golden",
+        "followsClock": false,
+        "weather": {
+          "fog": 0,
+          "wetness": 0,
+          "rain": false,
+          "puddles": 0,
+          "tideM": 0
+        },
+        "streetLightsLit": 0,
+        "crowdDrawn": 1,
+        "crowdLoaded": 12,
+        "foliage": {
+          "near": 65,
+          "far": 1702,
+          "draws": 6
+        },
+        "surfaceTextures": [],
+        "night": false,
+        "tilesPending": 0,
+        "tilesTotal": 583,
+        "tilesFailed": 0,
+        "landmarks": 2,
+        "fps": 59.98702867243824,
+        "pixelRatio": 1,
+        "shadows": true,
+        "agents": 231,
+        "agentsNear": 3,
+        "agentsTotal": 249,
+        "agentDrawCalls": 21,
+        "agentModels": [
+          "robotaxi",
+          "errandRobot",
+          "sidewalkBot"
+        ],
+        "playerCarsFromFile": 1,
+        "walkers": 0,
+        "walkersFromFile": 0,
+        "farCellsTotal": 33,
+        "farCells": 33,
+        "farCellsDrawn": 14,
+        "farTriangles": 471607,
+        "farSeamEdges": 106,
+        "cameraFar": 20000,
+        "backend": "webgpu",
+        "staticScene": {
+          "roots": 6,
+          "frozenObjects": 71,
+          "proxies": 6,
+          "triangles": 14695,
+          "sourceAttributeBytes": 834550,
+          "proxyAttributeBytes": 200292,
+          "ownedBufferBytes": 288462,
+          "indexUpdates": 0
+        },
+        "warmup": {
+          "admitted": 0,
+          "cachedLayouts": 0,
+          "pending": 0,
+          "active": false,
+          "compiled": 2,
+          "cancelled": 0,
+          "failed": 0,
+          "lastError": null
+        },
+        "shadowCascades": 2,
+        "shadowAtlas": {
+          "width": 4096,
+          "height": 2048
+        },
+        "graphicsError": null,
+        "postProcessing": {
+          "enabled": true,
+          "ssr": true,
+          "bloom": true,
+          "framesRendered": 1459
+        },
+        "gfx": {
+          "tier": "high",
+          "pixelBudget": null,
+          "steps": []
+        },
+        "farBudget": {
+          "radius": null,
+          "queued": 0,
+          "loading": 0,
+          "failed": 0
+        },
+        "streetDetail": {
+          "layers": [
+            "markings",
+            "furniture",
+            "signs",
+            "trees",
+            "storefronts",
+            "grass"
+          ],
+          "junctions": 7439,
+          "cellsBuilt": 27,
+          "patches": 95,
+          "crosswalks": 333,
+          "stopBars": 163,
+          "signals": 145,
+          "stopSigns": 19,
+          "signPosts": 202,
+          "blades": 191,
+          "curbSigns": 260,
+          "trees": 6516,
+          "palms": 186,
+          "storefronts": 298
+        },
+        "buildingDetail": {
+          "buildings": 18,
+          "triangles": 56772,
+          "drawCalls": 1,
+          "pending": false,
+          "registered": 499,
+          "styles": {
+            "masonry": 0,
+            "deco": 10,
+            "brick": 0,
+            "residential": 1,
+            "modern": 7
+          }
+        },
+        "grass": {
+          "loaded": true,
+          "areas": 2844,
+          "patches": 34,
+          "blades": 2926,
+          "surfaceTriangles": 8037,
+          "bladeTriangles": 5852,
+          "drawCalls": 2,
+          "pending": false
+        }
+      },
+      "memory": {
+        "attributes": 918,
+        "attributesSize": 55129281,
+        "geometries": 278,
+        "indexAttributes": 237,
+        "indexAttributesSize": 8852820,
+        "indirectStorageAttributes": 0,
+        "indirectStorageAttributesSize": 0,
+        "programs": 655,
+        "programsSize": 3677252,
+        "readbackBuffers": 0,
+        "readbackBuffersSize": 0,
+        "renderTargets": 17,
+        "storageAttributes": 344,
+        "storageAttributesSize": 4799424,
+        "textures": 75,
+        "texturesSize": 166455948,
+        "uniformBuffers": 1154,
+        "uniformBuffersSize": 370400,
+        "total": 239285125
+      }
+    },
+    "heapAfterPoint": {
+      "usedSize": 1200238116,
+      "totalSize": 1329233920,
+      "embedderHeapUsedSize": 13008496,
+      "backingStorageSize": 167138782
+    },
+    "heapAfterGC": {
+      "usedSize": 1088097976,
+      "totalSize": 1112440832,
+      "embedderHeapUsedSize": 8069648,
+      "backingStorageSize": 167138770
+    },
+    "finished": true,
+    "finishedAt": "2026-10-26T17:10:12.608Z"
+  },
+  "nativeAvatar": {
+    "mode": "portrait",
+    "heapMB": 1536,
+    "startedAt": "2026-10-26T17:13:34.386Z",
+    "events": [
+      "ready",
+      "existing person paused",
+      "native authored portrait captured"
+    ],
+    "errors": [],
+    "artifact": [
+      {
+        "file": "index.html",
+        "sha256": "e67af8d39a54e1b6c052e10f66308a44c99b3c69c2153a2e81248373c6941e9e"
+      },
+      {
+        "file": "assets.index.json",
+        "sha256": "560fabad335940f1cc4020505d0f8c33f64546142eb9057089fc61302737a33e"
+      },
+      {
+        "file": "tiles/sf/manifest.json",
+        "sha256": "4780a327d21f4ac0f316145558bfc72ea3283a95af28cae06bfe1a6f61052dc5"
+      },
+      {
+        "file": "./assets/index-Cv6HRFiM.js",
+        "sha256": "97587a5188db923fe425f695c18a96cece8045da529e49597c38ab50435ceaa5"
+      }
+    ],
+    "initial": {
+      "version": 19,
+      "render": {
+        "drawCalls": 152,
+        "triangles": 268508,
+        "tilesLoaded": 0,
+        "cameraMode": "chase",
+        "presentation": true,
+        "lightingPreset": "golden",
+        "followsClock": false,
+        "weather": {
+          "fog": 0,
+          "wetness": 0,
+          "rain": false,
+          "puddles": 0,
+          "tideM": 0
+        },
+        "streetLightsLit": 0,
+        "crowdDrawn": 0,
+        "crowdLoaded": 0,
+        "foliage": {
+          "near": 0,
+          "far": 0,
+          "draws": 0
+        },
+        "surfaceTextures": [],
+        "night": false,
+        "tilesPending": 4,
+        "tilesTotal": 583,
+        "tilesFailed": 0,
+        "landmarks": 0,
+        "fps": 60,
+        "pixelRatio": 1,
+        "shadows": true,
+        "agents": 261,
+        "agentsNear": 6,
+        "agentsTotal": 330,
+        "agentDrawCalls": 22,
+        "agentModels": [
+          "robotaxi",
+          "errandRobot",
+          "sidewalkBot"
+        ],
+        "playerCarsFromFile": 1,
+        "walkers": 0,
+        "walkersFromFile": 0,
+        "farCellsTotal": 33,
+        "farCells": 0,
+        "farCellsDrawn": 0,
+        "farTriangles": 0,
+        "farSeamEdges": 0,
+        "cameraFar": 20000,
+        "backend": "webgpu",
+        "staticScene": {
+          "roots": 0,
+          "frozenObjects": 0,
+          "proxies": 0,
+          "triangles": 0,
+          "sourceAttributeBytes": 0,
+          "proxyAttributeBytes": 0,
+          "ownedBufferBytes": 0,
+          "indexUpdates": 0
+        },
+        "warmup": {
+          "admitted": 0,
+          "cachedLayouts": 0,
+          "pending": 0,
+          "active": false,
+          "compiled": 2,
+          "cancelled": 0,
+          "failed": 0,
+          "lastError": null
+        },
+        "shadowCascades": 2,
+        "shadowAtlas": {
+          "width": 4096,
+          "height": 2048
+        },
+        "graphicsError": null,
+        "postProcessing": {
+          "enabled": true,
+          "ssr": true,
+          "bloom": true,
+          "framesRendered": 1
+        },
+        "gfx": {
+          "tier": "high",
+          "pixelBudget": null,
+          "steps": []
+        },
+        "farBudget": {
+          "radius": null,
+          "queued": 29,
+          "loading": 4,
+          "failed": 0
+        },
+        "streetDetail": {
+          "layers": [],
+          "junctions": 0,
+          "cellsBuilt": 0,
+          "patches": 0,
+          "crosswalks": 0,
+          "stopBars": 0,
+          "signals": 0,
+          "stopSigns": 0,
+          "signPosts": 0,
+          "blades": 0,
+          "curbSigns": 0,
+          "trees": 0,
+          "palms": 0,
+          "storefronts": 0
+        },
+        "buildingDetail": {
+          "buildings": 0,
+          "triangles": 0,
+          "drawCalls": 0,
+          "pending": false,
+          "registered": 0,
+          "styles": {
+            "masonry": 0,
+            "deco": 0,
+            "brick": 0,
+            "residential": 0,
+            "modern": 0
+          }
+        },
+        "grass": {
+          "loaded": false,
+          "areas": 0,
+          "patches": 0,
+          "blades": 0,
+          "surfaceTriangles": 0,
+          "bladeTriangles": 0,
+          "drawCalls": 0,
+          "pending": false
+        }
+      }
+    },
+    "person": {
+      "id": 51,
+      "pose": {
+        "x": -96.02372376742451,
+        "y": 3.2419091591731877,
+        "z": 133.7077970837991,
+        "heading": -5.497787143947313
+      },
+      "tick": 203,
+      "hash": "009ae3f8",
+      "ids": [
+        51
+      ]
+    },
+    "camera": {
+      "x": -93.22372376742452,
+      "y": 4.441909159173187,
+      "z": 134.7077970837991,
+      "yaw": -70.3461759419467,
+      "pitch": -5
+    },
+    "after": {
+      "tick": 203,
+      "hash": "009ae3f8",
+      "bodyVisible": true,
+      "character": "crowd:8",
+      "bodyPosition": [
+        -96.0235352056162,
+        3.241906519307871,
+        133.70760852199078
+      ],
+      "meshes": [
+        {
+          "name": "Mesh",
+          "material": "crowd:compact",
+          "colorMap": "crowd:color-atlas",
+          "normalMap": "crowd:normal-atlas",
+          "roughnessMap": "crowd:roughness",
+          "vertexCount": 4743,
+          "skinned": true
+        }
+      ],
+      "render": {
+        "drawCalls": 505,
+        "triangles": 1373926,
+        "tilesLoaded": 4,
+        "cameraMode": "fly",
+        "presentation": true,
+        "lightingPreset": "golden",
+        "followsClock": false,
+        "weather": {
+          "fog": 0,
+          "wetness": 0,
+          "rain": false,
+          "puddles": 0,
+          "tideM": 0
+        },
+        "streetLightsLit": 0,
+        "crowdDrawn": 2,
+        "crowdLoaded": 12,
+        "foliage": {
+          "near": 67,
+          "far": 1727,
+          "draws": 6
+        },
+        "surfaceTextures": [],
+        "night": false,
+        "tilesPending": 0,
+        "tilesTotal": 583,
+        "tilesFailed": 0,
+        "landmarks": 2,
+        "fps": 11.562448329089415,
+        "pixelRatio": 1,
+        "shadows": true,
+        "agents": 190,
+        "agentsNear": 9,
+        "agentsTotal": 192,
+        "agentDrawCalls": 26,
+        "agentModels": [
+          "robotaxi",
+          "errandRobot",
+          "sidewalkBot"
+        ],
+        "playerCarsFromFile": 1,
+        "walkers": 0,
+        "walkersFromFile": 0,
+        "farCellsTotal": 33,
+        "farCells": 33,
+        "farCellsDrawn": 14,
+        "farTriangles": 471607,
+        "farSeamEdges": 106,
+        "cameraFar": 20000,
+        "backend": "webgpu",
+        "staticScene": {
+          "roots": 4,
+          "frozenObjects": 44,
+          "proxies": 4,
+          "triangles": 7900,
+          "sourceAttributeBytes": 430600,
+          "proxyAttributeBytes": 103344,
+          "ownedBufferBytes": 150744,
+          "indexUpdates": 0
+        },
+        "warmup": {
+          "admitted": 0,
+          "cachedLayouts": 0,
+          "pending": 0,
+          "active": false,
+          "compiled": 2,
+          "cancelled": 0,
+          "failed": 0,
+          "lastError": null
+        },
+        "shadowCascades": 2,
+        "shadowAtlas": {
+          "width": 4096,
+          "height": 2048
+        },
+        "graphicsError": null,
+        "postProcessing": {
+          "enabled": true,
+          "ssr": true,
+          "bloom": true,
+          "framesRendered": 154
+        },
+        "gfx": {
+          "tier": "high",
+          "pixelBudget": null,
+          "steps": []
+        },
+        "farBudget": {
+          "radius": null,
+          "queued": 0,
+          "loading": 0,
+          "failed": 0
+        },
+        "streetDetail": {
+          "layers": [
+            "markings",
+            "furniture",
+            "signs",
+            "trees",
+            "storefronts",
+            "grass"
+          ],
+          "junctions": 7439,
+          "cellsBuilt": 20,
+          "patches": 51,
+          "crosswalks": 192,
+          "stopBars": 107,
+          "signals": 100,
+          "stopSigns": 9,
+          "signPosts": 106,
+          "blades": 95,
+          "curbSigns": 174,
+          "trees": 5943,
+          "palms": 176,
+          "storefronts": 188
+        },
+        "buildingDetail": {
+          "buildings": 18,
+          "triangles": 56772,
+          "drawCalls": 1,
+          "pending": false,
+          "registered": 178,
+          "styles": {
+            "masonry": 0,
+            "deco": 10,
+            "brick": 0,
+            "residential": 1,
+            "modern": 7
+          }
+        },
+        "grass": {
+          "loaded": true,
+          "areas": 2844,
+          "patches": 34,
+          "blades": 2671,
+          "surfaceTriangles": 8037,
+          "bladeTriangles": 5342,
+          "drawCalls": 2,
+          "pending": false
+        }
+      },
+      "camera": [
+        -93.22372376742452,
+        4.441909159173187,
+        134.7077970837991
+      ]
+    },
+    "passed": true,
+    "finishedAt": "2026-10-26T17:13:43.650Z",
+    "sourceSHA": "b729799a6af9f9810aeb83c97e6c203102bf969c",
+    "visualInspection": "Actual authored human with mapped hair, face, red shirt and jeans; no procedural box avatar. Lower body partly overlaps normal game dialogue UI; no full foot-contact acceptance claim from this image.",
+    "scope": "Paused style probe at1536MB; not performance or1024MB acceptance"
+  },
+  "acceptance": {
+    "nativeFourViews": true,
+    "nativeAuthoredAvatarAt1536MB": true,
+    "oneGiBBrowserAccepted": false,
+    "overallPerformanceImprovementClaimed": false,
+    "performanceHoldCleared": false,
+    "hostedCI": false,
+    "fullVerify": false
+  },
+  "baselineCapacityControl": {
+    "mode": "baseline",
+    "heapMB": 1024,
+    "startedAt": "2026-10-26T17:12:24.710Z",
+    "events": [
+      "ready",
+      "four camera regions",
+      "fixed point",
+      "failed"
+    ],
+    "errors": [],
+    "artifact": [
+      {
+        "file": "index.html",
+        "sha256": "d1dc4bb8c64c95fd78280d181175008587e1fcd38a080ba33cf554fdd6cdb6b7"
+      },
+      {
+        "file": "assets.index.json",
+        "sha256": "560fabad335940f1cc4020505d0f8c33f64546142eb9057089fc61302737a33e"
+      },
+      {
+        "file": "tiles/sf/manifest.json",
+        "sha256": "4780a327d21f4ac0f316145558bfc72ea3283a95af28cae06bfe1a6f61052dc5"
+      },
+      {
+        "file": "./assets/index-Daj9yo8v.js",
+        "sha256": "a81635dfb8848bbc29b16ab2199ef2f95b2c07bce84cd83856a76a91ecd9a79c"
+      }
+    ],
+    "initial": {
+      "version": 18,
+      "render": {
+        "drawCalls": 152,
+        "triangles": 268508,
+        "tilesLoaded": 0,
+        "cameraMode": "chase",
+        "presentation": true,
+        "lightingPreset": "golden",
+        "followsClock": false,
+        "weather": {
+          "fog": 0,
+          "wetness": 0,
+          "rain": false,
+          "puddles": 0,
+          "tideM": 0
+        },
+        "streetLightsLit": 0,
+        "crowdDrawn": 0,
+        "crowdLoaded": 0,
+        "foliage": {
+          "near": 0,
+          "far": 0,
+          "draws": 0
+        },
+        "surfaceTextures": [],
+        "night": false,
+        "tilesPending": 4,
+        "tilesTotal": 583,
+        "tilesFailed": 0,
+        "landmarks": 0,
+        "fps": 61.52,
+        "pixelRatio": 1,
+        "shadows": true,
+        "agents": 261,
+        "agentsNear": 6,
+        "agentsTotal": 330,
+        "agentDrawCalls": 22,
+        "agentModels": [
+          "robotaxi",
+          "errandRobot",
+          "sidewalkBot"
+        ],
+        "playerCarsFromFile": 1,
+        "walkers": 0,
+        "walkersFromFile": 0,
+        "farCellsTotal": 33,
+        "farCells": 0,
+        "farCellsDrawn": 0,
+        "farTriangles": 0,
+        "farSeamEdges": 0,
+        "cameraFar": 20000,
+        "backend": "webgpu",
+        "shadowCascades": 2,
+        "shadowAtlas": {
+          "width": 4096,
+          "height": 2048
+        },
+        "graphicsError": null,
+        "postProcessing": {
+          "enabled": true,
+          "ssr": true,
+          "bloom": true,
+          "framesRendered": 1
+        },
+        "gfx": {
+          "tier": "high",
+          "pixelBudget": null,
+          "steps": []
+        },
+        "farBudget": {
+          "radius": null,
+          "queued": 29,
+          "loading": 4,
+          "failed": 0
+        },
+        "streetDetail": {
+          "layers": [],
+          "junctions": 0,
+          "cellsBuilt": 0,
+          "patches": 0,
+          "crosswalks": 0,
+          "stopBars": 0,
+          "signals": 0,
+          "stopSigns": 0,
+          "signPosts": 0,
+          "blades": 0,
+          "curbSigns": 0,
+          "trees": 0,
+          "palms": 0,
+          "storefronts": 0
+        },
+        "buildingDetail": {
+          "buildings": 0,
+          "triangles": 0,
+          "drawCalls": 0,
+          "pending": false,
+          "registered": 0,
+          "styles": {
+            "masonry": 0,
+            "deco": 0,
+            "brick": 0,
+            "residential": 0,
+            "modern": 0
+          }
+        },
+        "grass": {
+          "loaded": false,
+          "areas": 0,
+          "patches": 0,
+          "blades": 0,
+          "surfaceTriangles": 0,
+          "bladeTriangles": 0,
+          "drawCalls": 0,
+          "pending": false
+        }
+      }
+    },
+    "heapBeforeMap": {
+      "usedSize": 971581428,
+      "totalSize": 1042513920,
+      "embedderHeapUsedSize": 9480824,
+      "backingStorageSize": 146397978
+    },
+    "mapOpened": false,
+    "mapClosed": true,
+    "mapComparison": "M open/close only; original baseline lacks the new zoom/pan workflow, so map work is explicitly not identical",
+    "heapBeforePoint": {
+      "usedSize": 930626192,
+      "totalSize": 982433792,
+      "embedderHeapUsedSize": 8553720,
+      "backingStorageSize": 141490046
+    },
+    "paused": {
+      "reason": "OOM",
+      "frames": [
+        {
+          "name": "getNodeAccess",
+          "scriptId": "4",
+          "lineNumber": 4681,
+          "columnNumber": 6111
+        },
+        {
+          "name": "getStorageAccess",
+          "scriptId": "4",
+          "lineNumber": 4681,
+          "columnNumber": 6387
+        },
+        {
+          "name": "getUniforms",
+          "scriptId": "4",
+          "lineNumber": 4699,
+          "columnNumber": 2197
+        },
+        {
+          "name": "buildCode",
+          "scriptId": "4",
+          "lineNumber": 4701,
+          "columnNumber": 194
+        },
+        {
+          "name": "build",
+          "scriptId": "4",
+          "lineNumber": 4293,
+          "columnNumber": 1915
+        },
+        {
+          "name": "getForRender",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 9535
+        },
+        {
+          "name": "getNodeBuilderState",
+          "scriptId": "4",
+          "lineNumber": 4288,
+          "columnNumber": 75894
+        },
+        {
+          "name": "getMonitor",
+          "scriptId": "4",
+          "lineNumber": 4288,
+          "columnNumber": 75954
+        },
+        {
+          "name": "needsRefresh",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 15959
+        },
+        {
+          "name": "_renderObjectDirect",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 73784
+        },
+        {
+          "name": "renderObject",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 72895
+        },
+        {
+          "name": "_renderObjects",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 69946
+        },
+        {
+          "name": "_renderScene",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 56922
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 51452
+        },
+        {
+          "name": "updateBefore",
+          "scriptId": "4",
+          "lineNumber": 4288,
+          "columnNumber": 150916
+        },
+        {
+          "name": "updateBeforeNode",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 715
+        },
+        {
+          "name": "updateBefore",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 15242
+        },
+        {
+          "name": "_renderObjectDirect",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 73825
+        },
+        {
+          "name": "renderObject",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 72895
+        },
+        {
+          "name": "_renderObjects",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 69946
+        },
+        {
+          "name": "_renderScene",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 56922
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 4294,
+          "columnNumber": 51452
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 4288,
+          "columnNumber": 131176
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 4803,
+          "columnNumber": 41246
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 6129,
+          "columnNumber": 59395
+        },
+        {
+          "name": "render",
+          "scriptId": "4",
+          "lineNumber": 6129,
+          "columnNumber": 76357
+        },
+        {
+          "name": "dt",
+          "scriptId": "4",
+          "lineNumber": 6129,
+          "columnNumber": 93427
+        }
+      ]
+    },
+    "failure": "Error: bounded 1500ms\n    at Timeout._onTimeout (file:///private/tmp/fog-city-final-controls.mjs:2:777)\n    at listOnTimeout (node:internal/timers:585:17)\n    at process.processTimers (node:internal/timers:521:7)",
+    "profile": true,
+    "finishedAt": "2026-10-26T17:13:10.054Z",
+    "capacityOutcome": "OOM confirmed by Debugger at fixed viewpoint on original guarded SIM18 artifact"
+  }
+}

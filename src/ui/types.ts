@@ -1,13 +1,27 @@
 import type { SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "../input/keyboard.ts";
 import type { SavePanelOptions } from "./save-panel.ts";
+import type { RoadGraph } from "../render/types.ts";
+import type { TileCollider } from "../sim/world.ts";
+import type { BoundaryFile } from "../sim/boundary.ts";
 
 /** Presentation snapshots are supplied by the owning simulation lanes. */
 export interface MapPoint { readonly x:number; readonly z:number }
 export interface MapNode extends MapPoint { readonly id:string }
-export interface MapEdge { readonly from:string; readonly to:string; readonly length?:number }
+export interface MapEdge {
+  readonly from:string; readonly to:string; readonly length?:number;
+  readonly id?:string; readonly name?:string; readonly widthM?:number; readonly kind?:string;
+  /** Source polyline reference; reversed describes the directed return edge without copying vertices. */
+  readonly points?:readonly (readonly [number,number])[]; readonly reversed?:boolean;
+}
+/** Immutable references to the same SF geography already loaded for the city. */
+export interface MapGeography {
+  readonly tiles:readonly TileCollider[]; readonly roads:RoadGraph|null;
+  readonly boundary:BoundaryFile|null; readonly districts?:unknown;
+}
 export interface MapBlip extends MapPoint { readonly id:string; readonly kind:"water"|"mission"|"safehouse"|"bounty"|"wash"|"robot"; readonly label:string; readonly confirmed?:boolean }
 export interface MapView {
+  readonly geography?:MapGeography;
   readonly nodes:readonly MapNode[];
   /** Every edge is directed; a two-way street is represented by two edges. */
   readonly edges:readonly MapEdge[];

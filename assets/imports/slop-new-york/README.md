@@ -22,3 +22,14 @@ No New York geometry, street graph, geographic database, business names, map lab
 ## Evidence boundary
 
 A source-method port does not by itself establish a visual match or performance parity. Fog City's actual backend, shader readiness, shadows, scene counts, lighting, fallback, gameplay and packed output must be checked on the resulting local build. Hardware FPS is a separate observation. Current work remains local until the complete request is ready for one consolidated PR into main.
+
+## Targeted follow-up, October 26, 2026
+
+The owner's follow-up retains **San Francisco, the existing characters, missions and robot interactions**. Current comparison source is [be65d0ab61b24718b6da8886b7d7bed2d68ac178](https://github.com/mrdoob/slop-newyork/tree/be65d0ab61b24718b6da8886b7d7bed2d68ac178). Its MIT notice is unchanged and remains included in packed output.
+
+- `controllers.js` and `vehicle-physics.js`: adapt fixed-substep power/coasting, speed-sensitive steering, grip sharing and retained collision momentum for the versioned Fog City driving profile. Keep SF terrain, safe pedestrian settlement and our existing contacts.
+- `cameras.js`: follow the moving vehicle in its own horizontal frame so uneven display frames do not add a changing trailing distance; retain Fog City's occlusion and hill support.
+- `scene-culling.js` and `main.js`: freeze streamed SF tiles and use safe position-only building shadow stand-ins. Precompile the boot scene before starting normal rendering, then close the compiler queue. A tested attempt to overlap incremental async compilation with rendering caused an OOM in pinned Three r186 and was removed. Keep SF streaming; do not load a second city.
+- `nyc-map.js`: reuse its static-geography/dynamic-overlay approach, road/footprint hierarchy, north-up radar, scale and legible route; build every layer from our existing SF data.
+
+Our crowd retains its authored Rocketbox models, textures, skeletons and clips. A one-draw atlas prototype plus independent human detail admission fixes the model reversion; no reference pedestrian models replace our characters. Whole-game replacement, New York data and the moving development CDN are outside this targeted adoption. The benchmark records the reference's actual development engine version separately rather than treating unmatched city workloads as a speed comparison.

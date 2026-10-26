@@ -1,3 +1,5 @@
+// Standalone calls preserve the v18 handling below. The game explicitly selects v19 city-road
+// controls from reference-driving.ts; collision bodies, static safety and SF ground remain shared.
 // Car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
 //
 // v15 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
@@ -48,6 +50,7 @@
 //    `contacts` so step.ts (impacts.ts) can give the other body its share. The car is still held
 //    out of the body's circles, which stand where the body was at the start of the tick.
 
+import { stepReferenceDriving, type ReferenceDrivingResult } from "./reference-driving.ts";
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle, type ImpactBody } from "./collide.ts";
@@ -375,6 +378,8 @@ export function stepCar(
   contacts: CarContact[] = [],
   /** Optional body dimensions for another vehicle using the same handling model. */
   dimensions: Readonly<{halfLength:number;halfWidth:number;bodyHeight:number}> = CAR,
+  /** Standalone callers retain v18; the game explicitly passes its saved simulation version. */
+  handlingVersion = 18,
 ): CarState {
   const G = CAR.gravity;
   const mu = traction > 0 && traction < 1 ? traction : 1;
@@ -388,100 +393,111 @@ export function stepCar(
   let lateral = c.lateral;
   let yawRate = c.yawRate;
   let grip = c.grip;
-  const absV = speed < 0 ? -speed : speed;
-  const steerIn = input.steer < 0 ? -input.steer : input.steer;
+  let steer=c.steer,heading=h0,fx=f0x,fz=f0z,rx=-f0z,rz=f0x;
+  let vx=0,vz=0;
+  let reference:ReferenceDrivingResult|null=null;
+  if(handlingVersion>=19&&onGround) {
+    const gravityF=(-G*g0.slopeF)/Math.sqrt(1+g0.slopeF*g0.slopeF);
+    const gravityR=(-G*g0.slopeR)/Math.sqrt(1+g0.slopeR*g0.slopeR);
+    reference=stepReferenceDriving(c,input,mu,f0x*gravityF-f0z*gravityR,f0z*gravityF+f0x*gravityR);
+    ({speed,lateral,yawRate,steer,grip,heading}=reference);
+    fx=dsin(heading);fz=-dcos(heading);rx=-fz;rz=fx;
+  } else {
+    const absV = speed < 0 ? -speed : speed;
+    const steerIn = input.steer < 0 ? -input.steer : input.steer;
 
-  // Speed-sensitive steering lock, and a wheel that turns more calmly at speed.
-  const steerLimit = CAR.maxSteer / (1 + absV / CAR.steerSpeedRef);
-  const steer = approach(c.steer, input.steer * steerLimit, (CAR.steerRate / (1 + absV / CAR.steerRateRef)) * DT);
+    // Speed-sensitive steering lock, and a wheel that turns more calmly at speed.
+    const steerLimit = CAR.maxSteer / (1 + absV / CAR.steerSpeedRef);
+    steer = approach(c.steer, input.steer * steerLimit, (CAR.steerRate / (1 + absV / CAR.steerRateRef)) * DT);
 
-  // The tyres' grip budget (a friction circle) and what drive or braking takes of it this tick,
-  // with the weight transfer that goes with it: load = +1 braking at 1 g, -1 accelerating at 1 g.
-  const muG = CAR.tyreMu * G * mu;
-  const thr0 = input.throttle;
-  const wantBrake = (thr0 > 0 && speed < -0.1) || (thr0 < 0 && speed > 0.1) ? (thr0 < 0 ? -thr0 : thr0) : 0;
-  const pedal = Math.min(1, wantBrake + (input.brake > 0 && !(input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) ? input.brake : 0));
-  const drive = thr0 > 0 && speed >= -0.1 ? thr0 * Math.min(CAR.accel, CAR.powerPerKg / Math.max(absV, 1)) : 0;
-  const longUse = Math.min(muG, Math.max(pedal * CAR.brakeDecel, drive));
-  const latBudget = Math.sqrt(Math.max(0, muG * muG - longUse * longUse));
-  const transfer = clamp((CAR.weightTransfer * (pedal * Math.min(CAR.brakeDecel, muG) - drive)) / G, -CAR.maxTransfer, CAR.maxTransfer);
-  const frontGrip = latBudget * (1 + transfer);
-  const rearGrip = latBudget * (1 - transfer);
+    // The tyres' grip budget (a friction circle) and what drive or braking takes of it this tick,
+    // with the weight transfer that goes with it: load = +1 braking at 1 g, -1 accelerating at 1 g.
+    const muG = CAR.tyreMu * G * mu;
+    const thr0 = input.throttle;
+    const wantBrake = (thr0 > 0 && speed < -0.1) || (thr0 < 0 && speed > 0.1) ? (thr0 < 0 ? -thr0 : thr0) : 0;
+    const pedal = Math.min(1, wantBrake + (input.brake > 0 && !(input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) ? input.brake : 0));
+    const drive = thr0 > 0 && speed >= -0.1 ? thr0 * Math.min(CAR.accel, CAR.powerPerKg / Math.max(absV, 1)) : 0;
+    const longUse = Math.min(muG, Math.max(pedal * CAR.brakeDecel, drive));
+    const latBudget = Math.sqrt(Math.max(0, muG * muG - longUse * longUse));
+    const transfer = clamp((CAR.weightTransfer * (pedal * Math.min(CAR.brakeDecel, muG) - drive)) / G, -CAR.maxTransfer, CAR.maxTransfer);
+    const frontGrip = latBudget * (1 + transfer);
+    const rearGrip = latBudget * (1 - transfer);
 
-  let drifting = false;
-  let scrub = 0;
-  if (onGround) {
-    if (input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) {
-      // Handbrake turn: the rear wheels lock and let go; the tail kicks out toward the steer.
-      if (grip >= 0.95) yawRate += (input.steer < 0 ? -1 : 1) * CAR.handbrakeKick;
-      grip = Math.max(0, grip - CAR.gripDrop * DT);
-      drifting = true;
+    let drifting = false;
+    let scrub = 0;
+    if (onGround) {
+      if (input.brake > 0.5 && steerIn > 0.3 && speed > CAR.driftMinSpeed) {
+        // Handbrake turn: the rear wheels lock and let go; the tail kicks out toward the steer.
+        if (grip >= 0.95) yawRate += (input.steer < 0 ? -1 : 1) * CAR.handbrakeKick;
+        grip = Math.max(0, grip - CAR.gripDrop * DT);
+        drifting = true;
+      } else {
+        const power = input.throttle > 0.5 && steerIn > 0.3 && grip < 0.98 && speed > CAR.driftMinSpeed * 0.6;
+        grip = Math.min(1, grip + CAR.gripRecover * (power ? CAR.gripRecoverPower : 1) * DT);
+      }
+      const slip = 1 - grip;
+      const kin = (speed / CAR.wheelbase) * dtan(steer);
+      // The front axle's grip limits how fast the car can turn (understeer at the limit).
+      const gripLim = frontGrip / Math.max(absV, 1);
+      const lim = Math.max(gripLim, CAR.maxDriftYaw * slip);
+      const want = kin * (1 + CAR.driftYawBoost * slip);
+      const wantAbs = want < 0 ? -want : want;
+      scrub = wantAbs > lim ? (CAR.understeerScrub * (wantAbs - lim)) / wantAbs : 0;
+      let target = clamp(want, -lim, lim);
+      if (speed > 1 && slip > 0) target += CAR.stability * slip * datan2(lateral, speed);
+      yawRate += (target - yawRate) * Math.min(1, CAR.yawResponse * DT);
     } else {
-      const power = input.throttle > 0.5 && steerIn > 0.3 && grip < 0.98 && speed > CAR.driftMinSpeed * 0.6;
-      grip = Math.min(1, grip + CAR.gripRecover * (power ? CAR.gripRecoverPower : 1) * DT);
+      yawRate -= yawRate * 0.5 * DT;
     }
-    const slip = 1 - grip;
-    const kin = (speed / CAR.wheelbase) * dtan(steer);
-    // The front axle's grip limits how fast the car can turn (understeer at the limit).
-    const gripLim = frontGrip / Math.max(absV, 1);
-    const lim = Math.max(gripLim, CAR.maxDriftYaw * slip);
-    const want = kin * (1 + CAR.driftYawBoost * slip);
-    const wantAbs = want < 0 ? -want : want;
-    scrub = wantAbs > lim ? (CAR.understeerScrub * (wantAbs - lim)) / wantAbs : 0;
-    let target = clamp(want, -lim, lim);
-    if (speed > 1 && slip > 0) target += CAR.stability * slip * datan2(lateral, speed);
-    yawRate += (target - yawRate) * Math.min(1, CAR.yawResponse * DT);
-  } else {
-    yawRate -= yawRate * 0.5 * DT;
-  }
 
-  let heading = wrapAngle(h0 + yawRate * DT);
-  let fx = dsin(heading);
-  let fz = -dcos(heading);
-  let rx = -fz;
-  let rz = fx;
-  // World velocity is unchanged by the yaw; re-express it in the new frame.
-  let vx = speed * f0x + lateral * -f0z;
-  let vz = speed * f0z + lateral * f0x;
-  speed = vx * fx + vz * fz;
-  lateral = vx * rx + vz * rz;
+    heading = wrapAngle(h0 + yawRate * DT);
+    fx = dsin(heading);
+    fz = -dcos(heading);
+    rx = -fz;
+    rz = fx;
+    // World velocity is unchanged by the yaw; re-express it in the new frame.
+    vx = speed * f0x + lateral * -f0z;
+    vz = speed * f0z + lateral * f0x;
+    speed = vx * fx + vz * fz;
+    lateral = vx * rx + vz * rz;
 
-  if (onGround) {
-    const thr = input.throttle;
-    let engine = 0;
-    // Brakes, held by ABS to the tyres' grip (wet roads stop longer); the handbrake while drifting.
-    const brake = Math.min(muG, pedal * CAR.brakeDecel) + (drifting ? CAR.handbrakeDecel * input.brake * mu : 0);
-    if (thr > 0 && speed >= -0.1) engine += Math.min(drive, muG);
-    else if (thr < 0 && speed <= 0.1) engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
-    const sF = g0.slopeF;
-    const gravF = (-G * sF) / Math.sqrt(1 + sF * sF);
-    speed += (engine + gravF) * DT;
-    speed = approach(speed, 0, (brake + CAR.rolling + scrub) * DT);
-    speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
+    if (onGround) {
+      const thr = input.throttle;
+      let engine = 0;
+      // Brakes, held by ABS to the tyres' grip (wet roads stop longer); the handbrake while drifting.
+      const brake = Math.min(muG, pedal * CAR.brakeDecel) + (drifting ? CAR.handbrakeDecel * input.brake * mu : 0);
+      if (thr > 0 && speed >= -0.1) engine += Math.min(drive, muG);
+      else if (thr < 0 && speed <= 0.1) engine -= CAR.reverseAccel * -thr * clamp((CAR.maxReverse + speed) / (CAR.maxReverse * 0.5), 0, 1);
+      const sF = g0.slopeF;
+      const gravF = (-G * sF) / Math.sqrt(1 + sF * sF);
+      speed += (engine + gravF) * DT;
+      speed = approach(speed, 0, (brake + CAR.rolling + scrub) * DT);
+      speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
 
-    const sR = g0.slopeR;
-    lateral += ((-G * sR) / Math.sqrt(1 + sR * sR)) * DT;
-    const v2 = speed * speed + lateral * lateral;
-    // The rear axle holds the slide: what the friction circle leaves it (less under braking),
-    // down to the sliding friction while drifting.
-    const latCap = CAR.driftGripAccel * mu + (rearGrip * 1.5 - CAR.driftGripAccel * mu) * grip;
-    const newLat = approach(lateral, 0, latCap * DT);
-    if (grip < 1 && speed > 1) {
-      const keep = Math.sqrt(Math.max(0, v2 - newLat * newLat));
-      speed += (keep - speed) * CAR.driftConserve;
+      const sR = g0.slopeR;
+      lateral += ((-G * sR) / Math.sqrt(1 + sR * sR)) * DT;
+      const v2 = speed * speed + lateral * lateral;
+      // The rear axle holds the slide: what the friction circle leaves it (less under braking),
+      // down to the sliding friction while drifting.
+      const latCap = CAR.driftGripAccel * mu + (rearGrip * 1.5 - CAR.driftGripAccel * mu) * grip;
+      const newLat = approach(lateral, 0, latCap * DT);
+      if (grip < 1 && speed > 1) {
+        const keep = Math.sqrt(Math.max(0, v2 - newLat * newLat));
+        speed += (keep - speed) * CAR.driftConserve;
+      }
+      lateral = newLat;
+
+      // Parked or crawling with no throttle: hold still (no creeping on hills).
+      const thrAbs = thr < 0 ? -thr : thr;
+      if (thrAbs < 0.05 && (speed < 0 ? -speed : speed) < 0.3 && (lateral < 0 ? -lateral : lateral) < 0.3) {
+        speed = 0;
+        lateral = 0;
+        yawRate = 0;
+      }
+    } else {
+      speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
+      lateral -= CAR.aero * lateral * (lateral < 0 ? -lateral : lateral) * DT;
     }
-    lateral = newLat;
-
-    // Parked or crawling with no throttle: hold still (no creeping on hills).
-    const thrAbs = thr < 0 ? -thr : thr;
-    if (thrAbs < 0.05 && (speed < 0 ? -speed : speed) < 0.3 && (lateral < 0 ? -lateral : lateral) < 0.3) {
-      speed = 0;
-      lateral = 0;
-      yawRate = 0;
-    }
-  } else {
-    speed -= CAR.aero * speed * (speed < 0 ? -speed : speed) * DT;
-    lateral -= CAR.aero * lateral * (lateral < 0 ? -lateral : lateral) * DT;
   }
   speed = clamp(speed, -15, CAR.speedCap);
 
@@ -490,7 +506,8 @@ export function stepCar(
   let z = c.z;
   vx = speed * fx + lateral * rx;
   vz = speed * fz + lateral * rz;
-  const travel = Math.sqrt(vx * vx + vz * vz) * DT;
+  const moveVx=reference?reference.dx/DT:vx,moveVz=reference?reference.dz/DT:vz;
+  const travel = Math.sqrt(moveVx * moveVx + moveVz * moveVz) * DT;
   const n = clamp(Math.ceil(travel / 0.3), 1, 6);
   // Buildings block the body between its wheels plus the step it can climb onto a roof, and
   // its top (it passes under a structure higher than that).
@@ -507,8 +524,8 @@ export function stepCar(
   for (let i = 0; i < n; i++) {
     const lastX = x;
     const lastZ = z;
-    x += (vx * DT) / n;
-    z += (vz * DT) / n;
+    x += ((reference && !touched ? moveVx : vx) * DT) / n;
+    z += ((reference && !touched ? moveVz : vz) * DT) / n;
     const res = resolveBox(world, { x, z, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, colY, obstacles, ref, pushLeft, topY);
     pushLeft -= res.pushed;
     if (!res.hit) continue;

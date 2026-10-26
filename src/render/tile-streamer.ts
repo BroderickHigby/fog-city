@@ -18,6 +18,7 @@
 //  - Unload disposes every per-tile geometry, texture and instance buffer.
 
 import * as THREE from "three";
+import { freezeStaticRoot } from "./static-scene.ts";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { createTileLoader } from "./gltf-loader.ts";
@@ -59,6 +60,8 @@ export interface StreamerOptions {
   loadGltf?: (url: string) => Promise<GLTF>;
   /** Called with each tile's group when it becomes visible (e.g. to set shadow flags). */
   onReady?: (group: THREE.Group) => void;
+  /** Retire renderer-owned static/proxy work before tile resources are disposed. */
+  onUnload?: (group: THREE.Group) => void | Promise<void>;
   /** Called when a tile enters (true) or leaves (false) the scene, e.g. to hide the far layer under it. */
   onTileVisible?: (id: string, visible: boolean) => void;
   /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
@@ -452,10 +455,11 @@ export class TileStreamer {
     }
     this.applyHidden(rec);
     this.characters.register(rec.id,rec.characters);
-    rec.group.updateMatrixWorld(true);
+    this.opts.parent.add(rec.group);
+    rec.group.updateWorldMatrix(true, true, true);
     rec.state = "ready";
     this.opts.onReady?.(rec.group);
-    this.opts.parent.add(rec.group);
+    freezeStaticRoot(rec.group);
     this.opts.onTileVisible?.(rec.id, true);
     this.dirty = true;
   }
@@ -490,12 +494,18 @@ export class TileStreamer {
     rec.gen = null;
     if (rec.retryTimer !== null) clearTimeout(rec.retryTimer);
     rec.retryTimer = null;
+    const retirement=this.opts.onUnload?.(rec.group);
     rec.group.removeFromParent();
-    disposeRenderObjects(rec.group);
-    for (const g of rec.geometries) g.dispose();
-    for (const mat of rec.ownedMaterials) mat.dispose();
-    for (const t of rec.textures) t.dispose();
-    rec.props?.dispose();
+    const release=():void=>{
+      disposeRenderObjects(rec.group);
+      for (const g of rec.geometries) g.dispose();
+      for (const mat of rec.ownedMaterials) mat.dispose();
+      for (const t of rec.textures) t.dispose();
+      rec.props?.dispose();
+    };
+    // Shader work owns at most one active representative. Remove visual ownership now,
+    // retaining that tile's buffers only until the already-started compile settles.
+    if(retirement)void retirement.then(release,release);else release();
     this.dirty = true;
   }
 

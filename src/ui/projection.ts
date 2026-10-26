@@ -14,10 +14,11 @@ import { missionActorBindings } from "../sim/agents/systems.ts";
 import { nearestTurntable } from "../sim/missions/mechanics/bell.ts";
 import { streetNameAt } from "./street-name.ts";
 import type { RoadGraph } from "../render/types.ts";
-import type { InteractionView, MapBlip, MapEdge, MapPoint, UiView } from "./types.ts";
+import type { InteractionView, MapBlip, MapEdge, MapGeography, MapPoint, UiView } from "./types.ts";
 const graphEdges=new WeakMap<RoadGraph,readonly MapEdge[]>();
+const EMPTY_EDGES:readonly MapEdge[]=[];
 
-export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null,waypoint?:MapPoint,wave=2,missionDestination?:MapPoint):UiView {
+export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null,waypoint?:MapPoint,wave=2,missionDestination?:MapPoint,geography?:MapGeography):UiView {
   const snapshot=gameplaySnapshot({state}),own=playerView(snapshot,playerId),player=state.players[playerId];
   const body=player?playerPose(player):undefined;
   const combat=state.ext.combat?.players[playerId],progression=snapshot.progression.players[playerId],progress=snapshot.missions.players[playerId];
@@ -43,7 +44,9 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     }
   }
   if(mission&&progress?.status==="retry"&&state.tick>=progress.deadlineTick)interaction={id:`${mission.id}:retry:${progress.visits}`,title:mission.title,detail,choices:[{id:"retry",label:uiText("ui.common.retry")}]};
-  let edges=roads?graphEdges.get(roads):undefined;if(!edges){const all:MapEdge[]=[];for(const edge of roads?.edges??[]){all.push({from:edge.a,to:edge.b});if(!edge.oneway)all.push({from:edge.b,to:edge.a});}edges=all;if(roads)graphEdges.set(roads,edges);}
+  let edges=roads?graphEdges.get(roads):EMPTY_EDGES;if(!edges){const all:MapEdge[]=[];for(const edge of roads?.edges??[]){const points=edge.points;let length=0;for(let i=1;i<(points?.length??0);i++)length+=Math.hypot(points[i]![0]-points[i-1]![0],points[i]![1]-points[i-1]![1]);
+    const shape={id:edge.id,name:edge.name,widthM:edge.widthM??(Number.isFinite(edge.lanes)?Math.max(3,edge.lanes*3.25):7),kind:edge.kind,...(points?.length>=2?{points,length}:{})};
+    all.push({from:edge.a,to:edge.b,...shape});if(!edge.oneway)all.push({from:edge.b,to:edge.a,...shape,reversed:true});}edges=all;if(roads)graphEdges.set(roads,edges);}
   const blips:MapBlip[]=SAFEHOUSES.map(site=>({id:site.id,kind:"safehouse" as const,label:site.label,...toLocal(site.lat,site.lon)}));
   const objectiveActor=step?.type==="objective"?(step.objective.actor??(step.objective.event==="botCheck.falsePositiveSeen"?"courier":undefined)):undefined;
   const targetId=mission&&objectiveActor?missionActorBindings(state,mission.id,playerId)[objectiveActor]:undefined;
@@ -92,7 +95,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
-    map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:150},
+    map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:170,...(geography?{geography}:{})},
     vendorSiteId:vendorSite?.id,
     vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
     phoneApps:["map","botBounty","botCheck","bank","settings"],

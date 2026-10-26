@@ -414,6 +414,9 @@ export class AgentLayer {
   private tiers = new Uint8Array(0);
   private scratch = { idx: new Int32Array(0), key: new Float64Array(0) };
   private wasNear = new Set<number>();
+  private readonly humanCandidates: number[] = [];
+  private readonly budgetGroups = new Set<number>();
+  private readonly rigidCandidates: Array<{ kind: AgentKind | "civilian"; distance: number }> = [];
   private readonly nearPeople: number[] = [];
   /** Each near person's wetness (the combat look) by pose index, for the plain body when the crowd does not draw them. */
   private readonly nearPeopleWet = new Map<number, number>();
@@ -637,6 +640,7 @@ export class AgentLayer {
       this.zs[i] = p.z;
     }
     selectTiers(n, this.ids, this.xs, this.zs, viewer, this.wasNear, this.opts, this.tiers, this.scratch);
+    this.planHumanAdmission(viewer);
     this.wasNear.clear();
 
     for (const v of this.kinds.values()) {
@@ -801,6 +805,80 @@ export class AgentLayer {
     this.zs = new Float64Array(cap);
     this.tiers = new Uint8Array(cap);
     this.scratch = { idx: new Int32Array(cap), key: new Float64Array(cap) };
+  }
+
+  /**
+   * Preserve loaded human identity independently of traffic's near slots. Reserve the real
+   * compact avatar cost before rigid detail; a robot may use its existing mid/far model to
+   * make room, rather than replacing a nearby person's face and clothes with a box rig.
+   */
+  private planHumanAdmission(viewer: Readonly<Viewer>): void {
+    if (!this.crowd) return;
+    const candidates = this.humanCandidates; candidates.length = 0;
+    for (let i = 0; i < this.pairs.length; i++) {
+      const actor = this.pairs[i]![1];
+      if (actor.kind !== "person" || this.tiers[i] === TIER_HIDDEN) continue;
+      const p = this.poses[i]!, dx = p.x - viewer.x, dz = p.z - viewer.z;
+      const range = this.opts.nearRange + (this.wasNear.has(actor.id) ? this.opts.hysteresis : 0);
+      if (dx * dx + dz * dz <= range * range && dx * viewer.fx + dz * viewer.fz >= -this.opts.behind) candidates.push(i);
+      // A person's near allocation is separate from the rigid actor allocation.
+      if (this.tiers[i] === TIER_NEAR) this.tiers[i] = TIER_MID;
+    }
+    if (candidates.length === 0) return;
+    const distance = (i: number): number => (this.poses[i]!.x - viewer.x) ** 2 + (this.poses[i]!.z - viewer.z) ** 2;
+    candidates.sort((a, b) => distance(a) - distance(b) || this.ids[a]! - this.ids[b]!);
+    for (let k = 0; k < Math.min(candidates.length, this.capNear, CROWD_NEAR_MAX); k++) this.tiers[candidates[k]!] = TIER_NEAR;
+
+    const cost = (): number => {
+      const groups = this.budgetGroups; groups.clear(); let people = 0;
+      for (let i = 0; i < this.pairs.length; i++) {
+        const actor = this.pairs[i]![1], tier = this.tiers[i]!;
+        if (tier === TIER_HIDDEN || actor.id === this.hiddenAgent) continue;
+        if (actor.kind === "person") {
+          if (tier === TIER_NEAR) {
+            const loaded = this.crowd!.costFor(actor.id);
+            if (loaded) people += loaded.drawCalls; else groups.add(3);
+          } else groups.add(tier === TIER_MID ? 1 : 2);
+          continue;
+        }
+        if (isCivilianTraffic(actor) && this.civilianNear && this.civilianFar) {
+          groups.add(tier === TIER_NEAR ? 5 : 6); continue;
+        }
+        const view = this.kinds.get(actor.kind)!;
+        const group = actor.kind === "robotaxi" ? 32 : actor.kind === "errandRobot" ? 64 : 96;
+        if (tier === TIER_NEAR && view.source === "file") {
+          for (let k = 0; k < view.near.length; k++) if (view.near[k]!.part.triangles > 0) groups.add(group + k);
+        } else groups.add(group + (tier === TIER_FAR ? 17 : 16));
+        const combat = this.lookOverride?.get(actor.id) ?? visualCombat(actor);
+        if (combat.topple >= 1 && (this.lookOverride?.get(actor.id)?.height ?? visualHeight(actor)) > .05) groups.add(4);
+      }
+      return people + groups.size + (groups.has(3) ? 2 : 0);
+    };
+    if (cost() <= AGENT_DRAW_CALL_BUDGET) return;
+    const kinds = this.rigidCandidates; kinds.length = 0;
+    for (const kind of ["robotaxi", "errandRobot", "sidewalkBot", "civilian"] as const) {
+      let nearest = Infinity;
+      for (let i = 0; i < this.pairs.length; i++) {
+        const actor = this.pairs[i]![1];
+        if (this.tiers[i] === TIER_HIDDEN || actor.kind === "person") continue;
+        const family = isCivilianTraffic(actor) && this.civilianNear && this.civilianFar ? "civilian" : actor.kind;
+        if (family === kind) nearest = Math.min(nearest, distance(i));
+      }
+      if (nearest < Infinity) kinds.push({ kind, distance: nearest });
+    }
+    kinds.sort((a, b) => b.distance - a.distance || (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0));
+    // First trim articulated parts; only then consolidate distant proxies when necessary.
+    for (const [from, to] of [[TIER_NEAR, TIER_MID], [TIER_MID, TIER_FAR]] as const) {
+      for (const candidate of kinds) {
+        for (let i = 0; i < this.pairs.length; i++) {
+          const actor = this.pairs[i]![1];
+          if (actor.kind === "person" || this.tiers[i] !== from) continue;
+          const family = isCivilianTraffic(actor) && this.civilianNear && this.civilianFar ? "civilian" : actor.kind;
+          if (family === candidate.kind) this.tiers[i] = to;
+        }
+        if (cost() <= AGENT_DRAW_CALL_BUDGET) return;
+      }
+    }
   }
 
   /**

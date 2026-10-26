@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v19: fixed-step city-road driving adapted from Slop New York, preserving SF gravity/wet traction and solid vehicle contacts; v18 and earlier fixture bytes are preserved",
+  "simVersion": 19,
+  "hashes": [
+    "8b2f53fe",
+    "47bb5eef",
+    "f64f526f",
+    "f1bd0098",
+    "19f0d548"
+  ]
+}

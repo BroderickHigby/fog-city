@@ -13,6 +13,8 @@ import type { DodgeState } from "../sim/contract.ts";
 import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
 import { HumanFeet, type HumanSupportHeight } from "./human-feet.ts";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
+import { compactCrowdAvatar } from "./crowd-avatar-compact.ts";
+import { retireRenderTree } from "./renderer-warmup.ts";
 
 export const PLAYER_BODY_FILE = "models/generic-player.glb";
 /** The dodge clips (no mesh), shared by every human on the Rocketbox skeleton (assets/imports/rocketbox/README.md). */
@@ -134,15 +136,17 @@ export class PlayerBodies {
   private readonly walkSpeed: number;
   private readonly runSpeed: number;
   private readonly sprintSpeed: number;
-  private readonly gltf: GLTF;
+  private readonly gltf: Pick<GLTF, "scene" | "animations">;
   private readonly clips: THREE.AnimationClip[];
   private readonly shadows: boolean;
   private drawnCount = 0;
   private disposed = false;
+  private readonly retirements = new Set<Promise<void>>();
   private supportHeight: HumanSupportHeight | undefined;
 
   private constructor(gltf: GLTF, shadows: boolean, dodge: GLTF | null, mixamoDodge: THREE.AnimationClip[]) {
-    this.gltf = gltf;
+    // Parser dependency caches retain superseded primitive maps after crowd compaction.
+    this.gltf = { scene: gltf.scene, animations: gltf.animations };
     this.clips = [...gltf.animations, ...(dodge?.animations ?? []), ...mixamoDodge];
     let sprint = 5.8;
     dodge?.scene.traverse(object => {
@@ -183,9 +187,15 @@ export class PlayerBodies {
   }
 
   /** Load a body model: the player's by default, or another Rocketbox-rigged file (the crowd's). */
-  static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, file: string = PLAYER_BODY_FILE): Promise<PlayerBodies> {
+  static async load(bytes: (path: string) => Promise<Uint8Array>, shadows: boolean, file: string = PLAYER_BODY_FILE, options: Readonly<{ compactCrowd?: boolean }> = {}): Promise<PlayerBodies> {
     const [buffer, motions] = await Promise.all([bytes(file), file === PLAYER_BODY_FILE ? mixamoMotions(bytes) : Promise.resolve([] as THREE.AnimationClip[])]);
     const gltf = await new GLTFLoader().parseAsync(buffer.slice().buffer as ArrayBuffer, "");
+    try {
+      if (options.compactCrowd) await compactCrowdAvatar(gltf.scene, { alphaTest: HAIR_ALPHA_CUT });
+    } catch (error) {
+      disposeBodyPrototype(gltf.scene);
+      throw error;
+    }
     if (motions.length) {
       gltf.animations = motions;
       gltf.scene.userData.motionSource = "mixamo";
@@ -315,11 +325,13 @@ export class PlayerBodies {
       body.mixer.uncacheRoot(body.root);
       // Crowd clones share prototype geometry/materials, so those resource owners
       // cannot release this clone's renderer objects and bone-matrix UBOs for it.
-      disposeRenderObjects(body.root);
-      for (const skeleton of body.skeletons) skeleton.dispose();
-      for (const material of body.materials) material.dispose();
-      body.root.removeFromParent();
       this.bodies.delete(id);
+      const retirement=retireRenderTree(body.root,()=>{
+        disposeRenderObjects(body.root);
+        for (const skeleton of body.skeletons) skeleton.dispose();
+        for (const material of body.materials) material.dispose();
+      });
+      if(retirement){this.retirements.add(retirement);void retirement.then(()=>this.retirements.delete(retirement));}
     }
   }
 
@@ -328,26 +340,30 @@ export class PlayerBodies {
     this.disposed = true;
     this.remove(new Set());
     this.drawnCount = 0;
-    // Prototype resources belong to this loader, never to an individual player's clone.
-    const geometries = new Set<THREE.BufferGeometry>();
-    const materials = new Set<THREE.Material>();
-    const textures = new Set<THREE.Texture>();
-    const skeletons = new Set<THREE.Skeleton>();
-    this.gltf.scene.traverse(object => {
-      const mesh = object as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      geometries.add(mesh.geometry);
-      for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
-        materials.add(material);
-        for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
-      }
-      const skinned = object as THREE.SkinnedMesh;
-      if (skinned.isSkinnedMesh) skeletons.add(skinned.skeleton);
-    });
-    for (const skeleton of skeletons) skeleton.dispose();
-    for (const geometry of geometries) geometry.dispose();
-    for (const material of materials) material.dispose();
-    for (const texture of textures) texture.dispose();
+    const release=():void=>disposeBodyPrototype(this.gltf.scene);
+    if(this.retirements.size)void Promise.all(this.retirements).then(release,release);else release();
     this.group.removeFromParent();
   }
+}
+
+
+/** The loader owns a prototype's geometry, materials, maps and embedded decoded images. */
+function disposeBodyPrototype(root: THREE.Object3D): void {
+  const geometries = new Set<THREE.BufferGeometry>(), materials = new Set<THREE.Material>();
+  const textures = new Set<THREE.Texture>(), skeletons = new Set<THREE.Skeleton>(), images = new Set<unknown>();
+  root.traverse(object => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    geometries.add(mesh.geometry);
+    for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) {
+      materials.add(material);
+      for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+    }
+    if ((mesh as THREE.SkinnedMesh).isSkinnedMesh) skeletons.add((mesh as THREE.SkinnedMesh).skeleton);
+  });
+  for (const skeleton of skeletons) skeleton.dispose();
+  for (const geometry of geometries) geometry.dispose();
+  for (const material of materials) material.dispose();
+  for (const texture of textures) { images.add(texture.image); texture.dispose(); }
+  for (const image of images) if (image && typeof (image as { close?: unknown }).close === "function") (image as ImageBitmap).close();
 }

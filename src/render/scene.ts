@@ -21,6 +21,8 @@ import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
 import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import { StaticScene, type StaticSceneStats } from "./static-scene.ts";
+import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetirementOwner, type WarmupStats } from "./renderer-warmup.ts";
 import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
@@ -96,6 +98,8 @@ export interface RenderInfo {
   shadowAtlas?: { width: number; height: number } | null;
   graphicsError?: string | null;
   postProcessing?: PostProcessingInfo;
+  staticScene?: StaticSceneStats;
+  warmup?: WarmupStats;
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
   grass?: GrassInfo;
@@ -200,6 +204,7 @@ export class SceneRenderer {
   /** Point lights at the nearest street lamps at night (high tier only). */
   private streetLights: StreetLightRig | null = null;
   private crowd: CrowdHumans | null = null;
+  private readonly staticScene: StaticScene;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
   private activePreset: LightingPreset["name"] = "day";
@@ -242,8 +247,9 @@ export class SceneRenderer {
   private disposed = false;
   /** Only admitted scene objects are held here; removed tiles immediately release their listeners. */
   private readonly watched = new Set<THREE.Object3D>();
+  private retirementOwner: RenderRetirementOwner | null = null;
   private readonly gpuChildAdded = (event: { child: THREE.Object3D }): void => this.watchGpuTree(event.child);
-  private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => this.unwatchGpuTree(event.child);
+  private readonly gpuChildRemoved = (event: { child: THREE.Object3D }): void => { this.unwatchGpuTree(event.child); };
   private readonly resizeListener = (): void => this.resize();
   private readonly gpuGround: GroundFn;
   private instanceOwnership: GpuInstanceOwnership | null = null;
@@ -352,6 +358,10 @@ export class SceneRenderer {
     });
     this.scene.add(this.far.group);
 
+    this.staticScene = new StaticScene({
+      shadowCameras: this.shadows ? (gpu ? gpu.shadowCameras : [this.sun.shadow.camera]) : [],
+      material: gpu ? ({side,shadowSide}) => gpu.staticShadowMaterial(side,shadowSide) : undefined,
+    });
     this.streamer = new TileStreamer({
       parent: this.scene,
       manifest: world.manifest,
@@ -363,7 +373,8 @@ export class SceneRenderer {
       night: this.nightMats,
       radius: opts.radius,
       loadGltf: assets ? loadTile : undefined,
-      onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); this.foliage.addTile(g); },
+      onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); this.foliage.addTile(g); this.staticScene.admit(g); },
+      onUnload: (g) => { this.staticScene.remove(g); return this.gpu?.retire(g); },
       onTileVisible: (id, visible) => {
         this.far.setTileVisible(id, visible);
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
@@ -449,26 +460,33 @@ export class SceneRenderer {
   /** Convert only newly admitted subtrees, including asynchronously loaded actor/model roots. */
   private watchGpuTree(root: THREE.Object3D): void {
     if (this.disposed || this.watched.has(root)) return;
+    const owner=this.retirementOwner??={retire:object=>this.unwatchGpuTree(object)};
     root.updateWorldMatrix(true, true);
     if (this.gpu?.backend === "webgpu") {
       this.instanceOwnership ??= new GpuInstanceOwnership(this.gpu.renderer);
       root.traverse(object => { if ((object as THREE.InstancedMesh).isInstancedMesh) this.instanceOwnership!.adopt(object as THREE.InstancedMesh); });
     }
     prepareGpuScene(root, { ground: this.gpuGround });
+    this.gpu?.admit(root);
     root.traverse(object => {
       if (this.watched.has(object)) return;
       this.watched.add(object);
+      setRenderRetirementOwner(object,owner);
       object.addEventListener("childadded", this.gpuChildAdded);
       object.addEventListener("childremoved", this.gpuChildRemoved);
     });
   }
 
-  private unwatchGpuTree(root: THREE.Object3D): void {
+  private unwatchGpuTree(root: THREE.Object3D): Promise<void> | void {
+    if(!this.watched.has(root))return;
+    const retirement=this.gpu?.retire(root);
     root.traverse(object => {
       object.removeEventListener("childadded", this.gpuChildAdded);
       object.removeEventListener("childremoved", this.gpuChildRemoved);
       this.watched.delete(object);
+      if(this.retirementOwner)clearRenderRetirementOwner(object,this.retirementOwner);
     });
+    return retirement;
   }
 
   private prepareShadows(root: THREE.Object3D): void {
@@ -844,6 +862,7 @@ export class SceneRenderer {
     this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
+    this.staticScene.update();
     this.gpu?.frame(this.time, this.camera, cam.y - this.ground(cam.x, cam.z));
   }
 
@@ -878,6 +897,8 @@ export class SceneRenderer {
   /** Render stats. Fills `out` (reused by the HUD every frame) or a fresh object. */
   info(out: RenderInfo = { ...EMPTY_INFO }): RenderInfo {
     out.backend = this.gpu?.backend ?? "webgl-legacy";
+    out.staticScene = this.staticScene.info();
+    out.warmup = this.gpu?.warmupInfo;
     out.shadowCascades = this.gpu?.shadowCascades ?? (this.renderer.shadowMap.enabled ? 1 : 0);
     out.shadowAtlas = this.gpu?.shadowAtlas ?? null;
     out.graphicsError = this.gpu?.failure ?? null;
@@ -942,29 +963,39 @@ export class SceneRenderer {
     for (const object of this.watched) {
       object.removeEventListener("childadded", this.gpuChildAdded);
       object.removeEventListener("childremoved", this.gpuChildRemoved);
+      if(this.retirementOwner)clearRenderRetirementOwner(object,this.retirementOwner);
     }
     this.watched.clear();
-    this.surfaceTextures.dispose();
-    this.streamer.dispose();
-    this.avatarGround.clear();
-    this.foliage.dispose();
-    this.quality?.dispose();
-    this.streetLights?.dispose();
-    this.far.dispose();
-    this.streetDetail.dispose();
-    this.actors.dispose();
-    this.agents.dispose();
-    this.crowd?.dispose();
-    this.sky.dispose();
-    this.water.dispose();
-    this.weather.dispose();
-    for (const m of this.materials.all) m.dispose();
-    this.nightMats.glow.dispose();
-    this.nightMats.pool.dispose();
-    for (const e of this.envCache.values()) e.dispose();
-    this.pmrem?.dispose();
-    this.instanceOwnership?.dispose();
-    if (this.gpu) void this.gpu.dispose(); else this.renderer.dispose();
+    // The active borrower may be an already-detached avatar/car, so retire the view's
+    // entire admission queue before releasing shared prototypes and scene resources.
+    const retirement=this.gpu?.retireAll();
+    const release=():void=>{
+      this.surfaceTextures.dispose();
+      this.streamer.dispose();
+      this.staticScene.dispose();
+      this.avatarGround.clear();
+      this.foliage.dispose();
+      this.quality?.dispose();
+      this.streetLights?.dispose();
+      this.far.dispose();
+      this.streetDetail.dispose();
+      this.actors.dispose();
+      this.agents.dispose();
+      this.crowd?.dispose();
+      this.sky.dispose();
+      this.water.dispose();
+      this.weather.dispose();
+      for (const m of this.materials.all) m.dispose();
+      this.nightMats.glow.dispose();
+      this.nightMats.pool.dispose();
+      for (const e of this.envCache.values()) e.dispose();
+      this.pmrem?.dispose();
+      this.instanceOwnership?.dispose();
+      if (this.gpu) void this.gpu.dispose(); else this.renderer.dispose();
+    };
+    // A stopped view must not destroy a representative's geometry, textures or instance
+    // owner while its already-started shader build is still borrowing those resources.
+    if(retirement)void retirement.then(release,release);else release();
   }
 }
 

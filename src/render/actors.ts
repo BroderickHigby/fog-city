@@ -21,6 +21,8 @@ import type { DodgeState } from "../sim/contract.ts";
 import { CAR } from "../sim/car.ts";
 import { ContactShadows } from "./contact-shadows.ts";
 import type { Pose } from "./types.ts";
+import { retireRenderTree } from "./renderer-warmup.ts";
+import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 
 /** A car between two ticks. Angles in radians; pitch + = nose up, roll + = right side down, steer + = right. */
 export interface CarPose extends Pose {
@@ -162,12 +164,16 @@ export function makeBoxCar(color: number): THREE.Group {
 }
 
 export function disposeTree(o: THREE.Object3D): void {
+  const geometries=new Set<THREE.BufferGeometry>(),materials=new Set<THREE.Material>();
+  disposeRenderObjects(o);
   o.traverse((c) => {
     const m = c as THREE.Mesh;
     if (!m.isMesh) return;
-    m.geometry.dispose();
-    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) mat.dispose();
+    geometries.add(m.geometry);
+    for (const mat of Array.isArray(m.material) ? m.material : [m.material]) materials.add(mat);
   });
+  for(const geometry of geometries)geometry.dispose();
+  for(const material of materials)material.dispose();
 }
 
 export interface Wheel {
@@ -323,15 +329,18 @@ export class Actors {
 
   /** Remove a player's car from the scene and free what is its own. */
   private drop(v: PlayerView): void {
-    this.group.remove(v.car);
+    const car=v.car,source=v.carSource,materials=v.ownMaterials;
+    v.ownMaterials=[];
     // A loaded model shares geometry and its light materials with the registry's prototype and
     // every other player's car: those stay tracked and alive; only what is this car's own goes.
-    if (v.carSource === "fallback") {
-      this.lights.untrack(v.car);
-      disposeTree(v.car);
-    }
-    if(v.carSource === "file") for (const m of v.ownMaterials) m.dispose();
-    v.ownMaterials = [];
+    if(source==="fallback")this.lights.untrack(car);
+    retireRenderTree(car,()=>{
+      if(source==="fallback")disposeTree(car);
+      if(source==="file"){
+        disposeRenderObjects(car);
+        for(const material of materials)material.dispose();
+      }
+    });
   }
 
   private view(id: string): PlayerView {

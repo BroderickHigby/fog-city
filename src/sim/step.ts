@@ -162,6 +162,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v16 -> v17: visible rogue encounters and mixed ambient firmware rolls. Existing
  *    firmware, missions, attacks and every saved extension remain unchanged.
  *  - v17 -> v18: swept full-hull vehicle contacts; every saved field remains unchanged.
+ *  - v18 -> v19: fixed-step city-road handling; no field rewrite or progress reset.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -179,6 +180,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 15) return upgradeState({ ...s, version: 16 });
   if (s.version === 16) return upgradeState({ ...s, version: 17 });
   if (s.version === 17) return upgradeState({ ...s, version: 18 });
+  if (s.version === 18) return upgradeState({ ...s, version: 19 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -456,7 +458,7 @@ function stepPlayer(world: World, p: Readonly<PlayerState>, input: SimInput, obs
   if (exitPending && canExit(p.car)) return getOut(p.car);
   // While an exit is pending the car brakes to a stop by itself, then the player gets out.
   const drive: SimInput = exitPending ? { throttle: 0, steer: 0, brake: 1, actions: input.actions } : input;
-  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], tractionAt(world, obs.prev, p.car.x, p.car.z), contacts);
+  const car = stepCar(world, p.car, drive, obs.forCar.get(p.id) ?? [], tractionAt(world, obs.prev, p.car.x, p.car.z), contacts, CAR, obs.prev.version);
   if (exitPending && canExit(car)) return getOut(car);
   return { ...p, car, exitPending };
 }

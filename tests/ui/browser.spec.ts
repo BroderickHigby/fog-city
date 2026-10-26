@@ -25,6 +25,23 @@ test("disposed UI releases input and removes its modal",async({page})=>{
   await page.keyboard.down("KeyW");expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():{throttle:number}}}).ui.sampleInput().throttle)).toBe(1);
   await page.evaluate(()=>(window as unknown as {ui:{dispose():void}}).ui.dispose());await expect(page.locator(".fc-ui")).toHaveCount(0);
 });
+test("the SF map supports keyboard navigation, center activation and focus after waypoint updates",async({page})=>{
+  await page.keyboard.press("KeyM");
+  const map=page.getByRole("application",{name:"Map",exact:true});await expect(map).toBeVisible();await map.focus();
+  await map.press("ArrowRight");await map.press("+");await map.press("Enter");
+  expect(await page.evaluate(()=>(window as unknown as {waypoints:unknown[]}).waypoints)).toEqual([{x:80,z:0}]);
+  await page.evaluate(()=>{
+    const w=window as unknown as {view:import("../../src/ui/types.ts").UiView;ui:{update(view:import("../../src/ui/types.ts").UiView):void}};
+    w.ui.update({...w.view,map:{...w.view.map!,waypoint:{x:80,z:0}}});
+  });
+  await expect(map).toBeFocused();await map.press("ArrowDown");
+  await map.evaluate(element=>(element as HTMLElement).click());
+  const points=await page.evaluate(()=>(window as unknown as {waypoints:Array<{x:number;z:number}>}).waypoints);
+  expect(points).toHaveLength(2);expect(points[1]!.x).toBe(80);expect(points[1]!.z).toBeCloseTo(400/1.5*.2);
+  expect(await page.evaluate(()=>(window as unknown as {ui:{sampleInput():unknown}}).ui.sampleInput())).toEqual({throttle:0,steer:0,brake:0,actions:0});
+  await page.keyboard.press("Escape");await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("button",{name:"Map (M)",exact:true}).click();await expect(map).toBeVisible();
+});
 test("IndexedDB preserves progression across a page reload",async({page})=>{
   await page.evaluate(async()=>{
     const path="/src/save/index.ts",module=await import(path);
