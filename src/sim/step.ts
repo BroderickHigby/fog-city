@@ -48,7 +48,7 @@ import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
 import { stepManualTaxis, syncManualTaxiImpacts, commandeerTaxi } from "./manual-taxi.ts";
 import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, distanceToTaxi, hailableTaxi, takeoverTaxi } from "./ride.ts";
-import { stealableCar } from "./steal-car.ts";
+import { drivesStolenCar, stealableCar } from "./steal-car.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -525,8 +525,9 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
     // A passenger can take control (H) or get out (F); a driver controls only the taxi.
-    // Neither can spray or drive the parked car.
-    sanitized[id] = players[id]!.ride
+    // Neither can spray or drive the parked car. v22: the driver of a stolen civilian car
+    // (steal-car.ts) has every control they have in their own car, spraying included.
+    sanitized[id] = players[id]!.ride && !drivesStolenCar(prev, players[id]!.ride!)
       ? players[id]!.ride!.manual ? { ...input, actions: input.actions & (Action.enterExit | Action.horn) }
         : { ...NEUTRAL_INPUT, actions: input.actions & (Action.enterExit | Action.horn) }
       : input;

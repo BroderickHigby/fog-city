@@ -1,6 +1,6 @@
 // v22: on foot, F beside a stopped civilian car steals it (src/sim/steal-car.ts).
 import { describe, expect, it } from "vitest";
-import { Action, SIM_VERSION, canonicalJson, createInitialState, dcos, dsin, hashState, makeCar, makeFoot, step, upgradeState, type InputFrame, type SimState } from "../../src/sim/index.ts";
+import { Action, SIM_VERSION, canonicalJson, createGameSystems, createInitialState, dcos, dsin, hashState, makeCar, makeFoot, step, upgradeState, type InputFrame, type SimState } from "../../src/sim/index.ts";
 import { isCivilianTraffic } from "../../src/sim/civilian-traffic.ts";
 import { RIDE, distanceToTaxi } from "../../src/sim/ride.ts";
 import { STEAL_CAR_VERSION, stealableCar } from "../../src/sim/steal-car.ts";
@@ -109,5 +109,62 @@ describe("v22 stealing a civilian car", () => {
     const old = { ...besideCivilian(), version: 21 };
     expect(SIM_VERSION).toBe(22);
     expect(upgradeState(old)).toEqual({ ...old, version: 22 });
+  });
+
+  it("a driver sprays from a stolen car as far as from their own car (the car they drive is not a wall)", () => {
+    const systems = createGameSystems({ wave: 3 });
+    const spray = (stolen: boolean): { reach: number; ends: string[] } => {
+      let s = step(world, besideCivilian(), IDLE, [], systems);
+      const civ = s.ext.agents!.list.find((a) => a.id === CIV)!;
+      if (stolen) {
+        s = step(world, s, F, [], systems);
+        expect(s.players.p!.ride).toMatchObject({ agentId: CIV, manual: true });
+      } else {
+        s.ext.agents!.list = [];
+        s.players.p!.mode = "vehicle"; s.players.p!.foot = null;
+        s.players.p!.car = makeCar(civ.x, civ.z, civ.heading, civ.y);
+      }
+      const at = { x: civ.x, z: civ.z };
+      let reach = 0;
+      const ends: string[] = [];
+      for (let i = 0; i < 90; i++) {
+        s = step(world, s, { p: { ...idle, actions: i < 10 ? Action.fire : 0 } }, [], systems);
+        for (const q of s.ext.combat?.projectiles ?? []) reach = Math.max(reach, Math.hypot(q.x - at.x, q.z - at.z));
+        for (const e of s.ext.combat?.events ?? []) if (e.tick === s.tick && e.kind === "projectile.ended") ends.push(e.detail);
+      }
+      return { reach, ends };
+    };
+    const own = spray(false), stolen = spray(true);
+    expect(own.reach).toBeGreaterThan(3);
+    expect(stolen.reach).toBeCloseTo(own.reach, 1);
+    expect(stolen.ends).not.toContain("wall");
+    expect(stolen.ends.length).toBe(own.ends.length);
+  });
+
+  it("two players pressing F beside the same car on the same tick: the first by id gets it, the other stays on foot", () => {
+    const s = besideCivilian(), foot = s.players.p!.foot!, civ = s.ext.agents!.list[0]!;
+    s.players.q = { ...s.players.p!, id: "q", car: makeCar(civ.x + 60, civ.z + 60, 0, 0),
+      foot: makeFoot(civ.x + Math.cos(civ.heading) * 1.7, 0, civ.z + Math.sin(civ.heading) * 1.7, civ.heading) };
+    expect(foot).toBeTruthy();
+    const both = { p: F.p!, q: F.p! };
+    const next = step(world, s, both);
+    expect(next.players.p!.ride).toMatchObject({ agentId: CIV, manual: true });
+    expect(next.players.q!.mode).toBe("foot");
+    expect(next.players.q!.ride ?? null).toBeNull();
+    // Swapped ids give the car to the other walker: the order is by player id, never by input order.
+    const swapped = step(world, s, { q: F.p!, p: F.p! });
+    expect(hashState(swapped)).toBe(hashState(next));
+  });
+
+  it("a robotaxi and a civilian car at the same distance: F boards the robotaxi as a passenger (a car is stolen only when nearer)", () => {
+    const s = besideCivilian(), civ = s.ext.agents!.list[0]!;
+    const taxi = { ...civ, id: 8, x: civ.x - Math.cos(civ.heading) * 3.4, z: civ.z - Math.sin(civ.heading) * 3.4 };
+    s.ext.agents!.list = [civ, taxi];
+    const foot = s.players.p!.foot!;
+    expect(distanceToTaxi(taxi, foot.x, foot.z)).toBeCloseTo(distanceToTaxi(civ, foot.x, foot.z), 9);
+    const next = step(world, s, F);
+    expect(next.players.p!.ride).toMatchObject({ agentId: 8 });
+    expect(next.players.p!.ride!.manual).toBeUndefined();
+    expect(next.ext.agents!.list.find((a) => a.id === CIV)!.manualCar).toBeUndefined();
   });
 });

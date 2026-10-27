@@ -11,7 +11,7 @@
 // never stolen this way: F still boards one as a passenger and H still commandeers it.
 
 import { isCivilianTraffic } from "./civilian-traffic.ts";
-import type { SimState } from "./contract.ts";
+import type { PlayerRide, SimState } from "./contract.ts";
 import type { AgentState } from "./agents.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { RIDE, distanceToTaxi, ridesByAgent } from "./ride.ts";
@@ -41,4 +41,11 @@ export function stealableCar(world: World, state: Readonly<SimState>, agents: re
     bestD = d;
   }
   return best;
+}
+
+/** Is this ride the driver's seat of a stolen civilian car? Such a driver keeps every own-car control. */
+export function drivesStolenCar(state: Readonly<SimState>, ride: Readonly<PlayerRide>): boolean {
+  if (state.version < STEAL_CAR_VERSION || !ride.manual) return false;
+  const agent = state.ext.agents?.list.find((a) => a.id === ride.agentId);
+  return agent !== undefined && isCivilianTraffic(agent);
 }
