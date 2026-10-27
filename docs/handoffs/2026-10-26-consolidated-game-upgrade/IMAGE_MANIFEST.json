@@ -1,0 +1,113 @@
+{
+  "description": "Original owner attachments copied byte-for-byte, without resizing or editing. Historical examples, not a fresh current-bug certification.",
+  "images": [
+    {
+      "file": "images/bug-01-running-reticle.png",
+      "kind": "bug",
+      "caption": "Reticle over the player during ordinary movement",
+      "originalFilename": "codex-clipboard-3a37b41c-9d01-4ffb-a0f4-5dc995372761.png",
+      "sha256": "4f8598b7be22cf26df278542375dfe799007efcdcc77968c9622a86a14df1a38",
+      "bytes": 657320,
+      "dimensions": [
+        550,
+        808
+      ]
+    },
+    {
+      "file": "images/bug-02-avatar-reversion.png",
+      "kind": "bug",
+      "caption": "Nearby people reverting to the old block avatars",
+      "originalFilename": "codex-clipboard-5587917d-a92a-4ff7-80a4-092f33ea0c29.png",
+      "sha256": "323625272cab322490adbe88d7672da2439993d7786361ab3f93454ca52bbbb7",
+      "bytes": 1689206,
+      "dimensions": [
+        1754,
+        834
+      ]
+    },
+    {
+      "file": "images/bug-03-tree-road-obstruction.png",
+      "kind": "bug",
+      "caption": "Trees obstructing the street and driving camera",
+      "originalFilename": "codex-clipboard-47cd737e-61c8-43cb-853c-33d1abd12c39.png",
+      "sha256": "84b8ec7095596e413c38705509854fa63e15977a6e89ba81392c53c2092bd097",
+      "bytes": 1254053,
+      "dimensions": [
+        1504,
+        1202
+      ]
+    },
+    {
+      "file": "images/bug-04-grass-on-pavement.png",
+      "kind": "bug",
+      "caption": "Grass rendered over roads and pavement",
+      "originalFilename": "codex-clipboard-3f247cc3-8722-4103-813c-8a361754d8f9.png",
+      "sha256": "3f6a08ade48eb989ac7036b0bda8fa8b5b88512af7a034528e77a6e34721bfd2",
+      "bytes": 1899531,
+      "dimensions": [
+        1428,
+        1174
+      ]
+    },
+    {
+      "file": "images/bug-05-detached-car-panels.png",
+      "kind": "bug",
+      "caption": "Detached rectangular bumper/panel shapes around cars",
+      "originalFilename": "codex-clipboard-b04ec549-7eb1-44ef-94b2-401fc33cc29f.png",
+      "sha256": "955ddeb478b7bf330fdfc997ca4767e5f970173430f6c21f8ed70083b7d05dd1",
+      "bytes": 1058132,
+      "dimensions": [
+        1524,
+        902
+      ]
+    },
+    {
+      "file": "images/bug-06-oversized-stat-cards.png",
+      "kind": "bug",
+      "caption": "Oversized stat cards consuming the game view",
+      "originalFilename": "codex-clipboard-fa7943a6-df0d-4043-860e-9c5fcc428697.png",
+      "sha256": "332419c912ce06bc8b584f795edaca2627417b7bc0e25dec5d394d67a96a1b88",
+      "bytes": 154047,
+      "dimensions": [
+        970,
+        396
+      ]
+    },
+    {
+      "file": "images/bug-07-oversized-hud-objective.png",
+      "kind": "bug",
+      "caption": "Large HUD buttons and mission paragraph covering the city",
+      "originalFilename": "codex-clipboard-56035d8f-861c-42f9-9fa7-687b6c4b000d.png",
+      "sha256": "9a9956336d867659a6280fb603a6f25c0e3d7146647ea23374be1b4dc4b3bdd0",
+      "bytes": 1174451,
+      "dimensions": [
+        2016,
+        790
+      ]
+    },
+    {
+      "file": "images/reference-slop-new-york.png",
+      "kind": "reference",
+      "caption": "Slop New York visual and navigation reference; keep Fog City in SF",
+      "originalFilename": "codex-clipboard-8ee86115-16fb-4884-8b9c-0a874dd61a1d.png",
+      "sha256": "106d60e371ef8c13587a5cf719f2c2fc99d290205667f1c5286ede4d82777b01",
+      "bytes": 7473378,
+      "dimensions": [
+        3420,
+        2214
+      ]
+    },
+    {
+      "file": "images/reference-historical-pr-list.png",
+      "kind": "historical-context",
+      "caption": "Owner-provided historical PR list; use the live inventory for current status",
+      "originalFilename": "codex-clipboard-ae99c95f-6605-4ff4-8c8f-af964dcfe659.png",
+      "sha256": "a26e086ed3fc41573e2f97edbeabd53edccef0d6b32b403a9c79e08bac30bd96",
+      "bytes": 567237,
+      "dimensions": [
+        2178,
+        1942
+      ]
+    }
+  ]
+}
