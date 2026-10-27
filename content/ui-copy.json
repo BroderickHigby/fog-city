@@ -23,6 +23,7 @@
     "ui.hud.moveHint": "Move / steer",
     "ui.hud.vehicleHint": "Enter / exit",
     "ui.hud.robotaxiHint": "Robotaxi / horn",
+    "ui.hud.hornHint": "Horn",
     "ui.hud.lighting": "Lighting",
     "ui.hud.lighting.live": "Live city time",
     "ui.hud.lighting.noon": "Midday",

@@ -122,7 +122,7 @@ describe("v20 vehicles obey their approach signal", () => {
   it("upgrades a v19 save by restamping without changing its cars or saved extensions", () => {
     const world = junction(), previous = state(world, [car(world)], 77, 19), saved = JSON.stringify(previous);
     const upgraded = upgradeState(previous);
-    expect(upgraded).toEqual({ ...previous, version: 21 });
+    expect(upgraded).toEqual({ ...previous, version: 22 });
     expect(upgraded.ext).toBe(previous.ext); expect(upgraded.players).toBe(previous.players);
     expect(JSON.stringify(previous)).toBe(saved); expect(upgradeState(upgraded)).toBe(upgraded);
   });
@@ -275,6 +275,6 @@ describe("v21 amber dilemma zone", () => {
     for (let i = 0; i < 6; i++) current = advance(world, current);
     const a = current.ext.agents!.list[0]!;
     expect(a.conn).toBeNull(); expect(a.edge).toBe("e0"); expect(a.speed).toBe(0);
-    expect(upgradeState(current).version).toBe(21);
+    expect(upgradeState(current).version).toBe(22);
   });
 });

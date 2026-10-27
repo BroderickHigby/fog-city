@@ -77,7 +77,10 @@
 // rendered heads. Vehicles already holding a junction clear it; older replay rules stay intact.
 // v21: a robotaxi that cannot stop behind the line when its light turns amber goes on instead
 // of stopping dead in one tick; no field rewrite, v20 replays keep the old rule.
-export const SIM_VERSION = 21;
+// v22: on foot, F beside a stopped civilian car steals it (src/sim/steal-car.ts). The stolen car is
+// an existing v16 manual drive (PlayerRide.manual + AgentState.manualCar) on the civilian agent;
+// the player's own car stays parked. No field changes: the save upgrade only restamps.
+export const SIM_VERSION = 22;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

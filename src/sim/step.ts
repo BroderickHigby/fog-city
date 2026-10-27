@@ -47,7 +47,8 @@ import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
 import { movementLimit } from "./combat/system.ts";
 import { stepManualTaxis, syncManualTaxiImpacts, commandeerTaxi } from "./manual-taxi.ts";
-import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, hailableTaxi, takeoverTaxi } from "./ride.ts";
+import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, distanceToTaxi, hailableTaxi, takeoverTaxi } from "./ride.ts";
+import { drivesStolenCar, stealableCar } from "./steal-car.ts";
 
 function finiteOr0(v: number): number {
   return Number.isFinite(v) ? v : 0;
@@ -165,6 +166,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v18 -> v19: fixed-step city-road handling; no field rewrite or progress reset.
  *  - v19 -> v20: shared traffic signals; no field rewrite or progress reset.
  *  - v20 -> v21: amber dilemma zone for robotaxis; no field rewrite or progress reset.
+ *  - v21 -> v22: F on foot steals a stopped civilian car (steal-car.ts); no field rewrite.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -185,6 +187,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 18) return upgradeState({ ...s, version: 19 });
   if (s.version === 19) return upgradeState({ ...s, version: 20 });
   if (s.version === 20) return upgradeState({ ...s, version: 21 });
+  if (s.version === 21) return upgradeState({ ...s, version: 22 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -522,8 +525,9 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
   for (const id of sortedIds(players)) {
     const input = sanitizeInput(inputs[id] ?? NEUTRAL_INPUT);
     // A passenger can take control (H) or get out (F); a driver controls only the taxi.
-    // Neither can spray or drive the parked car.
-    sanitized[id] = players[id]!.ride
+    // Neither can spray or drive the parked car. v22: the driver of a stolen civilian car
+    // (steal-car.ts) has every control they have in their own car, spraying included.
+    sanitized[id] = players[id]!.ride && !drivesStolenCar(prev, players[id]!.ride!)
       ? players[id]!.ride!.manual ? { ...input, actions: input.actions & (Action.enterExit | Action.horn) }
         : { ...NEUTRAL_INPUT, actions: input.actions & (Action.enterExit | Action.horn) }
       : input;
@@ -585,7 +589,8 @@ export function activeBody(p: Readonly<PlayerState>): ActiveBody {
  * Robotaxi rides, after every body has moved this tick (src/sim/ride.ts). In player-id order:
  *  - a destination event sets a rider's goal;
  *  - a walker who pressed F and did not get into their own car hops into the nearest boardable
- *    robotaxi (empty, stopped, fit, within reach, nothing in between);
+ *    robotaxi (empty, stopped, fit, within reach, nothing in between), or (v22) steals the
+ *    stopped civilian car in reach and drives it, whichever is nearer;
  *  - a rider's ride mirrors the taxi's pose; F, arriving at the goal, or the taxi pulling over
  *    after water reaches it asks to get out; once the taxi has stopped the rider steps out at the
  *    first clear, reachable spot beside it that no vehicle can reach this tick (the same rules as
@@ -608,10 +613,14 @@ function settleRides(world: World, before: Readonly<SimState>, state: SimState, 
       if ((p.hail ?? null) !== hail) players[id] = { ...p, hail: null };
       const was = before.players[id];
       if ((!pressed && !takeover) || p.mode !== "foot" || !p.foot || p.foot.dodge || !was || was.mode !== "foot") continue;
-      const taxi = takeover ? takeoverTaxi(world, { ...state, players, ext: { ...state.ext, agents: { ...state.ext.agents!, list: agents } } }, p.foot.x, p.foot.z, id)
+      let taxi = takeover ? takeoverTaxi(world, { ...state, players, ext: { ...state.ext, agents: { ...state.ext.agents!, list: agents } } }, p.foot.x, p.foot.z, id)
         : boardableTaxi(world, { ...state, players }, p.foot.x, p.foot.z, id);
+      // v22: F beside a stopped civilian car steals it (steal-car.ts); the nearer of it and a boardable taxi wins.
+      const civilian = takeover ? null : stealableCar(world, { ...state, players }, agents, p.foot.x, p.foot.z);
+      const stolen = civilian !== null && (!taxi || distanceToTaxi(civilian, p.foot.x, p.foot.z) < distanceToTaxi(taxi, p.foot.x, p.foot.z));
+      if (stolen) taxi = civilian;
       if (taxi) {
-        const manual = takeover || taxi.manualCar !== undefined;
+        const manual = takeover || stolen || taxi.manualCar !== undefined;
         if (manual) agents = agents.map(a=>a.id===taxi.id ? commandeerTaxi(a) : a);
         players[id] = { ...p, mode: "vehicle", foot: null, exitPending: false, hail: null,
           ride: { agentId: taxi.id, ...(manual ? { manual: true as const } : {}), x: taxi.x, y: taxi.y, z: taxi.z, heading: taxi.heading, speed: taxi.speed, goal: goal ?? null, exitPending: false } };

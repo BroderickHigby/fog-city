@@ -78,7 +78,7 @@ function dodgeReplay(ticks: number, roundTripAt = -1, version = SIM_VERSION): { 
 
 describe("legacy SIM_VERSION 4 replays", () => {
   it("runs on the deliberately versioned current contract", () => {
-    expect(SIM_VERSION).toBe(21);
+    expect(SIM_VERSION).toBe(22);
   });
 
   it("upgradeState lifts a v2 walker through v3 to v4: standing (grounded, vy 0) where it was saved, not diving", () => {
