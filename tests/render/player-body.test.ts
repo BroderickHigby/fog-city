@@ -265,6 +265,7 @@ describe("generic online player avatar", () => {
       expect(m.depthWrite).toBe(true);
       expect(m.alphaTest).toBe(HAIR_ALPHA_CUT);
       expect(m.side).toBe(THREE.FrontSide);
+      expect(m.shadowSide).toBe(THREE.DoubleSide);
       expect((m as THREE.MeshStandardMaterial).roughness).toBe(HAIR_ROUGHNESS);
       expect((m as THREE.MeshStandardMaterial).envMapIntensity).toBe(HAIR_ENV_INTENSITY);
     }

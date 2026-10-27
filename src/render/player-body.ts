@@ -35,6 +35,7 @@ export const HAIR_ALPHA_CUT = 0.45;
 /**
  * Hair cards have no normal map, so at the model's roughness each flat card mirrors the sky as a sheet. Matte them.
  * They are drawn front side only: a card's back face is lit as if it faced the scalp and shows as grey streaks.
+ * Shadows stay two-sided, so a card that faces the sun still casts one.
  */
 export const HAIR_ROUGHNESS = 0.95;
 export const HAIR_ENV_INTENSITY = 0.3;
@@ -187,6 +188,7 @@ export class PlayerBodies {
         material.depthWrite = true;
         material.alphaTest = HAIR_ALPHA_CUT;
         material.side = THREE.FrontSide;
+        material.shadowSide = THREE.DoubleSide;
         if (material instanceof THREE.MeshStandardMaterial) {
           material.roughness = HAIR_ROUGHNESS;
           material.envMapIntensity = HAIR_ENV_INTENSITY;
