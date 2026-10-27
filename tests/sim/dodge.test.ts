@@ -14,6 +14,8 @@ import {
   FOOT,
   LANDING_EXTRA_M,
   LANDING_PER_MPS,
+  REACT_LAG_S,
+  REACT_S,
   SAMPLE_S,
   SLIP_RAD,
   advanceDodge,
@@ -555,6 +557,60 @@ describe("the dodge in step()", () => {
     expect(c.x).toBeGreaterThan(a.x + 0.25);
     expect(c.x).toBeGreaterThan(CAR.halfWidth + 0.3 + DODGE_PROFILE.care.margin);
     expect(c.tick).toBeLessThanOrEqual(a.tick);
+  });
+
+  it("nobody runs from a car that will not hit them (owner, 2026-10-27): one passing 3 m or more beside them, or driving away", () => {
+    // (Agents walk, so stand them still: a dodge is the only thing that moves them sideways.)
+    for (const speed of [10, 20, 30]) {
+      for (const gap of [3, 4]) {
+        for (const side of [-1, 1]) {
+          // 3 m or more between the car's side and the person's body (r 0.3 m), either side.
+          const x = side * (CAR.halfWidth + gap + 0.3);
+          let s = scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed }], [{ id: 1, x, z: 0 }]);
+          s = drive(flat, s, 360, (k) => expect(agentsOf(k)[0]!.dodge).toBeNull());
+          expect(s.players.a!.car.z).toBeLessThan(-20); // it did go by
+          expect(dodgeExtOf(s)).toEqual({ contacts: 0, overrides: 0, dives: 0, nearMisses: 0, failures: 0 });
+          expect(s.players.a!.car.nearMisses).toBe(0);
+        }
+      }
+      // Just past them, on their line, and driving away (its rear bumper 1.5 m from them).
+      let s = scene(flat, [{ id: "a", x: 0, z: -(CAR.halfLength + 0.3 + 1.5), heading: 0, speed }], [{ id: 1, x: 0, z: 0 }]);
+      s = drive(flat, s, 180, (k) => expect(agentsOf(k)[0]!.dodge).toBeNull());
+      expect(dodgeExtOf(s)).toEqual({ contacts: 0, overrides: 0, dives: 0, nearMisses: 0, failures: 0 });
+    }
+    // A player on foot, too.
+    let s = scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed: 25 }], [], [{ id: "b", x: CAR.halfWidth + 3 + 0.3, z: 0 }]);
+    s = drive(flat, s, 300, (k) => expect(k.players.b!.foot!.dodge).toBeNull());
+    expect(dodgeExtOf(s).dives).toBe(0);
+  });
+
+  it("a car aimed at someone: they wait until it is about to hit them (REACT_S), then still clear it with no contact", () => {
+    for (const speed of [10, 20, 30]) {
+      for (const x of [0, 0.2, 1.2]) {
+        let s = scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed }], [{ id: 1, x, z: 0 }]);
+        let started: number | null = null;
+        let reached: number | null = null;
+        let minClear = Infinity;
+        s = drive(flat, s, 300, (k) => {
+          const c = k.players.a!.car;
+          const p = agentsOf(k)[0]!;
+          if (started === null && p.dodge) started = k.tick;
+          // When the car's body came within the person's margin of where they stood.
+          if (reached === null && boxDistance(x, 0, c.x, c.z, Math.sin(c.heading), -Math.cos(c.heading), CAR.halfLength, CAR.halfWidth) < 0.3 + DODGE_PROFILE.person.margin) reached = k.tick;
+          minClear = Math.min(minClear, boxDistance(p.x, p.z, c.x, c.z, Math.sin(c.heading), -Math.cos(c.heading), CAR.halfLength, CAR.halfWidth) - 0.3);
+        });
+        // It moved only once the car was about to reach where it stood: within REACT_S, or its run
+        // clear plus REACT_LAG_S when that is longer (plus what the footprint's spread adds by
+        // then, and a tick). Before, from horizonS out: 2 s at 20 m/s, 2.5 s at 30 m/s.
+        expect(started).not.toBeNull();
+        expect(reached).not.toBeNull();
+        expect((reached! - started!) / 60).toBeLessThanOrEqual(REACT_S + REACT_LAG_S + REACT_S / speed + 1 / 60 + 1e-9);
+        // Clear of the car by its margin, never touched, never needing the override.
+        expect(minClear).toBeGreaterThanOrEqual(0.75);
+        expect(dodgeExtOf(s)).toMatchObject({ contacts: 0, overrides: 0, dives: 1, failures: 0 });
+        expect(s.players.a!.car.personBumps).toBe(0);
+      }
+    }
   });
 
   it("on a hill: a car coming down a 20% slope at a person on it", () => {

@@ -14,7 +14,10 @@
 //     building widens from there (IMPACT_SPREAD: it can glance off along the wall). A body within its margin of
 //     that footprint (DODGE_PROFILE: 0.75 m; 1.25 m for children and anyone seated, lying or
 //     using a mobility aid; for a robotaxi, which keeps to its route and holds still while
-//     anyone is within its berth, the berth: 0.5 m, a child's 0.9 m) dives.
+//     anyone is within its berth, the berth: 0.5 m, a child's 0.9 m) dives; from a player's car,
+//     only once the footprint reaches them within REACT_S (1.5 s), or sooner when running clear
+//     of its path takes longer than the time left less REACT_LAG_S (a narrow alley): nobody runs
+//     from a car that will pass them by or is still far off (owner, 2026-10-27).
 //  2. Get out of the way (still called a dive). The landing spot is the cheapest clear spot on a fan of lines:
 //     square to the vehicle's path on the side the body is on, then angled, then the other side.
 //     A line is walked the way the body would go (Ground): it ends at a building (height-aware
@@ -181,6 +184,33 @@ export const PASSING_M = 0.2;
  */
 export const EMERGENCY_S = 0.8;
 export const EMERGENCY_BOOST = 1.25;
+/**
+ * A body gets out of a player's car's way only when its predicted footprint reaches them within
+ * this many seconds: "no reason for them to run away unless I'm about to hit them" (owner,
+ * 2026-10-27). The footprint still reaches horizonS ahead for where they land. Why 1.5 s: a person
+ * (4.8 m/s, 7 m/s^2) runs the ~2 m from a car's centre line to its side plus their margin in about
+ * 0.75 s, and the care class (3.6 m/s, 5.5 m/s^2, a 1.25 m margin) its ~2.5 m in about 1 s; that
+ * leaves 0.5 s or more for a human's reaction and for a car that swerves at them meanwhile (at
+ * 1.2 s the fuzz's chasing and random drivers needed the override about twice as often). At
+ * 25 m/s the car is then about 37 m off. The footprint's spread is then at most 1.5 m, so a car
+ * passing 3 m beside someone no longer reaches them. Someone who needs longer to get clear
+ * (a long run to a doorway in an alley) goes once that run plus REACT_LAG_S fills the time left.
+ * Robotaxis brake for people by themselves (their footprint already ends where they stop) and
+ * keep the full horizon.
+ */
+export const REACT_S = 1.5;
+/**
+ * A human's reaction and decision time, seconds: a car reaching someone only beyond REACT_S is
+ * acted on once their run clear of its path plus this fills the time left. (0.5 s: at 0.25 s and
+ * below the soak's crest jump needed the override for one person 8 times.)
+ */
+export const REACT_LAG_S = 0.5;
+
+/** Seconds to run `d` metres from a standstill to a standstill at up to `vmax` m/s, speeding up and slowing down at `accel` m/s^2. */
+export function runTime(d: number, vmax: number, accel: number): number {
+  const ramp = (vmax * vmax) / accel; // (the distance spent speeding up and slowing down)
+  return d <= ramp ? 2 * Math.sqrt(d / accel) : d / vmax + vmax / accel;
+}
 /** Scrambling, a body also gets up to speed this many times as fast. */
 export const EMERGENCY_ACCEL = 4;
 /**
@@ -1754,8 +1784,11 @@ interface Rec {
   guarded: boolean;
   /** May start a dive (a player falling cannot). */
   canDive: boolean;
-  /** Vehicles whose predicted footprint reaches it this tick, earliest first (null: none). */
-  threats: Array<{ v: number; hit: Hit }> | null;
+  /**
+   * Vehicles whose predicted footprint reaches it this tick, earliest first (null: none); `far`:
+   * a player's car reaching it only beyond REACT_S (a threat only when it needs the time).
+   */
+  threats: Array<{ v: number; hit: Hit; far: boolean }> | null;
   changed: boolean;
 }
 
@@ -2025,7 +2058,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       const margin = DODGE_PROFILE[r.cls].margin;
       // (Not when it cannot be at their height: a car in the street under someone on a roof.)
       const hit = sweepHitBand(world, v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin), r.y);
-      if (hit) (r.threats ??= []).push({ v: vi, hit });
+      // A car that can steer anywhere (spread > 0) beyond REACT_S is only a far threat: they
+      // move for it only when they need longer than that to get clear (below).
+      if (hit) (r.threats ??= []).push({ v: vi, hit, far: v.spread > 0 && hit.t > REACT_S });
     }
   }
 
@@ -2131,11 +2166,22 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
     if (r.threats === null && r.dodge === null) continue;
     const prof = DODGE_PROFILE[r.cls];
     r.threats?.sort((a, b) => a.hit.t - b.hit.t || a.v - b.v);
-    const threat = r.canDive && r.threats ? r.threats[0]! : null;
+    let threat = r.canDive && r.threats ? r.threats[0]! : null;
     let d = r.dodge;
     const diving = d !== null && d.phase === "dive" && !d.leap;
     let nearV: Vehicle[] | null = null;
     const nearby = (): Vehicle[] => nearV ?? (nearV = vehiclesNear(r, prof.maxDive + r.r + prof.margin + 1));
+    // A player's car not yet about to reach them (REACT_S): they stay put unless getting clear of
+    // it takes them longer than the time left less REACT_LAG_S (a narrow alley, a long way to a
+    // doorway), so nobody runs from a car that is still far off or may well pass them by.
+    if (threat && threat.far && !diving) {
+      const body: Body = { x: r.x, z: r.z, y: r.y, r: r.r, cls: r.cls, id: r.id };
+      // (The run out of the path it is on: its spread, the swerves it might make, does not count here.)
+      const held = nearby().map((v) => (v.spread > 0 ? { ...v, spread: 0 } : v));
+      const to = chooseDive(groundOf(r), body, threat.hit, held, spotsNear(ri, prof.maxDive + 2), null, { vx: r.vx, vz: r.vz, vmax: prof.speed, accel: prof.accel });
+      if (!to || runTime(Math.sqrt((to.x - r.x) * (to.x - r.x) + (to.z - r.z) * (to.z - r.z)), prof.speed, prof.accel) + REACT_LAG_S < threat.hit.t) threat = null;
+    }
+    if (threat === null && r.dodge === null) continue;
     // A dive under way still holds when its landing is clear of every footprint and its line
     // keeps the body's margin from the moving vehicles and clear of the stopped ones.
     let holds = true;
