@@ -18,7 +18,7 @@ const SPARKS = 384;
 const SMOKE = 160;
 const SCUFFS = 192;
 const SPARK_LIFE_S = 0.55;
-const SMOKE_LIFE_S = 1.6;
+const SMOKE_LIFE_S = 2.2;
 /** Robotaxis farther than this from the camera get no scuffs drawn. */
 const SCUFF_RANGE_M = 90;
 /** A car below this condition smokes, more as it drops. */
@@ -34,6 +34,46 @@ interface Particle {
   x: number; y: number; z: number;
   vx: number; vy: number; vz: number;
   age: number; life: number;
+  /** Smoke only: the puff's starting turn and spin (radians, rad/s). */
+  angle: number; spin: number;
+}
+
+/**
+ * A soft smoke puff, made here (no image asset): a few overlapping Gaussian lobes, so a turned
+ * puff reads as a billow, not a disc, faded to zero well inside the square so no edge shows.
+ */
+export function createSmokePuffTexture(size = 64): THREE.DataTexture {
+  const lobes: ReadonlyArray<readonly [number, number, number, number]> = [
+    [0, 0, .17, 1], [-.13, .07, .11, .75], [.12, .09, .1, .7], [.03, -.13, .11, .7],
+    [-.1, -.09, .09, .55], [.13, -.06, .09, .55], [-.02, .15, .09, .5],
+  ];
+  const data = new Uint8Array(size * size * 4);
+  for (let j = 0; j < size; j++) for (let i = 0; i < size; i++) {
+    const u = (i + .5) / size - .5, v = (j + .5) / size - .5;
+    let d = 0;
+    for (const [x, y, r, w] of lobes) d += w * Math.exp(-((u - x) ** 2 + (v - y) ** 2) / (2 * r * r));
+    const edge = Math.min(1, Math.max(0, (.48 - Math.hypot(u, v)) / .2));
+    const a = (1 - Math.exp(-1.7 * d)) * edge * edge * (3 - 2 * edge);
+    const k = (j * size + i) * 4;
+    data[k] = data[k + 1] = data[k + 2] = 255; data[k + 3] = Math.round(a * 255);
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  tex.name = "fc:smoke-puff";
+  tex.magFilter = THREE.LinearFilter; tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true; tex.needsUpdate = true;
+  return tex;
+}
+
+/** A puff's size multiplier over its life (0..1): starts small at the bonnet and billows out. */
+export function smokePuffSize(t: number): number {
+  const u = Math.min(1, Math.max(0, t));
+  return .5 + 2.5 * (1 - (1 - u) * (1 - u));
+}
+
+/** A puff's opacity multiplier over its life: a quick fade in (no hard edge where it leaves the car), then away. */
+export function smokePuffAlpha(t: number): number {
+  const u = Math.min(1, Math.max(0, t)), up = Math.min(1, u / .14);
+  return up * up * (3 - 2 * up) * Math.pow(1 - u, 1.2);
 }
 
 /** A small deterministic hash -> [0, 1). */
@@ -51,6 +91,9 @@ export class ImpactLayer {
   private readonly smokeGeo = new THREE.BufferGeometry();
   private readonly sparkPos = new Float32Array(SPARKS * 3);
   private readonly smokePos = new Float32Array(SMOKE * 3);
+  /** Per puff: size multiplier, opacity multiplier, rotation (portable-points SoftPointOptions). */
+  private readonly smokePuff = new Float32Array(SMOKE * 3);
+  private readonly smokeTex = createSmokePuffTexture();
   private readonly sparkDraw: PortablePoints;
   private readonly smokeDraw: PortablePoints;
   private readonly scuffs: THREE.InstancedMesh;
@@ -74,8 +117,11 @@ export class ImpactLayer {
     this.root.name = "impacts";
     this.sparkGeo.setAttribute("position", new THREE.BufferAttribute(this.sparkPos, 3).setUsage(THREE.DynamicDrawUsage));
     this.smokeGeo.setAttribute("position", new THREE.BufferAttribute(this.smokePos, 3).setUsage(THREE.DynamicDrawUsage));
+    this.smokeGeo.setAttribute("fcPuff", new THREE.BufferAttribute(this.smokePuff, 3).setUsage(THREE.DynamicDrawUsage));
     this.sparkDraw = createPortablePoints(this.sparkGeo, { color: 0xffc46b, size: 0.12, sizeAttenuation: true, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
-    this.smokeDraw = createPortablePoints(this.smokeGeo, { color: 0x5a5753, size: 1.1, sizeAttenuation: true, transparent: true, opacity: 0.45, depthWrite: false });
+    // Soft round puffs (not bare squares): a radial alpha sprite, grown, faded and turned per puff.
+    this.smokeDraw = createPortablePoints(this.smokeGeo, { color: 0x5a5753, size: 1.1, sizeAttenuation: true, transparent: true, opacity: 0.75, depthWrite: false, blending: THREE.NormalBlending },
+      { map: this.smokeTex, attribute: "fcPuff" });
     const sparkPoints = this.sparkDraw.object, smokePoints = this.smokeDraw.object;
     sparkPoints.name = "impact-sparks";
     smokePoints.name = "impact-smoke";
@@ -106,7 +152,7 @@ export class ImpactLayer {
     const lerp = (a: number, b: number): number => a + (b - a) * alpha;
     this.smokeClock += dt;
     const emit = this.smokeClock >= 0.08;
-    if (emit) this.smokeClock = 0;
+    if (emit) this.smokeClock = Math.min(this.smokeClock - 0.08, 0.08); // Keep the rate at low frame rates.
     for (const id of Object.keys(curr.players).sort()) {
       const c = curr.players[id]!.car;
       const p = prev.players[id]?.car ?? c;
@@ -118,8 +164,9 @@ export class ImpactLayer {
       } else this.fallbackFrame(x, y, z, h, CAR.halfLength, CAR.halfWidth, CAR.bodyHeight);
       n = this.scuffBody(n, d);
       if (emit && d.condition < SMOKE_BELOW && rand(++this.puff, 1) < 0.35 + (SMOKE_BELOW - d.condition) / SMOKE_BELOW) {
-        this.point.set(0, 1.1, this.vehicleBounds.min.z + .6).applyMatrix4(this.vehicleMatrix);
-        this.spawn(this.smoke, SMOKE, this.point.x, this.point.y, this.point.z, 0.3 * (rand(this.puff, 2) - 0.5), 0.8, 0.3 * (rand(this.puff, 3) - 0.5), SMOKE_LIFE_S);
+        this.point.set(0.5 * (rand(this.puff, 6) - 0.5), 1.1, this.vehicleBounds.min.z + .6).applyMatrix4(this.vehicleMatrix);
+        this.spawn(this.smoke, SMOKE, this.point.x, this.point.y, this.point.z, 0.6 * (rand(this.puff, 2) - 0.5), 0.6, 0.6 * (rand(this.puff, 3) - 0.5),
+          SMOKE_LIFE_S * (0.8 + 0.4 * rand(this.puff, 4)), rand(this.puff, 7) * Math.PI * 2, 1.2 * (rand(this.puff, 8) - 0.5));
       }
     }
     const agents = (curr.ext[AGENTS_EXT_KEY] as AgentsExt | undefined)?.list ?? [];
@@ -143,6 +190,7 @@ export class ImpactLayer {
     if (this.scuffs.instanceColor) this.scuffs.instanceColor.needsUpdate = true;
     this.write(this.sparks, this.sparkPos, this.sparkGeo);
     this.write(this.smoke, this.smokePos, this.smokeGeo);
+    this.writePuffs();
     this.sparkDraw.sync(); this.smokeDraw.sync();
   }
 
@@ -162,9 +210,19 @@ export class ImpactLayer {
     }
   }
 
-  private spawn(list: Particle[], cap: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number): void {
+  private spawn(list: Particle[], cap: number, x: number, y: number, z: number, vx: number, vy: number, vz: number, life: number, angle = 0, spin = 0): void {
     if (list.length >= cap) list.shift();
-    list.push({ x, y, z, vx, vy, vz, age: 0, life });
+    list.push({ x, y, z, vx, vy, vz, age: 0, life, angle, spin });
+  }
+
+  /** Each live puff's size, opacity and turn for this frame (same order as the positions). */
+  private writePuffs(): void {
+    const buf = this.smokePuff;
+    for (let i = 0; i < this.smoke.length; i++) {
+      const p = this.smoke[i]!, t = p.age / p.life;
+      buf[i * 3] = smokePuffSize(t); buf[i * 3 + 1] = smokePuffAlpha(t); buf[i * 3 + 2] = p.angle + p.spin * p.age;
+    }
+    (this.smokeGeo.getAttribute("fcPuff") as THREE.BufferAttribute).needsUpdate = true;
   }
 
   private advance(list: Particle[], dt: number, gravity: number, drag: number): void {
@@ -220,6 +278,7 @@ export class ImpactLayer {
     this.sparkDraw.dispose(); this.smokeDraw.dispose();
     this.sparkGeo.dispose();
     this.smokeGeo.dispose();
+    this.smokeTex.dispose();
     this.scuffs.geometry.dispose();
     (this.scuffs.material as THREE.Material).dispose();
     this.root.removeFromParent();
