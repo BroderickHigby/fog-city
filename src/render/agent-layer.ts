@@ -60,6 +60,7 @@ import {
   packGeometry,
   packedMaterial,
   proxyOf,
+  robotFinish,
   triangleCount,
   type Channel,
   type PackedModel,
@@ -555,6 +556,8 @@ export class AgentLayer {
     const size = model.bodyBounds.isEmpty() ? model.bounds : model.bodyBounds;
     view.scale = agentModelScale(view.kind, { length: size.max.z - size.min.z, width: size.max.x - size.min.x });
     view.model = model;
+    // Robots: the near model and its proxy share one finish that reads the same up close.
+    if (view.kind === "errandRobot" || view.kind === "sidewalkBot") robotFinish(model);
     for (const p of model.parts) {
       if (!p.geometry) continue;
       const part = this.adopt(new PartMesh(p.geometry, this.material, instanceBudget(this.capNear, 1), `agents:${view.kind}:${p.name}`, false));

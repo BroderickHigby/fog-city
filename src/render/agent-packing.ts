@@ -516,6 +516,42 @@ export function simplifyPacked(g: THREE.BufferGeometry, cell: number): THREE.Buf
   return out;
 }
 
+/**
+ * The finish a robot (errand robot, sidewalk bot) draws with. The models ask for glazed white
+ * ceramic: base colour up to 0.90 and roughness 0.24, the brightest and glossiest surface in
+ * the city. Two things change with distance. three adds the normal's screen-space change to
+ * roughness (specular anti-aliasing), so a robot a few metres off reads rougher than its
+ * material; up close that term goes to zero and the shell turns glossy. And the sunlit shell
+ * is over the bloom threshold, so when it fills the screen the bloom spills a glow around it.
+ * The floor and the cap keep the close look the same as the mid-distance one. Light surfaces
+ * (faces, status lines) keep their own values.
+ */
+export const ROBOT_MIN_ROUGHNESS = 0.45;
+/** Brightest base-colour channel (linear) a robot surface keeps; brighter ones scale down, hue kept. */
+export const ROBOT_MAX_ALBEDO = 0.7;
+
+/** Apply the robot finish to every non-light vertex of every part, in place. */
+export function robotFinish(model: PackedModel): void {
+  for (const part of model.parts) {
+    const g = part.geometry;
+    if (!g) continue;
+    const pbr = g.getAttribute("fcPbr") as THREE.BufferAttribute;
+    const emit = g.getAttribute("fcEmit") as THREE.BufferAttribute;
+    const col = g.getAttribute("color") as THREE.BufferAttribute;
+    for (let i = 0; i < pbr.count; i++) {
+      if (emit.getW(i) > 0.5) continue;
+      if (pbr.getX(i) < ROBOT_MIN_ROUGHNESS) pbr.setX(i, ROBOT_MIN_ROUGHNESS);
+      const peak = Math.max(col.getX(i), col.getY(i), col.getZ(i));
+      if (peak > ROBOT_MAX_ALBEDO) {
+        const k = ROBOT_MAX_ALBEDO / peak;
+        col.setXYZ(i, col.getX(i) * k, col.getY(i) * k, col.getZ(i) * k);
+      }
+    }
+    pbr.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+}
+
 /** Triangles in a geometry. */
 export function triangleCount(g: THREE.BufferGeometry | null): number {
   if (!g) return 0;
