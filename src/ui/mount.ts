@@ -54,9 +54,11 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," km/h");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
   const hints=node("div","fc-drive-hints");hints.setAttribute("aria-hidden","true");
   let hintMode="";
+  // H offers robotaxi control only to a robotaxi passenger; in any car it drives (own, stolen,
+  // a driven robotaxi) H is the horn. Reads the view update() stored before calling this.
   const updateHints=(onFoot:boolean):void=>{
-    const mode=onFoot?"foot":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
-    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H","ui.hud.robotaxiHint"]];
+    const mode=onFoot?"foot":view?.vehicleControl==="robotaxi-passenger"?"passenger":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
+    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H",mode==="passenger"?"ui.hud.robotaxiHint":"ui.hud.hornHint"]];
     for(const [key,label]of keys){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
   };
   updateHints(false);
