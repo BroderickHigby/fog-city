@@ -11,6 +11,7 @@ interface FloorTriangle {
   minY: number; maxY: number;
 }
 
+/** Walkable drawn surfaces: terrain, road ribbons and freeways, and the junction patches and paint (fc:road, fc:road-paint). */
 function floorMaterial(material: THREE.Material | undefined): boolean {
   return !!material && material.visible && (material.name === "fc:ground"
     || material.name.startsWith("fc:road") || material.name.startsWith("fc:freeway"));
@@ -28,11 +29,19 @@ export class AvatarGround {
 
   addTile(group: THREE.Object3D): void {
     if (!group.name.startsWith("tile:") || group.name.length === 5) return;
-    const id = group.name.slice(5);
+    this.addSurface(group.name.slice(5), [group]);
+  }
+
+  /**
+   * Index drawn floor laid over the tiles under its own id (removeTile(id) drops it): the
+   * street-detail junction patches and crosswalk paint sit 5-8 cm above the road ribbons, and
+   * an avatar matched only to the ribbons stood with its shoes under that asphalt.
+   */
+  addSurface(id: string, roots: readonly THREE.Object3D[]): void {
     this.removeTile(id);
     const buckets = new Map<string, FloorTriangle[]>();
-    group.updateWorldMatrix(true, true);
-    group.traverse(object => {
+    for (const root of roots) root.updateWorldMatrix(true, true);
+    for (const root of roots) root.traverse(object => {
       const mesh = object as THREE.Mesh;
       if (!mesh.isMesh || !mesh.visible || (object as THREE.SkinnedMesh).isSkinnedMesh || (object as THREE.InstancedMesh).isInstancedMesh) return;
       const geometry = mesh.geometry;

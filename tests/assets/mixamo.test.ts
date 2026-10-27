@@ -69,3 +69,48 @@ it("ships four valid in-place clips targeting the existing player rig", () => {
     }
   }
 });
+
+it("bends the Rocketbox knee about its own hinge (calf local Z) as closely as the Mixamo knee bends about its own (local X)", async () => {
+  // Matching bone directions alone left the Rocketbox knee bending 16-30 degrees (mean) off
+  // its hinge, so the shins and feet swung sideways out of the knee's plane. The retarget now
+  // keeps the knee as true as the capture's own: only the source's off-axis motion remains.
+  const { Quaternion } = await import("three");
+  const { FBXLoader } = await import("three/addons/loaders/FBXLoader.js");
+  const { AnimationMixer, QuaternionLinearInterpolant } = await import("three");
+  const bank = JSON.parse(read("public/models/mixamo-motion.json").toString());
+  const glb = read("public/models/generic-player.glb");
+  const doc = JSON.parse(glb.subarray(20, 20 + glb.readUInt32LE(12)).toString());
+  /** Degrees between a rotation's axis and `axis` (0: x, 2: z), for bends over 40 degrees. */
+  const offAxis = (q: InstanceType<typeof Quaternion>, axis: 0 | 2): number | null => {
+    if (2 * Math.acos(Math.min(1, Math.abs(q.w))) < 40 * Math.PI / 180) return null;
+    return Math.acos(Math.min(1, Math.abs(axis === 0 ? q.x : q.z) / Math.hypot(q.x, q.y, q.z))) * 180 / Math.PI;
+  };
+  const mean = (a: number[]): number => a.reduce((x, y) => x + y, 0) / a.length;
+  for (const [name, file] of [["walk", "Walking.fbx"], ["jog", "Jogging.fbx"], ["run", "Running.fbx"]] as const) {
+    const bytes = read(`assets/mixamo/${file}`);
+    const source = new FBXLoader().parse(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer, "");
+    const clip = AnimationClip.parse(bank.clips.find((c: { name: string }) => c.name === name));
+    const rests = new Map(["Left", "Right"].map(long => [long, source.getObjectByName(`mixamorig${long}Leg`)!.quaternion.clone().invert()]));
+    for (const [side, long] of [["L", "Left"], ["R", "Right"]] as const) {
+      const bind = new Quaternion().fromArray(doc.nodes.find((n: { name: string }) => n.name === `Bip01 ${side} Calf`).rotation).invert();
+      const track = clip.tracks.find(t => t.name === `Bip01_${side}_Calf.quaternion`)!;
+      const leg = source.getObjectByName(`mixamorig${long}Leg`)!;
+      const rest = rests.get(long)!;
+      const mixer = new AnimationMixer(source);
+      mixer.clipAction(source.animations[0]!).play();
+      const ours: number[] = [], theirs: number[] = [];
+      const sample = new QuaternionLinearInterpolant(track.times, track.values, 4, new Float32Array(4));
+      for (let t = 0; t <= clip.duration; t += 1 / 30) {
+        const a = offAxis(bind.clone().multiply(new Quaternion().fromArray(Array.from(sample.evaluate(t)))), 2);
+        if (a !== null) ours.push(a);
+        mixer.setTime(t);
+        const b = offAxis(rest.clone().multiply(leg.quaternion), 0);
+        if (b !== null) theirs.push(b);
+      }
+      expect(ours.length, `${name} ${side}`).toBeGreaterThan(3);
+      expect(theirs.length, `${name} ${side}`).toBeGreaterThan(3);
+      expect(mean(ours), `${name} ${side}`).toBeLessThan(mean(theirs) + 2);
+      mixer.stopAllAction();
+    }
+  }
+}, 30_000);

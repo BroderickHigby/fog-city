@@ -408,6 +408,7 @@ export class SceneRenderer {
       roads: world.roads,
       signals: world.signals,
       colliders: world.colliders,
+      surfaces: { add: (id, roots) => this.avatarGround.addSurface(id, roots), remove: (id) => this.avatarGround.removeTile(id) },
     });
     this.scene.add(this.streetDetail.group);
     void this.streetDetail.load();
