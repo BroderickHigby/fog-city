@@ -149,7 +149,30 @@ for (const [name, selection] of Object.entries(selections)) {
   const hipRest = worldP(targetHip),
     sourceHipRest = worldP(sourceHip),
     scale = hipRest.y / sourceHipRest.y;
-  const rests = pairs.map((p) => {
+  // The knee is a hinge. Mixamo's knee bends about the leg's local X and the Rocketbox
+  // (biped) calf about its local Z, and the two rigs' rest legs are twisted differently
+  // about their own length. Matching bone directions alone left the Rocketbox knee
+  // bending about an axis 20-25 degrees off its own hinge, so the shins and feet swung
+  // sideways out of the knee's plane. Each leg bone is therefore aligned on two axes:
+  // its direction to its child and its side's knee hinge.
+  const hinge = (side: "L" | "R") => ({
+    target: new T.Vector3(0, 0, 1).applyQuaternion(worldQ(target.bones.get(`Bip01_${side}_Calf`)!)),
+    source: new T.Vector3(1, 0, 0)
+      .applyQuaternion(worldQ(sb.get(`mixamorig${side === "L" ? "Left" : "Right"}Leg`)!))
+      .applyQuaternion(yaw),
+  });
+  const hinges = { L: hinge("L"), R: hinge("R") };
+  /** The rotation taking direction a to b and, about it, hinge h to k (both made perpendicular). */
+  const frameAlign = (a: T.Vector3, b: T.Vector3, h: T.Vector3, k: T.Vector3) => {
+    const basis = (d: T.Vector3, s: T.Vector3) => {
+      const side = s.clone().sub(d.clone().multiplyScalar(s.dot(d))).normalize();
+      return new T.Matrix4().makeBasis(d, side, d.clone().cross(side));
+    };
+    return new T.Quaternion().setFromRotationMatrix(basis(b, k).multiply(basis(a, h).transpose()));
+  };
+  const legSide = (name: string) =>
+    /^Bip01_([LR])_(Thigh|Calf|Foot)$/.exec(name)?.[1] as "L" | "R" | undefined;
+  const aligns = pairs.map((p) => {
     const child = p.target.children.find((c) =>
       pairs.some((q) => q.target === c),
     );
@@ -163,13 +186,23 @@ for (const [name, selection] of Object.entries(selections)) {
           .sub(worldP(p.source))
           .normalize()
           .applyQuaternion(yaw);
-      align.setFromUnitVectors(a, b);
+      const side = legSide(p.target.name);
+      if (side) align.copy(frameAlign(a, b, hinges[side].target, hinges[side].source));
+      else align.setFromUnitVectors(a, b);
     }
-    return {
-      source: worldQ(p.source),
-      target: align.multiply(worldQ(p.target)),
-    };
+    return align;
   });
+  // The toe has no mapped child: it keeps its foot's alignment, so it lies along the
+  // shoe instead of being turned back against the foot's correction.
+  pairs.forEach((p, i) => {
+    if (!/^Bip01_[LR]_Toe0$/.test(p.target.name)) return;
+    const foot = pairs.findIndex((q) => q.target === p.target.parent);
+    if (foot >= 0) aligns[i]!.copy(aligns[foot]!);
+  });
+  const rests = pairs.map((p, i) => ({
+    source: worldQ(p.source),
+    target: aligns[i]!.clone().multiply(worldQ(p.target)),
+  }));
   const clip = source.animations[0]!;
   const mixer = new T.AnimationMixer(source);
   mixer.clipAction(clip).play();
