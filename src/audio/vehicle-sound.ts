@@ -1,7 +1,8 @@
 // What the player's car and feet should sound like this frame, from the sim state the renderer
 // draws. Pure and read-only: the procedural synth (vehicle-synth.ts) and the one-shots follow it.
 //
-// - EV motor whine: a tone pitched by speed, louder under acceleration (motor load).
+// - Engine: a four-cylinder petrol engine, RPM from speed through five gears (it drops on each
+//   upshift), firing pulses louder and brighter under throttle.
 // - Road and tyre roar: filtered noise, louder and brighter with speed, silent in the air.
 // - Tyre squeal: lateral slip, lost grip, or hard braking at speed.
 // - Impacts (a new hit) and landings (back on the ground after a jump), scaled by their speed.
@@ -10,9 +11,11 @@
 import type { CarState, FootState } from "../sim/contract.ts";
 
 export interface EngineParams {
-  /** The motor's fundamental, Hz. */
-  whineHz: number;
-  whineGain: number;
+  /** Firing pulses per second (two per crank turn on a four-cylinder), Hz. */
+  firingHz: number;
+  engineGain: number;
+  /** 0..1: how hard the engine is pulling; opens the exhaust filter. */
+  throttle: number;
   /** Road noise low-pass cutoff, Hz. */
   roarCutoff: number;
   roarGain: number;
@@ -30,48 +33,54 @@ export interface VehicleOneShot {
   landing?: true;
 }
 
-export const IDLE_WHINE_HZ = 110;
-export const WHINE_HZ_PER_MPS = 21;
+export const IDLE_RPM = 850;
+export const REDLINE_RPM = 5800;
+/** Each gear's top speed, m/s: the engine reaches REDLINE_RPM there and shifts up. */
+export const GEAR_TOP_MPS = [8, 15, 22, 29, 40] as const;
 export const MAX_SPEED_MPS = 32;
 
 const clamp01 = (v: number): number => (v <= 0 ? 0 : v >= 1 ? 1 : v);
 
-/** The continuous engine and road layers for a car this frame (`prev` a frame earlier). */
-export function engineParams(car: CarState, prev: CarState | null, dtS: number): EngineParams {
-  const speed = Math.abs(car.speed);
+/** Engine speed at a road speed: the lowest gear that is not past its top, never under idle. */
+export function engineRpm(speedMps: number): number {
+  const v = Math.abs(speedMps);
+  const top = GEAR_TOP_MPS.find((t) => v <= t) ?? GEAR_TOP_MPS[GEAR_TOP_MPS.length - 1]!;
+  return Math.max(IDLE_RPM, Math.min(REDLINE_RPM, (REDLINE_RPM * v) / top));
+}
+
+/** The engine and road layers at a speed, with `accel` (m/s²) as the throttle and `cabin` scaling the level. */
+function layers(speed: number, accel: number, grounded: boolean, cabin: number): Omit<EngineParams, "squealGain"> {
   const s = clamp01(speed / MAX_SPEED_MPS);
-  const accel = prev && dtS > 0 ? (Math.abs(car.speed) - Math.abs(prev.speed)) / dtS : 0;
-  const load = clamp01(accel / 4);
-  // Idle: a faint hum. Moving: brighter and louder; pushing harder adds load.
-  const whineGain = 0.035 + 0.11 * Math.sqrt(s) + 0.07 * load;
-  const roarGain = car.grounded ? 0.32 * Math.pow(s, 1.2) : 0;
-  const slip = clamp01((Math.abs(car.lateral) - 0.8) / 4);
-  const gripLoss = clamp01((0.85 - car.grip) / 0.6);
-  const braking = speed > 7 && accel < -7 ? clamp01((-accel - 7) / 6) : 0;
-  const squealGain = car.grounded && speed > 3 ? 0.45 * Math.max(slip, gripLoss, braking) : 0;
+  const throttle = clamp01(accel / 4);
+  const rpm = engineRpm(speed);
+  // Idle: a low burble. Revving and pulling: a little louder; the road takes over at speed.
+  const engineGain = (0.045 + 0.05 * ((rpm - IDLE_RPM) / (REDLINE_RPM - IDLE_RPM)) + 0.04 * throttle) * cabin;
   return {
-    whineHz: IDLE_WHINE_HZ + WHINE_HZ_PER_MPS * speed,
-    whineGain,
-    roarCutoff: 220 + 38 * speed,
-    roarGain,
-    squealGain,
+    firingHz: (rpm / 60) * 2,
+    engineGain,
+    throttle,
+    roarCutoff: 220 + 30 * speed,
+    roarGain: grounded ? 0.08 * Math.pow(s, 1.3) * cabin : 0,
   };
 }
 
-/** Riding in the back of a robotaxi: its motor and road, softer from the rear seat; it never squeals. */
+/** The continuous engine and road layers for a car this frame (`prev` a frame earlier). */
+export function engineParams(car: CarState, prev: CarState | null, dtS: number): EngineParams {
+  const speed = Math.abs(car.speed);
+  const accel = prev && dtS > 0 ? (Math.abs(car.speed) - Math.abs(prev.speed)) / dtS : 0;
+  const slip = clamp01((Math.abs(car.lateral) - 0.8) / 4);
+  const gripLoss = clamp01((0.85 - car.grip) / 0.6);
+  const braking = speed > 7 && accel < -7 ? clamp01((-accel - 7) / 6) : 0;
+  const squealGain = car.grounded && speed > 3 ? 0.25 * Math.max(slip, gripLoss, braking) : 0;
+  return { ...layers(speed, accel, car.grounded, 1), squealGain };
+}
+
+/** Riding in the back of a robotaxi: its engine and road, softer from the rear seat; it never squeals. */
 export const RIDE_CABIN = 0.6;
 
 export function rideEngineParams(speed: number, prevSpeed: number | null, dtS: number): EngineParams {
-  const s = clamp01(Math.abs(speed) / MAX_SPEED_MPS);
   const accel = prevSpeed !== null && dtS > 0 ? (Math.abs(speed) - Math.abs(prevSpeed)) / dtS : 0;
-  const load = clamp01(accel / 4);
-  return {
-    whineHz: IDLE_WHINE_HZ + WHINE_HZ_PER_MPS * Math.abs(speed),
-    whineGain: (0.035 + 0.11 * Math.sqrt(s) + 0.07 * load) * RIDE_CABIN,
-    roarCutoff: 220 + 38 * Math.abs(speed),
-    roarGain: 0.32 * Math.pow(s, 1.2) * RIDE_CABIN,
-    squealGain: 0,
-  };
+  return { ...layers(Math.abs(speed), accel, true, RIDE_CABIN), squealGain: 0 };
 }
 
 /** Impacts and landings since the previous frame. */

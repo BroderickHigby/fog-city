@@ -1,18 +1,39 @@
-// The player car's continuous sound, synthesised live in Web Audio (no files, no licence): an
-// EV motor whine (two detuned partials through a low-pass), road roar (looped noise through a
-// speed-tracking low-pass) and tyre squeal (noise through a narrow band-pass). Parameters come
-// from vehicle-sound.ts each frame and are smoothed, so nothing clicks or steps.
+// The player car's continuous sound, synthesised live in Web Audio (no files, no licence): a
+// four-cylinder engine (firing pulses at the engine's RPM, a half-order lope for an uneven idle,
+// soft-clipped and low-passed, brighter under throttle, with a little exhaust breath), road roar
+// (looped noise through a speed-tracking low-pass) and tyre squeal (noise through a narrow
+// band-pass). Parameters come from vehicle-sound.ts each frame and are smoothed, so nothing
+// clicks or steps.
 
 import type { EngineParams } from "./vehicle-sound.ts";
 
 /** Smoothing time constant for every parameter, seconds. */
 const SMOOTH_S = 0.08;
+/** Depth of the half-order lope: the level swings by this much either side of 1. */
+const LOPE_DEPTH = 0.18;
+
+/** A tanh soft clip: rounds the pulse tops the way a muffled exhaust does. */
+function softClip(drive: number): Float32Array<ArrayBuffer> {
+  const curve = new Float32Array(1024);
+  for (let i = 0; i < curve.length; i++) {
+    const x = (i / (curve.length - 1)) * 2 - 1;
+    curve[i] = Math.tanh(drive * x) / Math.tanh(drive);
+  }
+  return curve;
+}
 
 export class VehicleSynth {
   private readonly ctx: AudioContext;
   private readonly out: GainNode;
-  private readonly whine: [OscillatorNode, OscillatorNode];
-  private readonly whineGain: GainNode;
+  /** Firing pulses, the half-order, the body sine, the lope. */
+  private readonly firing: OscillatorNode;
+  private readonly halfOrder: OscillatorNode;
+  private readonly body: OscillatorNode;
+  private readonly lope: OscillatorNode;
+  private readonly engineFilter: BiquadFilterNode;
+  private readonly engineGain: GainNode;
+  private readonly breathFilter: BiquadFilterNode;
+  private readonly breathGain: GainNode;
   private readonly roarFilter: BiquadFilterNode;
   private readonly roarGain: GainNode;
   private readonly squealGain: GainNode;
@@ -23,24 +44,44 @@ export class VehicleSynth {
     this.out = ctx.createGain();
     this.out.gain.value = 0;
     this.out.connect(bus);
-    // Motor whine.
-    const whineFilter = ctx.createBiquadFilter();
-    whineFilter.type = "lowpass";
-    whineFilter.frequency.value = 2200;
-    this.whineGain = ctx.createGain();
-    this.whineGain.gain.value = 0;
-    whineFilter.connect(this.whineGain);
-    this.whineGain.connect(this.out);
-    const a = ctx.createOscillator(), b = ctx.createOscillator();
-    a.type = "sawtooth";
-    b.type = "sine";
-    const bLevel = ctx.createGain();
-    bLevel.gain.value = 0.6;
-    a.connect(whineFilter);
-    b.connect(bLevel);
-    bLevel.connect(whineFilter);
-    this.whine = [a, b];
-    // One second of white noise, looped, shared by the roar and the squeal.
+    // Engine: pulses and half-order through a soft clip and a low-pass, then the level and the lope.
+    this.engineGain = ctx.createGain();
+    this.engineGain.gain.value = 0;
+    const loped = ctx.createGain();
+    loped.gain.value = 1;
+    this.engineGain.connect(loped);
+    loped.connect(this.out);
+    this.engineFilter = ctx.createBiquadFilter();
+    this.engineFilter.type = "lowpass";
+    this.engineFilter.frequency.value = 300;
+    this.engineFilter.Q.value = 0.8;
+    this.engineFilter.connect(this.engineGain);
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = softClip(2.5);
+    shaper.oversample = "2x";
+    shaper.connect(this.engineFilter);
+    this.firing = ctx.createOscillator();
+    this.firing.type = "sawtooth";
+    this.firing.connect(shaper);
+    this.halfOrder = ctx.createOscillator();
+    this.halfOrder.type = "square";
+    const halfLevel = ctx.createGain();
+    halfLevel.gain.value = 0.35;
+    this.halfOrder.connect(halfLevel);
+    halfLevel.connect(shaper);
+    this.body = ctx.createOscillator();
+    this.body.type = "sine";
+    const bodyLevel = ctx.createGain();
+    bodyLevel.gain.value = 0.5;
+    this.body.connect(bodyLevel);
+    bodyLevel.connect(this.engineGain);
+    this.lope = ctx.createOscillator();
+    this.lope.type = "sine";
+    const lopeDepth = ctx.createGain();
+    lopeDepth.gain.value = LOPE_DEPTH;
+    this.lope.connect(lopeDepth);
+    lopeDepth.connect(loped.gain);
+    // One second of white noise, looped, shared by the breath, the roar and the squeal.
     const noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
     const data = noise.getChannelData(0);
     // A fixed LCG so the noise is the same every run (no Math.random in the repo's style).
@@ -49,12 +90,21 @@ export class VehicleSynth {
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       data[i] = seed / 2147483648 - 1;
     }
-    const roarSrc = ctx.createBufferSource(), squealSrc = ctx.createBufferSource();
-    roarSrc.buffer = noise;
-    roarSrc.loop = true;
-    squealSrc.buffer = noise;
-    squealSrc.loop = true;
-    squealSrc.playbackRate.value = 0.97; // decorrelate from the roar
+    const breathSrc = ctx.createBufferSource(), roarSrc = ctx.createBufferSource(), squealSrc = ctx.createBufferSource();
+    for (const [src, rate] of [[breathSrc, 1.03], [roarSrc, 1], [squealSrc, 0.97]] as const) {
+      src.buffer = noise;
+      src.loop = true;
+      src.playbackRate.value = rate; // decorrelate the three layers
+    }
+    this.breathFilter = ctx.createBiquadFilter();
+    this.breathFilter.type = "bandpass";
+    this.breathFilter.frequency.value = 200;
+    this.breathFilter.Q.value = 1.2;
+    this.breathGain = ctx.createGain();
+    this.breathGain.gain.value = 0;
+    breathSrc.connect(this.breathFilter);
+    this.breathFilter.connect(this.breathGain);
+    this.breathGain.connect(loped);
     this.roarFilter = ctx.createBiquadFilter();
     this.roarFilter.type = "lowpass";
     this.roarFilter.frequency.value = 300;
@@ -72,7 +122,7 @@ export class VehicleSynth {
     squealSrc.connect(squealFilter);
     squealFilter.connect(this.squealGain);
     this.squealGain.connect(this.out);
-    for (const s of [a, b, roarSrc, squealSrc]) {
+    for (const s of [this.firing, this.halfOrder, this.body, this.lope, breathSrc, roarSrc, squealSrc]) {
       s.start();
       this.sources.push(s);
     }
@@ -83,9 +133,15 @@ export class VehicleSynth {
     const t = this.ctx.currentTime;
     this.out.gain.setTargetAtTime(p ? 1 : 0, t, p ? SMOOTH_S : 0.15);
     if (!p) return;
-    this.whine[0].frequency.setTargetAtTime(p.whineHz, t, SMOOTH_S);
-    this.whine[1].frequency.setTargetAtTime(p.whineHz * 2.01, t, SMOOTH_S);
-    this.whineGain.gain.setTargetAtTime(p.whineGain, t, SMOOTH_S);
+    const hz = p.firingHz;
+    this.firing.frequency.setTargetAtTime(hz, t, SMOOTH_S);
+    this.halfOrder.frequency.setTargetAtTime(hz / 2, t, SMOOTH_S);
+    this.body.frequency.setTargetAtTime(hz, t, SMOOTH_S);
+    this.lope.frequency.setTargetAtTime(hz / 2, t, SMOOTH_S);
+    this.engineFilter.frequency.setTargetAtTime(250 + 900 * p.throttle + 3 * hz, t, SMOOTH_S);
+    this.engineGain.gain.setTargetAtTime(p.engineGain, t, SMOOTH_S);
+    this.breathFilter.frequency.setTargetAtTime(4 * hz, t, SMOOTH_S);
+    this.breathGain.gain.setTargetAtTime(p.engineGain * (0.15 + 0.5 * p.throttle), t, SMOOTH_S);
     this.roarFilter.frequency.setTargetAtTime(p.roarCutoff, t, SMOOTH_S);
     this.roarGain.gain.setTargetAtTime(p.roarGain, t, SMOOTH_S);
     this.squealGain.gain.setTargetAtTime(p.squealGain, t, 0.04);

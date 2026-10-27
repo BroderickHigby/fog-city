@@ -68,7 +68,7 @@ describe("audio director occupied body", () => {
       director.update({ state, playerId: "p", paused: false, nowMs: 16 });
       const last = engine.mock.calls.at(-1)?.[0];
       expect(last).not.toBeNull();
-      expect(last!.whineHz).toBeGreaterThan(300);
+      expect(last!.firingHz).toBeGreaterThan(100); // the taxi at 12 m/s, well above idle (28 Hz)
       expect(last!.squealGain).toBe(0);
       expect(play.mock.calls.some(([cue]) => cue.sound === "impact")).toBe(false);
     } finally {
@@ -89,7 +89,7 @@ describe("audio director occupied body", () => {
     const director = createGameAudioDirector({ host: {} as HTMLElement, missions: MISSIONS, prefs: new AudioPrefsStore(null) });
     try {
       director.update({ state, playerId: "p", paused: false, nowMs: 0 });
-      expect(engine.mock.calls.at(-1)?.[0]?.squealGain).toBeGreaterThan(0.2);
+      expect(engine.mock.calls.at(-1)?.[0]?.squealGain).toBeGreaterThan(0.15);
       const previous = { ...state, players: { p: { ...player, ride: { ...player.ride, manual: undefined } } } };
       const frame = { p: { throttle: 0, steer: 0, brake: 0, actions: Action.horn } };
       expect(hornBlasts(frame, state, previous)).toEqual([]);
