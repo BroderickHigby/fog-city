@@ -17,7 +17,7 @@ describe("v8 save of a robotaxi held behind a parked car", () => {
     expect(hashState(old)).toBe(saved.hash);
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(21);
+    expect(SIM_VERSION).toBe(22);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(canonicalJson(old)).toBe(before);
     expect(upgradeState(upgraded)).toBe(upgraded);

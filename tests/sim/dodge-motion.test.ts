@@ -103,7 +103,7 @@ describe("the save upgrade to people dodging on their feet (v14; dodges in fligh
     expect(hashState(old)).toBe(saved.hash);
     const before = canonicalJson(old);
     const up = upgradeState(old);
-    expect(SIM_VERSION).toBe(21);
+    expect(SIM_VERSION).toBe(22);
     expect(up.version).toBe(SIM_VERSION);
     expect(canonicalJson(old)).toBe(before);
     const ob = old.players.b!.foot!;
