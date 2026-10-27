@@ -522,13 +522,17 @@ export function simplifyPacked(g: THREE.BufferGeometry, cell: number): THREE.Buf
  * the city. Two things change with distance. three adds the normal's screen-space change to
  * roughness (specular anti-aliasing), so a robot a few metres off reads rougher than its
  * material; up close that term goes to zero and the shell turns glossy. And the sunlit shell
- * is over the bloom threshold, so when it fills the screen the bloom spills a glow around it.
- * The floor and the cap keep the close look the same as the mid-distance one. Light surfaces
- * (faces, status lines) keep their own values.
+ * is over the bloom threshold. The bloom (UnrealBloomPass on legacy, BloomNode on WebGPU) blurs
+ * its bright-pass through a mip chain, so its glow grows with the bright area: a few pixels at
+ * mid distance, a white haze when the shell fills the screen (legacy noon, 1 m: the bloom added
+ * a mean 18.8/255 to the frame at base 0.90, 4.0 at 0.55, 1.3 at 0.42; 1.0 at 3 m). There is no
+ * auto-exposure. At 0.45 the sunlit shell stays under the threshold and still reads white after
+ * tone mapping. The roughness floor makes it satin, not glazed. Light surfaces (faces, status
+ * lines) keep their own values.
  */
-export const ROBOT_MIN_ROUGHNESS = 0.45;
+export const ROBOT_MIN_ROUGHNESS = 0.55;
 /** Brightest base-colour channel (linear) a robot surface keeps; brighter ones scale down, hue kept. */
-export const ROBOT_MAX_ALBEDO = 0.7;
+export const ROBOT_MAX_ALBEDO = 0.45;
 
 /** Apply the robot finish to every non-light vertex of every part, in place. */
 export function robotFinish(model: PackedModel): void {
