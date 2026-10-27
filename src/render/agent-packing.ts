@@ -516,6 +516,45 @@ export function simplifyPacked(g: THREE.BufferGeometry, cell: number): THREE.Buf
   return out;
 }
 
+/**
+ * The finish a robot (errand robot, sidewalk bot) draws with. The models ask for glazed white
+ * ceramic: base colour up to 0.90 and roughness 0.24, the brightest and glossiest surface in
+ * the city. Two things change with distance. three adds the normal's screen-space change to
+ * roughness (specular anti-aliasing), so a robot a few metres off reads rougher than its
+ * material; up close that term goes to zero and the shell turns glossy. And the sunlit shell
+ * is over the bloom threshold. The bloom (UnrealBloomPass on legacy, BloomNode on WebGPU) blurs
+ * its bright-pass through a mip chain, so its glow grows with the bright area: a few pixels at
+ * mid distance, a white haze when the shell fills the screen (legacy noon, 1 m: the bloom added
+ * a mean 10.4/255 to the frame at base 0.70 and 1.2 at 0.45; 1.0 at 3 m). There is no
+ * auto-exposure. At 0.45 the sunlit shell stays under the threshold and still reads white after
+ * tone mapping. The roughness floor makes it satin, not glazed. Light surfaces (faces, status
+ * lines), metal trim and dark surfaces (the sidewalk bot's glossy visor) keep their own values:
+ * they are not the white shell, and none of them is over the threshold.
+ */
+export const ROBOT_MIN_ROUGHNESS = 0.55;
+/** Brightest base-colour channel (linear) a robot surface keeps; brighter ones scale down, hue kept. */
+export const ROBOT_MAX_ALBEDO = 0.45;
+
+/** Apply the robot finish to every bright shell vertex (not a light, metal or dark) of every part, in place. */
+export function robotFinish(model: PackedModel): void {
+  for (const part of model.parts) {
+    const g = part.geometry;
+    if (!g) continue;
+    const pbr = g.getAttribute("fcPbr") as THREE.BufferAttribute;
+    const emit = g.getAttribute("fcEmit") as THREE.BufferAttribute;
+    const col = g.getAttribute("color") as THREE.BufferAttribute;
+    for (let i = 0; i < pbr.count; i++) {
+      const peak = Math.max(col.getX(i), col.getY(i), col.getZ(i));
+      if (emit.getW(i) > 0.5 || pbr.getY(i) > 0.5 || peak <= ROBOT_MAX_ALBEDO) continue;
+      if (pbr.getX(i) < ROBOT_MIN_ROUGHNESS) pbr.setX(i, ROBOT_MIN_ROUGHNESS);
+      const k = ROBOT_MAX_ALBEDO / peak;
+      col.setXYZ(i, col.getX(i) * k, col.getY(i) * k, col.getZ(i) * k);
+    }
+    pbr.needsUpdate = true;
+    col.needsUpdate = true;
+  }
+}
+
 /** Triangles in a geometry. */
 export function triangleCount(g: THREE.BufferGeometry | null): number {
   if (!g) return 0;
