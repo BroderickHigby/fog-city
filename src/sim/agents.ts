@@ -100,7 +100,7 @@ import {
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
 import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
-import { signalAspect, type TrafficSignalControls } from "./traffic-signals.ts";
+import { amberTicksLeft, signalAspect, type TrafficSignalControls } from "./traffic-signals.ts";
 import {
   PASS_BEYOND_M,
   PASS_RAMPS_M,
@@ -1211,26 +1211,35 @@ function enteredJunction(g: RoadGraph, a: Readonly<AgentState>, nodeId: string):
   return a.s > stop + 1e-6;
 }
 
+/** Stopping distance over the gap to the line, and slack (m), before amber counts as committed. */
+const AMBER_STOP_FACTOR = 1.2;
+const AMBER_STOP_SLACK_M = 0.3;
+
 /**
- * v21: on amber, a robotaxi whose front cannot stop behind the line at its braking rate goes on,
- * as a driver would; before v21 it stopped dead in one tick wherever it was.
+ * v21: on amber, a robotaxi whose front cannot stop behind the line at its braking rate, and
+ * that reaches the line before red at its speed, goes on, as a driver would; before v21 it
+ * stopped dead in one tick wherever it was. A car braking along its stop curve never exceeds
+ * the margin, so it cannot tip into "committed" in the last metre and meet red at the line.
  */
-function committedOnAmber(g: RoadGraph, a: Readonly<AgentState>, nodeId: string): boolean {
-  if (a.conn !== null) return false;
+function committedOnAmber(g: RoadGraph, signals: TrafficSignalControls | undefined, tick: number, a: Readonly<AgentState>, nodeId: string): boolean {
+  if (a.conn !== null || a.speed <= 0) return false;
   const ei = g.edgeIndex.get(a.edge);
   if (ei === undefined) return false;
   const edge = g.edges[ei]!;
   if (g.nodes[endNode(edge, a.dir)]!.id !== nodeId) return false;
+  const left = amberTicksLeft(signals, nodeId, a.edge, tick);
+  if (left === 0) return false;
   const spec = AGENT_SPEC[a.kind];
-  const gap = basePath(edge, a).len - spec.halfLength - STOPLINE_M - a.s;
-  return a.speed * a.speed > 2 * spec.decel * Math.max(0, gap);
+  const gap = Math.max(0, basePath(edge, a).len - spec.halfLength - STOPLINE_M - a.s);
+  const stopping = (a.speed * a.speed) / (2 * spec.decel);
+  return stopping > gap * AMBER_STOP_FACTOR + AMBER_STOP_SLACK_M && gap <= a.speed * left * DT;
 }
 
 /** May this robotaxi drive into the junction at node id? (It holds it, or it won it this tick.) */
 function mayEnter(c: Ctx, a: Readonly<AgentState>, nodeId: string, edgeId = a.edge): boolean {
   const hs = c.holders.get(nodeId);
   const aspect = signalAspect(c.signals, nodeId, edgeId, c.tick);
-  const goesOn = aspect === "yellow" && c.amberCommit && committedOnAmber(c.g, a, nodeId);
+  const goesOn = c.amberCommit && committedOnAmber(c.g, c.signals, c.tick, a, nodeId);
   if (aspect !== null && aspect !== "green" && !goesOn) return enteredJunction(c.g, a, nodeId);
   if (hs) for (const h of hs) if (h.id === a.id) return true;
   return c.winners.has(a.id);
@@ -2438,7 +2447,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
       if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node)) continue;
       const aspect = signalAspect(signals, a.node, a.edge, tick);
       if (aspect === null || aspect === "green") continue;
-      if (aspect === "yellow" && amberCommit && committedOnAmber(g, a, a.node)) continue;
+      if (amberCommit && committedOnAmber(g, signals, tick, a, a.node)) continue;
       released ??= ext.list.slice(); released[i] = { ...a, node: "" };
     }
     if (released) ext = { ...ext, list: released };
@@ -2526,7 +2535,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     let w = waiters.get(nd.id);
     if (!w) waiters.set(nd.id, (w = []));
     w.push({ a, path: plannedConnector(g, a) });
-    if (aspect !== null && aspect !== "green" && !(aspect === "yellow" && amberCommit && committedOnAmber(g, a, nd.id))) continue;
+    if (aspect !== null && aspect !== "green" && !(amberCommit && committedOnAmber(g, signals, tick, a, nd.id))) continue;
     const dt = stepDt.get(a.id) ?? DT;
     if (rem.dist > spec.halfLength + STOPLINE_M + 1 + a.speed * dt && !(rear && a.speed < 0.05)) continue;
     const plan = planNext(g, a);

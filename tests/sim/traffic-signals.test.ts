@@ -251,6 +251,24 @@ describe("v21 amber dilemma zone", () => {
     expect(a.s).toBeLessThanOrEqual(lanePath(world.roads!.edges[0]!, 1, 0).len - AGENT_SPEC.robotaxi.halfLength - STOPLINE_M + 1e-6);
   });
 
+  it("no approach speed or distance stops dead: no tick drops more than 0.5 m/s (3 g)", () => {
+    const world = junction(), onset = lastGreen(world, "e0"), len = lanePath(world.roads!.edges[0]!, 1, 0).len;
+    const line = len - AGENT_SPEC.robotaxi.halfLength - STOPLINE_M, dead: string[] = [];
+    for (const speed of [6, 8, 10, 12]) for (let distance = 6; distance <= 65; distance++) {
+      let current = state(world, [{ ...car(world, 1, "e0", distance, speed), vmax: 13 }], onset, 21), worst = 0, entered = false;
+      for (let i = 0; i < 400 && !entered; i++) {
+        const before = current.ext.agents!.list[0]!.speed;
+        current = advance(world, current);
+        const a = current.ext.agents!.list[0]!;
+        worst = Math.max(worst, before - a.speed);
+        entered = a.conn !== null || a.edge !== "e0";
+      }
+      const a = current.ext.agents!.list[0]!;
+      if (worst > .5 || (!entered && (a.speed > .05 || a.s > line + 1e-6))) dead.push(`${speed} m/s at ${distance} m: dropped ${worst.toFixed(2)} m/s in a tick`);
+    }
+    expect(dead).toEqual([]);
+  });
+
   it("v20 replays keep the old hard stop at the line", () => {
     const world = junction();
     let current = state(world, [car(world, 1, "e0", nearLine, 8)], lastGreen(world, "e0"), 20);
