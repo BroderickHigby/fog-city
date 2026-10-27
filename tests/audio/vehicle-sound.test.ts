@@ -2,7 +2,7 @@
 // slip and hard braking, impacts and landings scale with their speed, doors play on getting in
 // and out, and footsteps keep a pace-appropriate cadence.
 import { describe, expect, it } from "vitest";
-import { FootstepClock, GEAR_TOP_MPS, IDLE_RPM, REDLINE_RPM, STEP_INTERVAL_S, RIDE_CABIN, carOneShots, doorOneShots, engineParams, engineRpm, pace, rideEngineParams } from "../../src/audio/vehicle-sound.ts";
+import { CRUISE_SHIFT_RPM, FootstepClock, GEAR_TOP_MPS, IDLE_RPM, REDLINE_RPM, STEP_INTERVAL_S, RIDE_CABIN, carOneShots, doorOneShots, engineParams, engineRpm, pace, rideEngineParams } from "../../src/audio/vehicle-sound.ts";
 import type { CarState, FootState } from "../../src/sim/contract.ts";
 
 const car = (o: Partial<CarState> = {}): CarState => ({
@@ -22,10 +22,14 @@ describe("engine and road", () => {
       expect(engineRpm(v)).toBeLessThanOrEqual(REDLINE_RPM);
     }
     expect(engineRpm(6)).toBeGreaterThan(engineRpm(3));
+    // Pulling hard revs each gear to the redline before the upshift; cruising shifts early.
     for (const top of GEAR_TOP_MPS.slice(0, -1)) {
       expect(engineRpm(top)).toBeCloseTo(REDLINE_RPM, 6);
       expect(engineRpm(top + 0.1)).toBeLessThan(engineRpm(top) * 0.8);
     }
+    expect(engineRpm(30, 0)).toBeLessThanOrEqual(CRUISE_SHIFT_RPM);
+    expect(engineRpm(30, 0)).toBeGreaterThan(2500);
+    expect(engineRpm(12, 0)).toBeLessThan(engineRpm(12, 1));
     // Road noise rises and brightens with speed.
     let last = idle;
     for (const speed of [5, 10, 20, 30]) {
@@ -38,7 +42,7 @@ describe("engine and road", () => {
     expect(engineParams(car({ speed: -8 }), car({ speed: -8 }), 1 / 60).firingHz).toBe(engineParams(car({ speed: 8 }), car({ speed: 8 }), 1 / 60).firingHz);
   });
 
-  it("stays quiet: no layer above the levels set when the motor whine was replaced", () => {
+  it("stays quiet: engine, road and squeal never pass their set ceilings", () => {
     for (let v = 0; v <= 40; v += 0.5)
       for (const prev of [v, v - 0.2, v + 0.3]) {
         const p = engineParams(car({ speed: v, lateral: 6, grip: 0 }), car({ speed: prev }), 1 / 60);

@@ -1,8 +1,8 @@
 // What the player's car and feet should sound like this frame, from the sim state the renderer
 // draws. Pure and read-only: the procedural synth (vehicle-synth.ts) and the one-shots follow it.
 //
-// - Engine: a four-cylinder petrol engine, RPM from speed through five gears (it drops on each
-//   upshift), firing pulses louder and brighter under throttle.
+// - Engine: a four-cylinder petrol engine, RPM from speed and throttle through five gears (early
+//   upshifts when cruising, to the redline when pulling hard), louder and brighter under throttle.
 // - Road and tyre roar: filtered noise, louder and brighter with speed, silent in the air.
 // - Tyre squeal: lateral slip, lost grip, or hard braking at speed.
 // - Impacts (a new hit) and landings (back on the ground after a jump), scaled by their speed.
@@ -35,16 +35,19 @@ export interface VehicleOneShot {
 
 export const IDLE_RPM = 850;
 export const REDLINE_RPM = 5800;
-/** Each gear's top speed, m/s: the engine reaches REDLINE_RPM there and shifts up. */
-export const GEAR_TOP_MPS = [8, 15, 22, 29, 40] as const;
+/** Each gear's top speed, m/s: the engine reaches REDLINE_RPM there. */
+export const GEAR_TOP_MPS = [10, 18, 27, 37, 58] as const;
+/** Upshift point: early when cruising (about 3000 rpm at 30 m/s), at the redline when pulling hard. */
+export const CRUISE_SHIFT_RPM = 3200;
 export const MAX_SPEED_MPS = 32;
 
 const clamp01 = (v: number): number => (v <= 0 ? 0 : v >= 1 ? 1 : v);
 
-/** Engine speed at a road speed: the lowest gear that is not past its top, never under idle. */
-export function engineRpm(speedMps: number): number {
+/** Engine speed at a road speed and throttle (0..1): the lowest gear under the shift point, never under idle. */
+export function engineRpm(speedMps: number, throttle = 1): number {
   const v = Math.abs(speedMps);
-  const top = GEAR_TOP_MPS.find((t) => v <= t) ?? GEAR_TOP_MPS[GEAR_TOP_MPS.length - 1]!;
+  const shift = CRUISE_SHIFT_RPM + (REDLINE_RPM - CRUISE_SHIFT_RPM) * throttle;
+  const top = GEAR_TOP_MPS.find((t) => (REDLINE_RPM * v) / t <= shift) ?? GEAR_TOP_MPS[GEAR_TOP_MPS.length - 1]!;
   return Math.max(IDLE_RPM, Math.min(REDLINE_RPM, (REDLINE_RPM * v) / top));
 }
 
@@ -52,7 +55,7 @@ export function engineRpm(speedMps: number): number {
 function layers(speed: number, accel: number, grounded: boolean, cabin: number): Omit<EngineParams, "squealGain"> {
   const s = clamp01(speed / MAX_SPEED_MPS);
   const throttle = clamp01(accel / 4);
-  const rpm = engineRpm(speed);
+  const rpm = engineRpm(speed, throttle);
   // Idle: a low burble. Revving and pulling: a little louder; the road takes over at speed.
   const engineGain = (0.045 + 0.05 * ((rpm - IDLE_RPM) / (REDLINE_RPM - IDLE_RPM)) + 0.04 * throttle) * cabin;
   return {

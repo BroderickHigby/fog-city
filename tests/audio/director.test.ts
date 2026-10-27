@@ -68,7 +68,7 @@ describe("audio director occupied body", () => {
       director.update({ state, playerId: "p", paused: false, nowMs: 16 });
       const last = engine.mock.calls.at(-1)?.[0];
       expect(last).not.toBeNull();
-      expect(last!.firingHz).toBeGreaterThan(100); // the taxi at 12 m/s, well above idle (28 Hz)
+      expect(last!.firingHz).toBeGreaterThan(60); // the taxi cruising at 12 m/s, well above idle (28 Hz)
       expect(last!.squealGain).toBe(0);
       expect(play.mock.calls.some(([cue]) => cue.sound === "impact")).toBe(false);
     } finally {
