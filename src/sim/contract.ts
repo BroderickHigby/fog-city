@@ -75,7 +75,9 @@
 // collision bodies and v18-and-earlier replay paths are preserved; the save upgrade restamps.
 // v20: SF signal-controlled approaches share deterministic green/amber/all-red phases with
 // rendered heads. Vehicles already holding a junction clear it; older replay rules stay intact.
-export const SIM_VERSION = 20;
+// v21: a robotaxi that cannot stop behind the line when its light turns amber goes on instead
+// of stopping dead in one tick; no field rewrite, v20 replays keep the old rule.
+export const SIM_VERSION = 21;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

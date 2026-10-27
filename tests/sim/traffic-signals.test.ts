@@ -122,7 +122,7 @@ describe("v20 vehicles obey their approach signal", () => {
   it("upgrades a v19 save by restamping without changing its cars or saved extensions", () => {
     const world = junction(), previous = state(world, [car(world)], 77, 19), saved = JSON.stringify(previous);
     const upgraded = upgradeState(previous);
-    expect(upgraded).toEqual({ ...previous, version: 20 });
+    expect(upgraded).toEqual({ ...previous, version: 21 });
     expect(upgraded.ext).toBe(previous.ext); expect(upgraded.players).toBe(previous.players);
     expect(JSON.stringify(previous)).toBe(saved); expect(upgradeState(upgraded)).toBe(upgraded);
   });
@@ -213,5 +213,50 @@ describe("v20 vehicles obey their approach signal", () => {
     for (let i = 0; i < 120; i++) current = advance(world, current);
     expect(current.ext.agents!.list[0]!.id).toBe(1);
     expect(current.ext.agents!.list[0]!.speed).toBeGreaterThan(0);
+  });
+});
+
+describe("v21 amber dilemma zone", () => {
+  /** The tick whose next tick turns this approach amber. */
+  function lastGreen(world: World, edge: string): number {
+    const count = world.signals!.get("J")!.groupCount;
+    for (let tick = 0; tick < count * SIGNAL_SLOT_S * 60; tick++)
+      if (signalAspect(world.signals, "J", edge, tick) === "green" && signalAspect(world.signals, "J", edge, tick + 1) === "yellow") return tick;
+    throw new Error(`No amber onset for ${edge}`);
+  }
+  const nearLine = AGENT_SPEC.robotaxi.halfLength + STOPLINE_M + 0.6;
+
+  it("a robotaxi that cannot stop behind the line goes on through amber", () => {
+    const world = junction();
+    let current = state(world, [car(world, 1, "e0", nearLine, 8)], lastGreen(world, "e0"), 21);
+    let worst = 0, entered = false;
+    for (let i = 0; i < 90 && !entered; i++) {
+      const before = current.ext.agents!.list[0]!.speed;
+      current = advance(world, current);
+      const a = current.ext.agents!.list[0]!;
+      worst = Math.max(worst, (before - a.speed) * 60);
+      entered = a.conn !== null || a.edge !== "e0";
+    }
+    expect(entered).toBe(true);
+    expect(worst).toBeLessThanOrEqual(AGENT_SPEC.robotaxi.decel + 1e-6);
+  });
+
+  it("a robotaxi with room to stop still stops behind the line", () => {
+    const world = junction();
+    let current = state(world, [car(world, 1, "e0", 25, 8)], lastGreen(world, "e0"), 21);
+    for (let i = 0; i < 240; i++) current = advance(world, current);
+    const a = current.ext.agents!.list[0]!;
+    expect(a.conn).toBeNull(); expect(a.edge).toBe("e0"); expect(a.node).toBe("");
+    expect(a.speed).toBeLessThan(.05);
+    expect(a.s).toBeLessThanOrEqual(lanePath(world.roads!.edges[0]!, 1, 0).len - AGENT_SPEC.robotaxi.halfLength - STOPLINE_M + 1e-6);
+  });
+
+  it("v20 replays keep the old hard stop at the line", () => {
+    const world = junction();
+    let current = state(world, [car(world, 1, "e0", nearLine, 8)], lastGreen(world, "e0"), 20);
+    for (let i = 0; i < 6; i++) current = advance(world, current);
+    const a = current.ext.agents!.list[0]!;
+    expect(a.conn).toBeNull(); expect(a.edge).toBe("e0"); expect(a.speed).toBe(0);
+    expect(upgradeState(current).version).toBe(21);
   });
 });

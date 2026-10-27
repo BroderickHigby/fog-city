@@ -71,6 +71,8 @@ export class GpuEngine {
   private pipeline: RenderPipeline | null = null;
   private postEnabled: boolean;
   private envKey = "";
+  private fogScene: THREE.Scene | null = null;
+  private fogTexture: THREE.Texture | null = null;
   private seaLevel = 0;
   private readonly skyExposure = uniform(0.148);
   private readonly night = uniform(0);
@@ -279,8 +281,15 @@ export class GpuEngine {
     }
   }
 
+  /**
+   * Builds the fog node once per scene and environment texture. fromScene re-renders the same
+   * target in place, so the node keeps sampling fresh light; a new fogNode changes every
+   * material's cache key and rebuilt them all on each daylight step (about 250 MB kept each time).
+   */
   private installFog(scene: THREE.Scene): void {
     if (!this.environment) return;
+    if (this.fogScene === scene && this.fogTexture === this.environment.texture) return;
+    this.fogScene = scene; this.fogTexture = this.environment.texture;
     const ray = positionWorld.sub(cameraPosition), dist = length(ray), direction = ray.div(max(dist, .001));
     const horizon = normalize(vec3(direction.x, max(direction.y, .015), direction.z));
     const sky = pmremTexture(this.environment.texture, horizon, float(.3)).rgb;

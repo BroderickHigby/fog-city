@@ -1211,11 +1211,27 @@ function enteredJunction(g: RoadGraph, a: Readonly<AgentState>, nodeId: string):
   return a.s > stop + 1e-6;
 }
 
+/**
+ * v21: on amber, a robotaxi whose front cannot stop behind the line at its braking rate goes on,
+ * as a driver would; before v21 it stopped dead in one tick wherever it was.
+ */
+function committedOnAmber(g: RoadGraph, a: Readonly<AgentState>, nodeId: string): boolean {
+  if (a.conn !== null) return false;
+  const ei = g.edgeIndex.get(a.edge);
+  if (ei === undefined) return false;
+  const edge = g.edges[ei]!;
+  if (g.nodes[endNode(edge, a.dir)]!.id !== nodeId) return false;
+  const spec = AGENT_SPEC[a.kind];
+  const gap = basePath(edge, a).len - spec.halfLength - STOPLINE_M - a.s;
+  return a.speed * a.speed > 2 * spec.decel * Math.max(0, gap);
+}
+
 /** May this robotaxi drive into the junction at node id? (It holds it, or it won it this tick.) */
 function mayEnter(c: Ctx, a: Readonly<AgentState>, nodeId: string, edgeId = a.edge): boolean {
   const hs = c.holders.get(nodeId);
   const aspect = signalAspect(c.signals, nodeId, edgeId, c.tick);
-  if (aspect !== null && aspect !== "green") return enteredJunction(c.g, a, nodeId);
+  const goesOn = aspect === "yellow" && c.amberCommit && committedOnAmber(c.g, a, nodeId);
+  if (aspect !== null && aspect !== "green" && !goesOn) return enteredJunction(c.g, a, nodeId);
   if (hs) for (const h of hs) if (h.id === a.id) return true;
   return c.winners.has(a.id);
 }
@@ -1378,6 +1394,8 @@ function remainingOnPath(g: RoadGraph, a: Readonly<AgentState>): { node: number;
 interface Ctx {
   /** v20 static controllers; older replay versions retain all-way-stop behaviour. */
   signals: TrafficSignalControls | undefined;
+  /** v21 amber dilemma zone (committedOnAmber); v20 replays keep the hard stop. */
+  amberCommit: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
   world: World;
@@ -2408,6 +2426,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const g = world.roads;
   if (!g) return null;
   const signals = prev.version >= 20 ? world.signals : undefined;
+  const amberCommit = prev.version >= 21;
   let ext = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? { nextId: 1, list: [] };
   if (signals) {
     // A green winner can be held behind the stop line by a pedestrian. Its reservation
@@ -2419,6 +2438,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
       if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node)) continue;
       const aspect = signalAspect(signals, a.node, a.edge, tick);
       if (aspect === null || aspect === "green") continue;
+      if (aspect === "yellow" && amberCommit && committedOnAmber(g, a, a.node)) continue;
       released ??= ext.list.slice(); released[i] = { ...a, node: "" };
     }
     if (released) ext = { ...ext, list: released };
@@ -2506,7 +2526,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     let w = waiters.get(nd.id);
     if (!w) waiters.set(nd.id, (w = []));
     w.push({ a, path: plannedConnector(g, a) });
-    if (aspect !== null && aspect !== "green") continue;
+    if (aspect !== null && aspect !== "green" && !(aspect === "yellow" && amberCommit && committedOnAmber(g, a, nd.id))) continue;
     const dt = stepDt.get(a.id) ?? DT;
     if (rem.dist > spec.halfLength + STOPLINE_M + 1 + a.speed * dt && !(rear && a.speed < 0.05)) continue;
     const plan = planNext(g, a);
@@ -2566,7 +2586,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { signals, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
+  const ctx: Ctx = { signals, amberCommit, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
