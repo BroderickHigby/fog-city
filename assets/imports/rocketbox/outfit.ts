@@ -1,7 +1,7 @@
 // Dresses generic-player.glb in long trousers and a solid YC-orange shirt. Runs once on
-// convert.py's output and repaints the body atlas only: the shorts' own cloth (colour and
-// normal map) is carried down over the bare calves, and the striped polo becomes one orange
-// that keeps its folds. Geometry, rig, clips, face and hair stay byte-for-byte as converted.
+// convert.py's output. It repaints the body atlas (the shorts' own cloth, colour and normal
+// map, carried down over the bare calves; the striped polo made one orange that keeps its
+// folds) and widens the calves to the shorts' hem. Rig, clips, face and hair stay as converted.
 // ImageMagick 7 (`magick`) decodes and re-encodes the two images.
 //   node assets/imports/rocketbox/outfit.ts public/models/generic-player.glb
 import { execFileSync } from "node:child_process";
@@ -12,9 +12,12 @@ const SIZE = 1024;
 const SHIRT_RGB = [0xf2, 0x65, 0x22] as const;
 const OUTFIT = "long trousers, YC orange shirt";
 // m002 body atlas regions, left half; the right half mirrors them about the centre column.
-/** Shorts rows from HEM_FROM to the calf stretch rows HEM_FROM..HEM_TOP, pushing the knee hem off. */
+/**
+ * Shorts rows HEM_FROM..HEM_TOP are stretched over rows HEM_FROM..CALF_TOP, so the knee hem
+ * (the shorts' last rows) is painted over with plain cloth.
+ */
 const HEM_FROM = 150, HEM_TOP = 200;
-/** The bare lower leg takes shorts rows CLOTH_TOP..CLOTH_BOTTOM: plain cloth at the knee, the hem at the ankle. */
+/** Rows CALF_TOP..CALF_BOTTOM (the bare lower leg) take shorts rows CLOTH_TOP..CLOTH_BOTTOM: plain cloth at the knee, the hem at the ankle. */
 const CALF_TOP = 256, CALF_BOTTOM = 447, CALF_WIDTH = 312;
 const CLOTH_TOP = 110, CLOTH_BOTTOM = 250;
 /** The shorts island's own columns, which cloth the wider calf island. */
