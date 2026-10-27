@@ -58,6 +58,8 @@ interface Built {
   shops: StorefrontCell | null;
   crosswalks: number;
   stopBars: number;
+  /** The id its junction asphalt and paint are registered under with opts.surfaces, if they were. */
+  surface?: string;
 }
 
 interface Cell {
@@ -290,7 +292,10 @@ export class StreetDetailLayer {
       built.meshes.push(built.shops.group);
     }
     for (const o of built.meshes) this.group.add(o);
-    if (floor.length) this.opts.surfaces?.add(surfaceId(cell), floor);
+    if (floor.length && this.opts.surfaces) {
+      built.surface = surfaceId(cell);
+      this.opts.surfaces.add(built.surface, floor);
+    }
     cell.built = built;
   }
 
@@ -314,7 +319,7 @@ export class StreetDetailLayer {
 
   private drop(cell: Cell): void {
     if (!cell.built) return;
-    if (cell.junctions.length) this.opts.surfaces?.remove(surfaceId(cell));
+    if (cell.built.surface) this.opts.surfaces?.remove(cell.built.surface);
     // Owner groups currently also appear in meshes. Make their retirement explicit
     // without dispatching duplicate disposal events on the same subtree.
     const roots = new Set(cell.built.meshes);
