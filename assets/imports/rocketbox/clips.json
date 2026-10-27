@@ -130,7 +130,7 @@
   "files": {
    "public/models/anim/mixamo-dodge.json": {
     "bytes": 95343,
-    "sha256": "9a5a3cead79357b3497bac6e9941e9081ba1e2edd8010d9476e384672a7f87ec",
+    "sha256": "b675d0e8c904bac4454cea56c8ff27cd63ae4e79ae845597e5f2db72ad2d27e1",
     "clips": [
      "stumble",
      "flinch"
@@ -138,7 +138,7 @@
    },
    "public/models/anim/mixamo-crowd.json": {
     "bytes": 2215293,
-    "sha256": "5166cf0dfffb33b0778c5e30e78307b1e6005c8e43bc5e53d2d3a287f507c60b",
+    "sha256": "886fb33509a78a4a31adfd687c88bbd6c127db95eb36b3aca209b2d5f4c4ecb4",
     "clips": [
      "walkCasual",
      "walkTexting",
