@@ -1,0 +1,110 @@
+{
+  "simVersion": 23,
+  "scenarios": {
+    "city": {
+      "hashes": [
+        "8f5c2852",
+        "e86e4c93",
+        "8aa1c59a",
+        "256518df",
+        "e3987883",
+        "ddfbf134"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    },
+    "service": {
+      "hashes": [
+        "c6dd8ce2",
+        "33b96a69",
+        "5bf2fc9b",
+        "82f45004",
+        "fbe8cee1",
+        "38123e28",
+        "ae8ce407",
+        "41b74309",
+        "9b54d8c3"
+      ],
+      "coverage": {
+        "agents:final": 6,
+        "identities:final": 6,
+        "services:service.delivered": 1,
+        "services:service.dispatched": 1,
+        "services:service.retired": 1
+      }
+    },
+    "mission": {
+      "hashes": [
+        "b160ff6f",
+        "c97e7c3a",
+        "b85e9858",
+        "be782fb5",
+        "5842219d",
+        "9d5a99c9"
+      ],
+      "coverage": {
+        "agents:final": 2,
+        "combat:projectile.ended": 44,
+        "combat:weapon.water": 46,
+        "identities:final": 2,
+        "missions:mission.stage": 1
+      }
+    },
+    "city-wave3": {
+      "hashes": [
+        "8bc29c6b",
+        "9bcf155f",
+        "6aa01260",
+        "ff7be935",
+        "8eb016f8",
+        "df2ea91c"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3
+      }
+    },
+    "city-wave3-rain": {
+      "hashes": [
+        "a4f228bd",
+        "e9c8c10d",
+        "a8a1a487",
+        "c9660804",
+        "52c998ab",
+        "7295fe99"
+      ],
+      "coverage": {
+        "agents:final": 13,
+        "combat:projectile.ended": 38,
+        "combat:weapon.water": 41,
+        "identities:final": 2,
+        "missions:mission.stage": 3,
+        "weather:rain": 900,
+        "weather:wet": 900
+      }
+    },
+    "robotaxi-drive": {
+      "hashes": [
+        "a223b9e9",
+        "ba3473ab",
+        "cd9875a3",
+        "d76a6b8f",
+        "9757cfdb",
+        "720b7616"
+      ],
+      "coverage": {
+        "agents:final": 12,
+        "identities:final": 0,
+        "robotaxi:manual-ticks": 240
+      }
+    }
+  }
+}
