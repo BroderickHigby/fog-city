@@ -41,6 +41,7 @@ import {
   rejoinAt,
   segmentBlocked,
   step,
+  upgradeState,
   sweepClearance,
   sweepHit,
   vehicleOfAgent,
@@ -430,6 +431,9 @@ function scene(world: World, cars: Array<{ id: string; x: number; z: number; hea
   return s;
 }
 
+/** The state at v23 (people dodge a player's car only when it is about to reach them). */
+const v23 = (s: SimState): SimState => ({ ...s, version: 23 });
+
 function drive(world: World, s: SimState, ticks: number, each?: (s: SimState) => void): SimState {
   for (let t = 0; t < ticks; t++) {
     const frame: Record<string, { throttle: number; steer: number; brake: number; actions: number }> = {};
@@ -559,6 +563,20 @@ describe("the dodge in step()", () => {
     expect(c.tick).toBeLessThanOrEqual(a.tick);
   });
 
+  it("v22 and earlier keep the old early dive (replays are bit for bit); a v22 save upgrades to v23 by restamping only", () => {
+    // The same car passing 3 m beside a person: at v22 they dive from it, as they always did.
+    const at = (version: number): SimState => {
+      const s = { ...scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed: 25 }], [{ id: 1, x: CAR.halfWidth + 3 + 0.3, z: 0 }]), version };
+      return drive(flat, s, 360);
+    };
+    const old = at(22);
+    expect(old.version).toBe(22);
+    expect(dodgeExtOf(old).dives).toBe(1);
+    expect(dodgeExtOf(at(23)).dives).toBe(0);
+    const saved = { ...scene(flat, [], [{ id: 1, x: 0, z: 0 }]), version: 22 };
+    expect(upgradeState(saved)).toEqual({ ...saved, version: 23 });
+  });
+
   it("nobody runs from a car that will not hit them (owner, 2026-10-27): one passing 3 m or more beside them, or driving away", () => {
     // (Agents walk, so stand them still: a dodge is the only thing that moves them sideways.)
     for (const speed of [10, 20, 30]) {
@@ -566,7 +584,7 @@ describe("the dodge in step()", () => {
         for (const side of [-1, 1]) {
           // 3 m or more between the car's side and the person's body (r 0.3 m), either side.
           const x = side * (CAR.halfWidth + gap + 0.3);
-          let s = scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed }], [{ id: 1, x, z: 0 }]);
+          let s = v23(scene(flat, [{ id: "a", x: 0, z: 60, heading: 0, speed }], [{ id: 1, x, z: 0 }]));
           s = drive(flat, s, 360, (k) => expect(agentsOf(k)[0]!.dodge).toBeNull());
           expect(s.players.a!.car.z).toBeLessThan(-20); // it did go by
           expect(dodgeExtOf(s)).toEqual({ contacts: 0, overrides: 0, dives: 0, nearMisses: 0, failures: 0 });
@@ -574,12 +592,12 @@ describe("the dodge in step()", () => {
         }
       }
       // Just past them, on their line, and driving away (its rear bumper 1.5 m from them).
-      let s = scene(flat, [{ id: "a", x: 0, z: -(CAR.halfLength + 0.3 + 1.5), heading: 0, speed }], [{ id: 1, x: 0, z: 0 }]);
+      let s = v23(scene(flat, [{ id: "a", x: 0, z: -(CAR.halfLength + 0.3 + 1.5), heading: 0, speed }], [{ id: 1, x: 0, z: 0 }]));
       s = drive(flat, s, 180, (k) => expect(agentsOf(k)[0]!.dodge).toBeNull());
       expect(dodgeExtOf(s)).toEqual({ contacts: 0, overrides: 0, dives: 0, nearMisses: 0, failures: 0 });
     }
     // A player on foot, too.
-    let s = scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed: 25 }], [], [{ id: "b", x: CAR.halfWidth + 3 + 0.3, z: 0 }]);
+    let s = v23(scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed: 25 }], [], [{ id: "b", x: CAR.halfWidth + 3 + 0.3, z: 0 }]));
     s = drive(flat, s, 300, (k) => expect(k.players.b!.foot!.dodge).toBeNull());
     expect(dodgeExtOf(s).dives).toBe(0);
   });
@@ -587,7 +605,7 @@ describe("the dodge in step()", () => {
   it("a car aimed at someone: they wait until it is about to hit them (REACT_S), then still clear it with no contact", () => {
     for (const speed of [10, 20, 30]) {
       for (const x of [0, 0.2, 1.2]) {
-        let s = scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed }], [{ id: 1, x, z: 0 }]);
+        let s = v23(scene(flat, [{ id: "a", x: 0, z: 80, heading: 0, speed }], [{ id: 1, x, z: 0 }]));
         let started: number | null = null;
         let reached: number | null = null;
         let minClear = Infinity;

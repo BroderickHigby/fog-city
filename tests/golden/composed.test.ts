@@ -7,7 +7,8 @@
 import { describe, expect, it } from "vitest";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { COMPOSED_SCENARIOS, runComposedScenario } from "../helpers/composed-golden.ts";
-import golden from "./composed-v22-steal-car.json";
+import golden from "./composed-v23-late-dodge.json";
+import v22 from "./composed-v22-steal-car.json";
 import v21 from "./composed-v21-amber-commit.json";
 import v20 from "./composed-v20-traffic-signals.json";
 import v19 from "./composed-v19-reference-driving.json";
@@ -21,7 +22,7 @@ describe("composed-path golden replays", () => {
     expect(Object.keys(golden.scenarios).sort()).toEqual(COMPOSED_SCENARIOS.map(s => s.name).sort());
   });
   for (const scenario of COMPOSED_SCENARIOS) {
-    for (const previous of [v16, v17, v18, v19, v20, v21]) {
+    for (const previous of [v16, v17, v18, v19, v20, v21, v22]) {
       it(`preserves the recorded v${previous.simVersion} ${scenario.name} replay`, () => {
         const pinned = (previous.scenarios as Record<string, { hashes: string[]; coverage: Record<string, number> }>)[scenario.name]!;
         const run = runComposedScenario(scenario, previous.simVersion);

@@ -17,7 +17,8 @@
 //     anyone is within its berth, the berth: 0.5 m, a child's 0.9 m) dives; from a player's car,
 //     only once the footprint reaches them within REACT_S (1.5 s), or sooner when running clear
 //     of its path takes longer than the time left less REACT_LAG_S (a narrow alley): nobody runs
-//     from a car that will pass them by or is still far off (owner, 2026-10-27).
+//     from a car that will pass them by or is still far off (owner, 2026-10-27; v23: v22 and
+//     earlier replays keep the whole horizon).
 //  2. Get out of the way (still called a dive). The landing spot is the cheapest clear spot on a fan of lines:
 //     square to the vehicle's path on the side the body is on, then angled, then the other side.
 //     A line is walked the way the body would go (Ground): it ends at a building (height-aware
@@ -1802,6 +1803,8 @@ const HASH_M = 16;
 export function stepDodge(world: World, before: Readonly<SimState>, after: SimState): SimState {
   const ids = sortedIds(after.players);
   if (ids.length === 0) return after; // no players: the world is frozen
+  // v23: a player's car is a threat only once it is about to reach someone (REACT_S, REACT_LAG_S).
+  const lateDodge = before.version >= 23;
   const agentsExt = after.ext[AGENTS_EXT_KEY] as AgentsExt | undefined;
   const agents = agentsExt ? agentsExt.list : [];
 
@@ -2059,8 +2062,9 @@ export function stepDodge(world: World, before: Readonly<SimState>, after: SimSt
       // (Not when it cannot be at their height: a car in the street under someone on a roof.)
       const hit = sweepHitBand(world, v, r.x, r.z, r.r + (v.player === null ? Math.min(margin, robotaxiBerth(r.cls)) : margin), r.y);
       // A car that can steer anywhere (spread > 0) beyond REACT_S is only a far threat: they
-      // move for it only when they need longer than that to get clear (below).
-      if (hit) (r.threats ??= []).push({ v: vi, hit, far: v.spread > 0 && hit.t > REACT_S });
+      // move for it only when they need longer than that to get clear (below). (v23; before,
+      // every hit over the whole horizon was a threat.)
+      if (hit) (r.threats ??= []).push({ v: vi, hit, far: lateDodge && v.spread > 0 && hit.t > REACT_S });
     }
   }
 
