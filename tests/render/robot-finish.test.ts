@@ -16,29 +16,30 @@ async function packed(file: string, kind: "errandRobot" | "sidewalkBot"): Promis
   return extractParts(gltf.scene, AGENT_RIGS[kind]);
 }
 
-/** Per vertex: [roughness, brightest colour channel, light channel]. */
+/** Per vertex: [roughness, brightest colour channel, kept: a light, metal or dark surface]. */
 function surfaces(m: PackedModel): Array<[number, number, number]> {
   const out: Array<[number, number, number]> = [];
   for (const p of m.parts) {
     const g = p.geometry;
     if (!g) continue;
     const pbr = g.getAttribute("fcPbr"), col = g.getAttribute("color"), emit = g.getAttribute("fcEmit");
-    for (let i = 0; i < pbr.count; i++) out.push([pbr.getX(i), Math.max(col.getX(i), col.getY(i), col.getZ(i)), emit.getW(i)]);
+    for (let i = 0; i < pbr.count; i++) out.push([pbr.getX(i), Math.max(col.getX(i), col.getY(i), col.getZ(i)), emit.getW(i) > 0.5 || pbr.getY(i) > 0.5 || Math.max(col.getX(i), col.getY(i), col.getZ(i)) <= ROBOT_MAX_ALBEDO ? 1 : 0]);
   }
   return out;
 }
 
 describe("robot finish", () => {
   for (const [file, kind] of [["errand-robot.glb", "errandRobot"], ["sidewalk-bot.glb", "sidewalkBot"]] as const) {
-    it(`${kind}: no glazed or over-bright surface, lights kept`, async () => {
+    it(`${kind}: no glazed or over-bright shell; lights, metal and dark surfaces kept`, async () => {
       const m = await packed(file, kind);
       const before = surfaces(m);
       // The model as authored is glossier and brighter than the floor and the cap.
       expect(before.some(([r, , ch]) => ch === 0 && r < ROBOT_MIN_ROUGHNESS)).toBe(true);
       robotFinish(m);
       const after = surfaces(m);
-      after.forEach(([r, c, ch], i) => {
-        if (ch > 0.5) {
+      // Whether a vertex is kept is a property of the model as authored, not of the finished one.
+      after.forEach(([r, c], i) => {
+        if (before[i]![2] > 0.5) {
           expect([r, c]).toEqual([before[i]![0], before[i]![1]]);
           return;
         }
