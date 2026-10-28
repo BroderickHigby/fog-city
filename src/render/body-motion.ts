@@ -212,6 +212,13 @@ export function newAccel(): AccelState {
   return { has: false, speed: 0, lateral: 0, aLong: 0, aLat: 0 };
 }
 
+let gainDt = -1, gainTau = -1, gainK = 0;
+/** 1 - exp(-dt / tau), cached for the last (dt, tau): a fleet of cars shares one dt per frame. */
+function accelGain(dt: number, tau: number): number {
+  if (dt !== gainDt || tau !== gainTau) { gainDt = dt; gainTau = tau; gainK = 1 - Math.exp(-dt / tau); }
+  return gainK;
+}
+
 /**
  * Longitudinal and lateral acceleration from two successive frames' (interpolated) speed and
  * sideways speed, plus the centripetal term speed * yawRate: what the tyres actually pushed with
@@ -230,7 +237,7 @@ export function updateAccel(s: AccelState, dt: number, speed: number, lateral: n
   const rawLat = (lateral - s.lateral) / d + speed * yawRate;
   s.speed = speed;
   s.lateral = lateral;
-  const k = 1 - Math.exp(-dt / tune.accelTau);
+  const k = accelGain(dt, tune.accelTau);
   s.aLong += (clamp(rawLong, -tune.accelCap, tune.accelCap) - s.aLong) * k;
   s.aLat += (clamp(rawLat, -tune.accelCap, tune.accelCap) - s.aLat) * k;
 }
@@ -283,4 +290,74 @@ export class CarBodyMotion {
     // In the air no tyre pushes: the body floats where it was.
     this.spring.step(dt, feel.grounded ? this.accel.aLong : 0, feel.grounded ? this.accel.aLat : 0);
   }
+}
+
+/**
+ * Ambient traffic and robotaxis: the same spring, lighter (Slop's traffic.js:1117-1122 uses 0.008 rad
+ * per m/s^2 pitch and 0.01 roll with caps of 0.22 and 0.26; a car 30 m off needs a hint, and the
+ * whole vehicle tilts, wheels included, so the caps keep an axle's dip under 5 cm). Pitch and roll
+ * only: a driving agent has no hit or landing events to kick the body with.
+ */
+export const TRAFFIC_BODY: BodyTune = {
+  ...CAR_BODY,
+  pitchPerAccel: 0.006,
+  pitchMax: 0.035,
+  rollPerAccel: 0.007,
+  rollMax: 0.05,
+  accelCap: 8,
+  accelTau: 0.08,
+};
+
+/** The fastest a drawn heading may turn and still count as driving (rad/s): more is a respawn or a spin. */
+const LEAN_YAW_CAP = 2.5;
+const TWO_PI = Math.PI * 2;
+
+/**
+ * One ambient vehicle's lean, from what the renderer already has: its drawn speed and heading each
+ * frame. Pitch from the change of speed, roll from speed times the change of heading.
+ */
+export class TrafficLean {
+  readonly spring: BodySpring;
+  private readonly accel = newAccel();
+  private heading = 0;
+  private has = false;
+  /** The frame it was last stepped (the layer's pruning clock). */
+  seen = 0;
+
+  constructor(tune: BodyTune = TRAFFIC_BODY) {
+    this.spring = new BodySpring(tune);
+  }
+
+  /** The vehicle jumped (a respawn) or was out of sight: it starts level. */
+  reset(): void {
+    this.spring.reset();
+    this.accel.has = false;
+    this.accel.aLong = this.accel.aLat = 0;
+    this.has = false;
+  }
+
+  /** `speed` m/s along the car (signed), `heading` compass radians, both as drawn this frame. */
+  update(dt: number, speed: number, heading: number): void {
+    if (!(dt > 0)) return;
+    let yawRate = 0;
+    if (this.has) {
+      let dh = heading - this.heading;
+      dh -= Math.round(dh / TWO_PI) * TWO_PI;
+      yawRate = Math.max(-LEAN_YAW_CAP, Math.min(LEAN_YAW_CAP, dh / dt));
+    }
+    this.heading = heading;
+    this.has = true;
+    const tune = this.spring.tune;
+    updateAccel(this.accel, dt, speed, 0, yawRate, tune);
+    this.spring.step(dt, this.accel.aLong, this.accel.aLat);
+  }
+}
+
+/**
+ * How far to lift a vehicle that tilts as a whole (wheels included) so its low axle sits closer to
+ * the road: half of what the tilt would sink the worst wheel, so a wheel dips or floats by at most
+ * half of it, metres. `axle` is the wheels' distance from the centre along the car, `track` across it.
+ */
+export function wheelLift(pitch: number, roll: number, axle: number, track: number): number {
+  return 0.5 * (axle * Math.abs(Math.sin(pitch)) + track * Math.abs(Math.sin(roll)));
 }

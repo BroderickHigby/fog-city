@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, advanceAxis, lowestDrop, minHeave, newAccel, updateAccel,
-  type BodyFeel,
+  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, TRAFFIC_BODY, TrafficLean, advanceAxis, lowestDrop, minHeave, newAccel, updateAccel,
+  wheelLift, type BodyFeel,
 } from "../../src/render/body-motion.ts";
 
 const level: BodyFeel = { speed: 0, lateral: 0, yawRate: 0, grounded: true, hits: 0, personBumps: 0, impactSpeed: 0, landingSpeed: 0 };
@@ -243,5 +243,78 @@ describe("never into the road", () => {
         }
       }
     }
+  });
+});
+
+describe("ambient traffic's lean", () => {
+  const frames = (l: TrafficLean, n: number, speed: (k: number) => number, heading: (k: number) => number, dt = 1 / 60): void => {
+    for (let k = 0; k < n; k++) l.update(dt, speed(k * dt), heading(k * dt));
+  };
+
+  it("is lighter than the player's car, and the spring overshoots its capped target by no more than a few per cent", () => {
+    expect(TRAFFIC_BODY.pitchMax).toBeLessThan(CAR_BODY.pitchMax);
+    expect(TRAFFIC_BODY.rollMax).toBeLessThan(CAR_BODY.rollMax);
+    const l = new TrafficLean();
+    frames(l, 240, (t) => 30 * t, (t) => 4 * t);
+    expect(Math.abs(l.spring.pitch.x)).toBeLessThanOrEqual(TRAFFIC_BODY.pitchMax * 1.1);
+    expect(Math.abs(l.spring.roll.x)).toBeLessThanOrEqual(TRAFFIC_BODY.rollMax * 1.1);
+  });
+
+  it("squats, dives and leans out of a turn from the drawn speed and heading alone", () => {
+    const up = new TrafficLean(), down = new TrafficLean(), right = new TrafficLean(), level = new TrafficLean();
+    frames(up, 90, (t) => 3 * t, () => 0);
+    frames(down, 90, (t) => 20 - 6 * t, () => 0);
+    frames(right, 90, () => 14, (t) => 0.5 * t); // heading + = clockwise = turning right
+    frames(level, 90, () => 14, () => 1.2);
+    expect(up.spring.pitch.x).toBeGreaterThan(0.012);
+    expect(down.spring.pitch.x).toBeLessThan(-0.02);
+    expect(right.spring.roll.x).toBeLessThan(-0.03); // left side down
+    expect(level.spring.pitch.x).toBe(0);
+    expect(level.spring.roll.x).toBe(0);
+  });
+
+  it("is the same lean at 30, 60 and 144 fps", () => {
+    const at = (fps: number): [number, number] => {
+      const l = new TrafficLean();
+      const dt = 1 / fps;
+      for (let t = 0; t < 2 - 1e-9; t += dt) l.update(dt, Math.min(12, 4 * t), 0.35 * t);
+      return [l.spring.pitch.x, l.spring.roll.x];
+    };
+    const ref = at(60);
+    for (const fps of [30, 144]) {
+      const [p, r] = at(fps);
+      expect(p).toBeCloseTo(ref[0], 2);
+      expect(r).toBeCloseTo(ref[1], 2);
+    }
+  });
+
+  it("turns across the compass seam without a lurch, and ignores a respawn's heading jump", () => {
+    const l = new TrafficLean(), ref = new TrafficLean();
+    // A steady right turn through north: 6.1 -> 0.1 rad.
+    frames(l, 60, () => 12, (t) => (6.0 + 0.5 * t) % (Math.PI * 2));
+    frames(ref, 60, () => 12, (t) => 1.0 + 0.5 * t);
+    expect(l.spring.roll.x).toBeCloseTo(ref.spring.roll.x, 9);
+    const jump = new TrafficLean();
+    frames(jump, 30, () => 10, () => 0);
+    jump.update(1 / 60, 10, 3); // a 3 rad jump in a frame: capped, never a full-roll spike
+    expect(Math.abs(jump.spring.roll.x)).toBeLessThanOrEqual(TRAFFIC_BODY.rollMax);
+  });
+
+  it("starts level after a reset and when dt is zero", () => {
+    const l = new TrafficLean();
+    frames(l, 60, (t) => 6 * t, () => 0);
+    expect(l.spring.pitch.x).not.toBe(0);
+    l.reset();
+    expect(l.spring.pitch.x).toBe(0);
+    l.update(0, 5, 1);
+    expect(l.spring.pitch.x).toBe(0);
+  });
+
+  it("wheelLift keeps a wheel from sinking more than half the tilt, and is 0 level", () => {
+    expect(wheelLift(0, 0, 1.35, 0.8)).toBe(0);
+    expect(wheelLift(0.035, 0, 1.35, 0.8)).toBeCloseTo(0.5 * 1.35 * Math.sin(0.035), 12);
+    expect(wheelLift(-0.035, 0.05, 1.35, 0.8)).toBeCloseTo(0.5 * (1.35 * Math.sin(0.035) + 0.8 * Math.sin(0.05)), 12);
+    // At the caps the worst wheel is off the road by less than 3 cm either way.
+    expect(wheelLift(TRAFFIC_BODY.pitchMax, TRAFFIC_BODY.rollMax, 1.35, 0.8)).toBeLessThan(0.05);
   });
 });
