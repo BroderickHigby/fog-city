@@ -1,29 +1,31 @@
 """The Meander robotaxi -> public/models/robotaxi.glb
 
-Meander ("We'll get you there.") is most of the city's traffic. The design follows the robot
-table in docs/design.md: a long, low, asymmetric hatch with a sensor band wrapped along the
-roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod.
+Meander ("We'll get you there.") is most of the city's traffic. Owner, 2026-10-27: "make the
+robotaxis look more like bigger Zoox or something". So the Meander is now a tall, two-ended
+carriage pod of its own: the same both ways round, short overhangs and big wheels at the
+corners, big glass, a light bar across each end and a low sensor pod on each roof corner.
 
-4.95 m long, 1.90 m wide, about 1.53 m to the top of the band, 3.05 m wheelbase. A short
-round nose runs into a long raked windscreen, a flat roof and a fastback hatch. Every sensor
-lives in one dark band (sensor_lens) round the roof edge, with a teal status line in it
-(light_status, emissive). No dome, no corner pods, no mirror pods.
+It keeps the Meander's own marks: warm white paint, one dark sensor band round the roof edge
+with the teal status line (light_status) in it, and one wide sliding door on the kerb side
+only. It is not a copy of any real pod: the corners are white posts, not dark glass; the
+pods are white lanterns with a dark lens ring sitting on the roof, not dark horns that form
+the corners; the street side has no door (two windows either side of a white post with the
+charging flap); no logo, badge, text or livery.
 
-Asymmetric, because nobody drives it: the kerb side (the right, +X) has one wide sliding door
-under one long window; the street side (the left) has no door at all, a solid panel with a
-slim high window and a charging flap. Lights: short slim strips at the nose and tail
-corners; no full-width bar, no grille, no badge, no text.
+4.96 m long, 1.92 m wide (inside the sim's 5.0 x 2.0 m robotaxi box, src/sim/agents.ts
+ROBOTAXI_BODY), 1.93 m to the roof and 2.03 m to the top of the pods; 3.50 m wheelbase.
 
 Nodes: robotaxi (root, origin on the ground at the body centre; extras fcActor, kerbSide)
   body
-  door_slide_R   the kerb-side sliding door, shut. To open it, move it out along local +X by
-                 extras popM, then back along local +Z by slideM (glTF frame). The body under
-                 it is the dark cabin opening.
-  sensor_band    no mesh: the middle of the roof band's front, where its cameras look out;
+  door_slide_R   the kerb-side sliding door, shut, in the middle of the side. To open it, move
+                 it out along local +X by extras popM, then back along local +Z by slideM
+                 (glTF frame). The body under it is the dark cabin opening.
+  sensor_band    no mesh: the middle of the sensor band's front, where its cameras look out;
                  the point to aim at when a mission says to water a rogue robotaxi's sensors
                  (extras sprayTarget)
   wheel_FL/FR/RL/RR   origin at the hub, spin about local X (extras wheel/spinAxis/radius/steer)
-Front faces glTF -Z. Budget: 10k triangles.
+Front faces glTF -Z (headlight bar at the front, tail bar at the back; the body is the same
+both ways). Budget: 10k triangles.
 """
 
 import math
@@ -32,186 +34,112 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "lib"))
 
-from mathutils import Matrix, Vector  # noqa: E402
+from mathutils import Matrix  # noqa: E402
 
 import fc  # noqa: E402
 import vehicle as V  # noqa: E402
 
 BUDGET = 10_000
-WB = 3.05
-WR = 0.36
-WW = 0.23
-ARCH_R = 0.43
+HL, HW = 2.48, 0.96  # half length and half width of the lower body
+RC = 0.32  # plan corner radius of the lower body
+BOW = 0.07  # each end bows out this much at the middle
+WB = 3.40
+WR = 0.38
+WW = 0.25
+ARCH_R = 0.45
 Y_F, Y_R = WB / 2, -WB / 2
-TUMBLE, SR, MID = 0.05, 0.09, 0.3  # body section shape (lib/vehicle.half_section)
+ROOF_Z = 1.95
 
-# the sliding door: front and rear edges (Blender y) and how it opens
-DOOR_F, DOOR_R = 0.85, -0.55
-DOOR_WIN_F = 0.50  # the door's window starts behind the windscreen's foot
-SLIDE_M, POP_M = 1.15, 0.05
-DOOR_OFF = 0.008  # the door skin sits this far outside the body
+# the sliding door (Blender y of its front and rear edges) and how it opens
+DOOR_Y = 0.68
+SLIDE_M, POP_M = 1.36, 0.05
+DOOR_OFF = 0.008
+POST_Y = 0.24  # the street side's middle post: |y| under this is white between the windows
 
-# (y, half width, sill z, shoulder z, centre-top z), front to rear. The door edges are
-# stations, so the body's faces stop exactly there.
-STATIONS = [
-    (2.475, 0.70, 0.36, 0.62, 0.64),
-    (2.44, 0.82, 0.30, 0.70, 0.72),
-    (2.36, 0.89, 0.27, 0.76, 0.79),
-    (2.15, 0.935, 0.26, 0.82, 0.86),
-    (1.80, 0.95, 0.25, 0.87, 0.92),
-    (1.40, 0.95, 0.25, 0.90, 0.95),
-    (DOOR_F, 0.95, 0.25, 0.92, 0.97),
-    (0.0, 0.95, 0.25, 0.94, 0.99),
-    (DOOR_R, 0.95, 0.25, 0.95, 1.00),
-    (-1.00, 0.95, 0.25, 0.96, 1.01),
-    (-1.90, 0.945, 0.26, 0.98, 1.03),
-    (-2.20, 0.93, 0.28, 0.99, 1.04),
-    (-2.38, 0.90, 0.31, 0.99, 1.03),
-    (-2.475, 0.84, 0.36, 0.97, 1.00),
+# Horizontal rings, bottom to top: (z, inset from the lower body's outline). The outline is
+# offset inward by the inset, so the corners stay concentric and every column stays plumb
+# in plan; above the belt the sides lean in (tumblehome).
+Z_CLAD, Z_BELT, Z_GLASS, Z_BAND, Z_LINE0, Z_LINE1, Z_BAND_TOP, Z_ROOF_EDGE = 0.46, 0.88, 0.92, 1.76, 1.805, 1.83, 1.87, 1.90
+RINGS = [
+    (0.24, 0.035),
+    (0.31, 0.0),
+    (Z_CLAD, 0.0),
+    (0.68, -0.004),
+    (Z_BELT, 0.0),
+    (Z_GLASS, 0.014),
+    (1.40, 0.045),
+    (Z_BAND, 0.080),
+    (Z_BAND_TOP, 0.096),
+    (Z_ROOF_EDGE, 0.135),
 ]
-# greenhouse (y, roof half width, roof z, crown); None = the glass meets the body here.
-# Windscreen from 1.45 back to 0.55, the roof to -1.65, then the hatch glass to the tail.
-GLASS = [
-    (1.45, None, None, 0.0),
-    (0.55, 0.74, 1.46, 0.03),
-    (DOOR_WIN_F, 0.745, 1.465, 0.03),
-    (0.20, 0.76, 1.495, 0.035),
-    (-0.50, 0.765, 1.50, 0.035),
-    (DOOR_R, 0.765, 1.50, 0.035),
-    (-1.40, 0.755, 1.47, 0.03),
-    (-1.65, 0.74, 1.435, 0.028),
-    (-2.40, None, None, 0.0),
-]
-PILLARS = dict(b=(DOOR_R, -0.50), c=-1.65)
-ROOF = [(s[0], s[1], s[2], s[3]) for s in GLASS if s[1] is not None]
+# side stations (front half; mirrored): the corner's start, the front arch, the door's edge
+# and its dark post, the street side's middle post
+ARCH_YS = [round(Y_F + ARCH_R * math.cos(math.pi * k / 10), 4) for k in range(1, 11)]
+SIDE_HALF = sorted({HL - RC - BOW, *[y for y in ARCH_YS if y < HL - RC - BOW - 0.01], 1.05, DOOR_Y + 0.06, DOOR_Y, 0.45, POST_Y, 0.0}, reverse=True)
+SIDE_YS = SIDE_HALF + [-y for y in reversed(SIDE_HALF) if y > 0]
+N_END, N_ARC = 10, 6
 
 
-def side_section(y):
-    """The body's right side at y, from above the rocker to the belt: [(x, z)] going up
-    (lib/vehicle.half_section points 2..5, with the sill raised over the wheel arches the
-    way car_body raises it)."""
-    hw, zb, zs, zc = V.interp(STATIONS, y)
-    for yw in (Y_F, Y_R):
-        dy = y - yw
-        if abs(dy) < ARCH_R:
-            zb = max(zb, WR + 0.02 + math.sqrt(ARCH_R**2 - dy**2) * 0.98)
-    return V.half_section(hw, zb, zs, zc, tumble=TUMBLE, sr=SR, mid=MID)[2:6]
+def base_loop():
+    """The lower body's outline in plan, as (x, y, nx, ny) with outward normals: the front end
+    left to right, the front-right corner, the right side front to rear, the rear end, the
+    left side, back to the front-left corner. Ends bow out by BOW at the middle."""
+    a, b = HL, HW
+    xe = b - RC
+    ys = a - RC - BOW  # where the sides end and the corner arcs start
 
+    def end_pt(x, sign):
+        t = x / xe
+        y = (a - BOW * t * t) * sign
+        # outward normal of the bowed end: (2 BOW x / xe^2, +-1)
+        nx, ny = 2 * BOW * x / (xe * xe), float(sign)
+        ln = math.hypot(nx, ny)
+        return (x, y, nx / ln, ny / ln)
 
-def side_x(y, z):
-    """x of the body's right side surface at (y, z), for z between the rocker and the belt."""
-    sec = side_section(y)
-    for (x0, z0), (x1, z1) in zip(sec, sec[1:]):
-        if z0 <= z <= z1:
-            return x0 + (x1 - x0) * (z - z0) / (z1 - z0)
-    raise ValueError(f"z {z} is off the side at y {y}")
-
-
-def glass_edge(y):
-    """Belt point (x, z) and roof-edge point (x, z) of the right side glass at y (cabin)."""
-    hw, zb, zs, zc = V.interp(STATIONS, y)
-    hr, zr, _ = V.interp(ROOF, y)
-    return (hw - TUMBLE - SR, zs), (hr, zr)
-
-
-def glass_point(y, t, off, side=1):
-    """A point on the side glass at y, t of the way from the belt (0) to the roof edge (1),
-    pushed `off` out along the glass's outward normal."""
-    (bx, bz), (rx, rz) = glass_edge(y)
-    dx, dz = rx - bx, rz - bz
-    ln = math.hypot(dx, dz)
-    nx, nz = dz / ln, -dx / ln
-    return (side * (bx + dx * t + nx * off), y, bz + dz * t + nz * off)
-
-
-def shut_line(mb, pts, mat, r=0.0045):
-    """A panel shut line: a thin dark rod along the body surface through pts (x, y, z)."""
-    for p0, p1 in zip(pts, pts[1:]):
-        mb.cyl_between(p0, p1, r, 5, mat, caps=False)
-
-
-def surface_point(y, x_frac, top=True):
-    """A point just proud of the body surface at y, at x_frac of the half width (top: on the
-    bonnet/roof side of the shoulder, else on the flank between rocker and belt)."""
-    hw, zb, zs, zc = V.interp(STATIONS, y)
-    half = V.half_section(hw, zb, zs, zc, tumble=TUMBLE, sr=SR, mid=MID)
-    pts = half[4:] if top else half[1:5]
-    # walk the polyline by x (top) or z (flank) and interpolate
-    if top:
-        x = (hw - TUMBLE - SR) * x_frac
-        for (x0, z0), (x1, z1) in zip(pts, pts[1:]):
-            if min(x0, x1) <= x <= max(x0, x1) and x0 != x1:
-                z = z0 + (z1 - z0) * (x - x0) / (x1 - x0)
-                return (x, y, z + 0.004)
-        return (x, y, zc + 0.004)
-    sec = side_section(y)
-    z = sec[0][1] + (sec[-1][1] - sec[0][1]) * x_frac
-    return (side_x(y, z) + 0.004, y, z)
-
-
-def band_loop(rc=0.15, n_side=16, n_end=8, n_arc=5):
-    """Points round the roof edge (x, y, z) with their outward plan normals (nx, ny): the
-    front-right corner, the right side, the rear corners, the left side, the front-left
-    corner and the front edge (the windscreen header). z follows the roof's crown."""
-    yf, yr = ROOF[0][0], ROOF[-1][0]
-
-    def z_at(x, y):
-        hr, zr, cr = V.interp(ROOF, y)
-        return zr + cr * max(0.0, 1.0 - abs(x) / hr)
-
-    def arc(cx, cy, a0, a1):
+    def arc(cx, cy, a0, a1, incl_end=False):
         out = []
-        for k in range(n_arc + 1):
-            a = math.radians(a0 + (a1 - a0) * k / n_arc)
-            x, y = cx + rc * math.cos(a), cy + rc * math.sin(a)
-            out.append((x, y, z_at(x, y), math.cos(a), math.sin(a)))
+        n = N_ARC + (1 if incl_end else 0)
+        for k in range(1, n):
+            t = math.radians(a0 + (a1 - a0) * k / N_ARC)
+            out.append((cx + RC * math.cos(t), cy + RC * math.sin(t), math.cos(t), math.sin(t)))
         return out
 
-    hf = V.interp(ROOF, yf - rc)[0]
-    hb = V.interp(ROOF, yr + rc)[0]
-    pts = arc(hf - rc, yf - rc, 90, 0)
-    for k in range(1, n_side):
-        y = yf - rc + (yr + rc - (yf - rc)) * k / n_side
-        hr = V.interp(ROOF, y)[0]
-        pts.append((hr, y, z_at(hr, y), 1.0, 0.0))
-    pts += arc(hb - rc, yr + rc, 0, -90)
-    for k in range(1, n_end):
-        x = (hb - rc) - 2 * (hb - rc) * k / n_end
-        pts.append((x, yr, z_at(x, yr), 0.0, -1.0))
-    pts += arc(-(hb - rc), yr + rc, -90, -180)
-    for k in range(1, n_side):
-        y = yr + rc + (yf - rc - (yr + rc)) * k / n_side
-        hr = V.interp(ROOF, y)[0]
-        pts.append((-hr, y, z_at(-hr, y), -1.0, 0.0))
-    pts += arc(-(hf - rc), yf - rc, 180, 90)
-    for k in range(1, n_end):
-        x = -(hf - rc) + 2 * (hf - rc) * k / n_end
-        pts.append((x, yf, z_at(x, yf), 0.0, 1.0))
+    pts = []
+    for k in range(N_END + 1):  # front end, left to right
+        x = -xe + 2 * xe * k / N_END
+        pts.append(end_pt(x, 1))
+    pts += arc(xe, ys, 90, 0)
+    for y in SIDE_YS:  # right side, front to rear
+        pts.append((b, y, 1.0, 0.0))
+    pts += arc(xe, -ys, 0, -90)
+    for k in range(N_END + 1):  # rear end, right to left
+        x = xe - 2 * xe * k / N_END
+        pts.append(end_pt(x, -1))
+    pts += arc(-xe, -ys, -90, -180)
+    for y in reversed(SIDE_YS):  # left side, rear to front
+        pts.append((-b, y, -1.0, 0.0))
+    pts += arc(-xe, ys, 180, 90)
     return pts
 
 
-def ribbon(mb, loop, section, mats):
-    """Sweep an open cross-section [(out, dz)] round the closed loop; mats[j] per segment.
-    Each quad faces away from the section's inside: normal (-d dz, d out) per segment."""
-    rows = [[(x + o * nx, y + o * ny, z + dz) for (o, dz) in section] for (x, y, z, nx, ny) in loop]
-    rows.append(rows[0])
-    norms = [(-(b[1] - a[1]), b[0] - a[0]) for a, b in zip(section, section[1:])]
-    n = len(loop)
-    for i in range(n):
-        nx = (loop[i][3] + loop[(i + 1) % n][3]) / 2
-        ny = (loop[i][4] + loop[(i + 1) % n][4]) / 2
-        for j, (no, nz) in enumerate(norms):
-            q = [rows[i][j], rows[i][j + 1], rows[i + 1][j + 1], rows[i + 1][j]]
-            mb.poly_n(q, mats[j], (no * nx, no * ny, nz), smooth=True)
+def arch_z(x, y):
+    """Lowest z of the body's skin at (x, y): raised over the wheels."""
+    if abs(x) < 0.55:
+        return 0.0
+    for yw in (Y_F, Y_R):
+        d = y - yw
+        if abs(d) < ARCH_R:
+            return WR + 0.02 + math.sqrt(ARCH_R**2 - d * d) * 0.98
+    return 0.0
 
 
-def glass_panel(mb, ys, lo, hi, side, off, mat):
-    """A panel on the side glass between heights lo..hi (0 = belt, 1 = roof edge) at the
-    stations ys (front to rear), pushed `off` out from the glass."""
-    for y0, y1 in zip(ys, ys[1:]):
-        a, b = glass_point(y0, lo, off, side), glass_point(y0, hi, off, side)
-        c, d = glass_point(y1, hi, off, side), glass_point(y1, lo, off, side)
-        mb.poly_n([a, b, c, d], mat, (side, 0, 0.1))
+def region(x, y, nx, ny):
+    """Which part of the outline a column belongs to."""
+    if abs(nx) > 0.999:
+        return "kerb" if nx > 0 else "street"
+    if abs(ny) > 0.95:
+        return "front" if ny > 0 else "rear"
+    return "corner"
 
 
 def main() -> None:
@@ -234,109 +162,169 @@ def main() -> None:
     root = fc.empty("robotaxi")
     root["fcActor"] = "robotaxi"
     root["kerbSide"] = "right"
-    body, _ = V.car_body(STATIONS, GLASS, (Y_F, Y_R), WR, ARCH_R,
-                         dict(paint=paint, glass=glass, trim=clad, under=under, roof=paint),
-                         pillars=PILLARS, clad_segments=1, mid=MID, tumble=TUMBLE, sr=SR)
 
-    # The kerb-side door opening: the body's side panel and window under the door become the
-    # dark cabin, so the opening shows when the door slides away (the door covers it when shut).
-    belt = V.interp(STATIONS, 0.0)[2]
-    body.mats.append(cabin)
-    cabin_i = len(body.mats) - 1
-    for fi, f in enumerate(body.faces):
-        c = sum((Vector(body.verts[vi]) for vi in f), Vector((0, 0, 0))) / len(f)
-        m = body.mats[body.face_mat[fi]]
-        if c.x < 0.6:
-            continue
-        if m == paint and DOOR_R < c.y < DOOR_F and 0.33 < c.z < belt - 0.01:
-            body.face_mat[fi] = cabin_i
-        elif m == glass and DOOR_R < c.y < DOOR_WIN_F and c.z > belt:
-            body.face_mat[fi] = cabin_i
+    loop = base_loop()
+    n = len(loop)
+
+    def ring_pt(i, k, raise_arch=True):
+        x, y, nx, ny = loop[i]
+        z, d = RINGS[k]
+        px, py = x - nx * d, y - ny * d
+        if raise_arch and z < Z_BELT:
+            z = max(z, arch_z(x, y))
+        return (px, py, z)
+
+    def band_mat(k, i0, i1):
+        """Material of the quad between rings k, k+1 and columns i0, i1."""
+        z0, z1 = RINGS[k][0], RINGS[k + 1][0]
+        xa, ya, nxa, nya = loop[i0]
+        xb, yb, nxb, nyb = loop[i1]
+        ym = (ya + yb) / 2
+        reg = {region(*loop[i0]), region(*loop[i1])}
+        side = "kerb" if reg == {"kerb"} else "street" if reg == {"street"} else None
+        if z1 <= 0.31 + 1e-6:
+            return clad
+        if z1 <= Z_CLAD + 1e-6:
+            return cabin if side == "kerb" and abs(ym) < DOOR_Y else clad
+        if z1 <= Z_BELT + 1e-6:
+            # behind the door: the dark cabin opening
+            return cabin if side == "kerb" and abs(ym) < DOOR_Y else paint
+        if z1 <= Z_GLASS + 1e-6:
+            return cabin if side == "kerb" and abs(ym) < DOOR_Y else paint
+        if z1 <= Z_BAND + 1e-6:
+            if "corner" in reg:
+                # a slim white post in the middle of each corner; the glass wraps round it
+                ang = math.degrees(math.atan2(abs(nya + nyb), abs(nxa + nxb)))
+                return paint if 30 <= ang <= 60 else glass
+            if side == "kerb":
+                if abs(ym) < DOOR_Y:
+                    return cabin
+                if abs(ym) < DOOR_Y + 0.06:
+                    return clad  # the door's dark posts
+            if side == "street" and abs(ym) < POST_Y:
+                return paint
+            return glass
+        if z1 <= Z_BAND_TOP + 1e-6:
+            return lens
+        return paint
+
+    body = fc.MeshBuilder()
+    for k in range(len(RINGS) - 1):
+        z0, d0 = RINGS[k]
+        z1, d1 = RINGS[k + 1]
+        lean = (d1 - d0) / (z1 - z0)
+        for i in range(n):
+            j = (i + 1) % n
+            q = [ring_pt(i, k), ring_pt(j, k), ring_pt(j, k + 1), ring_pt(i, k + 1)]
+            nx = (loop[i][2] + loop[j][2]) / 2
+            ny = (loop[i][3] + loop[j][3]) / 2
+            body.poly_n(q, band_mat(k, i, j), (nx, ny, lean), smooth=True)
+    # the roof: a low crown inside the roof edge
+    top = len(RINGS) - 1
+    edge = [ring_pt(i, top) for i in range(n)]
+    crown = [(x * 0.62, y * 0.86, ROOF_Z) for (x, y, _) in edge]
+    for i in range(n):
+        j = (i + 1) % n
+        body.poly_n([edge[i], edge[j], crown[j], crown[i]], paint, (loop[i][2] * 0.3, loop[i][3] * 0.3, 1.0), smooth=True)
+    body.poly_n(crown, paint, (0, 0, 1), smooth=True)
+    # the underside between the wheels, so a low camera sees no hollow
+    body.box(-0.64, -HL + 0.12, 0.215, 0.64, HL - 0.12, 0.235, under, skip=("+z",))
+    body = V.weld(body)
 
     mb = fc.MeshBuilder()
 
-    # --- the sensor band round the roof edge: a white cap down onto the roof, a dark sensor
-    # face, tucked under the glass edge; a teal status line along its middle
-    loop = band_loop()
-    ribbon(mb, loop, [(-0.08, 0.0), (-0.075, 0.03), (0.008, 0.034), (0.02, 0.018), (0.022, -0.045), (0.012, -0.078), (-0.03, -0.082)],
-           [paint, paint, lens, lens, lens, lens])
-    ribbon(mb, loop, [(0.0235, -0.006), (0.0235, -0.022)], [status])
+    def strip_on(region_pred, z0, z1, off, mat, wrap=0.0):
+        """A ribbon over the body's lower outline where region_pred(x, y, nx, ny) holds,
+        from z0 to z1, pushed `off` outward."""
+        for a in range(n):
+            b = (a + 1) % n
+            if not (region_pred(*loop[a]) and region_pred(*loop[b])):
+                continue
+            pa = [(loop[a][0] + loop[a][2] * off, loop[a][1] + loop[a][3] * off, z) for z in (z0, z1)]
+            pb = [(loop[b][0] + loop[b][2] * off, loop[b][1] + loop[b][3] * off, z) for z in (z0, z1)]
+            nx, ny = (loop[a][2] + loop[b][2]) / 2, (loop[a][3] + loop[b][3]) / 2
+            mb.poly_n([pa[0], pb[0], pb[1], pa[1]], mat, (nx, ny, 0), smooth=True)
 
-    # --- street side (left): a solid panel over the lower part of the side glass, so the
-    # window is a slim strip under the band; a charging flap on the rear quarter
-    glass_panel(mb, [0.45, DOOR_WIN_F - 0.3, 0.0, -0.5, -0.9, -1.3, -1.6], 0.0, 0.62, -1, 0.006, paint)
-    xf = side_x(-1.84, 0.85)
-    mb.box(-(xf + 0.008), -1.95, 0.81, -(xf - 0.004), -1.73, 0.89, clad)
+    # --- the light bars: across each end and round the corners, in a dark housing
+    def end_zone(sign):
+        lim = HL - RC - BOW - 0.02
+        return lambda x, y, nx, ny: y * sign > lim
+    for sign, mat in ((1, head), (-1, tail)):
+        strip_on(end_zone(sign), 0.76, 0.90, 0.006, lens)
+        strip_on(end_zone(sign), 0.795, 0.865, 0.012, mat)
+    # a radar and camera patch low on each end
+    for sign in (1, -1):
+        y = sign * (HL + 0.004)
+        mb.box(-0.16, y - 0.012 * sign, 0.48, 0.16, y + 0.004 * sign, 0.56, lens)
 
-    # --- kerb side (right): the door's rail along the rear quarter, just below the belt
-    rail = [(side_x(y, 0.875) + 0.003, y, 0.875) for y in (DOOR_R - 0.02, -0.8, -1.0, -1.2, -1.4, -1.6, -1.8)]
-    for p0, p1 in zip(rail, rail[1:]):
-        mb.cyl_between(p0, p1, 0.008, 6, clad, caps=False)
+    # --- the teal status line round the sensor band, proud of it
+    zl = (Z_LINE0, Z_LINE1)
+    for i in range(n):
+        j = (i + 1) % n
+        def pt(c, z):
+            x, y, nx, ny = loop[c]
+            t = (z - Z_BAND) / (Z_BAND_TOP - Z_BAND)
+            d = RINGS[7][1] + (RINGS[8][1] - RINGS[7][1]) * t - 0.006
+            return (x - nx * d, y - ny * d, z)
+        nx = (loop[i][2] + loop[j][2]) / 2
+        ny = (loop[i][3] + loop[j][3]) / 2
+        mb.poly_n([pt(i, zl[0]), pt(j, zl[0]), pt(j, zl[1]), pt(i, zl[1])], status, (nx, ny, 0.1), smooth=True)
 
-    # --- panel shut lines: the bonnet's rear edge and its sides along the shoulders, and the
-    # bumper splits at the nose and tail corners, so the body reads as pressed panels
-    yb = 1.52
-    shut_line(mb, [surface_point(yb, f) for f in (-0.98, -0.6, -0.3, 0.0, 0.3, 0.6, 0.98)], seam)
+    # --- a sensor pod on each roof corner: a white lantern with a dark lens ring and a teal
+    # ring, standing on the corner of the roof and a little over its edge
+    top_rc = RC - RINGS[-1][1]
     for sx in (1, -1):
-        side_pts = [surface_point(y, 0.98) for y in (yb, 1.8, 2.1, 2.3)]
-        shut_line(mb, [(sx * x, y, z) for x, y, z in side_pts], seam)
-        for yy, lo, hi in ((2.25, 0.08, 0.62), (-2.30, 0.12, 0.66)):
-            flank = [surface_point(yy, t, top=False) for t in (lo, (lo + hi) / 2, hi)]
-            shut_line(mb, [(sx * x, y, z) for x, y, z in flank], seam)
-    # --- front: short slim headlight strips at the nose corners in dark lamp housings, a
-    # radar patch low down
-    for sx in (1, -1):
-        V.strip(mb, sx * 0.36, sx * 0.62, 2.455, 2.47, 0.58, 0.06, lens)
-        V.strip(mb, sx * 0.38, sx * 0.60, 2.462, 2.49, 0.585, 0.035, head)
-    mb.box(-0.14, 2.462, 0.42, 0.14, 2.486, 0.50, lens)
-    # --- rear: short tail strips at the corners and the hatch's lower seam
-    for sx in (1, -1):
-        V.strip(mb, sx * 0.42, sx * 0.78, -2.475, -2.455, 0.895, 0.065, lens)
-        V.strip(mb, sx * 0.44, sx * 0.76, -2.49, -2.462, 0.90, 0.04, tail)
-    mb.box(-0.42, -2.488, 0.86, 0.42, -2.47, 0.872, clad)
+        for sy in (1, -1):
+            cx = sx * (HW - RC + top_rc * 0.42)
+            cy = sy * (HL - RC - BOW + top_rc * 0.42)
+            mb.push(Matrix.Translation((cx, cy, Z_BAND_TOP - 0.03)))
+            mb.lathe([(0.122, 0.0), (0.128, 0.06), (0.13, 0.075)], 12, paint, smooth=True)
+            mb.lathe([(0.13, 0.075), (0.132, 0.13)], 12, lens, smooth=True)
+            mb.lathe([(0.132, 0.13), (0.118, 0.158), (0.07, 0.178), (0.0, 0.183)], 12, paint, smooth=True)
+            mb.lathe([(0.1335, 0.096), (0.1335, 0.108)], 12, status, smooth=False)
+            mb.pop()
+
+    # --- street side (left): the charging flap on the rear quarter
+    mb.box(-(HW + 0.006), -1.02, 0.66, -(HW - 0.004), -0.80, 0.78, clad)
+    # --- kerb side (right): the door's rail along the rear quarter, under the belt
+    for p0, p1 in zip([(HW + 0.004, y, 0.93) for y in (-DOOR_Y - 0.02, -1.0, -1.25)], [(HW + 0.004, y, 0.93) for y in (-1.0, -1.25, -1.30)]):
+        mb.cyl_between(p0, p1, 0.007, 6, clad, caps=False)
     # wheel-arch liners
     for yw in (Y_F, Y_R):
         mb.push(Matrix.Translation((0, yw, WR + 0.02)) @ Matrix.Rotation(math.pi / 2, 4, "Y"))
-        mb.lathe([(ARCH_R - 0.01, 0.92), (ARCH_R - 0.01, -0.92)], 12, under, smooth=False, arc=(math.pi / 2, 3 * math.pi / 2))
+        mb.lathe([(ARCH_R - 0.01, 0.93), (ARCH_R - 0.01, -0.93)], 12, under, smooth=False, arc=(math.pi / 2, 3 * math.pi / 2))
         mb.pop()
     body.add(mb)
-    body.build("body", parent=root, sharp_angle=38)
+    body.build("body", parent=root, sharp_angle=36)
 
-    # --- the sliding door: the body's own side between the door edges, from the rocker to
-    # the belt, pushed out DOOR_OFF; its window from the belt to under the band; a window
-    # post at the window's front edge and a handle near the rear edge
+    # --- the sliding door: the body's own kerb side between the door edges, from the sill to
+    # the band, pushed out DOOR_OFF: dark cladding at the bottom, white to the belt, then its
+    # window up to the band
     d = fc.MeshBuilder()
-    ys = [DOOR_F, 0.6, DOOR_WIN_F, 0.2, -0.2, DOOR_R]
-    rows = []
-    for y in ys:
-        sec = side_section(y)
-        row = []
-        for i, (x, z) in enumerate(sec):
-            a, b = sec[max(i - 1, 0)], sec[min(i + 1, len(sec) - 1)]
-            tx, tz = b[0] - a[0], b[1] - a[1]
-            ln = math.hypot(tx, tz)
-            row.append((x + tz / ln * DOOR_OFF, y, z - tx / ln * DOOR_OFF))
-        rows.append(row)
-    for r0, r1 in zip(rows, rows[1:]):
-        for j in range(len(r0) - 1):
-            tx, tz = r0[j + 1][0] - r0[j][0], r0[j + 1][2] - r0[j][2]
-            d.poly_n([r0[j], r0[j + 1], r1[j + 1], r1[j]], paint, (tz, 0.0, -tx), smooth=True)
-    win_ys = [DOOR_WIN_F, 0.2, -0.2, DOOR_R]
-    glass_panel(d, win_ys, 0.0, 0.82, 1, DOOR_OFF, glass)
-    d.cyl_between(glass_point(DOOR_WIN_F, 0.0, DOOR_OFF + 0.004), glass_point(DOOR_WIN_F, 0.82, DOOR_OFF + 0.004), 0.012, 6, clad)
-    for y0, y1 in zip(win_ys, win_ys[1:]):  # the window's top rail
-        d.cyl_between(glass_point(y0, 0.82, DOOR_OFF + 0.002), glass_point(y1, 0.82, DOOR_OFF + 0.002), 0.008, 6, clad, caps=False)
-    # dark seams down the door's front and rear edges, so its outline reads from the street
-    for y, row in ((DOOR_F, rows[0]), (DOOR_R, rows[-1])):
-        for p0, p1 in zip(row, row[1:]):
-            d.cyl_between((p0[0] + 0.002, y, p0[2]), (p1[0] + 0.002, y, p1[2]), 0.007, 6, clad, caps=False)
-    d.cyl_between(glass_point(DOOR_R, 0.0, DOOR_OFF + 0.002), glass_point(DOOR_R, 0.82, DOOR_OFF + 0.002), 0.007, 6, clad, caps=False)
-    xh = side_x(-0.4, 0.80) + DOOR_OFF
-    d.box(xh - 0.002, -0.47, 0.79, xh + 0.010, -0.31, 0.81, clad)
-    # the spray target for "water its sensors": the front of the band, on the centre line
-    hr, zr, cr = V.interp(ROOF, ROOF[0][0])
-    target = fc.empty("sensor_band", location=(0.0, ROOF[0][0] + 0.02, zr + cr - 0.02), parent=root)
-    target["sprayTarget"] = True
+    door_cols = [i for i in range(n) if region(*loop[i]) == "kerb" and abs(loop[i][1]) <= DOOR_Y + 1e-6]
+    for k in range(1, 7):  # rings 0.31 .. Z_BAND
+        z0, z1 = RINGS[k][0], RINGS[k + 1][0]
+        for a, b in zip(door_cols, door_cols[1:]):
+            pa0, pb0 = ring_pt(a, k, False), ring_pt(b, k, False)
+            pa1, pb1 = ring_pt(a, k + 1, False), ring_pt(b, k + 1, False)
+            q = [(p[0] + DOOR_OFF, p[1], p[2]) for p in (pa0, pb0, pb1, pa1)]
+            m = clad if z1 <= Z_CLAD + 1e-6 else paint if z1 <= Z_GLASS + 1e-6 else glass
+            d.poly_n(q, m, (1, 0, 0.05), smooth=True)
+    # the window's frame and the door's edges: dark rods so its outline reads from the street
+    def side_pt(y, z, off):
+        k = max(i for i in range(len(RINGS)) if RINGS[i][0] <= z + 1e-9)
+        k = min(k, len(RINGS) - 2)
+        z0, d0 = RINGS[k]
+        z1, d1 = RINGS[k + 1]
+        dd = d0 + (d1 - d0) * (z - z0) / (z1 - z0)
+        return (HW - dd + off, y, z)
+    for y in (DOOR_Y, -DOOR_Y):
+        d.cyl_between(side_pt(y, 0.31, DOOR_OFF + 0.002), side_pt(y, Z_BELT, DOOR_OFF + 0.002), 0.007, 6, clad, caps=False)
+        d.cyl_between(side_pt(y, Z_GLASS, DOOR_OFF + 0.003), side_pt(y, Z_BAND - 0.01, DOOR_OFF + 0.003), 0.014, 6, clad)
+    for z in (Z_GLASS, Z_BAND - 0.01):
+        d.cyl_between(side_pt(DOOR_Y, z, DOOR_OFF + 0.003), side_pt(-DOOR_Y, z, DOOR_OFF + 0.003), 0.010, 6, clad)
+    xh = side_pt(-0.5, 0.88, DOOR_OFF)[0]
+    d.box(xh - 0.002, -0.60, 0.87, xh + 0.012, -0.44, 0.89, clad)
     door = d.build("door_slide_R", parent=root, sharp_angle=40)
     door["door"] = "slide"
     door["kerbSide"] = True
@@ -345,9 +333,14 @@ def main() -> None:
     door["slideAxis"] = [0, 0, 1]
     door["slideM"] = SLIDE_M
 
+    # the spray target for "water its sensors": the front of the band, on the centre line
+    zt = (Z_BAND + Z_BAND_TOP) / 2
+    target = fc.empty("sensor_band", location=(0.0, HL - RINGS[7][1] + 0.005, zt), parent=root)
+    target["sprayTarget"] = True
+
     for name, y, sx in (("wheel_FL", Y_F, -1), ("wheel_FR", Y_F, 1), ("wheel_RL", Y_R, -1), ("wheel_RR", Y_R, 1)):
-        V.wheel(name, WR, WW, tire, rim, hub=clad, seg=24, spokes=7, side=sx, parent=root,
-                location=(sx * (0.95 - WW / 2 - 0.03), y, WR), extras={"steer": name.startswith("wheel_F")})
+        V.wheel(name, WR, WW, tire, rim, hub=clad, seg=22, spokes=6, side=sx, parent=root,
+                location=(sx * (HW - WW / 2 - 0.035), y, WR), extras={"steer": name.startswith("wheel_F")})
 
     fc.export_glb("robotaxi.glb", BUDGET)
 
