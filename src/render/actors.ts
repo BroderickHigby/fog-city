@@ -23,6 +23,7 @@ import { ContactShadows } from "./contact-shadows.ts";
 import type { Pose } from "./types.ts";
 import { retireRenderTree } from "./renderer-warmup.ts";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
+import { CarBodyMotion, minHeave, type BodyFeel } from "./body-motion.ts";
 
 /** A car between two ticks. Angles in radians; pitch + = nose up, roll + = right side down, steer + = right. */
 export interface CarPose extends Pose {
@@ -30,6 +31,8 @@ export interface CarPose extends Pose {
   roll: number;
   steer: number;
   speed: number;
+  /** What the body spring reads (body-motion.ts); absent = the body keeps still on its chassis. */
+  feel?: BodyFeel;
 }
 
 /** A walker between two ticks. */
@@ -192,6 +195,12 @@ interface PlayerView {
   /** Materials cloned for this car (its paint), disposed with it. */
   ownMaterials: THREE.Material[];
   wheels: Wheel[];
+  /** The body without its wheels, on a pivot the body spring tilts; null when the model has no wheels to split from. */
+  chassis: Chassis | null;
+  /** Squat, dive, lean and jolt (body-motion.ts), stepped by update() from the feel setCar stored. */
+  motion: CarBodyMotion;
+  feel: BodyFeel;
+  hasFeel: boolean;
   lastX: number;
   lastZ: number;
   placed: boolean;
@@ -230,6 +239,77 @@ function fitPlayerCar(car: THREE.Object3D): THREE.Box3 {
   const scale = Math.min(1, width > 0 ? CAR.halfWidth / width : 1, length > 0 ? CAR.halfLength / length : 1);
   car.scale.multiplyScalar(scale);
   return bounds;
+}
+
+/**
+ * The car body on its own pivot, so the body can tilt and bob on the springs while the wheels stay
+ * on the road: every child of the wheels' parent that is not a wheel moves under `pivot`, which
+ * sits at the parent's origin with an identity transform. No authored node is edited: the tilt is
+ * the pivot's own transform, turned about `point` (the hub line's centre: a hub's height, the
+ * middle of the wheelbase). At rest the pivot is the identity, so the drawn car is exactly what it was.
+ */
+export interface Chassis {
+  pivot: THREE.Group;
+  /** What the body turns about, in the pivot's parent frame (model units). */
+  point: THREE.Vector3;
+  /** Metres per model unit (the uniform fit scale of fitPlayerCar). */
+  scale: number;
+  /** The body's reach from `point` along the car and across it, and the gap from the road to its underside at rest, metres. */
+  halfLength: number;
+  halfWidth: number;
+  clearance: number;
+  /** The heave drawn last frame, metres: the spring's, lifted if the body would have touched the road. */
+  shown: number;
+}
+
+/** How close to the road the body's lowest point may come, metres. */
+const CHASSIS_MARGIN = 0.03;
+
+function rigChassis(car: THREE.Object3D, wheels: readonly Wheel[]): Chassis | null {
+  const parent = wheels[0]?.node.parent;
+  if (!parent || wheels.some((w) => w.node.parent !== parent)) return null;
+  const hubs = new Set<THREE.Object3D>(wheels.map((w) => w.node));
+  const movers = parent.children.filter((c) => !hubs.has(c));
+  if (!movers.length) return null;
+  const point = new THREE.Vector3();
+  let ground = Infinity;
+  for (const w of wheels) {
+    point.add(w.node.position);
+    const u = w.node.userData as { radius?: unknown };
+    ground = Math.min(ground, w.node.position.y - (typeof u.radius === "number" && u.radius > 0 ? u.radius : 0.35));
+  }
+  point.divideScalar(wheels.length);
+  const bounds = new THREE.Box3(), box = new THREE.Box3();
+  const visit = (node: THREE.Object3D, up: THREE.Matrix4): void => {
+    const m = up.clone().multiply(node.matrixAutoUpdate ? new THREE.Matrix4().compose(node.position, node.quaternion, node.scale) : node.matrix);
+    const mesh = node as THREE.Mesh;
+    if (mesh.isMesh) {
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      if (mesh.geometry.boundingBox) bounds.union(box.copy(mesh.geometry.boundingBox).applyMatrix4(m));
+    }
+    for (const child of node.children) visit(child, m);
+  };
+  for (const node of movers) visit(node, new THREE.Matrix4());
+  if (bounds.isEmpty()) return null;
+  // The pivot takes the first mover's place, so the tree reads in the same order as before.
+  const pivot = new THREE.Group();
+  pivot.name = "chassis";
+  pivot.rotation.order = "YXZ";
+  const at = parent.children.indexOf(movers[0]!);
+  pivot.add(...movers);
+  parent.add(pivot);
+  parent.children.splice(parent.children.indexOf(pivot), 1);
+  parent.children.splice(at, 0, pivot);
+  const scale = car.scale.y;
+  return {
+    pivot,
+    point,
+    scale,
+    halfLength: Math.max(point.z - bounds.min.z, bounds.max.z - point.z) * scale,
+    halfWidth: Math.max(point.x - bounds.min.x, bounds.max.x - point.x) * scale,
+    clearance: (bounds.min.y - ground) * scale,
+    shown: 0,
+  };
 }
 
 /** The wheel nodes of a car model (extras {"wheel": "FL", "radius", "steer"}). */
@@ -326,6 +406,7 @@ export class Actors {
     v.car = car;
     v.carSource = source;
     v.wheels = findWheels(car);
+    v.chassis = rigChassis(car, v.wheels);
     const fallbackPaint = new Set<THREE.Material>();
     if(source === "fallback") car.traverse(node => {
       const mesh=node as THREE.Mesh;
@@ -375,6 +456,10 @@ export class Actors {
       colorIndex,
       ownMaterials: [],
       wheels: [],
+      chassis: null,
+      motion: new CarBodyMotion(),
+      feel: { speed: 0, lateral: 0, yawRate: 0, grounded: true, hits: 0, personBumps: 0, impactSpeed: 0, landingSpeed: 0 },
+      hasFeel: false,
       lastX: 0,
       lastZ: 0,
       placed: false,
@@ -422,11 +507,13 @@ export class Actors {
     v.car.rotation.set(pose.pitch, -pose.heading, -pose.roll, "YXZ");
     v.car.visible = !(this.hidden === id && this.hiddenPart === "car");
     let dist = v.placed ? Math.hypot(pose.x - v.lastX, pose.z - v.lastZ) : 0;
-    if (dist > 8) dist = 0; // a respawn, not a roll
+    if (dist > 8) { dist = 0; v.motion.reset(); } // a respawn, not a roll: the body starts level
     if (pose.speed < 0) dist = -dist;
     v.lastX = pose.x;
     v.lastZ = pose.z;
     v.placed = true;
+    v.hasFeel = pose.feel !== undefined;
+    if (pose.feel) Object.assign(v.feel, pose.feel);
     for (const w of v.wheels) {
       w.angle = rollWheel(w.angle, dist, w.radius);
       w.node.rotation.set(w.angle, w.steer ? -pose.steer : 0, 0, "YXZ");
@@ -464,6 +551,7 @@ export class Actors {
     this.people.begin();
     this.contacts.begin();
     for (const [id, v] of this.players) {
+      if (v.placed) this.moveBody(v, dt);
       if (v.placed) this.contacts.add(v.car.position.x, v.car.position.y, v.car.position.z,
         -v.car.rotation.y, 2.6, 5.2, v.car.rotation.x, -v.car.rotation.z);
       const w = v.walker;
@@ -491,6 +579,29 @@ export class Actors {
     this.bodies?.end();
     this.blasters?.end();
     this.contacts.end();
+  }
+
+  /** Step one car's body spring and tilt its chassis on it. The wheels, the root and the sim are not touched. */
+  private moveBody(v: PlayerView, dt: number): void {
+    const ch = v.chassis;
+    if (!ch) return;
+    if (v.hasFeel) v.motion.update(dt, v.feel);
+    const s = v.motion.spring;
+    // Never into the road: lift the body just enough that its lowest corner clears it.
+    const heave = Math.max(s.heave.x, minHeave(s.pitch.x, s.roll.x, ch.halfLength, ch.halfWidth, ch.clearance, CHASSIS_MARGIN));
+    // Turn about the hub line's centre without editing a node: position = point - R point, then up by the heave.
+    ch.pivot.rotation.set(s.pitch.x, 0, 0 - s.roll.x, "YXZ"); // (0 - x: a level body is +0, not -0)
+    ch.pivot.position.copy(ch.point).applyEuler(ch.pivot.rotation).negate().add(ch.point);
+    ch.pivot.position.y += heave / ch.scale;
+    ch.shown = heave;
+  }
+
+  /** Where a player's body is on its springs (QA and tests), or null before it is drawn. */
+  bodyMotion(id: string): { pitch: number; roll: number; heave: number; shown: number } | null {
+    const v = this.players.get(id);
+    if (!v?.chassis) return null;
+    const s = v.motion.spring, ch = v.chassis;
+    return { pitch: s.pitch.x, roll: s.roll.x, heave: s.heave.x, shown: ch.shown };
   }
 
   /** Hide one player's own body (first-person view), or nobody. */

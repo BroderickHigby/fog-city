@@ -62,6 +62,8 @@ function fits(car:THREE.Object3D):void {
 function authoredNodes(root:THREE.Object3D):unknown[] {
   const result:unknown[] = [];
   for(const child of root.children) child.traverse(node=>{
+    // The body-motion pivot (render/actors.ts rigChassis) is added by the renderer, an identity at rest.
+    if(node.name==="chassis") return;
     const mesh = node as THREE.Mesh;
     result.push([node.name,node.position.toArray(),node.quaternion.toArray().map(value=>value===0?0:value),node.scale.toArray(),
       mesh.isMesh ? Array.from(mesh.geometry.getAttribute("position").array) : null]);

@@ -389,7 +389,8 @@ async function boot(): Promise<void> {
     let p = poses.get(id);
     if (!p) {
       p = {
-        car: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, steer: 0, speed: 0 },
+        car: { x: 0, y: 0, z: 0, heading: 0, pitch: 0, roll: 0, steer: 0, speed: 0,
+          feel: { speed: 0, lateral: 0, yawRate: 0, grounded: true, hits: 0, personBumps: 0, impactSpeed: 0, landingSpeed: 0 } },
         foot: { x: 0, y: 0, z: 0, heading: 0, speed: 0 },
       };
       poses.set(id, p);
@@ -507,6 +508,7 @@ async function boot(): Promise<void> {
       boot: { loadMs, buildMs, readyMs: readyAt - tStart },
     }),
     renderInfo: () => view.info(),
+    bodyMotion: (id) => view.actors.bodyMotion(id),
     landmarks: () => view.landmarkEntries(),
     setNight: (on) => view.setNight(on),
     previewCombatLook: (stages) => view.previewCombatLook(stages),
@@ -648,6 +650,16 @@ async function boot(): Promise<void> {
       c.roll = lerp(a.roll, b.roll, alpha);
       c.steer = lerp(a.steer, b.steer, alpha);
       c.speed = lerp(a.speed, b.speed, alpha);
+      // The body spring's inputs (render/body-motion.ts): rates interpolated, events from the newest tick.
+      const feel = c.feel!;
+      feel.speed = c.speed;
+      feel.lateral = lerp(a.lateral, b.lateral, alpha);
+      feel.yawRate = lerp(a.yawRate, b.yawRate, alpha);
+      feel.grounded = b.grounded;
+      feel.hits = b.hits;
+      feel.personBumps = b.personBumps;
+      feel.impactSpeed = b.impactSpeed;
+      feel.landingSpeed = b.landingSpeed;
       view.setCar(id, c);
       const onFoot = pc.mode === "foot" && pc.foot !== null;
       if (onFoot) {
