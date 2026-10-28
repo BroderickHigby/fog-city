@@ -250,3 +250,32 @@ test("every collision sound renders audibly in a real Web Audio graph", async ({
   // Harder hits are louder.
   expect(levels.smash!.rms).toBeGreaterThan(levels.bump!.rms);
 });
+
+test("the car's engine renders audibly and unclipped at idle, cruising and redline, with no start-up sweep", async ({ page }) => {
+  await page.goto("/?world=dev");
+  const levels = await page.evaluate(async () => {
+    const { VehicleSynth } = await import("/src/audio/vehicle-synth.ts" as string);
+    const { engineParams } = await import("/src/audio/vehicle-sound.ts" as string);
+    const car = (speed: number) => ({ speed, grounded: true, lateral: 0, grip: 1 });
+    const out: Record<string, { rms: number; peak: number; firstRms: number }> = {};
+    // Idle; 12 m/s cruising; 15 m/s pulling hard at second gear's redline.
+    for (const [name, speed, prev] of [["idle", 0, 0], ["cruise", 12, 12], ["redline", 15, 14.9]] as const) {
+      const ctx = new OfflineAudioContext(1, 44100 * 1.5, 44100);
+      const synth = new VehicleSynth(ctx as unknown as AudioContext, ctx.destination);
+      synth.set(engineParams(car(speed), car(prev), 1 / 60));
+      const d = (await ctx.startRendering()).getChannelData(0);
+      let sum = 0, peak = 0, first = 0;
+      for (let i = 0; i < d.length; i++) { sum += d[i]! * d[i]!; peak = Math.max(peak, Math.abs(d[i]!)); if (i < 4410) first += d[i]! * d[i]!; }
+      out[name] = { rms: Math.sqrt(sum / d.length), peak, firstRms: Math.sqrt(first / 4410) };
+    }
+    return out;
+  });
+  for (const [name, l] of Object.entries(levels)) {
+    expect(Number.isFinite(l.rms), name).toBe(true);
+    expect(l.rms, name).toBeGreaterThan(0.005);
+    expect(l.peak, name).toBeLessThan(0.5);
+  }
+  expect(levels.redline!.rms).toBeGreaterThan(levels.idle!.rms);
+  // The first 100 ms fade in quietly: the oscillators start at idle, not at 440 Hz.
+  expect(levels.idle!.firstRms).toBeLessThan(levels.idle!.rms);
+});
