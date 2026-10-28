@@ -14,6 +14,7 @@ import { agentsRuntimeOf } from "../sim/agents/runtime.ts";
 import { missionActorBindings } from "../sim/agents/systems.ts";
 import { nearestTurntable } from "../sim/missions/mechanics/bell.ts";
 import { streetNameAt } from "./street-name.ts";
+import { runwayView } from "./runway.ts";
 import type { RoadGraph } from "../render/types.ts";
 import type { InteractionView, MapBlip, MapEdge, MapGeography, MapPoint, UiView } from "./types.ts";
 const graphEdges=new WeakMap<RoadGraph,readonly MapEdge[]>();
@@ -82,6 +83,9 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     if(!["alerted","attack","flee"].includes(actor.behavior)||(state.ext.combat?.targets[id]?.phase??"active")!=="active")continue;
     shown.add(id);blips.push({id:`hostile:${id}`,kind:"robot",label:uiText("ui.map.hostile"),x:actor.x,z:actor.z});
   }
+  // Runway Run: while a run is on, the minimap route and dot lead to the investor or the demo.
+  const runway=runwayView(state,playerId);
+  if(runway.target)blips.push({id:"runway-target",kind:"mission",label:runway.investor?.name??uiText("ui.runway.title"),x:runway.target.x,z:runway.target.z});
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
   const streetName=body?streetNameAt(roads,body.x,body.z):undefined;
@@ -98,10 +102,11 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
-    map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:170,...(geography?{geography}:{})},
+    map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target??runway.target,radius:170,...(geography?{geography}:{})},
     vendorSiteId:vendorSite?.id,
     vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
     phoneApps:["map","botBounty","botCheck","bank","settings"],
+    runway,
     popups,
     ...(bounties.length?{bounties}:{}),
   };
