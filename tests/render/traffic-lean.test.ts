@@ -48,14 +48,12 @@ describe("ambient traffic and robotaxis lean in the agent layer", () => {
     } finally { for (const r of [up, down, right, level]) r.layer.dispose(); }
   });
 
-  it("lifts a whole tilted vehicle a little so its low wheel is not buried, and never a level one", () => {
+  it("tilts about the vehicle's origin on the road: a leaning vehicle stays at its ground height", () => {
     const tilt = drive(true, 90, (t) => 20 - 6 * t, (t) => 0.5 * t);
-    const level = drive(true, 90, () => 14, () => 0);
     try {
-      expect(level.pose.y).toBe(0);
-      expect(tilt.pose.y).toBeGreaterThan(0);
-      expect(tilt.pose.y).toBeLessThan(0.05);
-    } finally { tilt.layer.dispose(); level.layer.dispose(); }
+      expect(tilt.pose.pitch).toBeLessThan(-0.02);
+      expect(tilt.pose.y).toBe(0);
+    } finally { tilt.layer.dispose(); }
   });
 
   it("leaves a far vehicle alone (too small to show it, and not worth the cost)", () => {

@@ -295,7 +295,7 @@ export class CarBodyMotion {
 /**
  * Ambient traffic and robotaxis: the same spring, lighter (Slop's traffic.js:1117-1122 uses 0.008 rad
  * per m/s^2 pitch and 0.01 roll with caps of 0.22 and 0.26; a car 30 m off needs a hint, and the
- * whole vehicle tilts, wheels included, so the caps keep an axle's dip under 5 cm). Pitch and roll
+ * whole vehicle tilts, wheels included, so the caps keep an axle's dip or float under 5 cm). Pitch and roll
  * only: a driving agent has no hit or landing events to kick the body with.
  */
 export const TRAFFIC_BODY: BodyTune = {
@@ -351,13 +351,4 @@ export class TrafficLean {
     updateAccel(this.accel, dt, speed, 0, yawRate, tune);
     this.spring.step(dt, this.accel.aLong, this.accel.aLat);
   }
-}
-
-/**
- * How far to lift a vehicle that tilts as a whole (wheels included) so its low axle sits closer to
- * the road: half of what the tilt would sink the worst wheel, so a wheel dips or floats by at most
- * half of it, metres. `axle` is the wheels' distance from the centre along the car, `track` across it.
- */
-export function wheelLift(pitch: number, roll: number, axle: number, track: number): number {
-  return 0.5 * (axle * Math.abs(Math.sin(pitch)) + track * Math.abs(Math.sin(roll)));
 }

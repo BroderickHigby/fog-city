@@ -25,8 +25,7 @@
 
 import * as THREE from "three";
 import { carAppearance, type CarAppearance } from "./car-appearance.ts";
-import { TrafficLean, wheelLift } from "./body-motion.ts";
-import { CAR } from "../sim/car.ts";
+import { TrafficLean } from "./body-motion.ts";
 import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
@@ -229,15 +228,13 @@ function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx:
 }
 
 /**
- * A vehicle's placement with its drawn body lean (body-motion.ts TrafficLean) added to pitch and roll.
- * `whole`: the wheels tilt with the body (one instance, or a far proxy), so the vehicle is lifted by
- * half of what the tilt would sink its worst wheel; a near model with its own wheel parts keeps its
- * wheels flat on the road instead (drawNear) and tilts only the body.
+ * A vehicle's placement with its drawn body lean (body-motion.ts TrafficLean) added to pitch and roll,
+ * turned about the vehicle's origin on the road. A one-instance car or a far proxy tilts whole, wheels
+ * included (as Slop New York's traffic does): at the caps an axle dips or floats by at most 4.7 cm. A
+ * near model with its own wheel parts keeps its wheels flat instead (drawNear) and tilts only the body.
  */
-function vehicleMatrix(pose: Readonly<AgentPose>, scale: number, out: THREE.Matrix4, whole: boolean): THREE.Matrix4 {
-  const lp = pose.leanPitch ?? 0, lr = pose.leanRoll ?? 0;
-  const lift = whole && (lp !== 0 || lr !== 0) ? wheelLift(lp, lr, CAR.axle * scale, CAR.track * scale) : 0;
-  return baseMatrix(pose.x, pose.y + lift, pose.z, pose.heading, pose.pitch + lp, scale, out, (pose.roll ?? 0) + lr);
+function vehicleMatrix(pose: Readonly<AgentPose>, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
+  return baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch + (pose.leanPitch ?? 0), scale, out, (pose.roll ?? 0) + (pose.leanRoll ?? 0));
 }
 
 // ---------------------------------------------------------------- people (agents and players)
@@ -552,7 +549,7 @@ export class AgentLayer {
         const part = tier === TIER_NEAR && this.civilianNear.count ? this.civilianNear : this.civilianFar;
         if (!part.mesh.geometry.boundingBox) part.mesh.geometry.computeBoundingBox();
         bounds.copy(part.mesh.geometry.boundingBox!);
-        vehicleMatrix(pose, this.civilianScale, matrix, true);
+        vehicleMatrix(pose, this.civilianScale, matrix);
       } else {
         const view = this.kinds.get("robotaxi")!;
         if (tier === TIER_NEAR && view.source === "file") bounds.copy(view.model!.bodyBounds);
@@ -561,7 +558,7 @@ export class AgentLayer {
           if (!geometry.boundingBox) geometry.computeBoundingBox();
           bounds.copy(geometry.boundingBox!);
         }
-        vehicleMatrix(pose, view.scale, matrix, !(tier === TIER_NEAR && view.source === "file"));
+        vehicleMatrix(pose, view.scale, matrix);
         const override = this.lookOverride?.get(actor.id);
         collapse(matrix, actor, override ?? visualCombat(actor), override?.height ?? visualHeight(actor));
       }
@@ -744,7 +741,7 @@ export class AgentLayer {
       }
       if (isCivilianTraffic(b) && this.civilianNear && this.civilianFar) {
         const anim = this.anim(b.id,pose,dt,this.civilianWheelRadius*this.civilianScale,2.7*this.civilianScale,10);
-        vehicleMatrix(pose,this.civilianScale,_base,true);
+        vehicleMatrix(pose,this.civilianScale,_base);
         const part = tier === TIER_NEAR ? this.civilianNear : this.civilianFar;
         part.push(_base,cue,null,carAppearance(Math.floor(b.id/8)),anim.wheel,-anim.steer);
         if(tier === TIER_NEAR) { near++; this.wasNear.add(b.id); }
@@ -761,7 +758,7 @@ export class AgentLayer {
         near++;
         this.drawNear(view, b, pose, cue, dt);
       } else {
-        vehicleMatrix(pose, view.scale, _base, true);
+        vehicleMatrix(pose, view.scale, _base);
         collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
       }
@@ -998,7 +995,7 @@ export class AgentLayer {
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
     // The body takes the lean; the wheels (their own parts) stay flat on the road under it.
-    vehicleMatrix(pose, view.scale, _base, false);
+    vehicleMatrix(pose, view.scale, _base);
     const leaning = (pose.leanPitch ?? 0) !== 0 || (pose.leanRoll ?? 0) !== 0;
     if (leaning) baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _flat, pose.roll);
     const override = this.lookOverride?.get(b.id);

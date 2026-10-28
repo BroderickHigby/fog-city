@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, TRAFFIC_BODY, TrafficLean, advanceAxis, lowestDrop, minHeave, newAccel, updateAccel,
-  wheelLift, type BodyFeel,
+  type BodyFeel,
 } from "../../src/render/body-motion.ts";
 
 const level: BodyFeel = { speed: 0, lateral: 0, yawRate: 0, grounded: true, hits: 0, personBumps: 0, impactSpeed: 0, landingSpeed: 0 };
@@ -310,11 +310,8 @@ describe("ambient traffic's lean", () => {
     expect(l.spring.pitch.x).toBe(0);
   });
 
-  it("wheelLift keeps a wheel from sinking more than half the tilt, and is 0 level", () => {
-    expect(wheelLift(0, 0, 1.35, 0.8)).toBe(0);
-    expect(wheelLift(0.035, 0, 1.35, 0.8)).toBeCloseTo(0.5 * 1.35 * Math.sin(0.035), 12);
-    expect(wheelLift(-0.035, 0.05, 1.35, 0.8)).toBeCloseTo(0.5 * (1.35 * Math.sin(0.035) + 0.8 * Math.sin(0.05)), 12);
-    // At the caps the worst wheel is off the road by less than 3 cm either way.
-    expect(wheelLift(TRAFFIC_BODY.pitchMax, TRAFFIC_BODY.rollMax, 1.35, 0.8)).toBeLessThan(0.05);
+  it("at the caps an axle of a whole-tilted vehicle dips or floats by less than 5 cm", () => {
+    expect(1.35 * Math.sin(TRAFFIC_BODY.pitchMax)).toBeLessThan(0.05); // CAR.axle from the centre
+    expect(0.8 * Math.sin(TRAFFIC_BODY.rollMax)).toBeLessThan(0.05); // CAR.track
   });
 });
