@@ -1,5 +1,6 @@
 // Traffic signals and stop signs from the pipeline's street-furniture.json
-// (pipeline/lib/street-furniture.ts), as instanced meshes per street-detail cell. Render-only.
+// (pipeline/lib/street-furniture.ts), as instances per street-detail cell: in the layer's shared
+// instance pool (instance-pool.ts), or the cell's own instanced meshes. Render-only.
 //
 // Supplied signal controls use the same phase plan as the cars. The legacy two-axis plan
 // remains available for standalone fixtures without controls.
@@ -9,6 +10,7 @@ import * as THREE from "three";
 import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
 import { TICK_HZ } from "../sim/contract.ts";
 import { signalPhase, type TrafficSignalControls } from "../sim/traffic-signals.ts";
+import { LocalInstances, type InstanceBlock, type InstanceSink } from "./instance-pool.ts";
 
 export interface SignalRecord {
   id: string;
@@ -217,15 +219,19 @@ export class FurnitureCell {
   readonly group = new THREE.Group();
   readonly signals: number;
   readonly stopSigns: number;
-  private readonly lenses: THREE.InstancedMesh | null;
+  private readonly sink: InstanceSink;
+  private readonly blocks: InstanceBlock[] = [];
+  private readonly lenses: InstanceBlock | null;
   private readonly lamps: Lamp[] = [];
   private readonly controls: TrafficSignalControls | undefined;
   private readonly phases = new Map<string, { tick: number; aspect: Aspect; walk: boolean }>();
   private readonly lampColor = new THREE.Color();
   private lastTick = -1;
 
-  constructor(signals: readonly SignalRecord[], stopSigns: readonly StopSignRecord[], ground: (x: number, z: number) => number, controls?: TrafficSignalControls) {
+  /** `sink`: where the instances go; by default this cell's own meshes in `group`. */
+  constructor(signals: readonly SignalRecord[], stopSigns: readonly StopSignRecord[], ground: (x: number, z: number) => number, controls?: TrafficSignalControls, sink?: InstanceSink) {
     const p = getProtos();
+    this.sink = sink ?? new LocalInstances(this.group);
     this.signals = signals.length;
     this.stopSigns = stopSigns.length;
     this.controls = controls;
@@ -242,18 +248,10 @@ export class FurnitureCell {
       s.set(sx, 1, 1);
       return m.compose(pos, q, s);
     };
-    const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, mats: THREE.Matrix4[], name: string, cast = true): THREE.InstancedMesh | null => {
-      if (!mats.length) return null;
-      const im = new THREE.InstancedMesh(geo, mat, mats.length);
-      mats.forEach((mm, k) => im.setMatrixAt(k, mm));
-      im.instanceMatrix.needsUpdate = true;
-      im.computeBoundingSphere();
-      im.name = name;
-      im.castShadow = cast;
-      im.receiveShadow = true;
-      im.matrixAutoUpdate = false;
-      this.group.add(im);
-      return im;
+    const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, mats: THREE.Matrix4[], name: string, cast = true, colors = false): InstanceBlock | null => {
+      const block = this.sink.add(geo, mat, mats, { name, castShadow: cast, receiveShadow: true, colors });
+      if (block) this.blocks.push(block);
+      return block;
     };
 
     const poles: THREE.Matrix4[] = [], armPoles: THREE.Matrix4[] = [], arms: THREE.Matrix4[] = [];
@@ -287,8 +285,7 @@ export class FurnitureCell {
     inst(p.head, p.housing, heads, "signal heads");
     inst(p.backplate, p.border, heads, "signal backplates");
     inst(p.pedHead, p.housing, pedHeads, "pedestrian heads");
-    this.lenses = inst(p.lens, p.lensMat, lenses, "signal lenses", false);
-    if (this.lenses) this.lenses.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(lenses.length * 3), 3);
+    this.lenses = inst(p.lens, p.lensMat, lenses, "signal lenses", false, true);
 
     const posts: THREE.Matrix4[] = [], plates: THREE.Matrix4[] = [], backs: THREE.Matrix4[] = [], plaques: THREE.Matrix4[] = [];
     for (const st of stopSigns) {
@@ -327,12 +324,13 @@ export class FurnitureCell {
       this.lenses.setColorAt(l.index, c);
       changed = true;
     }
-    if (changed) this.lenses.instanceColor!.needsUpdate = true;
+    if (changed) this.lenses.commitColors();
   }
 
   dispose(): void {
-    // Prototype geometries and materials are shared; instance buffers are per cell.
-    for (const o of this.group.children) (o as THREE.InstancedMesh).dispose();
+    // Prototype geometries and materials are shared; only this cell's instances are released.
+    for (const block of this.blocks) this.sink.release(block);
+    this.blocks.length = 0;
     this.group.clear();
   }
 }

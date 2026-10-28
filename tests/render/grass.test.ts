@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GrassLayer, GRASS_BLADE_CAP, GRASS_SURFACE_CAP, grassShapes, subtractGrassMask } from "../../src/render/grass.ts";
 import { heightOnField, pointInPolygon, type TileCollider } from "../../src/sim/world.ts";
 import type { RoadGraph } from "../../src/render/types.ts";
@@ -118,6 +118,95 @@ describe("DataSF grass", () => {
     for (let i = 0; i < 150; i++) l.update(Math.floor(i / 30) % 2 ? 31 : 10, 10, 0);
     expect(l.info()).toMatchObject({ pending: false, patches: 1 });
     expect(l.info().surfaceTriangles).toBeGreaterThan(0);
+    l.dispose();
+  });
+
+  it("re-assembles a camera move from its per-lawn cache, as a fresh build would", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const moved = flat(), fresh = flat();
+    moved.setData({ grass }); fresh.setData({ grass });
+    settle(moved, 0, 0); settle(moved, 60, 30); settle(fresh, 60, 30);
+    for (const name of ["grass-surface", "grass-blades"]) for (const attr of ["position", "color", "normal"]) {
+      expect(Array.from(mesh(moved, name).geometry.getAttribute(attr).array), `${name} ${attr}`).toEqual(Array.from(mesh(fresh, name).geometry.getAttribute(attr).array));
+    }
+    expect(moved.info()).toMatchObject({ patches: fresh.info().patches, blades: fresh.info().blades });
+    // One lawn, all cached: a 25 m move only re-assembles (the blades, then their copy into the
+    // mesh), two zero-budget updates, and builds nothing.
+    const one = flat(); one.setData(doc()); settle(one);
+    const cached = one.info().cachedLawns;
+    one.update(35, 10, 0);
+    one.update(35, 10, 0);
+    expect(one.settled()).toBe(true);
+    expect(one.info().cachedLawns).toBe(cached);
+    expect(one.info().blades).toBeGreaterThan(0);
+    moved.dispose(); fresh.dispose(); one.dispose();
+  });
+
+  it("drops its per-lawn cache on new data, so a lawn at the same index is built from the new shape", () => {
+    const l = flat(); l.setData(doc()); settle(l);
+    expect(l.info().cachedLawns).toBeGreaterThan(0);
+    // Same lawn index, a different (smaller, moved) shape.
+    const next = doc([[2, 2, 12, 2, 12, 12, 2, 12]]);
+    l.setData(next);
+    expect(l.info().cachedLawns).toBe(0);
+    settle(l);
+    const fresh = flat(); fresh.setData(next); settle(fresh);
+    for (const name of ["grass-surface", "grass-blades"]) expect(Array.from(mesh(l, name).geometry.getAttribute("position").array), name).toEqual(Array.from(mesh(fresh, name).geometry.getAttribute("position").array));
+    expect(area(mesh(l, "grass-surface").geometry)).toBeCloseTo(100, 0);
+    l.dispose(); fresh.dispose();
+  });
+
+  it("spreads the assembly over frames under a zero budget and still ends with the same meshes", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const slow = flat(), fast = flat();
+    slow.setData({ grass }); fast.setData({ grass });
+    for (let i = 0; i < 20000; i++) { slow.update(0, 0, 0); if (slow.settled()) break; }
+    settle(fast, 0, 0);
+    // A 20 m move with every lawn cached: the re-assembly takes several zero-budget frames.
+    let frames = 0;
+    do { slow.update(20, 5, 0); frames++; } while (!slow.settled() && frames < 1000);
+    expect(slow.settled()).toBe(true);
+    expect(frames).toBeGreaterThan(1);
+    // Moving again half way through an assembly: it finishes, and the next one is of the new place.
+    slow.update(0, 0, 0); slow.update(0, 0, 0);
+    expect(slow.settled()).toBe(false);
+    slow.update(-30, 10, 0);
+    for (let i = 0; i < 1000 && !slow.settled(); i++) slow.update(-30, 10, 0);
+    settle(fast, -30, 10);
+    for (const name of ["grass-surface", "grass-blades"]) for (const attr of ["position", "color", "normal"]) {
+      expect(Array.from(mesh(slow, name).geometry.getAttribute(attr).array), `${name} ${attr}`).toEqual(Array.from(mesh(fast, name).geometry.getAttribute(attr).array));
+    }
+    expect(slow.info()).toMatchObject({ patches: fast.info().patches, blades: fast.info().blades });
+    slow.dispose(); fast.dispose();
+  });
+
+  it("keeps the blades up with a camera that keeps moving on a zero budget", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const l = flat(); l.setData({ grass });
+    settle(l, -100, -100);
+    // 1 m a frame (60 m/s at 60 fps): a re-selection every 20 frames, never a spare millisecond.
+    // The clock is the frames' (16.7 ms each), whatever this machine's speed.
+    let now = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    let shown = 0, last = mesh(l, "grass-blades").geometry;
+    for (let k = 0; k <= 280; k++) {
+      now += 1000 / 60;
+      l.update(-100 + k * .7, -100 + k * .7, 0);
+      const g = mesh(l, "grass-blades").geometry;
+      if (g !== last) { shown++; last = g; }
+    }
+    // 14 re-selections on the way: the blades follow most of them rather than stalling.
+    clock.mockRestore();
+    expect(shown).toBeGreaterThanOrEqual(7);
     l.dispose();
   });
 
