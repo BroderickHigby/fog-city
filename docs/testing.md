@@ -233,7 +233,7 @@ sets its own (`it(name, fn, 60_000)`).
 | `city-life.spec.ts` | On real SF, plans the player getting out of the car at the Embarcadero spawn and walking to the pavement from the browser's snapshot, then replays those recorded inputs through `stepFrames()`. The parked car stays within 1 cm of its original position, at least one robotaxi goes round it in Node and in the browser, every browser batch records zero dodge contacts, and the final browser state equals Node's canonical state. Requires no browser errors and captures the final street view. | `sf`, `step-frames` |
 | `dynamics.spec.ts` | The v15 vehicle dynamics through real keys on the dev world: held W from rest pulls at 5 to 7 m/s² on average up to 12 m/s (an EV's launch; the old car pulled 9.5), and S brakes from there to a stop at 7.5 to 12.5 m/s² (about 1 g, ABS at the tyres' grip). Rates are measured against sim ticks. No hit on the way, no console error. | none |
 | `perf.spec.ts` | Nothing: it **reports**. See the perf probe below. | never (absent worlds are listed as skipped in the report) |
-| `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/`: it fits the host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), its index has no per-tile collider, lists every file written in parts at its size on disk and at most 14 MB (and says version 2 exactly when there are parts), and agrees with the build's report; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack, each of the pack's files (whole, or every part) fetched exactly once; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin` or `*.collider.json`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). The committed collider pack fits one file, so a second build (`test-results/web-build/split-site/`) lowers the part size to 5 MB so every run boots the split path in Chromium: the pack is written in parts (version 2 index, each part at its size on disk) that join and decode to `world.colliders.bin` byte for byte, the page boots SF from them and drives more than 30 m, fetching every part once and never the whole file, and with one part missing on the host the boot stops with `Failed to start: … part 1 of parts 0..N (….part1.txt): HTTP 404`. `WEB_BUILD_PUBLIC=<dir>` builds both from another `public/` directory. | `sf` |
+| `web-build.spec.ts` | The static web build (`scripts/build-web.ts`, the same code as `pnpm build`), built into `test-results/web-build/site/fog/city/` and served by a loopback server from the sub-path `/fog/city/` the way Vercel serves it (a `.gz` as `application/gzip`, no `Content-Encoding`): it fits `BINARY_LIMITS` (15 MB a file), its index is version 3 with `encoding: "gzip"`, every binary a content-named `bin/<name>.<hash>.gz`, the collider pack listed as byte-shuffled, no per-tile collider, every file written in parts listed at its size on disk and at most 14 MB, and it agrees with the build's report; the page boots SF by default with `simInfo().assets === "packed"` and the collider pack, each of the pack's files fetched exactly once; every request stays under the sub-path, none fails, none is a raw `.glb`, `.bin`, a base64 `.txt` binary or `*.collider.json`; the skinned people (the crowd's files and `generic-player.glb`) are asked for only after `readyMs`; 10 s of throttle drives more than 30 m; tiles stream from several packs with none failed, every far cell loads, the player car comes from its packed model, and the frame is drawn (`test-results/web-build/hosted-chase.png`). A second build (`test-results/web-build/split-site/`) is the `--text` layout for a text-only host with the part size lowered to 5 MB, so every run boots the split path in Chromium: it fits the text host (allowed extensions only, at most 450 files, 240 MB, 15 MB a file), the pack is written in parts (version 2 index, each part at its size on disk) that join and decode to `world.colliders.bin` byte for byte, the page boots SF from them and drives more than 30 m, fetching every part once and never the whole file, and with one part missing on the host the boot stops with `Failed to start: … part 1 of parts 0..N (….part1.txt): HTTP 404`. `WEB_BUILD_PUBLIC=<dir>` builds both from another `public/` directory. | `sf` |
 
 ### Cross-engine determinism
 
@@ -376,56 +376,72 @@ the first push.
 (every URL relative, so `dist/` works from any sub-path; `public/` is not copied), then the
 world and the models in the layout `src/io/assets.ts` reads in a production build:
 
-- the page host serves only text-like types (`.html .css .js .mjs .wasm .json .map .geojson
-  .webmanifest .txt .md .csv .xml .svg .png .jpg .jpeg .gif .webp .avif .ico .woff .woff2 .ttf
-  .otf .mp3 .wav .ogg .mp4 .webm .pdf`; no `.glb`, no `.bin`), so every binary is
-  gzip-compressed, base64-encoded and written as a `.txt` file, decoded in the page with
-  `atob` and `DecompressionStream("gzip")`;
-- tile glbs are concatenated into packs, one per 3 x 3 block of tiles
-  (`tiles/sf/packs/tiles-NNN.pack.gz.b64.txt`), the far-LOD cells into `far-NN` packs; a pack
-  is fetched whole the first time a file in it is needed, cached, and sliced by offset;
-- `world.colliders.bin` and each model are encoded on their own, one `.gz.b64.txt` file each
-  while that stays within the build's 14 MB margin (`PACK_MAX_BYTES`, under the host's 15 MB);
-- an encoded file over 14 MB is written as parts instead: `<name>.gz.b64.part0.txt`,
-  `.part1.txt`, ... (numbered from 0, as few as fit, sizes as even as possible with every cut
-  on a multiple of 4 characters, so each part is valid base64 on its own; the build checks
-  every part is at most 14 MB). The page fetches a file's parts concurrently, checks each
-  against the size the index lists, joins them in order and decodes once; a missing or
-  wrong-sized part fails the load naming the file and the part, and the decoded length must
-  equal the index's. The citywide collider pack needs this from the 2026-10-21 QA world on
-  (14.87 MB raw, 14.26 MB encoded: two parts of 7.13 MB);
+- tile glbs are concatenated into packs, one per 3 x 3 block of tiles (`tiles-NNN`), the
+  far-LOD cells into `far-NN` packs; a pack is fetched whole the first time a file in it is
+  needed, cached (packs only: a model passing through never pushes one out), and sliced by
+  offset; `world.colliders.bin` and each model are stored on their own;
+- every binary is stored one of two ways (the index's `encoding`):
+  - **binary, the default** (Vercel; index `version: 3`, `encoding: "gzip"`): gzip-compressed
+    and written as `bin/<name>.<hash>.gz`, the hash the first 12 hex digits of the stored
+    file's sha256, so a name changes whenever its bytes do and the host may cache `bin/` for
+    good (`vercel.json`). The page decodes them with `DecompressionStream("gzip")`; a host that
+    answers a `.gz` with `Content-Encoding: gzip` (vite preview does) hands over the decoded
+    bytes, which are taken as they are. The collider pack is byte-shuffled by 4 before
+    compression (its int16 and int32 records gzip to 7.8 MB instead of 9.2 MB) and listed under
+    `filters`; the page unshuffles it;
+  - **text, with `--text`** (index `version: 1`, or `2` with parts), for a host that serves only
+    text-like types (`.html .css .js .mjs .wasm .json .map .geojson .webmanifest .txt .md .csv
+    .xml .svg .png .jpg .jpeg .gif .webp .avif .ico .woff .woff2 .ttf .otf .mp3 .wav .ogg .mp4
+    .webm .pdf`; no `.glb`, `.bin` or `.gz`): gzip-compressed, base64-encoded and written as
+    `<name>.gz.b64.txt` beside the world's JSON (`tiles/sf/packs/tiles-NNN.pack.gz.b64.txt`),
+    decoded with `atob` and `DecompressionStream("gzip")`. Base64 costs a third more bytes,
+    and a host that compresses text wins most of it back only on the wire;
+- an encoded file over the build's 14 MB margin (`PACK_MAX_BYTES`, under the text host's 15 MB)
+  is written as parts instead, as few as fit, sizes as even as possible: binary parts are
+  `<src>.part0`, `.part1`, ... (no `.gz` ending, so no host takes a part for a whole gzip
+  file); text parts are `<name>.gz.b64.part0.txt`, ..., every cut on a multiple of 4
+  characters, so each part is valid base64 on its own. The page fetches a file's parts
+  concurrently, checks each against the size the index lists, joins them in order and decodes
+  once; a missing or wrong-sized part fails the load naming the file and the part, and the
+  decoded length must equal the index's. The text collider pack needs this from the 2026-10-21
+  QA world on (14.87 MB raw, 14.26 MB encoded: two parts of 7.13 MB);
 - the world's JSON the game reads is copied as is: the manifest, the road graph and the data
-  layers in `RUNTIME_LAYERS` (`src/io/world-load.ts`: boundary and districts); the other layers
-  (sidewalks, hydrants, ...) stay out until a feature reads them, and per-tile collider JSON is
-  not shipped;
+  layers in `RUNTIME_LAYERS` (`src/io/world-load.ts`); the other layers (hydrants, ...) stay
+  out until a feature reads them, and per-tile collider JSON is not shipped;
 - the bundle's source map ships by default (useful on a private page); `node
   scripts/build-web.ts --no-sourcemap` leaves it out;
 - `assets.index.json` maps each binary's logical path to `{src, offset, length}`; a src written
   in parts is listed under `parts[src]` as `[{src, bytes}, ...]` in join order (`src` in the
-  entry then names the whole encoded text, which is not a file). An index with parts says
-  `version: 2`; one without stays `version: 1`, the shape builds wrote before parts, so a page
-  too old to know parts refuses a split build by its version. Its `defaultWorld` (`sf`) opens
-  when the page has no `?world=`.
+  entry then names the whole encoded file, which is not a file on the host). Its
+  `defaultWorld` (`sf`) opens when the page has no `?world=`.
 
-The build checks the host's limits (at most 450 files, 240 MB in all, 15 MB a file, the
-extensions above; every part is a file of its own) and fails if one is broken; its summary
-names each file written in parts. `--public <dir>` builds the world and models from another
-`public/` directory, e.g. a pipeline branch's world before it merges. `--out <dir>` (relative
-to the checkout, or absolute) is deleted before the build writes it, so the build takes only a
-directory that is new, empty or holds nothing but an earlier build's files (`index.html`,
-`assets/`, `assets.index.json`, `tiles/` and `models/` of `.json` and `.txt`), and checks the
+The build checks the host's limits and fails if one is broken (text: at most 450 files, 240 MB
+in all, 15 MB a file, the extensions above; binary, `BINARY_LIMITS`: any extension, 15 MB a
+file; every part is a file of its own); its summary names each file written in parts.
+`--public <dir>` builds the world and models from another `public/` directory, e.g. a pipeline
+branch's world before it merges. `--out <dir>` (relative to the checkout, or absolute) is
+deleted before the build writes it, so the build takes only a directory that is new, empty or
+holds nothing but an earlier build's files (`index.html`, `assets/`, `assets.index.json`, `bin/`
+of `.gz` files and their parts, `tiles/` and `models/` of `.json` and `.txt`), and checks the
 world's manifest is there before it deletes anything; anything else stops the build, naming
 what it found, unless `--force-clean`. The checkout, the `public/` it reads and any directory
-holding either are refused even then. On 2026-10-22, from the committed world (`pnpm build`):
-112 files, 92.9 MB (binaries 138.8 MB raw, 83.0 MB encoded: meshopt output gzips well; JSON
-5.0 MB; the bundle 4.8 MB), largest file the collider pack at 12.3 MB encoded (12.7 MB raw),
-in one file, so nothing in parts and a version 1 index; 81 packs; about 10 s.
+holding either are refused even then. On 2026-10-27, from the committed world (`pnpm build`):
+194 files, 155.6 MB (binaries 189.2 MB raw, 88.2 MB gzip; the `--text` build is 186.8 MB with
+119.4 MB of base64), the collider pack 7.8 MB in one file, 81 packs.
 
-Republishing a build to a page that already holds an earlier one: the host keeps every file an
-update leaves out, so remove each path the earlier build had and this one lacks, e.g. the whole
-`tiles/sf/world.colliders.bin.gz.b64.txt` once the pack is written in parts, or a pack name
-that is gone. The page never reads them, but they count against the host's file and size
-totals. To look at it from a sub-path:
+The page fetches less before it is ready than the build holds: `src/main.ts` holds back the
+skinned people (the crowd's twelve Rocketbox files and the player's body and motions; procedural
+people stand in, and every game starts in a car) and the sound effects until the game is
+ready, and fetches each JSON file once however many readers ask for it during the boot
+(`bootAssets`, `src/io/assets.ts`). On 2026-10-27 (real Chrome, WebGPU, 1440 x 900 at DPR 2,
+cache off) the page asked for 22.0 MB in 35 requests before it was ready, from 52.3 MB in 138.
+
+Republishing a text build to a page that already holds an earlier one: the host keeps every
+file an update leaves out, so remove each path the earlier build had and this one lacks, e.g.
+the whole `tiles/sf/world.colliders.bin.gz.b64.txt` once the pack is written in parts, or a pack
+name that is gone. The page never reads them, but they count against the host's file and size
+totals. (Vercel serves each deployment's files only, so a binary build needs none of this.) To
+look at it from a sub-path:
 
 ```sh
 pnpm build
@@ -434,10 +450,11 @@ python3 -m http.server 4299 --bind 127.0.0.1    # from the repo root, then open
 ```
 
 `pnpm dev` keeps serving loose files from `public/`. `tests/e2e/web-build.spec.ts` builds and
-boots its own copies from a sub-path on every e2e run (one as `pnpm build` writes it, one with a
-5 MB part size, so the collider pack is always in parts); `WEB_BUILD_PUBLIC=<dir>` points it at
-another `public/` directory, to prove a world that has not merged yet builds, fits the host and
-boots (`WEB_BUILD_PUBLIC=/path/to/public E2E_PORT=4298 pnpm exec playwright test web-build`).
+boots its own copies from a sub-path on every e2e run (one as `pnpm build` writes it, binary;
+one `--text` with a 5 MB part size, so the collider pack is always in parts);
+`WEB_BUILD_PUBLIC=<dir>` points it at another `public/` directory, to prove a world that has not
+merged yet builds, fits the host and boots
+(`WEB_BUILD_PUBLIC=/path/to/public E2E_PORT=4298 pnpm exec playwright test web-build`).
 
 ## Output layout
 
