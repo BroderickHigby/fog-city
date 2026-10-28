@@ -133,14 +133,43 @@ describe("DataSF grass", () => {
       expect(Array.from(mesh(moved, name).geometry.getAttribute(attr).array), `${name} ${attr}`).toEqual(Array.from(mesh(fresh, name).geometry.getAttribute(attr).array));
     }
     expect(moved.info()).toMatchObject({ patches: fresh.info().patches, blades: fresh.info().blades });
-    // One lawn, all cached: a 25 m move is one update, even with a zero budget.
+    // One lawn, all cached: a 25 m move only re-assembles (the blades, then their copy into the
+    // mesh), two zero-budget updates, and builds nothing.
     const one = flat(); one.setData(doc()); settle(one);
     const cached = one.info().cachedLawns;
+    one.update(35, 10, 0);
     one.update(35, 10, 0);
     expect(one.settled()).toBe(true);
     expect(one.info().cachedLawns).toBe(cached);
     expect(one.info().blades).toBeGreaterThan(0);
     moved.dispose(); fresh.dispose(); one.dispose();
+  });
+
+  it("spreads the assembly over frames under a zero budget and still ends with the same meshes", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const slow = flat(), fast = flat();
+    slow.setData({ grass }); fast.setData({ grass });
+    for (let i = 0; i < 20000; i++) { slow.update(0, 0, 0); if (slow.settled()) break; }
+    settle(fast, 0, 0);
+    // A 20 m move with every lawn cached: the re-assembly takes several zero-budget frames.
+    let frames = 0;
+    do { slow.update(20, 5, 0); frames++; } while (!slow.settled() && frames < 1000);
+    expect(slow.settled()).toBe(true);
+    expect(frames).toBeGreaterThan(1);
+    // Moving again half way through an assembly starts it over from the new place.
+    slow.update(0, 0, 0); slow.update(0, 0, 0);
+    expect(slow.settled()).toBe(false);
+    slow.update(-30, 10, 0);
+    for (let i = 0; i < 1000 && !slow.settled(); i++) slow.update(-30, 10, 0);
+    settle(fast, -30, 10);
+    for (const name of ["grass-surface", "grass-blades"]) for (const attr of ["position", "color", "normal"]) {
+      expect(Array.from(mesh(slow, name).geometry.getAttribute(attr).array), `${name} ${attr}`).toEqual(Array.from(mesh(fast, name).geometry.getAttribute(attr).array));
+    }
+    expect(slow.info()).toMatchObject({ patches: fast.info().patches, blades: fast.info().blades });
+    slow.dispose(); fast.dispose();
   });
 
   it("draws short bent leaves in small tufts with separate leaf and triangle counts", () => {

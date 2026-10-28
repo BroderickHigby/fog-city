@@ -36,6 +36,7 @@ describe("instance pool", () => {
     pool.flush();
     const attr = a.mesh.instanceMatrix, version = attr.version;
     expect(attr.updateRanges).toEqual([{ start: 0, count: 6 * 16 }]);
+    attr.clearUpdateRanges(); // as the renderer does once it uploads them
     pool.release(a);
     expect(xs(b.mesh)).toEqual([3, 4, 5, 6]);
     expect([b.offset, c.offset]).toEqual([0, 3]);
@@ -51,6 +52,20 @@ describe("instance pool", () => {
     expect(b.mesh.count).toBe(0);
     expect(b.mesh.visible).toBe(false);
     expect(pool.info()).toMatchObject({ meshes: 1, instances: 0 });
+    pool.dispose();
+  });
+
+  it("keeps every range flushed before the renderer uploads (a frame not rendered loses none)", () => {
+    const pool = new InstancePool();
+    const a = pool.add(geometry, material, [at(1), at(2)], { name: "k" })!;
+    pool.flush();
+    pool.add(geometry, material, [at(3)], { name: "k" });
+    pool.flush();
+    expect(a.mesh.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 2 * 16 }, { start: 2 * 16, count: 16 }]);
+    // The sort bounds are recomputed from the live instances, not kept from the first frame.
+    expect(a.mesh.boundingSphere).toBeNull();
+    a.mesh.computeBoundingSphere();
+    expect(a.mesh.boundingSphere!.center.x).toBeCloseTo(2, 5);
     pool.dispose();
   });
 

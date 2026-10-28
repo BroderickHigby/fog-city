@@ -38,6 +38,11 @@ const SURFACE_KEEP_M = 300;
 const TUFT_KEEP_M = 120;
 /** While lawns are still being built, re-assemble at most this often (ms) to show progress. */
 const PROGRESS_MS = 250;
+/** Work between yields of a lawn build: obstacle cuts and terrain pieces of turf; tuft samples (scaled by obstacles). */
+const SURFACE_STEP_WORK = 48;
+const TUFT_STEP_WORK = 64;
+/** Tuft records the blade assembly visits between yields (about a millisecond on a laptop). */
+const ASSEMBLY_STEP_TUFTS = 1024;
 const TUFT_STEP = .9;
 export interface GrassInfo {
   loaded: boolean; areas: number; patches: number; blades: number;
@@ -301,14 +306,21 @@ const TUFT = 12;
 function* buildSurface(lawn: Lawn, index: MaskIndex, terrain: Terrain, out: LawnCache): Generator<void> {
   yield* index.prepare(lawn.bbox);
   const obstacles = index.get(lawn.bbox), position: number[] = [], color: number[] = [];
-  let processed = 0;
+  yield;
+  // Steps are sized by work (obstacle cuts and terrain pieces), not by triangles: a triangle
+  // beside many buildings costs as much as hundreds in an open park.
+  let work = 0;
   for (const triangle of triangles(lawn.rings)) {
     let parts = [triangle];
     for (const obstacle of obstacles) {
-      parts = parts.flatMap(p => overlaps(bounds(p), obstacle.bbox) ? subtractGrassMask(p, obstacle.polygon) : [p]);
+      let cut = 0;
+      parts = parts.flatMap(p => overlaps(bounds(p), obstacle.bbox) ? (cut++, subtractGrassMask(p, obstacle.polygon)) : [p]);
+      work += cut;
       if (!parts.length) break;
+      if (work >= SURFACE_STEP_WORK) { work = 0; yield; }
     }
     for (const p of parts) for (const piece of terrainPieces(p, terrain)) {
+      if (++work >= SURFACE_STEP_WORK) { work = 0; yield; }
       const h = piece.map(v => terrain.ground(...v));
       if (h.some(y => !Number.isFinite(y) || y < 1.2)) continue;
       for (let i = 1; i + 1 < piece.length; i++) {
@@ -322,7 +334,6 @@ function* buildSurface(lawn: Lawn, index: MaskIndex, terrain: Terrain, out: Lawn
         }
       }
     }
-    if (++processed % 4 === 0) yield;
   }
   const p = new Float32Array(position), normal = new Float32Array(position.length);
   faceNormals(p, normal, position.length / 9);
@@ -355,9 +366,12 @@ function* buildTufts(lawn: Lawn, index: MaskIndex, terrain: Terrain, out: LawnCa
   const obstacles = index.get(lawn.bbox), seed = hashString(lawn.id), b = lawn.bbox, data: number[] = [], k: number[] = [];
   const outer = ringTest(lawn.rings[0]!), holes = lawn.rings.slice(1).map(ringTest);
   const inside = (p: P): boolean => outer(p) && !holes.some(hole => hole(p)) && !obstacles.some(m => inMask(p, m));
-  let processed = 0;
+  yield;
+  // Steps are sized by work: a sample costs its point tests against every obstacle of the lawn.
+  const sampleWork = 1 + obstacles.length / 16;
+  let work = 0;
   for (let gx = Math.floor(b[0] / TUFT_STEP); gx <= Math.floor(b[2] / TUFT_STEP); gx++) for (let gz = Math.floor(b[1] / TUFT_STEP); gz <= Math.floor(b[3] / TUFT_STEP); gz++) {
-    if (++processed % 64 === 0) yield;
+    if ((work += sampleWork) >= TUFT_STEP_WORK) { work = 0; yield; }
     const r = mix32(mix32(seed, gx), gz), u = unit(r), v = unit(mix32(r, 3));
     const px = (gx + .18 + u * .64) * TUFT_STEP, pz = (gz + .18 + v * .64) * TUFT_STEP;
     if (!inside([px, pz])) continue;
@@ -400,6 +414,8 @@ export class GrassLayer {
   private surfaceKey = "";
   private assembledAt = -Infinity;
   private needsAssembly = false;
+  /** The assembly in progress (a few steps under the budget); restarted when the selection changes. */
+  private assembly: Generator<void> | null = null;
   /** Scratch for the blade assembly, reused: no garbage per re-assembly. */
   private readonly scratch = { position: new Float32Array(GRASS_BLADE_CAP * 9), color: new Float32Array(GRASS_BLADE_CAP * 9), root: new Float32Array(GRASS_BLADE_CAP * 3) };
   private x = Infinity; private z = Infinity; private patches = 0; private leaves = 0; private loaded = false;
@@ -435,7 +451,7 @@ export class GrassLayer {
     this.lawns = grassShapes(doc); this.loaded = true; this.index = null;
     this.indexPending = this.lawns.length ? masks(this.lawns, this.opts) : null;
     this.cache.clear(); this.terrains.clear(); this.job = null; this.todo = []; this.selected = [];
-    this.x = Infinity; this.needsAssembly = false; this.surfaceKey = ""; this.clear();
+    this.x = Infinity; this.needsAssembly = false; this.assembly = null; this.surfaceKey = ""; this.clear();
   }
   /** Re-select near (x, z), build what is missing nearest first and re-assemble, within `budgetMs`. */
   update(x: number, z: number, budgetMs = 3): void {
@@ -454,6 +470,18 @@ export class GrassLayer {
     }
     const index = this.index;
     if (!index) return;
+    // A due assembly goes first: it shows the lawns already built. Then the builds, nearest first.
+    const now = performance.now();
+    if (!this.assembly && this.needsAssembly && ((!this.job && !this.todo.length) || now - this.assembledAt >= PROGRESS_MS)) {
+      this.assembledAt = now;
+      this.needsAssembly = false;
+      this.assembly = this.assemble();
+    }
+    while (this.assembly) {
+      if (stepped && performance.now() - start >= budgetMs) return;
+      stepped = true;
+      if (this.assembly.next().done) this.assembly = null;
+    }
     for (;;) {
       if (!this.job) {
         const next = this.todo.shift();
@@ -467,11 +495,8 @@ export class GrassLayer {
       stepped = true;
       if (this.job.gen.next().done) { this.job = null; this.needsAssembly = true; }
     }
-    // Show finished lawns as they come, without re-assembling every frame while many build.
-    const now = performance.now();
-    if (this.needsAssembly && ((!this.job && !this.todo.length) || now - this.assembledAt >= PROGRESS_MS)) this.assemble(now);
   }
-  settled(): boolean { return !this.loaded || (Number.isFinite(this.x) && !this.indexPending && !this.job && !this.todo.length && !this.needsAssembly); }
+  settled(): boolean { return !this.loaded || (Number.isFinite(this.x) && !this.indexPending && !this.job && !this.todo.length && !this.needsAssembly && !this.assembly); }
   info(): GrassInfo {
     const surfaceTriangles = (this.surface.geometry.getAttribute("position")?.count ?? 0) / 3, bladeTriangles = (this.blades.geometry.getAttribute("position")?.count ?? 0) / 3;
     return { loaded: this.loaded, areas: this.lawns.length, patches: this.patches, blades: this.leaves, surfaceTriangles, bladeTriangles, drawCalls: Number(surfaceTriangles > 0) + Number(bladeTriangles > 0), pending: !this.settled(), cachedLawns: this.cache.size };
@@ -515,13 +540,16 @@ export class GrassLayer {
       if (d > GRASS_RADIUS + SURFACE_KEEP_M) { this.cache.delete(i); this.terrains.delete(i); }
       else if (entry.tufts && d > GRASS_BLADE_RADIUS + TUFT_KEEP_M) entry.tufts = null;
     }
+    // An assembly for the old place is abandoned: the next one starts from the new selection.
+    this.assembly = null;
     this.needsAssembly = true;
   }
 
-  /** Copy the selected lawns' cached pieces into the two meshes, thinning the blades by distance. */
-  private assemble(now: number): void {
-    this.assembledAt = now;
-    this.needsAssembly = false;
+  /**
+   * Copy the selected lawns' cached pieces into the two meshes, thinning the blades by distance,
+   * a lawn or a few thousand tufts per step. A lawn that finishes meanwhile is in the next one.
+   */
+  private *assemble(): Generator<void> {
     const { x, z } = this;
     // Turf: the selected lawns' triangles in order, up to the cap. Same lawns, same mesh.
     const parts: number[] = [];
@@ -534,7 +562,6 @@ export class GrassLayer {
     }
     const key = parts.join(",");
     if (key !== this.surfaceKey) {
-      this.surfaceKey = key;
       const position = new Float32Array(tris * 9), color = new Float32Array(tris * 9), normal = new Float32Array(tris * 9);
       let at = 0, patches = 0;
       for (const i of parts) {
@@ -543,14 +570,16 @@ export class GrassLayer {
         position.set(s.position.subarray(0, n), at); color.set(s.color.subarray(0, n), at); normal.set(s.normal.subarray(0, n), at);
         at += n;
         patches++;
+        yield;
       }
+      this.surfaceKey = key;
       this.patches = patches;
       this.replace(this.surface, { position, color, normal }, parts);
     }
     // Blades: each selected lawn's tufts inside the blade window, thinned with distance, up to the cap.
     const R = GRASS_BLADE_RADIUS, { position, color, root } = this.scratch;
     const base = [0, 0, 0], tip = [0, 0, 0], corner = [0, 0, 0, 0, 0, 0, 0, 0], used: number[] = [];
-    let vertices = 0, leaves = 0, full = false;
+    let vertices = 0, leaves = 0, full = false, visited = 0;
     const vertex = (vx: number, vy: number, vz: number, c: readonly number[], y: number): void => {
       const k = vertices * 3;
       position[k] = vx; position[k + 1] = vy; position[k + 2] = vz;
@@ -566,6 +595,7 @@ export class GrassLayer {
       if (gx0 > gx1 || gz0 > gz1) continue;
       const seed = hashString(lawn.id), before = leaves;
       for (let k = 0; k < t.length; k += TUFT) {
+        if (++visited % ASSEMBLY_STEP_TUFTS === 0) yield;
         const gx = t[k]!, gz = t[k + 1]!;
         if (gx < gx0 || gx > gx1 || gz < gz0 || gz > gz1) continue;
         if (vertices / 3 + 6 > GRASS_BLADE_CAP) { full = true; break; }
@@ -584,6 +614,8 @@ export class GrassLayer {
       }
       if (leaves > before) used.push(i);
     }
+    // The copy into the mesh and its normals are a step of their own.
+    yield;
     this.leaves = leaves;
     const p = position.slice(0, vertices * 3), normal = new Float32Array(vertices * 3);
     faceNormals(p, normal, vertices / 3);
@@ -611,5 +643,5 @@ export class GrassLayer {
     mesh.visible = a.position.length > 0;
   }
   private clear(): void { this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surface.geometry = new THREE.BufferGeometry(); this.blades.geometry = new THREE.BufferGeometry(); this.surface.visible = false; this.blades.visible = false; this.patches = 0; this.leaves = 0; }
-  dispose(): void { this.job = null; this.todo = []; this.indexPending = null; this.lawns = []; this.index = null; this.cache.clear(); this.terrains.clear(); this.clear(); this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surfaceMaterial.dispose(); this.bladeMaterial.dispose(); this.group.removeFromParent(); }
+  dispose(): void { this.job = null; this.assembly = null; this.todo = []; this.indexPending = null; this.lawns = []; this.index = null; this.cache.clear(); this.terrains.clear(); this.clear(); this.surface.geometry.dispose(); this.blades.geometry.dispose(); this.surfaceMaterial.dispose(); this.bladeMaterial.dispose(); this.group.removeFromParent(); }
 }

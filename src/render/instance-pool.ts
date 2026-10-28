@@ -200,19 +200,23 @@ export class InstancePool implements InstanceSink {
     this.grown++;
   }
 
-  /** Upload the instance ranges changed since the last flush. Call once per frame. */
+  /**
+   * Upload the instance ranges changed since the last flush. Call once per frame. Ranges add up
+   * until the renderer uploads them (and clears them): a frame flushed but not rendered (a lost
+   * context) must not lose its range.
+   */
   flush(): void {
     for (const b of this.batches.values()) {
       if (b.matrixTo > b.matrixFrom) {
         const a = b.mesh.instanceMatrix;
-        a.clearUpdateRanges();
         a.addUpdateRange(b.matrixFrom * 16, (b.matrixTo - b.matrixFrom) * 16);
         a.needsUpdate = true;
         b.matrixFrom = b.matrixTo = 0;
+        // Not for culling (frustumCulled is off): the renderer sorts by it, and computes it again when null.
+        b.mesh.boundingSphere = null;
       }
       const c = b.mesh.instanceColor;
       if (c && b.colorTo > b.colorFrom) {
-        c.clearUpdateRanges();
         c.addUpdateRange(b.colorFrom * 3, (b.colorTo - b.colorFrom) * 3);
         c.needsUpdate = true;
         b.colorFrom = b.colorTo = 0;

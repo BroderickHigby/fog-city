@@ -104,7 +104,8 @@ interface AtlasPage { ctx: CanvasRenderingContext2D | null; texture: THREE.Textu
 
 /**
  * Street names drawn once into shared pages. `canvas` makes a page's canvas (null: no DOM, the
- * pages are plain green). acquire() returns null only when every row of every page is in use.
+ * pages are plain green). acquire() returns null only when every row of every page is in use;
+ * those blades use blank(), a plain green blade, rather than going missing.
  */
 export class BladeAtlas {
   private readonly pages: AtlasPage[] = [];
@@ -118,8 +119,23 @@ export class BladeAtlas {
     this.canvas = canvas;
   }
 
+  private blankMaterial: THREE.MeshStandardMaterial | null = null;
+
   get pageCount(): number { return this.pages.length; }
   material(page: number): THREE.MeshStandardMaterial { return this.pages[page]!.material; }
+  /** The nameless blade, for names that found no free row. */
+  blank(): THREE.MeshStandardMaterial {
+    return (this.blankMaterial ??= new THREE.MeshStandardMaterial({ color: 0x0b6a3b, roughness: 0.5, name: "fc:street-blade" }));
+  }
+
+  /** Free every page's texture and material (the cells using them are gone). */
+  dispose(): void {
+    for (const p of this.pages) { p.texture?.dispose(); p.material.dispose(); }
+    this.pages.length = 0;
+    this.byName.clear();
+    this.blankMaterial?.dispose();
+    this.blankMaterial = null;
+  }
 
   acquire(name: string): BladeSlot | null {
     const hit = this.byName.get(name);
@@ -173,7 +189,7 @@ export class BladeAtlas {
 }
 
 let sharedAtlas: BladeAtlas | null = null;
-/** The atlas every SignCell shares. */
+/** The atlas a SignCell made without one shares (StreetDetailLayer gives each cell its own layer's). */
 export function bladeAtlas(): BladeAtlas {
   return (sharedAtlas ??= new BladeAtlas());
 }
@@ -364,11 +380,16 @@ export class SignCell {
   private readonly slots: BladeSlot[] = [];
   private readonly sink: InstanceSink;
   private readonly blocks: InstanceBlock[] = [];
+  private readonly atlas: BladeAtlas;
 
-  /** `sink`: where the instanced posts and faces go; by default this cell's own meshes in `group`. */
-  constructor(corners: readonly CornerRecord[], curb: readonly CurbRecord[], ground: (x: number, z: number) => number, sink?: InstanceSink) {
+  /**
+   * `sink`: where the instanced posts and faces go; by default this cell's own meshes in `group`.
+   * `atlas`: where the blade names are drawn; by default the module's shared one.
+   */
+  constructor(corners: readonly CornerRecord[], curb: readonly CurbRecord[], ground: (x: number, z: number) => number, sink?: InstanceSink, atlas: BladeAtlas = bladeAtlas()) {
     const p = getProtos();
     this.sink = sink ?? new LocalInstances(this.group);
+    this.atlas = atlas;
     const m = new THREE.Matrix4();
     const q = new THREE.Quaternion();
     const up = new THREE.Vector3(0, 1, 0);
@@ -408,16 +429,16 @@ export class SignCell {
     inst(p.back, p.backMat, wayBacks, "one-way sign backs");
     for (const k of Object.keys(faces) as CurbKind[]) inst(p.curb, p.curbMats[k], faces[k], `${k} signs`);
 
-    // Blades: rows in the shared atlas, one merged mesh per atlas page the cell uses.
-    const atlas = bladeAtlas();
+    // Blades: rows in the shared atlas, one merged mesh per atlas page the cell uses. A name
+    // with no free row (every page full) gets a blank blade (bucket -1).
     const slots = new Map<string, BladeSlot | null>();
     for (const name of bladeNames(corners)) slots.set(name, atlas.acquire(name));
     const b = bladeBuckets(corners, ground, (name) => {
       const slot = slots.get(name);
-      return slot ? { bucket: slot.page, v0: 1 - (slot.row + 1) / PAGE_ROWS, v1: 1 - slot.row / PAGE_ROWS } : undefined;
+      return slot ? { bucket: slot.page, v0: 1 - (slot.row + 1) / PAGE_ROWS, v1: 1 - slot.row / PAGE_ROWS } : { bucket: -1, v0: 0, v1: 1 };
     });
     for (const [page, geometry] of b.geometries) {
-      const blades = new THREE.Mesh(geometry, atlas.material(page));
+      const blades = new THREE.Mesh(geometry, page < 0 ? atlas.blank() : atlas.material(page));
       blades.name = "street-name blades";
       blades.castShadow = true;
       blades.matrixAutoUpdate = false;
@@ -434,7 +455,7 @@ export class SignCell {
     for (const block of this.blocks) this.sink.release(block);
     this.blocks.length = 0;
     // The atlas pages and their materials are shared; this cell only gives its rows back.
-    for (const slot of this.slots) bladeAtlas().release(slot);
+    for (const slot of this.slots) this.atlas.release(slot);
     this.slots.length = 0;
     for (const o of this.owned) o.dispose();
     this.group.clear();

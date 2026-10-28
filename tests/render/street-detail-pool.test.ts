@@ -3,10 +3,10 @@
 // InstancedMesh is a new shader build in the node renderer. Blades share the atlas pages'
 // materials. No browser.
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createSharedMaterials } from "../../src/render/materials.ts";
 import { StreetDetailLayer } from "../../src/render/street-detail.ts";
-import { BladeAtlas, MAX_PAGES, PAGE_ROWS } from "../../src/render/street-signs.ts";
+import { BladeAtlas, MAX_PAGES, PAGE_ROWS, SignCell } from "../../src/render/street-signs.ts";
 
 /** Six cells in a row along x (200 m cells), each with signals, stop signs, signs, shops and a palm. */
 function docs(): Record<string, unknown> {
@@ -56,6 +56,79 @@ describe("street detail shared draws", () => {
     for (const mesh of again) expect(first.has(mesh)).toBe(true);
     expect(l.poolInfo().grown).toBe(0);
     l.dispose();
+  });
+
+  it("builds a cell whose edge is exactly the reach away, as the scan over every cell did", async () => {
+    // One signal and one palm in cell (0, 0), x 0..200. From x = 650 the cell is 450 m away
+    // (NEAR_M) and from x = 1500 it is 1300 m (the trees' reach): both are in reach.
+    const files: Record<string, unknown> = {
+      "w/street-detail.json": { layers: { furniture: "f.json", trees: "t.json" } },
+      "w/f.json": { signals: [{ id: "sig:n0:e", node: "n0", x: 100, z: 100, heading: 0, group: 0, arm: 0, ped: Math.PI }], stopSigns: [] },
+      "w/t.json": { classes: ["palm"], trees: [[1, 100, 100, 0, 9]] },
+    };
+    const l = new StreetDetailLayer({ base: "w/", json: async <T>(path: string) => files[path] as T, ground: () => 2, materials: createSharedMaterials() });
+    await l.load();
+    settle(l, 650);
+    expect(l.info()).toMatchObject({ cellsBuilt: 1, signals: 1, palms: 1 });
+    settle(l, 1500);
+    expect(l.info()).toMatchObject({ cellsBuilt: 0, palms: 1 });
+    l.dispose();
+  });
+
+  it("builds a cell a part per step under a spent budget, and a drop mid-build frees what was made", async () => {
+    const l = layer();
+    await l.load();
+    const parts = (): number => l.poolInfo().instances;
+    // Zero budget: each update makes one part of the nearest cell (furniture, signs, shops).
+    l.update(100, 100, 0, 0);
+    const afterOne = parts();
+    expect(afterOne).toBeGreaterThan(0);
+    expect(l.info()).toMatchObject({ cellsBuilt: 1, signals: 1, signPosts: 0, storefronts: 0 });
+    l.update(100, 100, 0, 0);
+    expect(l.info()).toMatchObject({ cellsBuilt: 1, signPosts: 1, storefronts: 0 });
+    // The camera leaves before the cell is finished: the cell and its parts are dropped, and
+    // the half-built cell makes no more parts.
+    l.update(5000, 100, 0, 0);
+    expect(l.info()).toMatchObject({ cellsBuilt: 0, signals: 0, signPosts: 0, storefronts: 0 });
+    for (let i = 0; i < 10; i++) l.update(5000, 100, 0, 0);
+    expect(l.poolInfo().instances).toBe(0);
+    expect(l.settled()).toBe(true);
+    l.dispose();
+  });
+
+  it("gives the grass what is left of the one frame budget", async () => {
+    const l = layer();
+    await l.load();
+    const budgets: number[] = [];
+    const update = l.grass.update.bind(l.grass);
+    l.grass.update = (x: number, z: number, budgetMs?: number): void => { budgets.push(budgetMs ?? Infinity); update(x, z, budgetMs); };
+    for (let i = 0; i < 20; i++) l.update(100, 100, 0, 4);
+    expect(budgets).toHaveLength(20);
+    expect(budgets.every(b => b >= 0 && b <= 4)).toBe(true);
+    l.update(100, 100, 0, 0);
+    expect(budgets.at(-1)).toBe(0);
+    l.dispose();
+  });
+
+  it("frees its own atlas pages with the layer, and draws blank blades once every row is taken", async () => {
+    const l = layer();
+    await l.load();
+    settle(l, 100);
+    const materials = new Set<THREE.Material>();
+    l.group.traverse(o => { if (o.name === "street-name blades") materials.add((o as THREE.Mesh).material as THREE.Material); });
+    const disposed = vi.fn();
+    for (const m of materials) m.addEventListener("dispose", disposed);
+    l.dispose();
+    expect(disposed).toHaveBeenCalledTimes(materials.size);
+
+    const atlas = new BladeAtlas(null);
+    for (let i = 0; i < PAGE_ROWS * MAX_PAGES; i++) atlas.acquire(`TAKEN ${i}`);
+    const cell = new SignCell([{ id: "c", x: 0, z: 0, blades: [{ name: "NEW ST", heading: 0 }], oneWay: [] }], [], () => 0, undefined, atlas);
+    const blades: THREE.Mesh[] = [];
+    cell.group.traverse(o => { if (o.name === "street-name blades") blades.push(o as THREE.Mesh); });
+    expect(cell.blades).toBe(1);
+    expect(blades.map(b => b.material)).toEqual([atlas.blank()]);
+    cell.dispose(); atlas.dispose();
   });
 
   it("lights pooled signal lenses from the sim tick", async () => {
