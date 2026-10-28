@@ -1330,6 +1330,9 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   (which the bounty board posts) that name a Trundle still stage one, because their text and tells are written for
   it, so a Trundle now appears only when a story calls for it. The model, its content and every code path stay for older
   saves and replays, which keep their Trundles bit for bit (`src/sim/agents.ts` `TRUNDLE_FREE_VERSION`).
+  Footmen are bigger and faster than Trundles, so they met turning robotaxis on crosswalks more often, and that
+  exposed a stand-off v26 also fixes (`UNSTICK_VERSION`): a walker that turned round mid-crossing used to aim at
+  the far kerb's sidewalk and loop back into the robotaxi; it now walks back to the kerb it came from.
 - 2026-10-27 · **The Meander becomes a tall two-ended pod** (owner: "make the robotaxis look more like bigger Zoox
   or something"). The long, low, asymmetric hatch becomes a carriage pod of its own in the genre of today's
   bidirectional robotaxis: the same both ways round, 4.96 x 1.92 m (inside the sim's unchanged 5.0 x 2.0 m robotaxi

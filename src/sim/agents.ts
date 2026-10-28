@@ -347,10 +347,12 @@ export const MAX_AGENTS_TOTAL = 1024;
  */
 export const TRUNDLE_FREE_VERSION = 26;
 /**
- * v26: two stand-offs that more Footmen made common are broken (stepAgent, Ctx.unstick). A robotaxi
- * or civilian car whose pass has stalled behind the vehicle it was going round drops the pass and
- * plans again; a robot on the pavement nose to nose with a vehicle steps aside as it would for a
- * walker. v25 and older wait there until the deadlock breaker.
+ * v26: two stand-offs that more Footmen made common are broken (Ctx.unstick). A robotaxi or civilian
+ * car whose pass has stalled behind the vehicle it was going round drops the pass and plans again
+ * (stepAgent). A walker that turns round in the middle of a street crossing walks back to the kerb
+ * it came from (turnAround, crossingTurnBack); v25 and older head for the far kerb's sidewalk, so
+ * the turn loops straight back into the robotaxi that stopped it, and the robotaxi (which waits for
+ * walkers) and every car queued behind it wait for the deadlock breaker.
  */
 export const UNSTICK_VERSION = 26;
 export const ROBOTAXI_GAP_M = 1.5;
@@ -1424,7 +1426,7 @@ interface Ctx {
   signals: TrafficSignalControls | undefined;
   /** v21 amber dilemma zone (committedOnAmber); v20 replays keep the hard stop. */
   amberCommit: boolean;
-  /** v26 (UNSTICK_VERSION): a stalled pass is dropped; a robot on foot steps aside for a vehicle. */
+  /** v26 (UNSTICK_VERSION): a stalled pass is dropped; a walker turning round mid-crossing goes back to its kerb. */
   unstick: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
@@ -1982,6 +1984,10 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
   const ei = g.edgeIndex.get(a.edge);
   if (ei === undefined) return { ...a, wait: 0, speed: 0 };
   const e = g.edges[ei]!;
+  if (c.unstick && a.conn !== null) {
+    const back = crossingTurnBack(c, a, e);
+    if (back) return back;
+  }
   const back: Dir = a.dir === 1 ? -1 : 1;
   if (!e.walkClear[dirIndex(back)][sideIndex(a.lane)]) return { ...a, wait: 0, speed: 0 };
   const from = a.conn ? connectorPath(a.conn) : basePath(e, a);
@@ -2007,6 +2013,61 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
     ndir,
     rng,
     heading: datan2(q.tx, -q.tz),
+    mode: "wait",
+  };
+}
+
+/**
+ * v26 (UNSTICK_VERSION): a walker on a connector (crossing a street, or rounding a corner) turns
+ * round back to where that connector began: the end of the sidewalk it walked in on. Its edge is
+ * already the one the connector leads to, whose sidewalk lies ahead of it, so the v25 turn (aimed
+ * at a point on that sidewalk) curves back through whatever stopped it. Of the sidewalks leaving
+ * the connector's start node, it takes the one that starts nearest the connector's start.
+ * null: no sidewalk starts within 2 m of it (then the v25 turn).
+ */
+function crossingTurnBack(c: Ctx, a: AgentState, e: RoadEdgeInfo): AgentState | null {
+  const g = c.g;
+  const cp = a.conn!;
+  const from = connectorPath(cp);
+  const here = pathPoint(from, a.s);
+  const { x: px, z: pz } = offsetPoint(from, a.s, a.lat);
+  const node = g.nodes[startNode(e, a.dir)]!;
+  let best: { edge: RoadEdgeInfo; dir: Dir; side: number; path: Path } | null = null;
+  let bestD2 = 2 * 2;
+  for (const o of node.out) {
+    const ne = g.edges[o.edge]!;
+    if (ne.index === e.index && o.dir === a.dir) continue; // where it was going
+    if (!canWalk(ne, o.dir)) continue;
+    for (const side of [-1, 1]) {
+      if (!ne.walkClear[dirIndex(o.dir)][sideIndex(side)]) continue;
+      const path = walkPath(ne, o.dir, side);
+      const dx = path.xs[0]! - cp[0]!, dz = path.zs[0]! - cp[1]!;
+      if (dx * dx + dz * dz < bestD2) { bestD2 = dx * dx + dz * dz; best = { edge: ne, dir: o.dir, side, path }; }
+    }
+  }
+  if (!best) return null;
+  const s1 = Math.min(1.0, best.path.len);
+  const q = pathPoint(best.path, s1);
+  // Turn on the spot to face back the way it came, then walk to the start of that sidewalk.
+  const turn = connector(px, pz, -here.tx, -here.tz, q.x, q.z, q.tx, q.tz);
+  const [next, ndir, nlane, rng] = chooseNext(g, best.edge, best.dir, best.side, false, a.rng);
+  return {
+    ...a,
+    edge: best.edge.id,
+    dir: best.dir,
+    lane: best.side,
+    nlane,
+    conn: turn,
+    node: "",
+    s: 0,
+    resume: s1,
+    lat: 0,
+    speed: 0,
+    wait: 0,
+    next,
+    ndir,
+    rng,
+    heading: datan2(-here.tx, here.tz),
     mode: "wait",
   };
 }
