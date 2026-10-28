@@ -7,7 +7,8 @@ import { describe, expect, it } from "vitest";
 import { daylightAt } from "../../src/render/daylight.ts";
 import { GOLDEN, NIGHT, NOON, TWILIGHT } from "../../src/render/sky.ts";
 import {
-  PUDDLE_SCALES, puddleField, waterFresnel, waterLevel, waterMetalness, wetAlbedo, wetMasks, wetRoughness,
+  PAINT_ROUGHNESS, PUDDLE_SCALES, REFLECT_MAX, WATER_SKIP_BELOW, paintAlbedo, paintRoughness, puddleField, waterFresnel, waterLevel,
+  waterReflection, wetAlbedo, wetMasks, wetRoughness,
 } from "../../src/render/road-water.ts";
 
 /** A 400 m x 400 m street patch sampled every 2 m. */
@@ -98,19 +99,48 @@ describe("the water line", () => {
   });
 });
 
-describe("water's Fresnel", () => {
+describe("water's Fresnel (the reflection pass's weight; the lit surface stays dielectric)", () => {
   const pool = { damp: 1, puddle: 1, film: 1 }, film = { damp: 0, puddle: 0, film: 1 }, dry = { damp: 0, puddle: 0, film: 0 };
-  it("barely reflects seen from above and mirrors at grazing angles", () => {
+  it("does not reflect seen from above and mirrors at grazing angles", () => {
     expect(waterFresnel(1)).toBeCloseTo(0.02, 12);
-    expect(waterMetalness(1, pool)).toBeLessThan(0.05);
-    expect(waterMetalness(0.05, pool)).toBeGreaterThan(0.7);
-    expect(waterMetalness(0.05, pool)).toBeLessThanOrEqual(0.85);
+    expect(waterFresnel(-1)).toBeCloseTo(0.02, 12);
+    // From above a pool's weight (0.032) is under the cutoff (0.04), so the reflection pass skips it.
+    expect(waterReflection(1, pool)).toBe(0);
+    expect(waterReflection(0.05, pool)).toBeGreaterThan(0.7);
+    expect(waterReflection(0.05, pool)).toBeLessThanOrEqual(REFLECT_MAX);
     let last = -1;
-    for (let c = 1; c >= 0; c -= 0.02) { const m = waterMetalness(c, pool); expect(m).toBeGreaterThanOrEqual(last - 1e-12); last = m; }
+    for (let c = 1; c >= 0; c -= 0.02) { const m = waterReflection(c, pool); expect(m).toBeGreaterThanOrEqual(last - 1e-12); last = m; }
   });
-  it("gives the film 60% of a pool's mirror and dry asphalt none", () => {
-    expect(waterMetalness(0.05, film)).toBeCloseTo(waterMetalness(0.05, pool) * 0.6, 12);
-    expect(waterMetalness(0.05, dry)).toBe(0);
+  it("gives the film 60% of a pool's mirror at grazing angles and dry asphalt none", () => {
+    expect(waterReflection(0.05, film)).toBeCloseTo(waterReflection(0.05, pool) * 0.6, 12);
+    expect(waterReflection(0.05, dry)).toBe(0);
+  });
+  it("skips the film the camera looks down on: no reflection-pass cost on the road at the driver's feet", () => {
+    // The night film, 10 m ahead of a camera 3 m up, is a ~17 degree grazing angle; 2 m ahead is steep.
+    const night = wetMasks(0.3, 0.62);
+    expect(waterReflection(Math.sin(Math.atan2(3, 2)), night)).toBe(0);
+    expect(waterReflection(Math.sin(Math.atan2(3, 10)), night)).toBeGreaterThan(0.05);
+  });
+});
+
+describe("the shader's skip", () => {
+  it("skips the field only where every mask is exactly zero, so the skip never changes a pixel", () => {
+    for (const w of [0, WATER_SKIP_BELOW / 2, WATER_SKIP_BELOW]) for (const f of fields.slice(0, 2000)) {
+      expect(wetMasks(f, w, 0, 0.02)).toEqual({ damp: 0, puddle: 0, film: 0 });
+    }
+    // Noon is under it: the dry road pays nothing for the water.
+    expect(NOON.roadSheen!).toBeLessThanOrEqual(WATER_SKIP_BELOW);
+    expect(share(f => wetMasks(f, WATER_SKIP_BELOW + 0.05).damp > 0)).toBeGreaterThan(0);
+  });
+});
+
+describe("lane paint in water", () => {
+  it("darkens less than asphalt and turns glossy, and is untouched dry", () => {
+    const dry = { damp: 0, puddle: 0, film: 0 }, pool = { damp: 1, puddle: 1, film: 1 };
+    expect(paintAlbedo(dry)).toBe(1);
+    expect(paintRoughness(dry)).toBe(PAINT_ROUGHNESS.dry);
+    expect(paintAlbedo(pool)).toBeGreaterThan(wetAlbedo(pool));
+    expect(paintRoughness(pool)).toBe(PAINT_ROUGHNESS.pool);
   });
 });
 

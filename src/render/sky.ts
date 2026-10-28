@@ -60,8 +60,9 @@ export interface LightingPreset {
   /**
    * How wet the roads look by time of day, 0 (bone dry) to 1: dry at noon, slick at night. A look
    * only: the node materials read it (road-water.ts), the sim never does (its own roadWetness(state)
-   * in src/sim/fog is the real wetness, which traction reads), and rain adds to it. Slop New York's
-   * roadWetness (lighting.js:41, 66, 91, 116).
+   * in src/sim/fog is the real wetness, which traction reads); with rain, the wetter of the two
+   * applies. It follows sun elevation like the other fields, so a low winter noon stays faintly
+   * damp. Slop New York's roadWetness (lighting.js:41, 66, 91, 116).
    */
   roadSheen?: number;
 }

@@ -8,8 +8,10 @@
 // read only by materials. Nothing here is read by src/sim, so it never reaches traction.
 //
 // Water collects in the highest values of a three-scale noise field first, so as wetness rises the
-// water line sinks and pools appear, grow and merge. Water's Fresnel (F0 0.02) rides on metalness,
-// so a pool mirrors the street at grazing angles and only darkens the asphalt seen from above.
+// water line sinks and pools appear, grow and merge. Water's Fresnel (F0 0.02) weights the
+// screen-space reflection, so a pool mirrors the street at grazing angles and only darkens the
+// asphalt seen from above. The lit surface stays dielectric: lamps and headlights still light wet
+// asphalt (glossier, so their highlight streaks) and the tiers with no reflection pass lose nothing.
 // No three.js import: tests/render/road-water.test.ts runs the reference.
 
 /** The field's three scales: noise frequency along x and z, its offset, and its weight (they sum to 1). */
@@ -77,19 +79,48 @@ export function wetAlbedo(m: WetMasks): number {
   return mix(mix(1, DAMP_ALBEDO, m.damp), POOL_ALBEDO, m.puddle) * mix(1, FILM_ALBEDO, m.film);
 }
 
-/** Water's Fresnel (F0 0.02) from the cosine of the view angle to the surface normal. */
+/** Water's Fresnel (F0 0.02) from the cosine of the view angle to the surface normal (either side). */
 export function waterFresnel(cosView: number): number {
-  return Math.pow(1 - clamp(cosView, 0, 1), 5) * 0.98 + 0.02;
+  return Math.pow(1 - clamp(Math.abs(cosView), 0, 1), 5) * 0.98 + 0.02;
 }
 
-/** Metalness that carries water's Fresnel to the reflection pass: pools fully, the film partly, nothing when dry. */
-export function waterMetalness(cosView: number, m: WetMasks): number {
-  return clamp(waterFresnel(cosView) * 1.6, 0, 0.85) * Math.max(m.puddle, m.film * 0.6);
+/** The reflection weight: Fresnel x this, at most REFLECT_MAX; the film reflects REFLECT_FILM of a pool. */
+export const REFLECT_GAIN = 1.6;
+export const REFLECT_MAX = 0.85;
+export const REFLECT_FILM = 0.6;
+/** Weights below this ramp are dropped, so the reflection pass skips road it could barely show. */
+export const REFLECT_CUTOFF: readonly [number, number] = [0.04, 0.1];
+/** Wet roughness: the film and damp stains go satin, standing water nearly a mirror. */
+export const ROUGHNESS_WET = 0.38;
+export const ROUGHNESS_POOL = 0.1;
+export const ROUGHNESS_FILM_SHARE = 0.9;
+export const ROUGHNESS_DAMP_SHARE = 0.8;
+/**
+ * Below this wetness (rain or sheen, whichever is larger) every mask is exactly zero, so the shader
+ * skips the field: the lowest of the damp, pool and film ramps' starts.
+ */
+export const WATER_SKIP_BELOW = Math.min(DAMP_WETNESS[0], POOL_WETNESS[0], FILM_WETNESS[0]);
+
+/**
+ * How strongly the reflection pass mirrors the street here (its metalness channel, never the lit
+ * surface's): pools fully, the film partly, nothing when dry or seen from almost straight above.
+ */
+export function waterReflection(cosView: number, m: WetMasks): number {
+  const weight = clamp(waterFresnel(cosView) * REFLECT_GAIN, 0, REFLECT_MAX) * Math.max(m.puddle, m.film * REFLECT_FILM);
+  return weight * smoothstep(REFLECT_CUTOFF[0], REFLECT_CUTOFF[1], weight);
 }
 
 /** Roughness: dry, a satin film or damp stain, and mirror-smooth standing water. */
 export function wetRoughness(dry: number, m: WetMasks): number {
-  return mix(mix(dry, 0.38, Math.max(m.film * 0.9, m.damp * 0.8)), 0.1, m.puddle);
+  return mix(mix(dry, ROUGHNESS_WET, Math.max(m.film * ROUGHNESS_FILM_SHARE, m.damp * ROUGHNESS_DAMP_SHARE)), ROUGHNESS_POOL, m.puddle);
+}
+
+/** Lane paint in water: albedo and roughness (the paint is darker and glossier in pools and film). */
+export function paintAlbedo(m: WetMasks): number {
+  return mix(1, PAINT_POOL_ALBEDO, m.puddle) * mix(1, PAINT_FILM_ALBEDO, m.film);
+}
+export function paintRoughness(m: WetMasks): number {
+  return mix(mix(PAINT_ROUGHNESS.dry, PAINT_ROUGHNESS.film, m.film), PAINT_ROUGHNESS.pool, m.puddle);
 }
 
 /** Value noise on the same hash as the shader's noise2, for the reference field. */
