@@ -1,0 +1,20 @@
+{
+  "case": "Marina Blvd captured strict A/B",
+  "test": "tests/sim/traffic-flow-captured.test.ts",
+  "originalTest": "tests/sim/traffic-flow-sf.test.ts",
+  "pattern": "Marina Blvd",
+  "wallCapS": 120,
+  "physicalStandstillTicks": 2700,
+  "existingTestTimeoutS": 540,
+  "snapshotSha256": "d4fc530d6cf64ff8c09f61d2778c2261f8fb346dc352d9e495b546d9d570fc2a",
+  "sourceChanges": [
+    "src/sim/agents.ts",
+    "tests/sim/traffic-flow-captured.test.ts"
+  ],
+  "startedAt": "2026-10-27T01:29:24Z",
+  "pid": 52131,
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedS": 70.48822093009949,
+  "processGroupGone": true
+}

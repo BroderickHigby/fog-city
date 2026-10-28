@@ -1,0 +1,17 @@
+{
+  "case": "Marina Blvd short-signal A/B",
+  "test": "tests/sim/traffic-flow-sf.test.ts",
+  "pattern": "Marina Blvd",
+  "wallCapS": 70,
+  "snapshotSha256": "f00973c1170e7b0bda57622b26db89e11ed55706ff42a5c5f288c0c83a337bc1",
+  "parentSnapshotSha256": "f9489b7282af6d90920ef312c57732b889203c064329864d3ad4b0c58b6146b5",
+  "sourceChanges": [
+    "src/sim/agents.ts"
+  ],
+  "startedAt": "2026-10-27T00:59:40Z",
+  "pid": 50303,
+  "exitCode": 143,
+  "timedOut": true,
+  "elapsedS": 70.03890776634216,
+  "processGroupGone": true
+}

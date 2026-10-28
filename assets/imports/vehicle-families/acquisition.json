@@ -1,0 +1,12 @@
+{
+  "source_page": "https://kenney.nl/assets/car-kit",
+  "author": "Kenney",
+  "license": "CC0-1.0",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "acquisition_url": "https://kenney.nl/media/pages/assets/car-kit/1a312ec241-1775131960/kenney_car-kit.zip",
+  "acquired_utc": "2026-10-26T22:48:13.903932+00:00",
+  "bytes": 4814237,
+  "sha256": "fac7dacac5c7874348cf19729af3ef205f3d366493edaf0a827d93f4fdf3d0c4",
+  "representation": "Official Car Kit zip; only selected glTF and license payloads will be extracted; inventory preserved",
+  "raw_directory_gitignored": true
+}

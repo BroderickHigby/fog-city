@@ -1,0 +1,312 @@
+[
+  {
+    "id": "compact-hatch",
+    "sourceEntry": "Models/GLB format/hatchback-sports.glb",
+    "sourceSha256": "bd5c9d4c3b4bdd254a66b8426563a68b1487ae7a5076df3a2488e6ffed7be64f",
+    "url": "models/vehicles/compact-hatch.glb",
+    "sha256": "7c48455a7213ea743366d92f4d8915c5bfa2366368f3a85c11944219c889302a",
+    "bytes": 206092,
+    "triangles": 2088,
+    "lengthM": 3.78,
+    "bodyWidthM": 1.72,
+    "totalWidthM": 1.88,
+    "heightM": 1.49,
+    "wheelbaseM": 2.42,
+    "wheelRadiusM": 0.3,
+    "wheelWidthM": 0.18,
+    "trackM": 1.5,
+    "wheels": {
+      "wheel_FR": {
+        "radiusM": 0.3,
+        "widthM": 0.18,
+        "hub": [
+          0.75,
+          0.3,
+          -1.21
+        ]
+      },
+      "wheel_FL": {
+        "radiusM": 0.3,
+        "widthM": 0.18,
+        "hub": [
+          -0.75,
+          0.3,
+          -1.21
+        ]
+      },
+      "wheel_RR": {
+        "radiusM": 0.3,
+        "widthM": 0.18,
+        "hub": [
+          0.75,
+          0.3,
+          1.21
+        ]
+      },
+      "wheel_RL": {
+        "radiusM": 0.3,
+        "widthM": 0.18,
+        "hub": [
+          -0.75,
+          0.3,
+          1.21
+        ]
+      }
+    },
+    "audioProfile": "light-ice",
+    "paintMaterial": "paint",
+    "far": {
+      "method": "runtime-voxel",
+      "cellM": 0.2
+    },
+    "visualApproved": false
+  },
+  {
+    "id": "sedan",
+    "sourceEntry": "Models/GLB format/sedan.glb",
+    "sourceSha256": "b532ea7d2c59f7f6b22b138cf1955218a2c1898f1cea932af4d3fd563c3959b7",
+    "url": "models/vehicles/sedan.glb",
+    "sha256": "ddb121900c9f1472b218fb22109b7f0cd35e2efd1bd2ad1e0c068310e6dbfdbb",
+    "bytes": 206028,
+    "triangles": 2032,
+    "lengthM": 4.3,
+    "bodyWidthM": 1.8,
+    "totalWidthM": 1.96,
+    "heightM": 1.48,
+    "wheelbaseM": 2.66,
+    "wheelRadiusM": 0.34,
+    "wheelWidthM": 0.215,
+    "trackM": 1.545,
+    "wheels": {
+      "wheel_FR": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          0.7725,
+          0.34,
+          -1.33
+        ]
+      },
+      "wheel_RL": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          -0.7725,
+          0.34,
+          1.33
+        ]
+      },
+      "wheel_RR": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          0.7725,
+          0.34,
+          1.33
+        ]
+      },
+      "wheel_FL": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          -0.7725,
+          0.34,
+          -1.33
+        ]
+      }
+    },
+    "audioProfile": "light-ice",
+    "paintMaterial": "paint",
+    "far": {
+      "method": "runtime-voxel",
+      "cellM": 0.2
+    },
+    "visualApproved": false
+  },
+  {
+    "id": "utility-suv",
+    "sourceEntry": "Models/GLB format/suv.glb",
+    "sourceSha256": "9df31f6e89e927a8176fc792aa125f0b19dc1ba29d2025bfef7c4f4d6ab1778a",
+    "url": "models/vehicles/utility-suv.glb",
+    "sha256": "5eca2211e6f72d86d58909b4ded895c593169575cff8878f2042f667aa3ceed9",
+    "bytes": 248840,
+    "triangles": 2474,
+    "lengthM": 4.48,
+    "bodyWidthM": 1.88,
+    "totalWidthM": 1.98,
+    "heightM": 1.77,
+    "wheelbaseM": 2.76,
+    "wheelRadiusM": 0.365,
+    "wheelWidthM": 0.235,
+    "trackM": 1.605,
+    "wheels": {
+      "wheel_RL": {
+        "radiusM": 0.365,
+        "widthM": 0.235,
+        "hub": [
+          -0.8025,
+          0.365,
+          1.38
+        ]
+      },
+      "wheel_RR": {
+        "radiusM": 0.365,
+        "widthM": 0.235,
+        "hub": [
+          0.8025,
+          0.365,
+          1.38
+        ]
+      },
+      "wheel_FL": {
+        "radiusM": 0.365,
+        "widthM": 0.235,
+        "hub": [
+          -0.8025,
+          0.365,
+          -1.38
+        ]
+      },
+      "wheel_FR": {
+        "radiusM": 0.365,
+        "widthM": 0.235,
+        "hub": [
+          0.8025,
+          0.365,
+          -1.38
+        ]
+      }
+    },
+    "audioProfile": "utility-ice",
+    "paintMaterial": "paint",
+    "far": {
+      "method": "runtime-voxel",
+      "cellM": 0.2
+    },
+    "visualApproved": false
+  },
+  {
+    "id": "short-pickup",
+    "sourceEntry": "Models/GLB format/truck.glb",
+    "sourceSha256": "5e1bc66c343501dd7d5734b57e672dd949bf95d7abdce680c6508cef99d374f8",
+    "url": "models/vehicles/short-pickup.glb",
+    "sha256": "cf243a4f594174a96162609a0fba273a5c2ab93951fc915cb8063c18b257756b",
+    "bytes": 205740,
+    "triangles": 2082,
+    "lengthM": 4.58,
+    "bodyWidthM": 1.88,
+    "totalWidthM": 1.98,
+    "heightM": 1.72,
+    "wheelbaseM": 2.88,
+    "wheelRadiusM": 0.355,
+    "wheelWidthM": 0.225,
+    "trackM": 1.6149999999999998,
+    "wheels": {
+      "wheel_FR": {
+        "radiusM": 0.355,
+        "widthM": 0.225,
+        "hub": [
+          0.8074999999999999,
+          0.355,
+          -1.44
+        ]
+      },
+      "wheel_FL": {
+        "radiusM": 0.355,
+        "widthM": 0.225,
+        "hub": [
+          -0.8074999999999999,
+          0.355,
+          -1.44
+        ]
+      },
+      "wheel_RR": {
+        "radiusM": 0.355,
+        "widthM": 0.225,
+        "hub": [
+          0.8074999999999999,
+          0.355,
+          1.44
+        ]
+      },
+      "wheel_RL": {
+        "radiusM": 0.355,
+        "widthM": 0.225,
+        "hub": [
+          -0.8074999999999999,
+          0.355,
+          1.44
+        ]
+      }
+    },
+    "audioProfile": "utility-ice",
+    "paintMaterial": "paint",
+    "far": {
+      "method": "runtime-voxel",
+      "cellM": 0.2
+    },
+    "visualApproved": false
+  },
+  {
+    "id": "cargo-van",
+    "sourceEntry": "Models/GLB format/van.glb",
+    "sourceSha256": "ed4ed56e8e5ed98db050af09ed2062b3b6bb7b93eab1e563cb6774b387b233a1",
+    "url": "models/vehicles/cargo-van.glb",
+    "sha256": "9ad41964ac9553eee960bd7eb694b5c66e49ddd8aba0dc2fbecbb862f24fc6b0",
+    "bytes": 208872,
+    "triangles": 2082,
+    "lengthM": 4.58,
+    "bodyWidthM": 1.9,
+    "totalWidthM": 2,
+    "heightM": 2.06,
+    "wheelbaseM": 2.85,
+    "wheelRadiusM": 0.34,
+    "wheelWidthM": 0.215,
+    "trackM": 1.6449999999999998,
+    "wheels": {
+      "wheel_FR": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          0.8224999999999999,
+          0.34,
+          -1.425
+        ]
+      },
+      "wheel_FL": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          -0.8224999999999999,
+          0.34,
+          -1.425
+        ]
+      },
+      "wheel_RR": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          0.8224999999999999,
+          0.34,
+          1.425
+        ]
+      },
+      "wheel_RL": {
+        "radiusM": 0.34,
+        "widthM": 0.215,
+        "hub": [
+          -0.8224999999999999,
+          0.34,
+          1.425
+        ]
+      }
+    },
+    "audioProfile": "utility-ice",
+    "paintMaterial": "paint",
+    "far": {
+      "method": "runtime-voxel",
+      "cellM": 0.2
+    },
+    "visualApproved": false
+  }
+]

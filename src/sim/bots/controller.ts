@@ -1,3 +1,4 @@
+import { activeWorldTick } from "../pause-timers.ts";
 import {Action,NEUTRAL_INPUT,type InputFrame,type SimInput,type SimState} from "../contract.ts";
 import { playerPose } from "../ride.ts";
 import {isGameplayId,type GameplayCommand} from "../gameplay-contract.ts";
@@ -115,7 +116,7 @@ export function planRivalBotInputs(world:World,sim:Readonly<SimState>,previous:R
     }
    }
   }
-  goal??=wander(world,body,id,sim.tick);
+  goal??=wander(world,body,id,activeWorldTick(sim));
   let control:SimInput;
   if(player.mode==="vehicle"){
    memory.follower??=createFollowerState(body);

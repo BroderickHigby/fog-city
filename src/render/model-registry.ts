@@ -1,3 +1,4 @@
+import { VEHICLE_MODEL_FILES } from "./vehicle-models.ts";
 // Model registry: a key ("player-car", "robotaxi", "landmark:ferry-building") maps to a
 // glTF file that may or may not exist yet. Other tracks produce the files on their own
 // schedule, so a missing or broken file is normal, not an error: the registry hands out a
@@ -35,6 +36,7 @@ export interface RegistryOptions<T> {
  * files, assets/blender/README.md). People have no model yet: person.ts builds them.
  */
 export const MODEL_FILES: Readonly<Record<string, string>> = Object.freeze({
+  ...VEHICLE_MODEL_FILES,
   "player-car": "models/civilian-car.glb",
   robotaxi: "models/robotaxi.glb",
   robot: "models/errand-robot.glb",

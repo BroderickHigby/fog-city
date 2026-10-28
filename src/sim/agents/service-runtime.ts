@@ -19,6 +19,7 @@ export interface ServiceVehicle {
   model:"van"|"bus";
   requestId:string;
   requestTick:number;
+  pausedTicks?:number;
   playerId:string;
   phase:"driving"|"returning"|"retired";
   origin:{x:number;y:number;z:number;heading:number};
@@ -164,7 +165,7 @@ export function planServiceRuntime(world:World,sim:Readonly<SimState>,previous:S
       const plan=planMissionActors(world,sim,{missionId:`reinforce-${vehicle.requestId}`,stepId:"arrival",actorIds:["unit0","unit1"],definitions:{unit0:{kind:"badRobot"},unit1:{kind:"badRobot"}},place:{x:body.x,y:body.y,z:body.z},radius:12});
       if(plan.actors.length!==2){frame.controls[id]={throttle:0,steer:0,brake:1,actions:0};continue;}
       frame.spawns.push(...plan.actors);blockers().push(...plan.actors);vehicle.deliveredTick=sim.tick;vehicle.phase="returning";
-      emit("service.delivered",vehicle,2,sim.tick-vehicle.requestTick<=1200?"on-time":"late");
+      emit("service.delivered",vehicle,2,sim.tick-vehicle.requestTick-(vehicle.pausedTicks??0)<=1200?"on-time":"late");
     }else if(vehicle.phase==="returning"){
       const offscreen=Object.keys(sim.players).sort().every(playerId=>{const player=sim.players[playerId]!,p=player.mode==="foot"&&player.foot?player.foot:player.car;return distance(body,p)>300;});
       if(offscreen||follow.status==="arrived"){vehicle.phase="retired";vehicle.retiredTick=sim.tick;frame.retirements.push(id);emit("service.retired",vehicle);}

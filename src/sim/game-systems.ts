@@ -1,3 +1,5 @@
+import { createCombatPlacement } from "./combat/placement.ts";
+import { modeProgressionFacts } from "./modes/progression.ts";
 import { protectedAreaAt } from "../content/places.ts";
 import { playerPose } from "./ride.ts";
 import { toLatLon } from "../geo/project.ts";
@@ -11,13 +13,16 @@ import type { AgentRuntimeOptions } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
 import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
-import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
+import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot, pendingStreakGrants } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatActor, CombatWave, RefillSource } from "./combat-contract.ts";
 import type { GameplayFact } from "./gameplay-contract.ts";
 import { impactsOf } from "./impacts.ts";
 import type { AgentsExt } from "./agents.ts";
 import { buildMissionParkingWorld } from "./missions/parking-world.ts";
+import { doomEffects, createDoomClock } from "./progression/doom-clock.ts";
+import { coitFidelityAnchors } from "./activities/coit-viewer.ts";
+import type { GameplayMode } from "./player/types.ts";
 import { CITY_DIRECTOR_CARDS, CITY_LIFE, cityBadRate, populationScale } from "../content/cityLife.ts";
 
 /** Same tick, players and every extension slot but combat (the combat context's inputs). */
@@ -77,11 +82,13 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
   // Weather is a wave-3 system: wave 2 keeps clear skies, dry roads and no tide.
   const weather=wave>=3;
   const fogAt=(context:SimSystemContext,x:number,z:number)=>weather?fogDensity(context.world,context.state,x,z):0;
+  const effects=(state:Readonly<SimState>)=>doomEffects(state.ext.progression?.doom??createDoomClock(),gameTime(state).dayIndex,state.tick);
   const agents=createAgentsSystem(context=>({wave,graph:context.world.sidewalks,transit:context.world.transit,protectedArea,engagePlayers:context.state.version>=17,
     // City life (content/city-life.json): ambient density by district and hour, and the director's incidents.
     densityAt:(x:number,z:number)=>{const p=toLatLon(x,z);return populationScale([p.lat,p.lon],gameTime(context.state).hour);},
     director:{cards:CITY_DIRECTOR_CARDS,stageM:CITY_LIFE.director.stageM,maxActive:3},
-    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return cityBadRate([p.lat,p.lon]);},
+    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return cityBadRate([p.lat,p.lon])*(context.state.version>=21&&wave>=4?effects(context.state).badRateMultiplier:1);},
+    ...(context.state.version>=21?{anchors:[...sortedIds(context.state.players).map(id=>{const body=playerPose(context.state.players[id]!);return {id,x:body.x,z:body.z};}),...coitFidelityAnchors(context.state,context.world)],speedMultiplier:wave>=4?effects(context.state).robotSpeedMultiplier:1}:{}),
     fog:0,
     fogAt:(x:number,z:number)=>fogAt(context,x,z),
     ...(weather?{weatherRefuge:(x:number,z:number)=>weatherRefuge(context.world,context.state,x,z)}:{}),
@@ -115,21 +122,33 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     const snapshot=gameplaySnapshot(context),loadouts:Record<string,ReturnType<typeof combatLoadout>>={};
     for(const id of sortedIds(context.state.players)){
       const player=context.state.players[id]!,body=playerPose(player);
-      loadouts[id]={...combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading),...supplied.loadouts?.[id]};
+      loadouts[id]={...combatLoadout(snapshot,{id,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading,context.state.version,supplied.mode==="bot-sweep"?"botSweep":supplied.mode==="clean-streets"?"cleanStreets":supplied.mode==="fog-royale"?"fogRoyale":supplied.mode==="other-pvp"?"otherPvP":"freeRoam",wave,context.world.tiles.some(tile=>!!tile.ground?.water)),...supplied.loadouts?.[id]};
     }
     const calendar=gameTime(context.state),rain=weather?rainDensity(context.state):0,extra=weatherRefills(context);
     const agentOptions=agentsCombatOptions(context.state),runtime=agentsRuntimeOf(context.state);
     // From wave 4: the same live conversion budget the brains use (agents/runtime.ts naturalBad).
     const conversionCap=wave>=4&&runtime?2*sortedIds(runtime.actors).filter(id=>{const a=runtime.actors[id]!;return a.firmware==="bad"&&!a.converted&&!a.retired&&(context.state.ext.combat?.targets[id]?.phase??"active")==="active";}).length:agentOptions.conversionCap;
-    const combat=contextFromState(context.world,context.state,{...supplied,...agentOptions,...(conversionCap!==undefined?{conversionCap}:{}),wave,loadouts,
+    const modern=context.state.version>=21;
+    const combat=contextFromState(context.world,context.state,{...supplied,...agentOptions,...(modern?{streaks:pendingStreakGrants(snapshot),...(wave>=4&&!supplied.mode?{worldAgiSequence:snapshot.progression.events.filter(event=>event.kind==="world.agi-achieved").reduce((value,event)=>Math.max(value,event.id),0)}:{})}:{}),...(conversionCap!==undefined?{conversionCap}:{}),wave,loadouts,
       refills:extra.length?[...context.world.gameplay?.refills??[],...extra]:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:0,rain,
       fogAt:(x:number,z:number)=>fogAt(context,x,z)});
+    if(modern){
+      // The physical map checks are needed only for an actual deployment, never every idle tick.
+      let placement:ReturnType<typeof createCombatPlacement>|undefined;
+      const getPlacement=()=>placement??=createCombatPlacement(context.world,context.state,{actors:combat.actors});
+      const tensor=pendingStreakGrants(snapshot).some(grant=>grant.kind==="tensor");
+      Object.assign(combat,{safeLots:tensor?getPlacement().safeLots:[],
+        devicePlacementAllowed:(...args:Parameters<NonNullable<CombatAdapterOptions["devicePlacementAllowed"]>>)=>(getPlacement().devicePlacementAllowed?.(...args)??false)&&(supplied.devicePlacementAllowed?.(...args)??true),
+        deviceEffectAllowed:(...args:Parameters<NonNullable<CombatAdapterOptions["deviceEffectAllowed"]>>)=>(getPlacement().deviceEffectAllowed?.(...args)??false)&&(supplied.deviceEffectAllowed?.(...args)??true),
+        aimPlacement:(...args:Parameters<NonNullable<CombatAdapterOptions["aimPlacement"]>>)=>getPlacement().aimPlacement?.(...args)??null});
+    }
     // In the rain, robots under an awning, a Muni shelter or the Ferry Building arcade stay dry.
     return rain>0?{...combat,actors:combat.actors.map(actor=>actor.kind==="robot"&&actor.sheltered===undefined?{...actor,sheltered:shelteredAt(context.world,actor.x,actor.z)}:actor)}:combat;
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
-    facts:context=>rammedRobotFacts(context,()=>combatContext(context).actors),
+    facts:context=>[...rammedRobotFacts(context,()=>combatContext(context).actors),...(context.state.version>=21?modeProgressionFacts(context.state,context.state.tick):[])],
+    associateIds:context=>sortedIds(agentsRuntimeOf(context.state)?.actors??{}).filter(id=>{const actor=agentsRuntimeOf(context.state)!.actors[id]!;return actor.model==="associate"&&!actor.retired&&actor.fidelity==="full";}),
     protectedArea,fog:(context,x,z)=>fogAt(context,x,z),
     missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
     calendar:context=>{const time=gameTime(context.state);return {day:time.dayIndex,month:time.month,hour:time.hour,minute:time.minute};}});
@@ -140,7 +159,8 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     // different previous or input identity and is always recomputed.
     if(previous&&previous.previous===context.previous&&previous.world===context.world&&previous.inputs===context.inputs&&previous.events===context.events&&previous.state.tick===context.state.tick&&previous.state.players===context.state.players&&previous.state.ext.agents===context.state.ext.agents&&previous.state.ext.robots===context.state.ext.robots&&previous.state.ext.combat===context.state.ext.combat&&previous.state.ext.clock===context.state.ext.clock&&previous.state.ext.fog===context.state.ext.fog)return cachedObservation!.value;
     const calendar=gameTime(context.state);
-    const value={...observed(context),day:calendar.dayIndex,month:calendar.month};
+    const supplied=options.combat?.(context),mode:GameplayMode=supplied?.mode==="bot-sweep"?"botSweep":supplied?.mode==="clean-streets"?"cleanStreets":supplied?.mode==="fog-royale"?"fogRoyale":supplied?.mode==="other-pvp"?"otherPvP":"freeRoam";
+    const value={...observed(context),day:calendar.dayIndex,month:calendar.month,...(context.state.version>=21?{mode,simVersion:context.state.version,associatesAnswer:mode!=="freeRoam"||effects(context.state).associatesAnswer,gameDay:calendar.dayIndex,gameWeek:calendar.gameWeek,hasCoastline:context.world.tiles.some(tile=>!!tile.ground?.water),doomPayFactor:mode==="freeRoam"&&wave>=4?effects(context.state).bountyMultiplier:1}:{})};
     cachedObservation={context,value};
     return value;
   };

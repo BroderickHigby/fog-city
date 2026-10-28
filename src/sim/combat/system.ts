@@ -1,6 +1,10 @@
+/** Pure fixed-step combat orchestration. SIM21 restores devices, physical flowers and AGI. */
 import { Action, type SimInput, type SimState } from "../contract.ts";
 import { clamp, dcos, dsin } from "../dmath.ts";
 import { seedRng } from "../rng.ts";
+import { applyBalloon, launchBalloon, stepDevices, stepWorldAgi } from "./devices.ts";
+import { launchFlowers, applyFlowerHit } from "./flowers.ts";
+import { holdCombatTimers } from "./pause.ts";
 import { stepAttacks } from "./attacks.ts";
 import { applyWaterHit, stepSupport, tickEffects } from "./effects.ts";
 import { advanceProjectile } from "./physics.ts";
@@ -36,7 +40,7 @@ export function createCombatState(seed: number, ctx: CombatContext, tick = 0): C
   const players: Record<string,PlayerCombat> = {};
   const targets: Record<string,TargetCombat> = {};
   for (const player of sortedPlayers(ctx)) { players[player.id] = initialPlayer(player); targets[player.id] = initialTarget(); }
-  for (const actor of sortedActors(ctx)) targets[actor.id] = initialTarget();
+  for (const actor of sortedActors(ctx)) targets[actor.id] = {...initialTarget(),...((ctx.simVersion??21)>=21&&actor.kind==="robot"?{hasAttacked:false}:{})};
   return { version:1,tick,rng:seedRng(seed),nextId:1,players,targets,projectiles:[],gadgets:[],attacks:[],attackSequence:{},events:[],pauseUntil:0 };
 }
 
@@ -52,12 +56,15 @@ function cloneState(prev: CombatState, ctx: CombatContext): CombatState {
   }
   for (const actor of sortedActors(ctx)) {
     const old = prev.targets[actor.id] ?? initialTarget();
-    targets[actor.id] = {...old,wetHits:[...old.wetHits]};
+    targets[actor.id] = {...old,wetHits:[...old.wetHits],...((ctx.simVersion??21)>=21&&actor.kind==="robot"&&old.hasAttacked===undefined?{hasAttacked:Boolean((prev.attackSequence[actor.id]??0)>0||prev.attacks.some(attack=>attack.attackerId===actor.id))}:{})};
   }
   return {
     ...prev,tick:prev.tick+1,rng:[...prev.rng],players,targets,
     projectiles:prev.projectiles.map(p=>({...p})),gadgets:prev.gadgets.map(g=>({...g})),
     attacks:prev.attacks.map(a=>({...a})),attackSequence:{...prev.attackSequence},events:[],
+    ...(prev.flowerReceipts?{flowerReceipts:prev.flowerReceipts.map(receipt=>({...receipt}))}:{}),
+    ...(prev.maintenanceSequence?{maintenanceSequence:{...prev.maintenanceSequence}}:{}),
+    ...(prev.maintenanceChannels?{maintenanceChannels:Object.fromEntries(Object.keys(prev.maintenanceChannels).sort().map(id=>[id,{...prev.maintenanceChannels![id]!}]))}:{}),
   };
 }
 
@@ -88,12 +95,18 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     const direction=aim(player,input.aimYaw,input.aimPitch);
     const shot=waterShot(state,player,input,ctx);
-    if (shot && state.projectiles.length<MAX_PROJECTILES) {
+    const modern=(ctx.simVersion??21)>=21;
+    const wide=modern&&(ctx.wave??2)>=4&&(player.nozzle==="wide"||own.boost==="wide"&&own.boostUntil>state.tick);
+    const pellets=wide?3:1,spread=wide?3.141592653589793/15:0;
+    if (shot && state.projectiles.length+pellets<=MAX_PROJECTILES) {
       // Unlimited water (owner decision 2026-10-23): spraying never drains the tank or the trunk.
       own.nextWaterTick=state.tick+shot.rateTicks;
-      state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
-        vx:shot.direction.x*shot.speed,vy:shot.direction.y*shot.speed,vz:shot.direction.z*shot.speed,
-        distance:0,range:shot.range,bornTick:state.tick,volume:shot.volume,salt:shot.salt,vehicle:shot.vehicle,rustRate:shot.rustRate});
+      for(let n=0;n<pellets;n++){
+        const yaw=shot.yaw+(pellets===1?0:spread*(n/(pellets-1)-.5));
+        state.projectiles.push({id:state.nextId++,kind:"water",ownerId:player.id,x:player.x,y:shot.spawnHeight,z:player.z,
+          vx:pellets===1?shot.direction.x*shot.speed:dsin(yaw)*dcos(shot.pitch)*shot.speed,vy:shot.direction.y*shot.speed,vz:pellets===1?shot.direction.z*shot.speed:-dcos(yaw)*dcos(shot.pitch)*shot.speed,
+          distance:0,range:shot.range,bornTick:state.tick,volume:shot.volume/pellets,salt:shot.salt,vehicle:shot.vehicle,rustRate:shot.rustRate/pellets});
+      }
       emit(state,"weapon.water",player.id,"",shot.volume);
     }
     if (newlyPressed(own,"cone",input.cone===true) && own.cones>0 && state.tick>=own.nextConeTick && state.projectiles.length<MAX_PROJECTILES) {
@@ -102,6 +115,7 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
       spawn(state,player,"cone",direction.yaw,0,8,8,0,0,3.705);
       emit(state,"weapon.cone",player.id,"",own.cones);
     }
+    if(modern&&(ctx.wave??2)>=4&&!input.refill){const balloon=launchBalloon(state,player,input);if(balloon)state.projectiles.push(balloon);}
   }
 }
 
@@ -131,8 +145,10 @@ function particles(state:CombatState,ctx:CombatContext):void {
     if (moved.hit) {
       if (projectile.kind==="water") applyWaterHit(state,moved.hit,projectile);
       if (projectile.kind==="cone") coneHit(state,moved.projectile,moved.hit);
+      if ((ctx.simVersion??21)>=21&&projectile.kind==="flower")applyFlowerHit(state,ctx,moved.projectile,moved.hit);
     }
     if (moved.hit || moved.landed || moved.blocked || moved.expired) {
+      if ((ctx.simVersion??21)>=21&&projectile.kind==="balloon")applyBalloon(state,ctx,moved.projectile,moved.projectile);
       emit(state,"projectile.ended",projectile.ownerId,moved.hit?.id??"",projectile.id,moved.hit?"actor":moved.blocked?"wall":moved.landed?"ground":"range");
     } else alive.push(moved.projectile);
   }
@@ -143,12 +159,29 @@ function particles(state:CombatState,ctx:CombatContext):void {
 export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inputs: CombatInputs = {}): CombatState {
   validateContext(ctx);
   if (prev.version!==1 || !Number.isSafeInteger(prev.tick) || prev.tick<0) throw new Error("Unsupported combat state");
+  const modern=(ctx.simVersion??21)>=21;
+  if(modern&&ctx.simVersion===undefined)ctx={...ctx,simVersion:21};
   const state=cloneState(prev as CombatState,ctx);
+  if(modern)stepWorldAgi(state,ctx,prev.pauseUntil>prev.tick);
+  if(modern&&prev.pauseUntil>prev.tick){holdCombatTimers(state);return state;}
+  if(modern){
+    const active:Record<string,CombatInputs[string]>={};
+    for(const player of sortedPlayers(ctx)){
+      const restrictions=[state.targets[player.id],...ctx.actors.filter(actor=>actor.kind==="player"&&actor.playerId===player.id).map(actor=>state.targets[actor.id])];
+      const input=inputs[player.id]??{};
+      active[player.id]=restrictions.some(target=>target&&target.phase!=="active")?{}:restrictions.some(target=>target&&target.distractedUntil>state.tick)?{...input,fire:false,scan:false,altFire:false}:input;
+    }
+    inputs=active;stepDevices(state,ctx,inputs);
+  }
+  if(!modern||state.pauseUntil<=state.tick){
   stepSupport(state,ctx,inputs);
   fireWeapons(state,ctx,inputs);
+  if(modern)launchFlowers(state,ctx,inputs);
   particles(state,ctx);
   tickEffects(state,ctx);
   stepAttacks(state,ctx,inputs);
+  }
+  if(modern&&state.flowerReceipts)state.flowerReceipts=state.flowerReceipts.filter(receipt=>receipt.untilTick>state.tick&&Object.hasOwn(state.players,receipt.ownerId));
   for (const player of sortedPlayers(ctx)) {
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     own.water=clamp(own.water,0,capacity(player));
@@ -169,7 +202,7 @@ export function combatOf(state: Readonly<SimState>): CombatState | undefined {
 export function stepCombatSystem(previous: Readonly<SimState>, next: SimState, ctx: CombatContext, inputs: CombatInputs): SimState {
   const old=combatOf(previous)??createCombatState(previous.seed,ctx,previous.tick);
   if (old.tick!==previous.tick || next.tick!==previous.tick+1) throw new Error("Combat and simulation ticks must stay synchronized");
-  return {...next,ext:{...next.ext,[COMBAT_EXT_KEY]:stepCombat(old,ctx,inputs)}};
+  return {...next,ext:{...next.ext,[COMBAT_EXT_KEY]:stepCombat(old,{...ctx,simVersion:previous.version},inputs)}};
 }
 
 /** Existing wave-1 bits only; new actions stay explicit until the core interface lands. */

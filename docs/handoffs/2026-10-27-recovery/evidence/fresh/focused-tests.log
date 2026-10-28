@@ -1,0 +1,11 @@
+
+ RUN  v5.0.3 /Users/broderickhigby/Documents/Codex/2026-10-27/new-chat-2/work/fog-city
+
+
+ Test Files  26 passed (26)
+      Tests  184 passed (184)
+   Start at  17:15:18
+   Duration  40.06s (tests 81%, import 15%, transform 4%)
+
+    Isolate  26 workers spawned · ~138ms startup each (spawn + environment, per file)
+             at least ~3.44s faster with isolate: false — reuses workers across files instead of one per file

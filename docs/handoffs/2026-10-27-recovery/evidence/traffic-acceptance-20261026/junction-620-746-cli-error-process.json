@@ -1,0 +1,15 @@
+{
+  "case": "junction-620-746",
+  "snapshotSha256": "df0e4de06510f01da029d6c5e71d81e0ba4285cea2a44f37299ded92e0618de5",
+  "wallCapS": 90,
+  "physicalStandstillTicks": 2400,
+  "speedMagnitudeThreshold": 0.05,
+  "startedAt": "2026-10-27T03:08:50.527037+00:00",
+  "pid": 56269,
+  "timedOut": false,
+  "exitCode": 1,
+  "elapsedS": 0.1174767017364502,
+  "processGroupGone": true,
+  "sourceMismatches": [],
+  "sourceUnchanged": true
+}

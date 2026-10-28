@@ -1,0 +1,16 @@
+{
+  "case": "Fresh Marina with numerical sweep fix",
+  "test": "tests/sim/traffic-flow-captured.test.ts",
+  "originalTest": "tests/sim/traffic-flow-sf.test.ts",
+  "pattern": "Marina Blvd",
+  "wallCapS": 120,
+  "physicalStandstillTicks": 2700,
+  "existingTestTimeoutS": 540,
+  "snapshotSha256": "1b5d01f3dc0f384ddf4962914480fd28ffc3e76ae746ba0b208cd238e0e50d22",
+  "startedAt": "2026-10-27T02:09:22Z",
+  "pid": 53457,
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedS": 71.00807309150696,
+  "processGroupGone": true
+}

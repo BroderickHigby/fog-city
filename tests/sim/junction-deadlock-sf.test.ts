@@ -32,7 +32,8 @@ describe.skipIf(!worldExists("sf"))("no frozen walkers at the reported real-SF j
         s = step(world, s, {}, [], systems);
         for (const a of agentsOf(s)) {
           if (Math.hypot(a.x - x, a.z - z) > 120) { still.delete(a.id); continue; }
-          const n = a.speed < 0.05 && a.dwell === 0 ? (still.get(a.id) ?? 0) + 1 : 0;
+          // Preserve the same speed/duration limit in either travel direction.
+          const n = Math.abs(a.speed) < 0.05 && a.dwell === 0 ? (still.get(a.id) ?? 0) + 1 : 0;
           still.set(a.id, n);
           if (n > worst) { worst = n; who = `${a.id} ${a.kind} at ${a.x.toFixed(1)},${a.z.toFixed(1)}`; }
         }

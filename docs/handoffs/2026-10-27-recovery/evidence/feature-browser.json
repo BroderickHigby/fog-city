@@ -1,0 +1,193 @@
+{
+  "sha": "96048e15b486dc2a81c67b0e4677a6f5e415477c",
+  "browser": "156.0.8078.48",
+  "heapLimitMB": 1024,
+  "errors": [],
+  "requests": [],
+  "boot": {
+    "tick": 0,
+    "hash": "e250a3c8",
+    "sim": {
+      "seed": 1,
+      "playerIds": [
+        "p1"
+      ],
+      "roads": true,
+      "agents": 330,
+      "colliders": "pack",
+      "walls": 3936,
+      "assets": "packed",
+      "boot": {
+        "loadMs": 1072.699999999255,
+        "buildMs": 1237.5,
+        "readyMs": 12641.60000000149
+      }
+    },
+    "render": {
+      "drawCalls": 604,
+      "triangles": 947744,
+      "tilesLoaded": 7,
+      "cameraMode": "chase",
+      "presentation": true,
+      "lightingPreset": "day",
+      "followsClock": true,
+      "weather": {
+        "fog": 0,
+        "wetness": 0,
+        "rain": false,
+        "puddles": 0,
+        "tideM": 0
+      },
+      "streetLightsLit": 0,
+      "crowdDrawn": 3,
+      "crowdLoaded": 12,
+      "foliage": {
+        "near": 17,
+        "far": 976,
+        "draws": 6
+      },
+      "surfaceTextures": [],
+      "night": false,
+      "tilesPending": 3,
+      "tilesTotal": 583,
+      "tilesFailed": 0,
+      "landmarks": 15,
+      "fps": 2.7665999999999986,
+      "pixelRatio": 1,
+      "shadows": true,
+      "agents": 261,
+      "agentsNear": 6,
+      "agentsTotal": 330,
+      "agentDrawCalls": 26,
+      "agentModels": [
+        "robotaxi",
+        "errandRobot",
+        "sidewalkBot",
+        "civilian:compact-hatch",
+        "civilian:sedan",
+        "civilian:utility-suv",
+        "civilian:short-pickup",
+        "civilian:cargo-van"
+      ],
+      "playerCarsFromFile": 1,
+      "walkers": 0,
+      "walkersFromFile": 0,
+      "farCellsTotal": 33,
+      "farCells": 33,
+      "farCellsDrawn": 8,
+      "farTriangles": 471374,
+      "farSeamEdges": 106,
+      "cameraFar": 20000,
+      "backend": "webgpu",
+      "staticScene": {
+        "roots": 7,
+        "frozenObjects": 75,
+        "proxies": 6,
+        "triangles": 13946,
+        "sourceAttributeBytes": 799700,
+        "proxyAttributeBytes": 191928,
+        "ownedBufferBytes": 275604,
+        "indexUpdates": 0
+      },
+      "warmup": {
+        "admitted": 0,
+        "cachedLayouts": 0,
+        "pending": 0,
+        "active": false,
+        "compiled": 11,
+        "cancelled": 81,
+        "failed": 0,
+        "lastError": null
+      },
+      "shadowCascades": 2,
+      "shadowAtlas": {
+        "width": 2048,
+        "height": 1024
+      },
+      "graphicsError": null,
+      "postProcessing": {
+        "enabled": true,
+        "ssr": true,
+        "bloom": true,
+        "framesRendered": 11
+      },
+      "gfx": {
+        "tier": "standard",
+        "pixelBudget": 2100000,
+        "steps": []
+      },
+      "farBudget": {
+        "radius": null,
+        "queued": 0,
+        "loading": 0,
+        "failed": 0
+      },
+      "streetDetail": {
+        "layers": [
+          "markings",
+          "furniture",
+          "signs",
+          "trees",
+          "storefronts",
+          "grass"
+        ],
+        "junctions": 7439,
+        "cellsBuilt": 17,
+        "patches": 42,
+        "crosswalks": 157,
+        "stopBars": 91,
+        "signals": 87,
+        "stopSigns": 8,
+        "signPosts": 95,
+        "blades": 83,
+        "curbSigns": 149,
+        "trees": 2251,
+        "palms": 26,
+        "storefronts": 165
+      },
+      "buildingDetail": {
+        "buildings": 0,
+        "triangles": 0,
+        "drawCalls": 0,
+        "pending": true,
+        "registered": 512,
+        "styles": {
+          "masonry": 0,
+          "deco": 0,
+          "brick": 0,
+          "residential": 0,
+          "modern": 0
+        }
+      },
+      "grass": {
+        "loaded": true,
+        "areas": 2844,
+        "patches": 0,
+        "blades": 0,
+        "surfaceTriangles": 0,
+        "bladeTriangles": 0,
+        "drawCalls": 0,
+        "pending": true
+      }
+    },
+    "heap": 1040808596,
+    "gpu": {
+      "vendor": "amd",
+      "architecture": "rdna-1",
+      "device": "",
+      "description": ""
+    }
+  },
+  "pausedButtons": [
+    "$2K∞018.0 mo",
+    "",
+    "",
+    "",
+    "",
+    "",
+    "MapMThe Embarcadero",
+    "",
+    "Replay opening story",
+    "Taxi shifts"
+  ]
+}

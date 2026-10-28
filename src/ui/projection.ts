@@ -1,3 +1,7 @@
+import { loadoutProjection } from "./loadout.ts";
+import { hostileMarkers } from "../presentation/hostile-robots.ts";
+import { canStartActivity,activityUnlocked,missionEngaged } from "../sim/activities/system.ts";
+import { gameTime } from "../sim/clock/calendar.ts";
 import { MISSIONS, SAFEHOUSES } from "../content/catalog.ts";
 import { CITY_DIRECTOR_CARDS } from "../content/cityLife.ts";
 import { uiText } from "../content/ui.ts";
@@ -22,7 +26,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const snapshot=gameplaySnapshot({state}),own=playerView(snapshot,playerId),player=state.players[playerId];
   const body=player?playerPose(player):undefined;
   const combat=state.ext.combat?.players[playerId],progression=snapshot.progression.players[playerId],progress=snapshot.missions.players[playerId];
-  const loadout=player&&body?combatLoadout(snapshot,{id:playerId,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading):undefined;
+  const loadout=player&&body?combatLoadout(snapshot,{id:playerId,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading,state.version,"freeRoam",wave):undefined;
   const mission=MISSIONS.find(m=>m.id===progress?.missionId),step=mission?.steps.find(s=>s.id===progress?.stepId);
   let interaction:InteractionView|undefined;
   const lines=step&&"lines"in step?step.lines?.map(line=>`${line.speaker}: ${line.text}`).join("\n"):"";
@@ -61,25 +65,17 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   for(const id of Object.keys(runtime?.incidents??{}).sort()){
     const incident=runtime!.incidents![id]!;if(incident.playerId!==playerId)continue;
     const card=CITY_DIRECTOR_CARDS.find(c=>c.id===incident.cardId);
-    const live=incident.targetIds.map(t=>runtime!.actors[t]).filter(a=>a&&!a.retired&&(state.ext.combat?.targets[a.id]?.phase??"active")==="active");
+    const live=incident.targetIds.map(t=>runtime!.actors[t]).filter(a=>a&&!a.retired&&a.firmware==="bad"&&!a.protected&&!a.child&&!a.mobilityAid&&(state.ext.combat?.targets[a.id]?.phase??"active")==="active");
     if(!live.length)continue;
     for(const actor of live)shown.add(actor!.id);
     for(const actor of live)blips.push({id:`${id}:${actor!.id}`,kind:"bounty",label:card?.title??id,x:actor!.x,z:actor!.z});
     bounties.push({id,title:card?.title??id,detail:card?.blurb??"",multiplier:card?.payoff.kind==="catchInTheAct"?1.5:1,confirmed:true});
   }
-  // Bad robots the player has found: flagged by a Bot Check scan (a mark, right or wrong: the
-  // scanner can be fooled), or openly hostile nearby (alerted, attacking or fleeing within 150 m).
-  const ownCombat=state.ext.combat?.players[playerId];
-  for(const mark of ownCombat?.marks??[]){
-    const actor=runtime?.actors[mark.targetId];
-    if(!actor||actor.retired||mark.untilTick<state.tick||shown.has(actor.id))continue;
-    shown.add(actor.id);blips.push({id:`flagged:${actor.id}`,kind:"robot",label:uiText("ui.map.flagged"),x:actor.x,z:actor.z});
-  }
-  for(const id of Object.keys(runtime?.actors??{}).sort()){
-    const actor=runtime!.actors[id]!;
-    if(actor.retired||actor.firmware!=="bad"||shown.has(id)||!body||Math.hypot(actor.x-body.x,actor.z-body.z)>150)continue;
-    if(!["alerted","attack","flee"].includes(actor.behavior)||(state.ext.combat?.targets[id]?.phase??"active")!=="active")continue;
-    shown.add(id);blips.push({id:`hostile:${id}`,kind:"robot",label:uiText("ui.map.hostile"),x:actor.x,z:actor.z});
+  // Confirmed current hostility uses the same bounded authority as world warning diamonds.
+  // Scanner guesses remain on Bot Check; an uncertain mark never paints a benign map target.
+  for(const marker of hostileMarkers(state,playerId)){
+    if(shown.has(marker.targetId))continue;
+    shown.add(marker.targetId);blips.push(marker.mapCue);
   }
   const owned=new Set(own.ownedItemIds);
   const vendorSite=body?DEFAULT_CATALOG.sites.filter(site=>site.kind==="vendor"&&site.wave<=wave&&canInteractAtSite(body,site)).sort((a,b)=>Math.hypot(a.x-body.x,a.z-body.z)-Math.hypot(b.x-body.x,b.z-body.z))[0]:undefined;
@@ -90,6 +86,12 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     attack.targetId===playerId&&attack.resolveTick<=state.tick&&attack.endTick>state.tick)
     .sort((a,b)=>a.resolveTick-b.resolveTick||(a.id<b.id?-1:a.id>b.id?1:0))
     .map(attack=>({id:attack.id,title:uiText("ui.ad.label"),detail:uiText("ui.ad.disclaimer")}));
+  const officeDoor=DEFAULT_CATALOG.activities.find(activity=>activity.id==="office-hours"),activity=snapshot.activities.players[playerId],day=gameTime(state).dayIndex;
+  const remaining=Math.max(0,2-(activity?.officeHoursBookings?.day===day?activity.officeHoursBookings.count:0));
+  const unlocked=activityUnlocked("office-hours",progress?.completedIds??[]);
+  const nearOffice=!!body&&!!officeDoor&&(body.x-officeDoor.x)**2+(body.z-officeDoor.z)**2<=officeDoor.radius**2;
+  const officeAvailable=!!body&&!!player&&!!activity&&!!officeDoor&&!activity.activeActivityId&&!missionEngaged(progress,DEFAULT_CATALOG)&&canStartActivity(officeDoor,activity,{...body,mode:player.mode},state.tick,wave,progress?.completedIds??[],day);
+  const officeDetail=!unlocked?"Complete Demo’d Correctly to unlock Office Hours.":activity?.activeActivityId?"Finish the current activity before booking another interview.":missionEngaged(progress,DEFAULT_CATALOG)?"Finish the current mission step before booking.":!remaining?"Both interviews are booked for today. Come back next game day.":(activity?.cooldowns?.["office-hours"]??0)>state.tick?`The next interview opens in ${Math.ceil((activity!.cooldowns!["office-hours"]!-state.tick)/60)} seconds.`:!nearOffice?"Travel to the Ramen entrance at Pier 70, then book your interview here.":player?.mode!=="foot"||Math.abs(body?.speed??0)>=.3?"Step out of the car and stop at the Ramen entrance to book.":"Book the partners’ questions and a live three-robot demo. Your campaign will wait.";
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
     ...(player?{travelMode:player.mode}:{}),...(streetName?{streetName}:{}),
     ...(player?.ride?{vehicleControl:player.ride.manual?"robotaxi-driver" as const:"robotaxi-passenger" as const}:{}),
@@ -98,8 +100,10 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
     map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:170,...(geography?{geography}:{})},
     vendorSiteId:vendorSite?.id,
-    vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
-    phoneApps:["map","botBounty","botCheck","bank","settings"],
+    vendor:DEFAULT_CATALOG.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:VENDOR.items.find(row=>row.id===item.id)?.name??item.id.replaceAll("-"," "),description:VENDOR.items.find(row=>row.id===item.id)?.blurb??uiText("ui.loadout.rankRequired",{rank:item.rank??1}),priceCents:item.priceCents,owned:owned.has(item.id),available:(progression?.rank??1)>=(item.rank??1)&&!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
+    loadout:loadoutProjection(state,playerId,wave,uiText),
+    phoneApps:[...(wave>=4?["loadout" as const]:[]),"map","botBounty","botCheck","bank","settings",...(wave>=3?["officeHours" as const]:[])],
+    ...(wave>=3&&officeDoor?{officeHours:{available:officeAvailable,detail:officeDetail,remaining,destination:{x:officeDoor.x,z:officeDoor.z}}}:{}),
     popups,
     ...(bounties.length?{bounties}:{}),
   };

@@ -1,0 +1,42 @@
+# Current SIM21 progression/combat standards audit
+
+Measured from the shared, uncommitted consolidated integration after the focused units on2026-10-26. This is source evidence, not browser/city acceptance. No historical golden bytes were rewritten. Historical source reducers remain in legacy-system.ts with omitted/direct defaults20.
+
+Implemented and focused-tested: earned reward adoption ledger; exact pending grant/use/reject transaction; ownership/rank/slot loadouts; actual physical flower contacts and mode acknowledgment; weekly gear charge/cancel/insufficient/reload; live timer preservation and immutable mission/activity/viewer/brain identities; natural/streak AGI dedup; protected actors/occlusion; accepted-only first attack; modern-only associate answer gates. A same-frame zero-runway bridge re-offer bug was corrected only for21.
+
+## Remaining concrete integration gaps
+
+1. **Tensor cannot land in the actual game.** `combat/devices.ts` consumes `ctx.safeLots`; no current `game-systems.ts` provider supplies them. It returns rejected/retains the bank rather than inventing a drop. Supply immutable, ground-supported, offwater, wall/road/person-clear lot/apron candidates within150m. The existing continuous3m stopped Interact loader is implemented and tested.
+2. **Protected-site placement gate is not connected.** `devicePlacementAllowed` is part of CombatContext and forwarded by adapter, but gameSystems never supplies it. Local actor checks still protect people/animals. The absent world validator permits placement in semantically protected sites/unsupported spots. Supply accepted world geometry + protected-area exclusion. Avoid weakening actor checks.
+3. **Lure movement producer is absent.** Speaker/Parrots emit `device.lure` and set distraction expiry, but the runtime never consumes that event/gadget to investigate a location and keep a15m Parrots stand-off. Only attack suppression currently occurs. Needs a trusted current live gadget goal through the same clearance-controlled route/motion proposal lane, never a position edit.
+4. **Placed devices and marks have no actual presentation.** `render/combat-layer.ts` draws water/cone/balloon/flower projectiles, not gadgets, crate progress, Confidence marks, Parrots, Blimp approved lanes or AGI clock/tint/honk. Simulation fields/events alone do not make these recognizable/playable. Root render/audio ownership must supply bounded real consumers and physical/UI acceptance.
+5. **Match streak earnings lack their score producer.** Bot Sweep/Clean Streets deliberately filter economy. New progression currently gains streak points from `bounty.paid`/`update.rewarded`, which are unavailable there. Consume exactly-once trusted match/combat facts with the authored mode point table; avoid paying city money or double-counting melt/flower/revive sources. New mode identity now isolates city Doom correctly.
+6. **Validated carried unlock authority is absent.** `MatchLoadout` stores only choice strings; no authoritative rank/ownership/earned-bank record is passed into the isolated profile. Current adapter fails closed, so arbitrary strings cannot unlock gear, but this also loses authored carried upgrades/perks/rewards. Transfer a validated bounded loadout projection at host entry without copying city wallet/campaign/RNG; retain the exact untouched campaign snapshot.
+7. **Winning faction move is dropped.** `matchPayout` produces `factionClockMoves:1` for winners, while existing `modes/settlement.ts` credits money/XP/achievement only. Integrate `factionFor`/`moveDoomClock` inside the existing once-only settlement-ID transaction for21, emit world boundary events once if crossed. Do not mutate a preserved city while a match runs; taxi payout requests0.
+8. **Picked-point control is absent.** `CombatInput.targetX/targetZ` supports Parrots/Blimp placement, but recorded control mapping never supplies them; calls use the player's own ground point. Needs a deterministic desired-point mapping from recorded aim/control selection and a visible placement frame. Completion remains in the physics/world validator.
+9. **Doom ad multiplier has no visible ad producer.** Billboard text generation and mission.billboard events exist, but no placed billboard renderer consumes them. A metadata field cannot prove doubled approved AI ads or winter/AGI headline replacement. Associates have actual proximity provider hooks and new-answer gates; ordinary adult bodies remain protected.
+10. **Additional declared modes remain unsupported.** `modes/types.ts` names Fog Royale/Hide in the Crowd/Vibes Night, but `createMatchState` MODES allows only Bot Sweep/Clean Streets. Do not advertise the declared union as implemented or merge the historical stack wholesale.
+
+## Safety/authority checks retained
+
+- Bank reservation does not debit points or reward count until exact combat used acknowledgment. Rejection retains it; ordinary save cancels pending input and preserves earned ledger/bank.
+- Gadgets require explicit validated gadgetEnabled. Gear subscription requires a successfully paid active week; root adapter now gates unpaid Microclimate.
+- Actual Flower NPC/wall interception, current team/owner checks and durable contact receipt prevent miss/protected/replay score. Instant desired flowerTarget is<=20 only.
+- Paused updates preserve bodies/RNG, started-tick identities and expired timers. Pause controls expire on outer ticks. Coit paid duration and correction windows hold without changing claim IDs.
+- Activity faction completion ignores external completion facts and derives route/final stopped Interact; speed violation fails Pauser. Future/paid week billing never debits negative money or backcharges unobserved weeks.
+
+Further acceptance required: full historical canonical/replay suite and exact source-stable current21 golden; actual browser controls/loadout/gadget/gear/streak rejection+resume/graphics save; physical taxi successful fare and timeout/retry (currently concrete traffic gridlock proof failure). Focused test passes do not establish those.
+
+## Follow-up implementation status at18:05 local
+
+Findings1/2 now have `combat/placement.ts`, wired by root GameSystems. Full loaded support (including narrow gaps), intersected water cells, mesh relief, protected full footprints, buildings/walls, drivable corridors, actual people/animals and oriented vehicles are checked. Tensor candidates are deterministic/bounded and generated only on a non-paused pending request. This has synthetic geometry unit evidence, not proof that a named real SF lot was successfully selected through browser controls.
+
+Finding3 now has `agents/lures.ts` and the ordinary runtime proposal hook. Live owned gadgets select bounded route goals and a Parrots exclusion guard; accepted robot-to-good-robot channels, flee movement and original brain goal selection remain. Focused runtime regressions pass. Physical crowded-street lure acceptance remains.
+
+Finding5 now has `modes/progression.ts`: canonical match events become mode-scoped, cursor-deduplicated point/reset facts, wired by root. Economy stays excluded from matches; physical combat score is not counted again. Modern armor IDs come from actual runtime models. Finding7 is now settled in the existing once-only payout transaction, including a boundary event when reached.
+
+Finding6 now has explicit host-only city-snapshot arguments in createBotSweep/createMatchSession and `applyValidatedMatchCarry`. XP-derived rank and actual owned choices are validated, without money/sites/campaign/clock/RNG copy. **Mode banks/points/earned ledgers start empty**: campaign banks never become repeatable grants on re-entry. Root must use this entry argument from its real paused city, never accept a client-provided city/rank/bank payload. An explicit factory/API does not alone prove every host entry uses it.
+
+Finding8 now has recorded aim→accepted world point mapping and a blocked desired-point result, wired through context. A rejected point cannot fall back to a claimed/current position. The visual placement frame and recognizable device art remain root-owned.
+
+Remaining source/presentation gaps: finding4 device/mark/AGI consumers, finding9 actual approved billboard surfaces, finding10 additional declared modes; named-world/browser acceptance still outstanding. Initial list above is retained as the audit trail, not a current claim that resolved backend producers are missing.

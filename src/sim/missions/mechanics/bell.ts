@@ -78,7 +78,7 @@ export function prepareMissionBell(previous: MissionBellState | undefined, missi
     const request: BellDuelRequest = { id, playerId: body.id, opponentId: `associate:${table.id}`, x: table.x, y: body.y, z: table.z, radius: DUEL_RADIUS_M };
     if (before?.requestId === id) {
       state.duels[body.id] = before.phase === "won" || before.phase === "lost" ? before : advanceBellDuel(before, request, body, seed, tick, old.tick, pressed, emit);
-    } else if (pressed && canStartDuel(body, request)) {
+    } else if (pressed && ((ctx.simVersion??20)<21||ctx.associatesAnswer!==false) && canStartDuel(body, request)) {
       // The authored step already granted the five stars; they decay out of every associate's
       // sight while you reach the turntable, so the mission's duel does not re-check them.
       state.duels[body.id] = newBellRound(id, request.opponentId, seed, 1, tick);

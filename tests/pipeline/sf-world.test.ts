@@ -503,9 +503,9 @@ describe("sf world: spawn", () => {
     for (const b of buildings) expect(pointInPolygon(s.x, s.z, b.footprint), b.id).toBe(false);
   });
 
-  it("the sim can drive 3 s straight ahead from the spawn without hitting anything", () => {
+  it("the sim can drive 4 s straight ahead from the spawn without hitting anything", () => {
     let st = createInitialState(world, 1, ["p1"], manifest.spawn);
-    for (let i = 0; i < Math.round(3 / DT); i++) st = step(world, st, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 } });
+    for (let i = 0; i < Math.round(4 / DT); i++) st = step(world, st, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 } });
     const car = st.players.p1!.car;
     expect(car.hits).toBe(0);
     expect(Math.hypot(car.x - manifest.spawn.x, car.z - manifest.spawn.z)).toBeGreaterThan(20);
@@ -513,7 +513,7 @@ describe("sf world: spawn", () => {
 });
 
 describe("sf world: landmarks replace the right records", () => {
-  it("every replacesBuildingIds id in content/landmarks.json is a record of this world, and a landmark with a probe replaces exactly the probe's records", () => {
+  it("every replacesBuildingIds id in content/landmarks.json is a record of this world, and each landmark replaces its probed records", () => {
     const doc = readJson<{ landmarks: Array<{ id: string; replacesBuildingIds?: string[] }> }>("content/landmarks.json");
     const report = readJson<{ probes: Array<{ id: string; buildings: string[] }> }>("public/tiles/sf/report.json");
     const ids = new Set(buildings.map((b) => b.id));
@@ -522,7 +522,12 @@ describe("sf world: landmarks replace the right records", () => {
       for (const id of l.replacesBuildingIds ?? []) expect(ids.has(id), `${l.id} replaces ${id}`).toBe(true);
       const probe = report.probes.find((p) => p.id === l.id);
       if (probe && l.replacesBuildingIds) {
-        expect([...l.replacesBuildingIds].sort(), l.id).toEqual(probe.buildings);
+        if (l.id === "palace-of-fine-arts") {
+          // This point probe covers the rotunda. The authored model also replaces the
+          // neighboring colonnade hulls; landmark-mask.test.ts keeps the separate hall.
+          expect(l.replacesBuildingIds, l.id).toHaveLength(6);
+          expect(l.replacesBuildingIds, l.id).toEqual(expect.arrayContaining(probe.buildings));
+        } else expect([...l.replacesBuildingIds].sort(), l.id).toEqual(probe.buildings);
         checked++;
       }
     }

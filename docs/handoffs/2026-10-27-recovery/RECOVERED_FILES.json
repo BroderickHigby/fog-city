@@ -1,0 +1,582 @@
+[
+  {
+    "path": "assets/imports/industrial-porter/README.md",
+    "sha256": "da099aedac91b193a435a80d9e00200a40131472f8fa93ef1301b24c4bc730bf",
+    "bytes": 1226
+  },
+  {
+    "path": "assets/imports/industrial-porter/manifest.json",
+    "sha256": "1188b1c8e5359e68742a7d9f6dd9d137c7bc718d27900e551febc53f0442bdd3",
+    "bytes": 2399
+  },
+  {
+    "path": "assets/imports/supertonic-3/coit-script.json",
+    "sha256": "11fb8b1f0c00e7544d150fae74cd81186aad810efacffcd78c42f2824d11c5ad",
+    "bytes": 1324
+  },
+  {
+    "path": "assets/imports/supertonic-3/generate-coit.py",
+    "sha256": "e365e5c374c064a54862b7813e52dc306ee97b6d187d07337323a16eee451176",
+    "bytes": 4669
+  },
+  {
+    "path": "assets/imports/vehicle-families/.gitattributes",
+    "sha256": "dddd98dd445ec59c097a39dd61c6882239f06a493f95ae945889d59f15e12434",
+    "bytes": 37
+  },
+  {
+    "path": "public/audio/coit/coit-claim-415-mission.mp3",
+    "sha256": "e64a14060ef40a4001229af45747bf711073fa64c0b0f644ce1b460074764ada",
+    "bytes": 54274
+  },
+  {
+    "path": "public/audio/coit/coit-claim-600-montgomery.mp3",
+    "sha256": "1cb97e21455414673ec0ed7bf51168b90b2ffd4a7a0c4ebc8d629af5d081eb2a",
+    "bytes": 59289
+  },
+  {
+    "path": "public/audio/coit/coit-claim-ferry-building.mp3",
+    "sha256": "5febee435f98546322a35380c87c37b08a4080eecb1f1c48507070f40758fcf3",
+    "bytes": 52079
+  },
+  {
+    "path": "public/audio/coit/coit-correct-415-mission.mp3",
+    "sha256": "027acc082336d20c78fed74304cfc1a4122008decd06d8a3c3d1c211b0cf94ea",
+    "bytes": 49572
+  },
+  {
+    "path": "public/audio/coit/coit-correct-600-montgomery.mp3",
+    "sha256": "e18acda2e3a60bef6071280fbe8e586820a725c0289a77d910b8d06af8dca25d",
+    "bytes": 53960
+  },
+  {
+    "path": "public/audio/coit/coit-correct-ferry-building.mp3",
+    "sha256": "feb4babbaea84e378c81672d73acb3aa25bd4ebc66dd7daeaa0c82474c6364d2",
+    "bytes": 48004
+  },
+  {
+    "path": "public/audio/coit/coit-intro.mp3",
+    "sha256": "23f08561c2c0511deb81f1ac8e8e6409f6fbcfbe55d176fb171b814f8e94e1c6",
+    "bytes": 101608
+  },
+  {
+    "path": "public/audio/coit/manifest.json",
+    "sha256": "2c3b5fd19b820c3c8a6f222bc4727842c91e0e13da0a90cad7f3d159abe3b28d",
+    "bytes": 7303
+  },
+  {
+    "path": "scripts/qa/coit-recon.ts",
+    "sha256": "f9e23b390b9cbe6a3213caec1a3316674ec8c183372731590ee27a6941587d3b",
+    "bytes": 19204
+  },
+  {
+    "path": "src/content/coit-guide.ts",
+    "sha256": "597afc6e21bd2bace113e6d62ca19ce54fa654e27e8809f2ba0bd3c6d7130334",
+    "bytes": 1253
+  },
+  {
+    "path": "src/render/tactical-effects.ts",
+    "sha256": "7c4bade7a776fe387ccef386fd89610be4deeee30167645d06ffab393bdc2cfe",
+    "bytes": 9192
+  },
+  {
+    "path": "src/sim/activities/coit-observation.ts",
+    "sha256": "0fda716a8380c3e05ac0f55e12cf95368e42134a2f24d2fb403c2b794ae7a131",
+    "bytes": 7432
+  },
+  {
+    "path": "src/sim/activities/coit-viewer.ts",
+    "sha256": "2db078d9f8a1d116cb576780b105c8535e96aac6e3d33d8e8faa4e31fd68e3ec",
+    "bytes": 11751
+  },
+  {
+    "path": "src/sim/agents/lures.ts",
+    "sha256": "b8716c3c9ee33cf6854bfe32b8d82c2bb4572ade60dbafa939d96b069048666c",
+    "bytes": 3173
+  },
+  {
+    "path": "src/sim/combat/devices.ts",
+    "sha256": "a90ae9dc2b3e5c31ee920834b7d375dc0cc67005ecb15d04d3edc1bd65d4fea6",
+    "bytes": 23725
+  },
+  {
+    "path": "src/sim/combat/flowers.ts",
+    "sha256": "5b307b1bff012963fcbaec0cf39b4887e3d50badb5a8a52057e90dbc704bcd47",
+    "bytes": 6993
+  },
+  {
+    "path": "src/sim/combat/pause.ts",
+    "sha256": "c4edce46cffb9586c168a317e1ecb6943afbd142395e18eed7848816d65facd0",
+    "bytes": 3842
+  },
+  {
+    "path": "src/sim/combat/placement.ts",
+    "sha256": "880b36091183517f4d2c89683c18b0d11cd86666af11375f50ca3e0b0ef71040",
+    "bytes": 9773
+  },
+  {
+    "path": "src/sim/economy/legacy-system.ts",
+    "sha256": "49ac1ac753eb2dbd22765ba6555b25da06766b9fb05735723651113abdf24e41",
+    "bytes": 6573
+  },
+  {
+    "path": "src/sim/modes/carry.ts",
+    "sha256": "ac6c98de41da5a7e093ef8a5dff70054ce89cd40c97b5beee5d90bdf59713335",
+    "bytes": 3604
+  },
+  {
+    "path": "src/sim/modes/progression.ts",
+    "sha256": "927e64fb8f5a916e7e0a104aadb564e0b687e017c972a3dbb61fefa905fb2113",
+    "bytes": 1622
+  },
+  {
+    "path": "src/sim/pause-timers.ts",
+    "sha256": "d72bf2b917b4b493c04d8d462e30343e617eca39d2b6ea41456e2666ec61235a",
+    "bytes": 11737
+  },
+  {
+    "path": "src/sim/player/perks.ts",
+    "sha256": "bb9dc8d4f3cd408944dec53071eddb5b3da6bb2c67295ea7aa9d784bf6931459",
+    "bytes": 1397
+  },
+  {
+    "path": "src/sim/progression/doom-clock.ts",
+    "sha256": "195e3a1b588d1d22a0177db62fe0055478242512d2f034afe275eca6f7153d33",
+    "bytes": 6494
+  },
+  {
+    "path": "src/sim/progression/legacy-system.ts",
+    "sha256": "552dcd338a1f338aacec625e2592344749175de79c2e227aa00db85f2f5d1597",
+    "bytes": 4088
+  },
+  {
+    "path": "src/sim/progression/rules.ts",
+    "sha256": "63f1d7ac5b73ab80117fe6f94e366fc89b1bdd9d69072f54cf6dbaebf9e71b66",
+    "bytes": 5412
+  },
+  {
+    "path": "src/ui/coit-viewer.ts",
+    "sha256": "273722a0ebad20e70c5261ce93edb16265a4fa78c692d70f6118a5566a36de3e",
+    "bytes": 10104
+  },
+  {
+    "path": "src/ui/loadout.ts",
+    "sha256": "bca92dc26c7d6029abc0349161bc0fdac36268f5a422010d18159a4322931325",
+    "bytes": 5874
+  },
+  {
+    "path": "tests/helpers/drivers/coit-recon.ts",
+    "sha256": "3fe2a00ff7aba5130140020eda976445a68edc863e016f7e728b49d1084b186a",
+    "bytes": 8661
+  },
+  {
+    "path": "tests/render/tactical-effects.test.ts",
+    "sha256": "77e20404c70db412f488d35231a9a899be0415c3e7cd048d2b9c87350eeb966f",
+    "bytes": 3962
+  },
+  {
+    "path": "tests/sim/agents/coit-population.test.ts",
+    "sha256": "3db0ec63bee0a3a37d4929989afe0621c74e099d224f2f2337cd7997e52c0110",
+    "bytes": 1751
+  },
+  {
+    "path": "tests/sim/agents/lures.test.ts",
+    "sha256": "cb6ea2b2c6ab4fc2af0a63ac3d1eb3fe05f251b219913d09099cd9f0f67d2713",
+    "bytes": 4496
+  },
+  {
+    "path": "tests/sim/agents/runtime-weather-speed.test.ts",
+    "sha256": "68a6e76bc41d0b8f3ad8bb67dcf8fb4e76d1933d77beb1e9c8941d7632697e9e",
+    "bytes": 1851
+  },
+  {
+    "path": "tests/sim/combat/placement.test.ts",
+    "sha256": "b24afc20616c2d503f6e8abd3b4847961344444e827d0f89d35dbdb6b48750ac",
+    "bytes": 4956
+  },
+  {
+    "path": "tests/sim/combat/recovery.test.ts",
+    "sha256": "85b955ba62b758c3834a7ec07f7030ed0ffbc433b148f80596ae7cd3f60102b9",
+    "bytes": 13743
+  },
+  {
+    "path": "tests/sim/consolidated-integration.test.ts",
+    "sha256": "cc2077560469ddd0d3a3cc458fedb4b880adb4e072dbef5cb5fab1d342c1a77e",
+    "bytes": 13955
+  },
+  {
+    "path": "tests/sim/fixtures/junction-queue-v21.json",
+    "sha256": "b68ee519c8bc8173844fa15ae3de1b035648e291014ce1929d520f34fe9bf444",
+    "bytes": 10346
+  },
+  {
+    "path": "tests/sim/fixtures/pending-junction-yield-v21.json",
+    "sha256": "5dcd03311a578fcc3d00de8b7b719e6b304cdb21c7647cdce5ff6d2513f46d6d",
+    "bytes": 14451
+  },
+  {
+    "path": "tests/sim/fixtures/separating-turn-v21.json",
+    "sha256": "fedc648b764942147f3a500655bd62d49b746d489edad0c807d0e90cc36de8de",
+    "bytes": 4997
+  },
+  {
+    "path": "tests/sim/junction-hulls.test.ts",
+    "sha256": "8adcb99fea014a4ea2356d29212d014431993629da9ce8dfa011b23f6a91b640",
+    "bytes": 15049
+  },
+  {
+    "path": "tests/sim/modes/authority.test.ts",
+    "sha256": "1120eae6e72596ec69dded286ff636cd7493c32ea215cd3fa8581a50f6086f2c",
+    "bytes": 6509
+  },
+  {
+    "path": "tests/sim/modes/physical-flowers.test.ts",
+    "sha256": "f7b2c021082e105db104f54a899afe6c4880025fc8fd46161f386b89f8a9d3cb",
+    "bytes": 4041
+  },
+  {
+    "path": "tests/sim/pause-timers.test.ts",
+    "sha256": "9b0300c779dbcbf904756f97be75ae745e1274191bfc0e9b56493463eebbc92b",
+    "bytes": 7492
+  },
+  {
+    "path": "tests/sim/player/coit-viewer.test.ts",
+    "sha256": "8942b569cfe9dbb56d6613dc4c9d5d4291e362d69a9dc9cb21c6c3780b4f1ca8",
+    "bytes": 15449
+  },
+  {
+    "path": "tests/sim/progression/recovery.test.ts",
+    "sha256": "54f316b158499997d3722a8f976a54592a9857e3f7b632f458169c65e36e0015",
+    "bytes": 16679
+  },
+  {
+    "path": "tests/ui/coit-viewer.test.ts",
+    "sha256": "14d0bb1bcd0285e8a5c51fa5ad8d2b2b0e58c589189cb1d7832d5f19de5f8cf2",
+    "bytes": 1300
+  },
+  {
+    "path": "tests/ui/loadout.test.ts",
+    "sha256": "a034921741da4107500553495b5d9adf720c26a6727aa2fdcf2ff22d4ec86477",
+    "bytes": 2077
+  },
+  {
+    "path": "assets/blender/README.md",
+    "sha256": "b539941337b853fa6cd363fd9d32d1c9a0252d86827a05309c6142f98ea43dc7",
+    "bytes": 55389
+  },
+  {
+    "path": "assets/blender/models/errand_robot.py",
+    "sha256": "bc1d88915fb7f45583b85be523ef6793e58f1cbace997d309bda1d5d31bb0fd1",
+    "bytes": 10634
+  },
+  {
+    "path": "content/activity-rules.json",
+    "sha256": "948a71f9e3e78fcd069f0bb4692675b0b982f52e121756071a108b4491e67947",
+    "bytes": 20094
+  },
+  {
+    "path": "content/missions/hot-desk.json",
+    "sha256": "35dd214dd4036315b37ae33f4f249798dbc4042de35aa7f2319fed853076affa",
+    "bytes": 9053
+  },
+  {
+    "path": "content/ui-copy.json",
+    "sha256": "2aea694c5591aff276082b10631a0cbb0eb3d50aab81a1a5d495c493764d27fd",
+    "bytes": 13394
+  },
+  {
+    "path": "public/models/errand-robot.glb",
+    "sha256": "ff4469382fbb964e5dd12eb758ea72b97b199daa387b0dc6b54fbf424e2ec894",
+    "bytes": 522724
+  },
+  {
+    "path": "public/models/heap-mixed.glb",
+    "sha256": "9363b8c6d64f2b076573a5e372e89bde452b1281be13dbad39ca7fa412326571",
+    "bytes": 124188
+  },
+  {
+    "path": "public/models/heap-porter.glb",
+    "sha256": "53b89b3f7ea60bf0ccee078598fed2b59ac0d8ccf3bb33c3fc20ca6460dc7ced",
+    "bytes": 94500
+  },
+  {
+    "path": "src/audio/index.ts",
+    "sha256": "f7b9b367eb242a2b8251206a0b63c800ce286d17ff21045809d6b3f99e3b4c40",
+    "bytes": 24810
+  },
+  {
+    "path": "src/main.ts",
+    "sha256": "429429a0bec02a77e73777d978afba62ab81e66109de47178e64b2714a715cf1",
+    "bytes": 53579
+  },
+  {
+    "path": "src/render/scene.ts",
+    "sha256": "bc48c0baef3e2072cd12f0f092dee94ad5cf23732ee99f477884413abfe98f72",
+    "bytes": 52368
+  },
+  {
+    "path": "src/save/progression.ts",
+    "sha256": "bb0e40c40c0dc4e5150c25f8de9959e3d4a1d5718e811db42849bf5a61774ab0",
+    "bytes": 13849
+  },
+  {
+    "path": "src/sim/activities/availability.ts",
+    "sha256": "d8383a9726e0d4ae88ae802d84c9dd9fcfba2d01c54dcb32a96e8279bda96406",
+    "bytes": 1399
+  },
+  {
+    "path": "src/sim/activities/recon.ts",
+    "sha256": "2a4a07ebd62400e6b42d43149783d948bf8ef0e9b876fe062c2000323ccdad5c",
+    "bytes": 2832
+  },
+  {
+    "path": "src/sim/activities/system.ts",
+    "sha256": "7bf4205ae7bf8404002ccee59fedb1f03d620225d792bce964ed2c1e3a22f6b2",
+    "bytes": 14200
+  },
+  {
+    "path": "src/sim/agents.ts",
+    "sha256": "904d96a15d6969f5217962c7de303207f233008e000b11044ddc8f83570fde23",
+    "bytes": 136411
+  },
+  {
+    "path": "src/sim/agents/runtime.ts",
+    "sha256": "77cdb5f98c1f2c5a97f21529b6487de1576d623ce292ba17d0d493508fd01353",
+    "bytes": 56929
+  },
+  {
+    "path": "src/sim/agents/service-runtime.ts",
+    "sha256": "b98071122880140d42a20f43fb1d91842bc2b7cc0127c3c1ed0a9ff6f3b8d4be",
+    "bytes": 12881
+  },
+  {
+    "path": "src/sim/bots/controller.ts",
+    "sha256": "a717ae795689c43f6fd4f1d416ea3ac03fb9b573e832a2af5ca2ff2cd52e26ed",
+    "bytes": 10488
+  },
+  {
+    "path": "src/sim/combat-contract.ts",
+    "sha256": "21bbb0427b4a37ef4d971780205c4df1c85801038bd2c6bf28a1d7ae1dd050de",
+    "bytes": 8426
+  },
+  {
+    "path": "src/sim/combat/adapter.ts",
+    "sha256": "8cf72388dda6aef4ad3d1dba91e3a078386d6d3968acb60f137a2838631c6519",
+    "bytes": 7339
+  },
+  {
+    "path": "src/sim/combat/attacks.ts",
+    "sha256": "8fd97257e54aa9527042ec1137e4f5acc6eb4c14ffc6b4810b38f13f67e85473",
+    "bytes": 16833
+  },
+  {
+    "path": "src/sim/combat/physics.ts",
+    "sha256": "4b450b4ff72afbef3fb24e99835dbbb73613263bb1a150b213455dc8c457e97b",
+    "bytes": 9771
+  },
+  {
+    "path": "src/sim/combat/system.ts",
+    "sha256": "58124b6fa847de1218b1fb5ec607021ad8223adbb530dd787caa4d2be4fc8921",
+    "bytes": 14680
+  },
+  {
+    "path": "src/sim/combat/systems.ts",
+    "sha256": "65645ff0a39964935e3cc6403c6ebdcf9dc67536a6a9e1178853c77506505746",
+    "bytes": 5737
+  },
+  {
+    "path": "src/sim/economy/system.ts",
+    "sha256": "a2049714efd106685696a4bb4121e4d5c898e3841d6edb6ed0ceb465423ab3d4",
+    "bytes": 8906
+  },
+  {
+    "path": "src/sim/game-systems.ts",
+    "sha256": "2748ab37e581a7f420d1f902a6b6d49d38c28ec71ba00d35f362990c8309ccf2",
+    "bytes": 14254
+  },
+  {
+    "path": "src/sim/gameplay-contract.ts",
+    "sha256": "6efd9c1d1a88c45ccddee43bd8a97668ef0648836bc76cae68aeb87ba845d7af",
+    "bytes": 4726
+  },
+  {
+    "path": "src/sim/impacts.ts",
+    "sha256": "de0c37c40bf3ef428eb95d59914096890a53ddc376a05acfd3647ef6a5dd39b2",
+    "bytes": 57367
+  },
+  {
+    "path": "src/sim/missions/mechanics/bell.ts",
+    "sha256": "a0c96581b6aa2a7a337ed16183cd646cf20f49cc1d6eb65347f487e258b1f567",
+    "bytes": 6098
+  },
+  {
+    "path": "src/sim/missions/system.ts",
+    "sha256": "3fde1516cf9ebf9a6605bf3b44d359dc75d4f66535dd5d1c1f38f5acf9b98a6a",
+    "bytes": 14743
+  },
+  {
+    "path": "src/sim/modes/botsweep.ts",
+    "sha256": "db7118c34ccbd05ca9f56f5a9030572cb93c1379fa46a381626e10569af6a61e",
+    "bytes": 16021
+  },
+  {
+    "path": "src/sim/modes/index.ts",
+    "sha256": "3947bdeca914a56822b3690ae3ffe0dbd25aae28c5a97d5e8b8258a81a5d7f65",
+    "bytes": 270
+  },
+  {
+    "path": "src/sim/modes/match.ts",
+    "sha256": "b91fe953100819302486e051511717902e0075193fb82794d7690f7263f340ad",
+    "bytes": 12644
+  },
+  {
+    "path": "src/sim/modes/session.ts",
+    "sha256": "c3ba0e6a4f356010458e2c38f53c7cd10e369de4009acf6b4a3b8c62963ac133",
+    "bytes": 3186
+  },
+  {
+    "path": "src/sim/modes/settlement.ts",
+    "sha256": "244c2315ec76915a274d8d8d65d584a5d8a762c1f6d3380a7a05660c80bcc8d7",
+    "bytes": 4078
+  },
+  {
+    "path": "src/sim/modes/systems.ts",
+    "sha256": "aa316477a5cea668a4e872d5a66dcd952a8690434111f128847fa3c2668f0c67",
+    "bytes": 5011
+  },
+  {
+    "path": "src/sim/modes/types.ts",
+    "sha256": "87f288aebdecb1ac283f04c73ea853ebd9d19755db07cb243522aed5bc162a54",
+    "bytes": 2742
+  },
+  {
+    "path": "src/sim/player/adapter.ts",
+    "sha256": "a328aa3e4155ad1daf6d77715f083f738c7556357355efceb4e63743796cd50e",
+    "bytes": 14817
+  },
+  {
+    "path": "src/sim/player/catalog.ts",
+    "sha256": "211e8ede04491928bd8c65c194a24005505c45937e4776ce206f5c039022074a",
+    "bytes": 3327
+  },
+  {
+    "path": "src/sim/player/system.ts",
+    "sha256": "a282c409a486a87ad2fca5e6163a4d23487cef3a3a5f29ae793e910c6b60c1af",
+    "bytes": 3285
+  },
+  {
+    "path": "src/sim/player/types.ts",
+    "sha256": "ca4a131fd280d0bed5bbf6f8f2d134be04492c9dbe5d3e407326aa5ee96cd48c",
+    "bytes": 7385
+  },
+  {
+    "path": "src/sim/progression/system.ts",
+    "sha256": "f78c75552eab7ccfcc257487641c285cef1d9156a717610b15b933fc4a6eb7a1",
+    "bytes": 12670
+  },
+  {
+    "path": "src/sim/robots/brain.ts",
+    "sha256": "62ae600b08b60dabb4533ab66223247e0028a8937a81b8a56a02c0a87d020b1e",
+    "bytes": 29179
+  },
+  {
+    "path": "src/sim/step.ts",
+    "sha256": "6b85fd527ee5d9074f8b4d3ffd069e83f459c549d521440dd4af56ba189a6588",
+    "bytes": 38874
+  },
+  {
+    "path": "src/sim/vehicle-contacts.ts",
+    "sha256": "8627bed78b10663492cbb28cdc4083dce3797b242bf30337e6b3207c8a5e3a57",
+    "bytes": 6429
+  },
+  {
+    "path": "src/ui/activities.ts",
+    "sha256": "5467f53e91d749fc346d2353028ce985f6d2934e52f9c07341c8c34fa57b70b6",
+    "bytes": 9664
+  },
+  {
+    "path": "src/ui/mount.ts",
+    "sha256": "8345089309149db1e031988109d56084053a404139a041bb9da0ea17836fa1a1",
+    "bytes": 32073
+  },
+  {
+    "path": "src/ui/phone-shell.ts",
+    "sha256": "9334a1229318af2a019396d516346ac2d899a764c237e51bd22ace46b5e44916",
+    "bytes": 5312
+  },
+  {
+    "path": "src/ui/projection.ts",
+    "sha256": "a00b5cd226adfa12a218fc323d4e2e703fe772adde91135c0e6ae4fd84a112ee",
+    "bytes": 11594
+  },
+  {
+    "path": "src/ui/styles.ts",
+    "sha256": "6080268c2b87815f29415f1ccfe8154d7b53af32039dc09459f07bf2598a1e3a",
+    "bytes": 23157
+  },
+  {
+    "path": "src/ui/touch.ts",
+    "sha256": "0af53f08eb62763f871198dcd7cede093455a2da30d0a7edc3172cf1ca00ee40",
+    "bytes": 2705
+  },
+  {
+    "path": "src/ui/types.ts",
+    "sha256": "1d5b390430976332425771d296689eb8ee44cef6336e04198f021cf512d12922",
+    "bytes": 6238
+  },
+  {
+    "path": "tests/assets/models.test.ts",
+    "sha256": "b426424bfd2330221c4346cfc64012021ff027476022a244d55639ec0640271b",
+    "bytes": 42505
+  },
+  {
+    "path": "tests/pipeline/sf-world.test.ts",
+    "sha256": "fd3ba85e247afe627972cfb2c1cde8ceb23ab5527a3a45575ee5ff3e33cf8e58",
+    "bytes": 30026
+  },
+  {
+    "path": "tests/save/progression.test.ts",
+    "sha256": "31db8074f2114b181a615a26d37e136f4953b54a23e0c47938e3c7bda39a8c53",
+    "bytes": 5618
+  },
+  {
+    "path": "tests/sim/combat/systems.test.ts",
+    "sha256": "7934f370afa295592ae4b9fc8672ca9ee5b0e647dd5aa734902751a031d6a3c7",
+    "bytes": 10836
+  },
+  {
+    "path": "tests/sim/dodge-review.test.ts",
+    "sha256": "8d075ed898a5e3c1b1f1529913ff8b09c6a66999ba917e34f8ccb24d3ca4d02e",
+    "bytes": 30099
+  },
+  {
+    "path": "tests/sim/dodge.test.ts",
+    "sha256": "05faa80e7c5269006831672d16df54ff00ce2688fbe9e45ebee8c87acc42cae9",
+    "bytes": 32730
+  },
+  {
+    "path": "tests/sim/foot.test.ts",
+    "sha256": "8f2794a03b1ebb7a71eaa121dfa33fba164f04a04614fa5ccb28c504495905fd",
+    "bytes": 16444
+  },
+  {
+    "path": "tests/sim/junction-deadlock-sf.test.ts",
+    "sha256": "076fb5c2bc6fd9b0165f5d915cdfa1fdeb06a3ee30f5c90572dd91ca2bee0ebf",
+    "bytes": 2989
+  },
+  {
+    "path": "tests/sim/modes/clean-streets.test.ts",
+    "sha256": "4367f4af0f95375d0bb3c94f4635e72ff8bc0552b3d37eb6a75251d4bcccc10e",
+    "bytes": 7967
+  },
+  {
+    "path": "tests/sim/player/coit-recon.test.ts",
+    "sha256": "e121cdfff99399c95289b02511dacb52d49f9a044e1f200a5db35cf5b049f43b",
+    "bytes": 4496
+  },
+  {
+    "path": "tests/sim/traffic-flow-sf.test.ts",
+    "sha256": "b25c4da20ebd6d9cd2e76ea687afbc16b2e37a4e3e47eacbc721f96695380b7a",
+    "bytes": 6453
+  }
+]

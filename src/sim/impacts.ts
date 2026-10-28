@@ -107,6 +107,7 @@ export interface ImpactEvent {
 
 /** A broken street prop (props.ts), by id in ImpactsExt.props. */
 export interface PropKnock {
+  pausedTicks?: number;
   kind: PropKind;
   /** The tick it broke. */
   tick: number;
@@ -681,7 +682,7 @@ function resetProps(world: World, w: Work): void {
   const idx = propIndex(world);
   for (const id of keys) {
     const k = props[id]!;
-    if (w.tick - k.tick < PROP_RESET_TICKS) continue;
+    if (w.tick - k.tick - (k.pausedTicks ?? 0) < PROP_RESET_TICKS) continue;
     const p = idx.byId.get(id);
     if (p && !nobodyWithin(w, p.x, p.z, PROP_RESET_CLEAR_M)) continue;
     out ??= { ...props };
@@ -1076,7 +1077,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         if(hullBandsMeet(a.pose,b.pose)&&end.gap<VEHICLE_SKIN)missed.set(i*bodies.length+j,{i,j,contact:end});
         continue;
       }
-      const hit=sweepHulls(trajectory(a),trajectory(b));
+      const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=21?128:32);
       if(!hit||hit.t>1)continue;
       missed.set(i*bodies.length+j,{i,j,contact:hit});
       // Tiny safety retreat also keeps a numerical touching pair free to move apart next tick.
@@ -1094,7 +1095,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   for(const [i,j] of pairs){
     const a=bodies[i]!,b=bodies[j]!;
     if(hullBandsMeet(a.motion.before,b.motion.before)&&hullContact(a.motion.before,b.motion.before).gap< -1e-8)continue;
-    const hit=sweepHulls(trajectory(a),trajectory(b));
+    const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=21?128:32);
     // A skin contact at the endpoint is expected; only an earlier intersection needs rollback.
     if(hit&&hit.t<1-1e-5)blocked.add(root(i));
   }
@@ -1139,6 +1140,9 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         const old=body.oldAgent;
         next={...next,edge:old.edge,dir:old.dir,lane:old.lane,s:old.s,next:old.next,ndir:old.ndir,nlane:old.nlane,
           conn:old.conn,node:old.node,resume:old.resume,lat:old.lat,wait:old.wait+1,mode:"yield"};
+        // v21: a refused whole route step has no travelled velocity. Keeping the attempted
+        // speed made a stationary holder look mobile forever to following traffic.
+        if(state.version>=21)next.speed=0;
         if(old.pass)next.pass=old.pass;else delete next.pass;
         if(old.trafficRoute)next.trafficRoute=old.trafficRoute;else delete next.trafficRoute;
       }

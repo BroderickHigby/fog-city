@@ -1,0 +1,289 @@
+{
+  "boardWashes": [
+    {
+      "id": 8,
+      "tick": 12587,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-01",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 10,
+      "tick": 14836,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-02",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 11,
+      "tick": 15479,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-03",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 12,
+      "tick": 16503,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-04",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 14,
+      "tick": 17585,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-05",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 15,
+      "tick": 18835,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-06",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 16,
+      "tick": 20087,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-07",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 18,
+      "tick": 21236,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-08",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 19,
+      "tick": 22055,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-09",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 20,
+      "tick": 22410,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-10",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 22,
+      "tick": 24246,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-12",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 23,
+      "tick": 24629,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-11",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 24,
+      "tick": 25430,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-13",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 25,
+      "tick": 25790,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-14",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 26,
+      "tick": 26669,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-16",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 27,
+      "tick": 27007,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-15",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 28,
+      "tick": 27816,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-18",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 29,
+      "tick": 28170,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-17",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 30,
+      "tick": 28954,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-19",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 31,
+      "tick": 29327,
+      "kind": "board.washed",
+      "playerId": "p1",
+      "targetId": "board-20",
+      "amount": 0,
+      "detail": ""
+    }
+  ],
+  "spinnerRusts": [
+    {
+      "id": 9,
+      "tick": 14703,
+      "kind": "plainWords.spinnerRusted",
+      "playerId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-1",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 13,
+      "tick": 17566,
+      "kind": "plainWords.spinnerRusted",
+      "playerId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-2",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 17,
+      "tick": 21224,
+      "kind": "plainWords.spinnerRusted",
+      "playerId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-3",
+      "amount": 0,
+      "detail": ""
+    },
+    {
+      "id": 21,
+      "tick": 23990,
+      "kind": "plainWords.spinnerRusted",
+      "playerId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-4",
+      "amount": 0,
+      "detail": ""
+    }
+  ],
+  "combatHeaps": [
+    {
+      "id": 883,
+      "tick": 14703,
+      "kind": "robot.heap",
+      "sourceId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-1",
+      "amount": 1,
+      "detail": "footman"
+    },
+    {
+      "id": 1350,
+      "tick": 17566,
+      "kind": "robot.heap",
+      "sourceId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-2",
+      "amount": 1,
+      "detail": "footman"
+    },
+    {
+      "id": 1758,
+      "tick": 21224,
+      "kind": "robot.heap",
+      "sourceId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-3",
+      "amount": 1,
+      "detail": "footman"
+    },
+    {
+      "id": 2054,
+      "tick": 23990,
+      "kind": "robot.heap",
+      "sourceId": "p1",
+      "targetId": "mission:plain-words:p1:a12117:spinner-4",
+      "amount": 1,
+      "detail": "footman"
+    }
+  ],
+  "settlements": [
+    {
+      "id": 32,
+      "tick": 29327,
+      "kind": "activity.cash",
+      "playerId": "p1",
+      "targetId": "plain-words",
+      "amount": 20000,
+      "detail": ""
+    },
+    {
+      "id": 33,
+      "tick": 29327,
+      "kind": "activity.xp",
+      "playerId": "p1",
+      "targetId": "plain-words",
+      "amount": 300,
+      "detail": ""
+    },
+    {
+      "id": 34,
+      "tick": 29327,
+      "kind": "activity.finished",
+      "playerId": "p1",
+      "targetId": "plain-words",
+      "amount": 0,
+      "detail": ""
+    }
+  ]
+}

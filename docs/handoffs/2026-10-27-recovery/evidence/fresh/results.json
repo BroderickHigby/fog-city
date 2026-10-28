@@ -1,0 +1,49 @@
+[
+  {
+    "command": [
+      "pnpm",
+      "typecheck"
+    ],
+    "exit_code": 0,
+    "seconds": 15.37,
+    "log": "typecheck.log"
+  },
+  {
+    "command": [
+      "pnpm",
+      "exec",
+      "vitest",
+      "run",
+      "--maxWorkers=1",
+      "tests/sim/consolidated-integration.test.ts",
+      "tests/sim/consolidated-version.test.ts",
+      "tests/sim/combat/placement.test.ts",
+      "tests/sim/combat/recovery.test.ts",
+      "tests/sim/pause-timers.test.ts",
+      "tests/sim/agents/lures.test.ts",
+      "tests/sim/agents/runtime-weather-speed.test.ts",
+      "tests/sim/modes/authority.test.ts",
+      "tests/sim/modes/physical-flowers.test.ts",
+      "tests/sim/progression",
+      "tests/sim/player/coit-viewer.test.ts",
+      "tests/sim/player/coit-recon.test.ts",
+      "tests/sim/player/plain-words.test.ts",
+      "tests/sim/player/office-hours.test.ts",
+      "tests/sim/player/office-hours-booking.test.ts",
+      "tests/sim/player/search-and-park.test.ts",
+      "tests/modes/taxi-routes.test.ts",
+      "tests/modes/taxi-session.test.ts",
+      "tests/render/tactical-effects.test.ts",
+      "tests/audio/vehicle-recordings.test.ts",
+      "tests/audio/opening.test.ts",
+      "tests/ui/coit-viewer.test.ts",
+      "tests/ui/loadout.test.ts",
+      "tests/ui/graphics-checkpoint.test.ts",
+      "tests/ui/graphics-preference.test.ts",
+      "tests/save/progression.test.ts"
+    ],
+    "exit_code": 0,
+    "seconds": 42.32,
+    "log": "focused-tests.log"
+  }
+]

@@ -10434,5 +10434,12 @@
       "topY": 21.8,
       "underY": 18.6
     }
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex/consolidated-game-upgrade",
+    "contentHash": "fnv1a32:577a4c11",
+    "reviewedBy": [],
+    "review": "Added provenance for unchanged existing original geometry metadata; pending independent review."
+  }
 }

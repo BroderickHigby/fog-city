@@ -1,0 +1,12 @@
+{
+  "case": "Marina Blvd",
+  "test": "tests/sim/traffic-flow-sf.test.ts",
+  "pattern": "Marina Blvd",
+  "wallCapS": 300,
+  "snapshotSha256": "f9489b7282af6d90920ef312c57732b889203c064329864d3ad4b0c58b6146b5",
+  "startedAt": "2026-10-27T00:39:39Z",
+  "pid": 48530,
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedS": 67.55182266235352
+}

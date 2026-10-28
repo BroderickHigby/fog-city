@@ -1,0 +1,1972 @@
+{
+  "sourceFiles": [
+    "content/activities.json",
+    "content/activity-rules.json",
+    "content/ai-fixtures.json",
+    "content/banned-pairs.json",
+    "content/barks/robots.json",
+    "content/barks/wet.json",
+    "content/billboards.json",
+    "content/bot-tells.json",
+    "content/bounties.json",
+    "content/brands.json",
+    "content/city-life.json",
+    "content/cleared-names.json",
+    "content/crisis.json",
+    "content/dialogue-bank.json",
+    "content/director-cards.json",
+    "content/districts.json",
+    "content/landmarks.json",
+    "content/loadouts.json",
+    "content/missions/acqui-hire-offer.json",
+    "content/missions/comeback-round.json",
+    "content/missions/demo-day.json",
+    "content/missions/demoed-correctly.json",
+    "content/missions/fleet-week.json",
+    "content/missions/hill-climb.json",
+    "content/missions/hot-desk.json",
+    "content/missions/launch-day.json",
+    "content/missions/marine-layer.json",
+    "content/missions/office-hours.json",
+    "content/missions/ramen-pitch.json",
+    "content/missions/spill.json",
+    "content/mode-rules.json",
+    "content/modes/instances.json",
+    "content/name-parts.json",
+    "content/packs/bay-bridge-approach.json",
+    "content/packs/dogpatch.json",
+    "content/packs/downtown.json",
+    "content/packs/embarcadero.json",
+    "content/packs/fidi.json",
+    "content/packs/fishermans-wharf.json",
+    "content/packs/marina.json",
+    "content/packs/mission-bay.json",
+    "content/packs/north-beach.json",
+    "content/packs/rincon-hill.json",
+    "content/packs/soma.json",
+    "content/palace-lagoon.json",
+    "content/palace-of-fine-arts.json",
+    "content/phone-bank.json",
+    "content/places.json",
+    "content/progression.json",
+    "content/proper-words.json",
+    "content/robot-goals.json",
+    "content/safehouses.json",
+    "content/startup-kits.json",
+    "content/storefronts.json",
+    "content/streaks.json",
+    "content/ui-copy.json",
+    "content/vendor.json",
+    "content/world-bank.json",
+    "public/tiles/sf/boundary.json",
+    "public/tiles/sf/districts.json",
+    "public/tiles/sf/fountains.json",
+    "public/tiles/sf/gameplay.json",
+    "public/tiles/sf/hydrants.json",
+    "public/tiles/sf/manifest.json",
+    "public/tiles/sf/muni.json",
+    "public/tiles/sf/parking.json",
+    "public/tiles/sf/report.json",
+    "public/tiles/sf/roads.json",
+    "public/tiles/sf/sidewalks.json",
+    "public/tiles/sf/signals.json",
+    "public/tiles/sf/storefronts.json",
+    "public/tiles/sf/street-cleaning.json",
+    "public/tiles/sf/street-detail.json",
+    "public/tiles/sf/street-furniture.json",
+    "public/tiles/sf/street-grass.json",
+    "public/tiles/sf/street-markings.json",
+    "public/tiles/sf/street-signs.json",
+    "public/tiles/sf/street-trees.json",
+    "public/tiles/sf/t-10_-1.collider.json",
+    "public/tiles/sf/t-10_-2.collider.json",
+    "public/tiles/sf/t-10_-3.collider.json",
+    "public/tiles/sf/t-10_0.collider.json",
+    "public/tiles/sf/t-10_1.collider.json",
+    "public/tiles/sf/t-10_10.collider.json",
+    "public/tiles/sf/t-10_11.collider.json",
+    "public/tiles/sf/t-10_12.collider.json",
+    "public/tiles/sf/t-10_13.collider.json",
+    "public/tiles/sf/t-10_14.collider.json",
+    "public/tiles/sf/t-10_15.collider.json",
+    "public/tiles/sf/t-10_16.collider.json",
+    "public/tiles/sf/t-10_17.collider.json",
+    "public/tiles/sf/t-10_18.collider.json",
+    "public/tiles/sf/t-10_19.collider.json",
+    "public/tiles/sf/t-10_2.collider.json",
+    "public/tiles/sf/t-10_3.collider.json",
+    "public/tiles/sf/t-10_4.collider.json",
+    "public/tiles/sf/t-10_5.collider.json",
+    "public/tiles/sf/t-10_6.collider.json",
+    "public/tiles/sf/t-10_7.collider.json",
+    "public/tiles/sf/t-10_8.collider.json",
+    "public/tiles/sf/t-10_9.collider.json",
+    "public/tiles/sf/t-11_-1.collider.json",
+    "public/tiles/sf/t-11_-2.collider.json",
+    "public/tiles/sf/t-11_-3.collider.json",
+    "public/tiles/sf/t-11_0.collider.json",
+    "public/tiles/sf/t-11_1.collider.json",
+    "public/tiles/sf/t-11_10.collider.json",
+    "public/tiles/sf/t-11_11.collider.json",
+    "public/tiles/sf/t-11_12.collider.json",
+    "public/tiles/sf/t-11_13.collider.json",
+    "public/tiles/sf/t-11_14.collider.json",
+    "public/tiles/sf/t-11_15.collider.json",
+    "public/tiles/sf/t-11_16.collider.json",
+    "public/tiles/sf/t-11_17.collider.json",
+    "public/tiles/sf/t-11_18.collider.json",
+    "public/tiles/sf/t-11_19.collider.json",
+    "public/tiles/sf/t-11_2.collider.json",
+    "public/tiles/sf/t-11_3.collider.json",
+    "public/tiles/sf/t-11_4.collider.json",
+    "public/tiles/sf/t-11_5.collider.json",
+    "public/tiles/sf/t-11_6.collider.json",
+    "public/tiles/sf/t-11_7.collider.json",
+    "public/tiles/sf/t-11_8.collider.json",
+    "public/tiles/sf/t-11_9.collider.json",
+    "public/tiles/sf/t-12_-1.collider.json",
+    "public/tiles/sf/t-12_-2.collider.json",
+    "public/tiles/sf/t-12_-3.collider.json",
+    "public/tiles/sf/t-12_0.collider.json",
+    "public/tiles/sf/t-12_1.collider.json",
+    "public/tiles/sf/t-12_10.collider.json",
+    "public/tiles/sf/t-12_11.collider.json",
+    "public/tiles/sf/t-12_12.collider.json",
+    "public/tiles/sf/t-12_13.collider.json",
+    "public/tiles/sf/t-12_14.collider.json",
+    "public/tiles/sf/t-12_15.collider.json",
+    "public/tiles/sf/t-12_16.collider.json",
+    "public/tiles/sf/t-12_17.collider.json",
+    "public/tiles/sf/t-12_18.collider.json",
+    "public/tiles/sf/t-12_19.collider.json",
+    "public/tiles/sf/t-12_2.collider.json",
+    "public/tiles/sf/t-12_3.collider.json",
+    "public/tiles/sf/t-12_4.collider.json",
+    "public/tiles/sf/t-12_5.collider.json",
+    "public/tiles/sf/t-12_6.collider.json",
+    "public/tiles/sf/t-12_7.collider.json",
+    "public/tiles/sf/t-12_8.collider.json",
+    "public/tiles/sf/t-12_9.collider.json",
+    "public/tiles/sf/t-13_-1.collider.json",
+    "public/tiles/sf/t-13_-2.collider.json",
+    "public/tiles/sf/t-13_-3.collider.json",
+    "public/tiles/sf/t-13_0.collider.json",
+    "public/tiles/sf/t-13_1.collider.json",
+    "public/tiles/sf/t-13_10.collider.json",
+    "public/tiles/sf/t-13_11.collider.json",
+    "public/tiles/sf/t-13_12.collider.json",
+    "public/tiles/sf/t-13_13.collider.json",
+    "public/tiles/sf/t-13_14.collider.json",
+    "public/tiles/sf/t-13_15.collider.json",
+    "public/tiles/sf/t-13_16.collider.json",
+    "public/tiles/sf/t-13_17.collider.json",
+    "public/tiles/sf/t-13_18.collider.json",
+    "public/tiles/sf/t-13_19.collider.json",
+    "public/tiles/sf/t-13_2.collider.json",
+    "public/tiles/sf/t-13_3.collider.json",
+    "public/tiles/sf/t-13_4.collider.json",
+    "public/tiles/sf/t-13_5.collider.json",
+    "public/tiles/sf/t-13_6.collider.json",
+    "public/tiles/sf/t-13_7.collider.json",
+    "public/tiles/sf/t-13_8.collider.json",
+    "public/tiles/sf/t-13_9.collider.json",
+    "public/tiles/sf/t-14_-1.collider.json",
+    "public/tiles/sf/t-14_-2.collider.json",
+    "public/tiles/sf/t-14_-3.collider.json",
+    "public/tiles/sf/t-14_-4.collider.json",
+    "public/tiles/sf/t-14_0.collider.json",
+    "public/tiles/sf/t-14_1.collider.json",
+    "public/tiles/sf/t-14_10.collider.json",
+    "public/tiles/sf/t-14_11.collider.json",
+    "public/tiles/sf/t-14_12.collider.json",
+    "public/tiles/sf/t-14_13.collider.json",
+    "public/tiles/sf/t-14_14.collider.json",
+    "public/tiles/sf/t-14_15.collider.json",
+    "public/tiles/sf/t-14_16.collider.json",
+    "public/tiles/sf/t-14_17.collider.json",
+    "public/tiles/sf/t-14_18.collider.json",
+    "public/tiles/sf/t-14_19.collider.json",
+    "public/tiles/sf/t-14_2.collider.json",
+    "public/tiles/sf/t-14_3.collider.json",
+    "public/tiles/sf/t-14_4.collider.json",
+    "public/tiles/sf/t-14_5.collider.json",
+    "public/tiles/sf/t-14_6.collider.json",
+    "public/tiles/sf/t-14_7.collider.json",
+    "public/tiles/sf/t-14_8.collider.json",
+    "public/tiles/sf/t-14_9.collider.json",
+    "public/tiles/sf/t-15_-1.collider.json",
+    "public/tiles/sf/t-15_-2.collider.json",
+    "public/tiles/sf/t-15_-3.collider.json",
+    "public/tiles/sf/t-15_-4.collider.json",
+    "public/tiles/sf/t-15_0.collider.json",
+    "public/tiles/sf/t-15_1.collider.json",
+    "public/tiles/sf/t-15_10.collider.json",
+    "public/tiles/sf/t-15_11.collider.json",
+    "public/tiles/sf/t-15_12.collider.json",
+    "public/tiles/sf/t-15_13.collider.json",
+    "public/tiles/sf/t-15_14.collider.json",
+    "public/tiles/sf/t-15_15.collider.json",
+    "public/tiles/sf/t-15_16.collider.json",
+    "public/tiles/sf/t-15_17.collider.json",
+    "public/tiles/sf/t-15_18.collider.json",
+    "public/tiles/sf/t-15_19.collider.json",
+    "public/tiles/sf/t-15_2.collider.json",
+    "public/tiles/sf/t-15_3.collider.json",
+    "public/tiles/sf/t-15_4.collider.json",
+    "public/tiles/sf/t-15_5.collider.json",
+    "public/tiles/sf/t-15_6.collider.json",
+    "public/tiles/sf/t-15_7.collider.json",
+    "public/tiles/sf/t-15_8.collider.json",
+    "public/tiles/sf/t-15_9.collider.json",
+    "public/tiles/sf/t-16_-1.collider.json",
+    "public/tiles/sf/t-16_-2.collider.json",
+    "public/tiles/sf/t-16_-3.collider.json",
+    "public/tiles/sf/t-16_0.collider.json",
+    "public/tiles/sf/t-16_1.collider.json",
+    "public/tiles/sf/t-16_10.collider.json",
+    "public/tiles/sf/t-16_11.collider.json",
+    "public/tiles/sf/t-16_12.collider.json",
+    "public/tiles/sf/t-16_13.collider.json",
+    "public/tiles/sf/t-16_14.collider.json",
+    "public/tiles/sf/t-16_15.collider.json",
+    "public/tiles/sf/t-16_16.collider.json",
+    "public/tiles/sf/t-16_17.collider.json",
+    "public/tiles/sf/t-16_18.collider.json",
+    "public/tiles/sf/t-16_19.collider.json",
+    "public/tiles/sf/t-16_2.collider.json",
+    "public/tiles/sf/t-16_20.collider.json",
+    "public/tiles/sf/t-16_3.collider.json",
+    "public/tiles/sf/t-16_4.collider.json",
+    "public/tiles/sf/t-16_5.collider.json",
+    "public/tiles/sf/t-16_6.collider.json",
+    "public/tiles/sf/t-16_7.collider.json",
+    "public/tiles/sf/t-16_8.collider.json",
+    "public/tiles/sf/t-16_9.collider.json",
+    "public/tiles/sf/t-17_0.collider.json",
+    "public/tiles/sf/t-17_1.collider.json",
+    "public/tiles/sf/t-17_10.collider.json",
+    "public/tiles/sf/t-17_11.collider.json",
+    "public/tiles/sf/t-17_12.collider.json",
+    "public/tiles/sf/t-17_13.collider.json",
+    "public/tiles/sf/t-17_14.collider.json",
+    "public/tiles/sf/t-17_15.collider.json",
+    "public/tiles/sf/t-17_16.collider.json",
+    "public/tiles/sf/t-17_17.collider.json",
+    "public/tiles/sf/t-17_18.collider.json",
+    "public/tiles/sf/t-17_19.collider.json",
+    "public/tiles/sf/t-17_2.collider.json",
+    "public/tiles/sf/t-17_3.collider.json",
+    "public/tiles/sf/t-17_4.collider.json",
+    "public/tiles/sf/t-17_5.collider.json",
+    "public/tiles/sf/t-17_6.collider.json",
+    "public/tiles/sf/t-17_7.collider.json",
+    "public/tiles/sf/t-17_8.collider.json",
+    "public/tiles/sf/t-17_9.collider.json",
+    "public/tiles/sf/t-18_1.collider.json",
+    "public/tiles/sf/t-18_10.collider.json",
+    "public/tiles/sf/t-18_11.collider.json",
+    "public/tiles/sf/t-18_12.collider.json",
+    "public/tiles/sf/t-18_13.collider.json",
+    "public/tiles/sf/t-18_14.collider.json",
+    "public/tiles/sf/t-18_15.collider.json",
+    "public/tiles/sf/t-18_16.collider.json",
+    "public/tiles/sf/t-18_17.collider.json",
+    "public/tiles/sf/t-18_18.collider.json",
+    "public/tiles/sf/t-18_19.collider.json",
+    "public/tiles/sf/t-18_2.collider.json",
+    "public/tiles/sf/t-18_3.collider.json",
+    "public/tiles/sf/t-18_4.collider.json",
+    "public/tiles/sf/t-18_5.collider.json",
+    "public/tiles/sf/t-18_6.collider.json",
+    "public/tiles/sf/t-18_7.collider.json",
+    "public/tiles/sf/t-18_8.collider.json",
+    "public/tiles/sf/t-18_9.collider.json",
+    "public/tiles/sf/t-19_1.collider.json",
+    "public/tiles/sf/t-19_10.collider.json",
+    "public/tiles/sf/t-19_11.collider.json",
+    "public/tiles/sf/t-19_12.collider.json",
+    "public/tiles/sf/t-19_13.collider.json",
+    "public/tiles/sf/t-19_14.collider.json",
+    "public/tiles/sf/t-19_15.collider.json",
+    "public/tiles/sf/t-19_16.collider.json",
+    "public/tiles/sf/t-19_17.collider.json",
+    "public/tiles/sf/t-19_18.collider.json",
+    "public/tiles/sf/t-19_19.collider.json",
+    "public/tiles/sf/t-19_2.collider.json",
+    "public/tiles/sf/t-19_3.collider.json",
+    "public/tiles/sf/t-19_4.collider.json",
+    "public/tiles/sf/t-19_5.collider.json",
+    "public/tiles/sf/t-19_6.collider.json",
+    "public/tiles/sf/t-19_7.collider.json",
+    "public/tiles/sf/t-19_8.collider.json",
+    "public/tiles/sf/t-19_9.collider.json",
+    "public/tiles/sf/t-1_-1.collider.json",
+    "public/tiles/sf/t-1_-2.collider.json",
+    "public/tiles/sf/t-1_-3.collider.json",
+    "public/tiles/sf/t-1_0.collider.json",
+    "public/tiles/sf/t-1_1.collider.json",
+    "public/tiles/sf/t-1_10.collider.json",
+    "public/tiles/sf/t-1_11.collider.json",
+    "public/tiles/sf/t-1_12.collider.json",
+    "public/tiles/sf/t-1_13.collider.json",
+    "public/tiles/sf/t-1_14.collider.json",
+    "public/tiles/sf/t-1_15.collider.json",
+    "public/tiles/sf/t-1_16.collider.json",
+    "public/tiles/sf/t-1_17.collider.json",
+    "public/tiles/sf/t-1_18.collider.json",
+    "public/tiles/sf/t-1_19.collider.json",
+    "public/tiles/sf/t-1_2.collider.json",
+    "public/tiles/sf/t-1_3.collider.json",
+    "public/tiles/sf/t-1_4.collider.json",
+    "public/tiles/sf/t-1_5.collider.json",
+    "public/tiles/sf/t-1_6.collider.json",
+    "public/tiles/sf/t-1_7.collider.json",
+    "public/tiles/sf/t-1_8.collider.json",
+    "public/tiles/sf/t-1_9.collider.json",
+    "public/tiles/sf/t-20_1.collider.json",
+    "public/tiles/sf/t-20_10.collider.json",
+    "public/tiles/sf/t-20_11.collider.json",
+    "public/tiles/sf/t-20_12.collider.json",
+    "public/tiles/sf/t-20_13.collider.json",
+    "public/tiles/sf/t-20_14.collider.json",
+    "public/tiles/sf/t-20_15.collider.json",
+    "public/tiles/sf/t-20_16.collider.json",
+    "public/tiles/sf/t-20_17.collider.json",
+    "public/tiles/sf/t-20_18.collider.json",
+    "public/tiles/sf/t-20_19.collider.json",
+    "public/tiles/sf/t-20_2.collider.json",
+    "public/tiles/sf/t-20_3.collider.json",
+    "public/tiles/sf/t-20_4.collider.json",
+    "public/tiles/sf/t-20_5.collider.json",
+    "public/tiles/sf/t-20_6.collider.json",
+    "public/tiles/sf/t-20_7.collider.json",
+    "public/tiles/sf/t-20_8.collider.json",
+    "public/tiles/sf/t-20_9.collider.json",
+    "public/tiles/sf/t-21_1.collider.json",
+    "public/tiles/sf/t-21_10.collider.json",
+    "public/tiles/sf/t-21_11.collider.json",
+    "public/tiles/sf/t-21_12.collider.json",
+    "public/tiles/sf/t-21_13.collider.json",
+    "public/tiles/sf/t-21_14.collider.json",
+    "public/tiles/sf/t-21_15.collider.json",
+    "public/tiles/sf/t-21_2.collider.json",
+    "public/tiles/sf/t-21_3.collider.json",
+    "public/tiles/sf/t-21_4.collider.json",
+    "public/tiles/sf/t-21_5.collider.json",
+    "public/tiles/sf/t-21_6.collider.json",
+    "public/tiles/sf/t-21_7.collider.json",
+    "public/tiles/sf/t-21_8.collider.json",
+    "public/tiles/sf/t-21_9.collider.json",
+    "public/tiles/sf/t-22_2.collider.json",
+    "public/tiles/sf/t-22_3.collider.json",
+    "public/tiles/sf/t-22_4.collider.json",
+    "public/tiles/sf/t-22_5.collider.json",
+    "public/tiles/sf/t-22_6.collider.json",
+    "public/tiles/sf/t-2_-1.collider.json",
+    "public/tiles/sf/t-2_-2.collider.json",
+    "public/tiles/sf/t-2_-3.collider.json",
+    "public/tiles/sf/t-2_0.collider.json",
+    "public/tiles/sf/t-2_1.collider.json",
+    "public/tiles/sf/t-2_10.collider.json",
+    "public/tiles/sf/t-2_11.collider.json",
+    "public/tiles/sf/t-2_12.collider.json",
+    "public/tiles/sf/t-2_13.collider.json",
+    "public/tiles/sf/t-2_14.collider.json",
+    "public/tiles/sf/t-2_15.collider.json",
+    "public/tiles/sf/t-2_16.collider.json",
+    "public/tiles/sf/t-2_17.collider.json",
+    "public/tiles/sf/t-2_18.collider.json",
+    "public/tiles/sf/t-2_19.collider.json",
+    "public/tiles/sf/t-2_2.collider.json",
+    "public/tiles/sf/t-2_3.collider.json",
+    "public/tiles/sf/t-2_4.collider.json",
+    "public/tiles/sf/t-2_5.collider.json",
+    "public/tiles/sf/t-2_6.collider.json",
+    "public/tiles/sf/t-2_7.collider.json",
+    "public/tiles/sf/t-2_8.collider.json",
+    "public/tiles/sf/t-2_9.collider.json",
+    "public/tiles/sf/t-3_-1.collider.json",
+    "public/tiles/sf/t-3_-2.collider.json",
+    "public/tiles/sf/t-3_-3.collider.json",
+    "public/tiles/sf/t-3_-4.collider.json",
+    "public/tiles/sf/t-3_0.collider.json",
+    "public/tiles/sf/t-3_1.collider.json",
+    "public/tiles/sf/t-3_10.collider.json",
+    "public/tiles/sf/t-3_11.collider.json",
+    "public/tiles/sf/t-3_12.collider.json",
+    "public/tiles/sf/t-3_13.collider.json",
+    "public/tiles/sf/t-3_14.collider.json",
+    "public/tiles/sf/t-3_15.collider.json",
+    "public/tiles/sf/t-3_16.collider.json",
+    "public/tiles/sf/t-3_17.collider.json",
+    "public/tiles/sf/t-3_18.collider.json",
+    "public/tiles/sf/t-3_19.collider.json",
+    "public/tiles/sf/t-3_2.collider.json",
+    "public/tiles/sf/t-3_20.collider.json",
+    "public/tiles/sf/t-3_3.collider.json",
+    "public/tiles/sf/t-3_4.collider.json",
+    "public/tiles/sf/t-3_5.collider.json",
+    "public/tiles/sf/t-3_6.collider.json",
+    "public/tiles/sf/t-3_7.collider.json",
+    "public/tiles/sf/t-3_8.collider.json",
+    "public/tiles/sf/t-3_9.collider.json",
+    "public/tiles/sf/t-4_-1.collider.json",
+    "public/tiles/sf/t-4_-2.collider.json",
+    "public/tiles/sf/t-4_-3.collider.json",
+    "public/tiles/sf/t-4_-4.collider.json",
+    "public/tiles/sf/t-4_0.collider.json",
+    "public/tiles/sf/t-4_1.collider.json",
+    "public/tiles/sf/t-4_10.collider.json",
+    "public/tiles/sf/t-4_11.collider.json",
+    "public/tiles/sf/t-4_12.collider.json",
+    "public/tiles/sf/t-4_13.collider.json",
+    "public/tiles/sf/t-4_14.collider.json",
+    "public/tiles/sf/t-4_15.collider.json",
+    "public/tiles/sf/t-4_16.collider.json",
+    "public/tiles/sf/t-4_17.collider.json",
+    "public/tiles/sf/t-4_18.collider.json",
+    "public/tiles/sf/t-4_19.collider.json",
+    "public/tiles/sf/t-4_2.collider.json",
+    "public/tiles/sf/t-4_20.collider.json",
+    "public/tiles/sf/t-4_3.collider.json",
+    "public/tiles/sf/t-4_4.collider.json",
+    "public/tiles/sf/t-4_5.collider.json",
+    "public/tiles/sf/t-4_6.collider.json",
+    "public/tiles/sf/t-4_7.collider.json",
+    "public/tiles/sf/t-4_8.collider.json",
+    "public/tiles/sf/t-4_9.collider.json",
+    "public/tiles/sf/t-5_-1.collider.json",
+    "public/tiles/sf/t-5_-2.collider.json",
+    "public/tiles/sf/t-5_-3.collider.json",
+    "public/tiles/sf/t-5_-4.collider.json",
+    "public/tiles/sf/t-5_0.collider.json",
+    "public/tiles/sf/t-5_1.collider.json",
+    "public/tiles/sf/t-5_10.collider.json",
+    "public/tiles/sf/t-5_11.collider.json",
+    "public/tiles/sf/t-5_12.collider.json",
+    "public/tiles/sf/t-5_13.collider.json",
+    "public/tiles/sf/t-5_14.collider.json",
+    "public/tiles/sf/t-5_15.collider.json",
+    "public/tiles/sf/t-5_16.collider.json",
+    "public/tiles/sf/t-5_17.collider.json",
+    "public/tiles/sf/t-5_18.collider.json",
+    "public/tiles/sf/t-5_19.collider.json",
+    "public/tiles/sf/t-5_2.collider.json",
+    "public/tiles/sf/t-5_3.collider.json",
+    "public/tiles/sf/t-5_4.collider.json",
+    "public/tiles/sf/t-5_5.collider.json",
+    "public/tiles/sf/t-5_6.collider.json",
+    "public/tiles/sf/t-5_7.collider.json",
+    "public/tiles/sf/t-5_8.collider.json",
+    "public/tiles/sf/t-5_9.collider.json",
+    "public/tiles/sf/t-6_-1.collider.json",
+    "public/tiles/sf/t-6_-2.collider.json",
+    "public/tiles/sf/t-6_-3.collider.json",
+    "public/tiles/sf/t-6_-4.collider.json",
+    "public/tiles/sf/t-6_0.collider.json",
+    "public/tiles/sf/t-6_1.collider.json",
+    "public/tiles/sf/t-6_10.collider.json",
+    "public/tiles/sf/t-6_11.collider.json",
+    "public/tiles/sf/t-6_12.collider.json",
+    "public/tiles/sf/t-6_13.collider.json",
+    "public/tiles/sf/t-6_14.collider.json",
+    "public/tiles/sf/t-6_15.collider.json",
+    "public/tiles/sf/t-6_16.collider.json",
+    "public/tiles/sf/t-6_17.collider.json",
+    "public/tiles/sf/t-6_18.collider.json",
+    "public/tiles/sf/t-6_19.collider.json",
+    "public/tiles/sf/t-6_2.collider.json",
+    "public/tiles/sf/t-6_3.collider.json",
+    "public/tiles/sf/t-6_4.collider.json",
+    "public/tiles/sf/t-6_5.collider.json",
+    "public/tiles/sf/t-6_6.collider.json",
+    "public/tiles/sf/t-6_7.collider.json",
+    "public/tiles/sf/t-6_8.collider.json",
+    "public/tiles/sf/t-6_9.collider.json",
+    "public/tiles/sf/t-7_-1.collider.json",
+    "public/tiles/sf/t-7_-2.collider.json",
+    "public/tiles/sf/t-7_-3.collider.json",
+    "public/tiles/sf/t-7_0.collider.json",
+    "public/tiles/sf/t-7_1.collider.json",
+    "public/tiles/sf/t-7_10.collider.json",
+    "public/tiles/sf/t-7_11.collider.json",
+    "public/tiles/sf/t-7_12.collider.json",
+    "public/tiles/sf/t-7_13.collider.json",
+    "public/tiles/sf/t-7_14.collider.json",
+    "public/tiles/sf/t-7_15.collider.json",
+    "public/tiles/sf/t-7_16.collider.json",
+    "public/tiles/sf/t-7_17.collider.json",
+    "public/tiles/sf/t-7_18.collider.json",
+    "public/tiles/sf/t-7_19.collider.json",
+    "public/tiles/sf/t-7_2.collider.json",
+    "public/tiles/sf/t-7_3.collider.json",
+    "public/tiles/sf/t-7_4.collider.json",
+    "public/tiles/sf/t-7_5.collider.json",
+    "public/tiles/sf/t-7_6.collider.json",
+    "public/tiles/sf/t-7_7.collider.json",
+    "public/tiles/sf/t-7_8.collider.json",
+    "public/tiles/sf/t-7_9.collider.json",
+    "public/tiles/sf/t-8_-1.collider.json",
+    "public/tiles/sf/t-8_-2.collider.json",
+    "public/tiles/sf/t-8_-3.collider.json",
+    "public/tiles/sf/t-8_0.collider.json",
+    "public/tiles/sf/t-8_1.collider.json",
+    "public/tiles/sf/t-8_10.collider.json",
+    "public/tiles/sf/t-8_11.collider.json",
+    "public/tiles/sf/t-8_12.collider.json",
+    "public/tiles/sf/t-8_13.collider.json",
+    "public/tiles/sf/t-8_14.collider.json",
+    "public/tiles/sf/t-8_15.collider.json",
+    "public/tiles/sf/t-8_16.collider.json",
+    "public/tiles/sf/t-8_17.collider.json",
+    "public/tiles/sf/t-8_18.collider.json",
+    "public/tiles/sf/t-8_19.collider.json",
+    "public/tiles/sf/t-8_2.collider.json",
+    "public/tiles/sf/t-8_3.collider.json",
+    "public/tiles/sf/t-8_4.collider.json",
+    "public/tiles/sf/t-8_5.collider.json",
+    "public/tiles/sf/t-8_6.collider.json",
+    "public/tiles/sf/t-8_7.collider.json",
+    "public/tiles/sf/t-8_8.collider.json",
+    "public/tiles/sf/t-8_9.collider.json",
+    "public/tiles/sf/t-9_-1.collider.json",
+    "public/tiles/sf/t-9_-2.collider.json",
+    "public/tiles/sf/t-9_-3.collider.json",
+    "public/tiles/sf/t-9_0.collider.json",
+    "public/tiles/sf/t-9_1.collider.json",
+    "public/tiles/sf/t-9_10.collider.json",
+    "public/tiles/sf/t-9_11.collider.json",
+    "public/tiles/sf/t-9_12.collider.json",
+    "public/tiles/sf/t-9_13.collider.json",
+    "public/tiles/sf/t-9_14.collider.json",
+    "public/tiles/sf/t-9_15.collider.json",
+    "public/tiles/sf/t-9_16.collider.json",
+    "public/tiles/sf/t-9_17.collider.json",
+    "public/tiles/sf/t-9_18.collider.json",
+    "public/tiles/sf/t-9_19.collider.json",
+    "public/tiles/sf/t-9_2.collider.json",
+    "public/tiles/sf/t-9_3.collider.json",
+    "public/tiles/sf/t-9_4.collider.json",
+    "public/tiles/sf/t-9_5.collider.json",
+    "public/tiles/sf/t-9_6.collider.json",
+    "public/tiles/sf/t-9_7.collider.json",
+    "public/tiles/sf/t-9_8.collider.json",
+    "public/tiles/sf/t-9_9.collider.json",
+    "public/tiles/sf/t0_-1.collider.json",
+    "public/tiles/sf/t0_0.collider.json",
+    "public/tiles/sf/t0_1.collider.json",
+    "public/tiles/sf/t0_10.collider.json",
+    "public/tiles/sf/t0_11.collider.json",
+    "public/tiles/sf/t0_12.collider.json",
+    "public/tiles/sf/t0_13.collider.json",
+    "public/tiles/sf/t0_14.collider.json",
+    "public/tiles/sf/t0_15.collider.json",
+    "public/tiles/sf/t0_16.collider.json",
+    "public/tiles/sf/t0_17.collider.json",
+    "public/tiles/sf/t0_18.collider.json",
+    "public/tiles/sf/t0_19.collider.json",
+    "public/tiles/sf/t0_2.collider.json",
+    "public/tiles/sf/t0_3.collider.json",
+    "public/tiles/sf/t0_4.collider.json",
+    "public/tiles/sf/t0_5.collider.json",
+    "public/tiles/sf/t0_6.collider.json",
+    "public/tiles/sf/t0_7.collider.json",
+    "public/tiles/sf/t0_8.collider.json",
+    "public/tiles/sf/t0_9.collider.json",
+    "public/tiles/sf/t1_0.collider.json",
+    "public/tiles/sf/t1_1.collider.json",
+    "public/tiles/sf/t1_10.collider.json",
+    "public/tiles/sf/t1_11.collider.json",
+    "public/tiles/sf/t1_12.collider.json",
+    "public/tiles/sf/t1_13.collider.json",
+    "public/tiles/sf/t1_14.collider.json",
+    "public/tiles/sf/t1_15.collider.json",
+    "public/tiles/sf/t1_16.collider.json",
+    "public/tiles/sf/t1_17.collider.json",
+    "public/tiles/sf/t1_18.collider.json",
+    "public/tiles/sf/t1_19.collider.json",
+    "public/tiles/sf/t1_2.collider.json",
+    "public/tiles/sf/t1_3.collider.json",
+    "public/tiles/sf/t1_4.collider.json",
+    "public/tiles/sf/t1_5.collider.json",
+    "public/tiles/sf/t1_6.collider.json",
+    "public/tiles/sf/t1_7.collider.json",
+    "public/tiles/sf/t1_8.collider.json",
+    "public/tiles/sf/t1_9.collider.json",
+    "public/tiles/sf/t2_-1.collider.json",
+    "public/tiles/sf/t2_-7.collider.json",
+    "public/tiles/sf/t2_-8.collider.json",
+    "public/tiles/sf/t2_0.collider.json",
+    "public/tiles/sf/t2_10.collider.json",
+    "public/tiles/sf/t2_11.collider.json",
+    "public/tiles/sf/t2_12.collider.json",
+    "public/tiles/sf/t2_13.collider.json",
+    "public/tiles/sf/t2_14.collider.json",
+    "public/tiles/sf/t2_15.collider.json",
+    "public/tiles/sf/t2_16.collider.json",
+    "public/tiles/sf/t2_17.collider.json",
+    "public/tiles/sf/t2_18.collider.json",
+    "public/tiles/sf/t2_19.collider.json",
+    "public/tiles/sf/t2_4.collider.json",
+    "public/tiles/sf/t2_5.collider.json",
+    "public/tiles/sf/t2_7.collider.json",
+    "public/tiles/sf/t2_8.collider.json",
+    "public/tiles/sf/t2_9.collider.json",
+    "public/tiles/sf/t3_-1.collider.json",
+    "public/tiles/sf/t3_-2.collider.json",
+    "public/tiles/sf/t3_-3.collider.json",
+    "public/tiles/sf/t3_-4.collider.json",
+    "public/tiles/sf/t3_-5.collider.json",
+    "public/tiles/sf/t3_-6.collider.json",
+    "public/tiles/sf/t3_-7.collider.json",
+    "public/tiles/sf/t3_-8.collider.json",
+    "public/tiles/sf/t3_-9.collider.json",
+    "public/tiles/sf/t3_10.collider.json",
+    "public/tiles/sf/t3_11.collider.json",
+    "public/tiles/sf/t3_12.collider.json",
+    "public/tiles/sf/t3_13.collider.json",
+    "public/tiles/sf/t3_14.collider.json",
+    "public/tiles/sf/t3_15.collider.json",
+    "public/tiles/sf/t3_16.collider.json",
+    "public/tiles/sf/t3_17.collider.json",
+    "public/tiles/sf/t3_19.collider.json",
+    "public/tiles/sf/t3_9.collider.json",
+    "public/tiles/sf/t4_-2.collider.json",
+    "public/tiles/sf/t4_-3.collider.json",
+    "public/tiles/sf/t4_-4.collider.json",
+    "public/tiles/sf/t4_-5.collider.json",
+    "public/tiles/sf/t4_-6.collider.json",
+    "public/tiles/sf/t4_-7.collider.json",
+    "public/tiles/sf/t4_-8.collider.json",
+    "public/tiles/sf/t4_-9.collider.json",
+    "public/tiles/sf/t4_11.collider.json",
+    "public/tiles/sf/t4_12.collider.json",
+    "public/tiles/sf/t4_13.collider.json",
+    "public/tiles/sf/t4_14.collider.json",
+    "public/tiles/sf/t4_15.collider.json",
+    "public/tiles/sf/t4_16.collider.json",
+    "public/tiles/sf/t4_17.collider.json",
+    "public/tiles/sf/t5_-3.collider.json",
+    "public/tiles/sf/t5_-4.collider.json",
+    "public/tiles/sf/t5_-5.collider.json",
+    "public/tiles/sf/t5_-6.collider.json",
+    "public/tiles/sf/t5_-7.collider.json",
+    "public/tiles/sf/t5_14.collider.json",
+    "public/tiles/sf/t5_15.collider.json",
+    "public/tiles/sf/t5_16.collider.json",
+    "public/tiles/sf/t5_17.collider.json",
+    "public/tiles/sf/t6_-4.collider.json",
+    "public/tiles/sf/t6_-5.collider.json",
+    "public/tiles/sf/t6_14.collider.json",
+    "public/tiles/sf/t6_15.collider.json",
+    "public/tiles/sf/t6_16.collider.json",
+    "public/tiles/sf/t6_17.collider.json",
+    "public/tiles/sf/world.colliders.bin",
+    "src/content/aiFixtures.ts",
+    "src/content/barks.ts",
+    "src/content/billboards.ts",
+    "src/content/blocklist.ts",
+    "src/content/botTells.ts",
+    "src/content/bounties.ts",
+    "src/content/catalog.ts",
+    "src/content/cityLife.ts",
+    "src/content/clearedNames.ts",
+    "src/content/composer.ts",
+    "src/content/crisis.ts",
+    "src/content/denylists.ts",
+    "src/content/directorCards.ts",
+    "src/content/gameplay.ts",
+    "src/content/grammar.ts",
+    "src/content/index.ts",
+    "src/content/kits.ts",
+    "src/content/lint.ts",
+    "src/content/missions.ts",
+    "src/content/names.ts",
+    "src/content/packs.ts",
+    "src/content/places.ts",
+    "src/content/prng.ts",
+    "src/content/proseNames.ts",
+    "src/content/provenance.ts",
+    "src/content/robotGoals.ts",
+    "src/content/storefronts.ts",
+    "src/content/ui.ts",
+    "src/content/vendor.ts",
+    "src/io/assets.ts",
+    "src/io/landmark-world.ts",
+    "src/io/world-load.ts",
+    "src/modes/taxi-routes.ts",
+    "src/modes/taxi-session.ts",
+    "src/sim/activities/availability.ts",
+    "src/sim/activities/legacy-system.ts",
+    "src/sim/activities/plain-words.ts",
+    "src/sim/activities/recon.ts",
+    "src/sim/activities/system.ts",
+    "src/sim/activities/systems.ts",
+    "src/sim/agents.ts",
+    "src/sim/agents/README.md",
+    "src/sim/agents/detour.ts",
+    "src/sim/agents/fidelity.ts",
+    "src/sim/agents/incidents.ts",
+    "src/sim/agents/index.ts",
+    "src/sim/agents/mission-actors.ts",
+    "src/sim/agents/mission-staging.ts",
+    "src/sim/agents/mode-roster.ts",
+    "src/sim/agents/navigation.ts",
+    "src/sim/agents/pipeline-navigation.ts",
+    "src/sim/agents/reactions.ts",
+    "src/sim/agents/runtime.ts",
+    "src/sim/agents/scene-actors.ts",
+    "src/sim/agents/service-runtime.ts",
+    "src/sim/agents/services.ts",
+    "src/sim/agents/systems.ts",
+    "src/sim/agents/transit-runtime.ts",
+    "src/sim/bots/controller.ts",
+    "src/sim/bots/systems.ts",
+    "src/sim/boundary.ts",
+    "src/sim/car.ts",
+    "src/sim/civilian-traffic.ts",
+    "src/sim/clock/calendar.ts",
+    "src/sim/clock/systems.ts",
+    "src/sim/collide.ts",
+    "src/sim/combat-contract.ts",
+    "src/sim/combat/adapter.ts",
+    "src/sim/combat/attacks.ts",
+    "src/sim/combat/effects.ts",
+    "src/sim/combat/index.ts",
+    "src/sim/combat/perception.ts",
+    "src/sim/combat/physics.ts",
+    "src/sim/combat/shared.ts",
+    "src/sim/combat/system.ts",
+    "src/sim/combat/systems.ts",
+    "src/sim/combat/types.ts",
+    "src/sim/combat/weapons.ts",
+    "src/sim/contract.ts",
+    "src/sim/dmath.ts",
+    "src/sim/dodge.ts",
+    "src/sim/economy/system.ts",
+    "src/sim/economy/systems.ts",
+    "src/sim/extensions.ts",
+    "src/sim/fog/index.ts",
+    "src/sim/fog/systems.ts",
+    "src/sim/foot.ts",
+    "src/sim/game-systems.ts",
+    "src/sim/gameplay-contract.ts",
+    "src/sim/gameplay-world.ts",
+    "src/sim/heat/system.ts",
+    "src/sim/heat/systems.ts",
+    "src/sim/identity.ts",
+    "src/sim/impacts.ts",
+    "src/sim/index.ts",
+    "src/sim/manual-taxi.ts",
+    "src/sim/missions/mechanics/bell-duel.ts",
+    "src/sim/missions/mechanics/bell.ts",
+    "src/sim/missions/mechanics/geometry.ts",
+    "src/sim/missions/mechanics/parking.ts",
+    "src/sim/missions/mechanics/runtime.ts",
+    "src/sim/missions/observed.ts",
+    "src/sim/missions/parking-world.ts",
+    "src/sim/missions/system.ts",
+    "src/sim/missions/systems.ts",
+    "src/sim/modes/arena.ts",
+    "src/sim/modes/botsweep.ts",
+    "src/sim/modes/index.ts",
+    "src/sim/modes/match.ts",
+    "src/sim/modes/session.ts",
+    "src/sim/modes/settlement.ts",
+    "src/sim/modes/systems.ts",
+    "src/sim/modes/taxi.ts",
+    "src/sim/modes/types.ts",
+    "src/sim/motion.ts",
+    "src/sim/overtake.ts",
+    "src/sim/pack.ts",
+    "src/sim/parking-data.ts",
+    "src/sim/player/adapter.ts",
+    "src/sim/player/catalog.ts",
+    "src/sim/player/common.ts",
+    "src/sim/player/index.ts",
+    "src/sim/player/sites.ts",
+    "src/sim/player/system.ts",
+    "src/sim/player/systems.ts",
+    "src/sim/player/types.ts",
+    "src/sim/progression/system.ts",
+    "src/sim/progression/systems.ts",
+    "src/sim/props.ts",
+    "src/sim/reference-driving.ts",
+    "src/sim/ride-route.ts",
+    "src/sim/ride.ts",
+    "src/sim/rng.ts",
+    "src/sim/roads.ts",
+    "src/sim/robots/brain.ts",
+    "src/sim/robots/systems.ts",
+    "src/sim/serialize.ts",
+    "src/sim/step.ts",
+    "src/sim/system-contract.ts",
+    "src/sim/systems.ts",
+    "src/sim/traffic-signals.ts",
+    "src/sim/vehicle-contacts.ts",
+    "src/sim/vehicles/follower.ts",
+    "src/sim/vehicles/systems.ts",
+    "src/sim/world.ts",
+    "tests/e2e/campaign-driver.ts",
+    "tests/e2e/gameplay-driver.ts",
+    "tests/helpers.ts",
+    "tests/helpers/drivers/wave3-campaign.ts"
+  ],
+  "sourceHash": "25e01aafee66f9364330e5a7820c9d930872b816bfba9895c179983af9154b22",
+  "sourceUnchanged": true,
+  "success": false,
+  "failure": "Error: Physical driving stalled: overtake 3.6 kerb: vehicle at 6 m; overtake -4.2 kerb: person at 2 m; overtake 4.2 kerb: vehicle at 6 m; overtake -8.3 road: kerb at 6 m; overtake -2.9 road: vehicle at 3 m; overtake -3.0 kerb: vehicle at 3 m; overtake 3.0 kerb: vehicle at 6 m; overtake -3.6 kerb: vehicle at 3 m; overtake 3.6 kerb: vehicle at 6 m; overtake -4.2 kerb: vehicle at 6 m; overtake 4.2 kerb: vehicle at 6 m; stalled behind vehicle15 6.5 m ahead\n    at driveAndInteract (file:///Users/broderickhigby/workspace/fogcityworktree/consolidated-game-upgrade/test-results/consolidated/taxi-draft/physical-smoke.ts:43:23)\n    at file:///Users/broderickhigby/workspace/fogcityworktree/consolidated-game-upgrade/test-results/consolidated/taxi-draft/physical-smoke.ts:70:36\n    at ModuleJob.run (node:internal/modules/esm/module_job:439:25)\n    at async node:internal/modules/esm/loader:643:26\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)",
+  "campaignHash": "f8b204a7",
+  "phase": "driving",
+  "attempt": 1,
+  "route": "downtown-to-soma",
+  "config": {
+    "id": "sf-road-taxi-v1",
+    "routes": [
+      {
+        "baseFareCents": 945,
+        "destination": {
+          "radiusM": 3.8,
+          "x": -799.175741723442,
+          "y": 9.18653665832112,
+          "z": 1103.5264469084486
+        },
+        "destinationDistrict": "SoMa",
+        "destinationLabel": "Yerba Buena Gardens · Mission St curb",
+        "id": "downtown-to-soma",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": -1222.4723090446628,
+          "y": 24.10086935351704,
+          "z": 788.3629154180525
+        },
+        "pickupDistrict": "Downtown",
+        "pickupLabel": "Union Square · Post St curb",
+        "roadDistanceM": 766.2185899460649,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 8700,
+        "xp": 25
+      },
+      {
+        "baseFareCents": 1452,
+        "destination": {
+          "radiusM": 3.8,
+          "x": 113.40687394391865,
+          "y": 35.60214035883893,
+          "z": 1090.6981301704536
+        },
+        "destinationDistrict": "Rincon Hill",
+        "destinationLabel": "Harrison St & Fremont St · 1st St curb",
+        "id": "embarcadero-to-rincon-hill",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": -20.460714357534783,
+          "y": 2.843659469099239,
+          "z": 15.171930918625392
+        },
+        "pickupDistrict": "Embarcadero",
+        "pickupLabel": "The Ferry Building · The Embarcadero curb",
+        "roadDistanceM": 1894.0244982334777,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 18360,
+        "xp": 25
+      },
+      {
+        "baseFareCents": 1165,
+        "destination": {
+          "radiusM": 3.8,
+          "x": -20.460714357534783,
+          "y": 2.843659469099239,
+          "z": 15.171930918625392
+        },
+        "destinationDistrict": "Embarcadero",
+        "destinationLabel": "The Ferry Building · The Embarcadero curb",
+        "id": "fidi-to-embarcadero",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": -675.6386486250186,
+          "y": 4.937674326650653,
+          "z": 272.479679861646
+        },
+        "pickupDistrict": "Financial District",
+        "pickupLabel": "California St & Sansome St · California St curb",
+        "roadDistanceM": 1256.224723376922,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 12900,
+        "xp": 25
+      },
+      {
+        "baseFareCents": 1275,
+        "destination": {
+          "radiusM": 3.8,
+          "x": -1222.4723090446628,
+          "y": 24.10086935351704,
+          "z": 788.3629154180525
+        },
+        "destinationDistrict": "Downtown",
+        "destinationLabel": "Union Square · Post St curb",
+        "id": "north-beach-to-downtown",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": -1481.6913195897837,
+          "y": 23.48119439959396,
+          "z": -565.7662836643611
+        },
+        "pickupDistrict": "North Beach",
+        "pickupLabel": "Washington Square · Columbus Ave curb",
+        "roadDistanceM": 1500.7692022829792,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 15000,
+        "xp": 25
+      },
+      {
+        "baseFareCents": 1773,
+        "destination": {
+          "radiusM": 3.8,
+          "x": -1481.6913195897837,
+          "y": 23.48119439959396,
+          "z": -565.7662836643611
+        },
+        "destinationDistrict": "North Beach",
+        "destinationLabel": "Washington Square · Columbus Ave curb",
+        "id": "rincon-hill-to-north-beach",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": 113.40687394391865,
+          "y": 35.60214035883893,
+          "z": 1090.6981301704536
+        },
+        "pickupDistrict": "Rincon Hill",
+        "pickupLabel": "Harrison St & Fremont St · 1st St curb",
+        "roadDistanceM": 2605.5635224395314,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 24480,
+        "xp": 25
+      },
+      {
+        "baseFareCents": 1192,
+        "destination": {
+          "radiusM": 3.8,
+          "x": -675.6386486250186,
+          "y": 4.937674326650653,
+          "z": 272.479679861646
+        },
+        "destinationDistrict": "Financial District",
+        "destinationLabel": "California St & Sansome St · California St curb",
+        "id": "soma-to-fidi",
+        "maxTimeBonusCents": 600,
+        "pickup": {
+          "radiusM": 3.8,
+          "x": -799.175741723442,
+          "y": 9.18653665832112,
+          "z": 1103.5264469084486
+        },
+        "pickupDistrict": "SoMa",
+        "pickupLabel": "Yerba Buena Gardens · Mission St curb",
+        "roadDistanceM": 1315.7236685622602,
+        "timeBonusCentsPerSecond": 3,
+        "timeLimitTicks": 13380,
+        "xp": 25
+      }
+    ],
+    "shifts": [
+      {
+        "id": "day",
+        "label": "Day shift",
+        "routeIds": [
+          "downtown-to-soma",
+          "soma-to-fidi",
+          "fidi-to-embarcadero",
+          "embarcadero-to-rincon-hill",
+          "rincon-hill-to-north-beach",
+          "north-beach-to-downtown"
+        ],
+        "theme": "daylight"
+      },
+      {
+        "id": "night",
+        "label": "Night shift",
+        "routeIds": [
+          "downtown-to-soma",
+          "soma-to-fidi",
+          "fidi-to-embarcadero",
+          "embarcadero-to-rincon-hill",
+          "rincon-hill-to-north-beach",
+          "north-beach-to-downtown"
+        ],
+        "theme": "night"
+      },
+      {
+        "id": "fog-rain",
+        "label": "Fog and rain",
+        "routeIds": [
+          "downtown-to-soma",
+          "soma-to-fidi",
+          "fidi-to-embarcadero",
+          "embarcadero-to-rincon-hill",
+          "rincon-hill-to-north-beach",
+          "north-beach-to-downtown"
+        ],
+        "theme": "fog-rain"
+      }
+    ],
+    "title": "Crazy Uber",
+    "version": 1
+  },
+  "curbs": [
+    {
+      "id": "downtown",
+      "district": "downtown",
+      "districtName": "Downtown",
+      "label": "Union Square · Post St curb",
+      "stop": {
+        "x": -1222.4723090446628,
+        "y": 24.10086935351704,
+        "z": 788.3629154180525,
+        "radiusM": 3.8
+      },
+      "heading": 1.4127250561108262,
+      "passenger": {
+        "x": -1221.96858482943,
+        "y": 24.09412834489855,
+        "z": 791.5230201497011
+      },
+      "edge": 722,
+      "edgeId": "c10628000",
+      "dir": 1,
+      "lane": 0,
+      "at": 63.84243277580524
+    },
+    {
+      "id": "fidi",
+      "district": "fidi",
+      "districtName": "Financial District",
+      "label": "California St & Sansome St · California St curb",
+      "stop": {
+        "x": -675.6386486250186,
+        "y": 4.937674326650653,
+        "z": 272.479679861646,
+        "radiusM": 3.8
+      },
+      "heading": -1.7300267331034118,
+      "passenger": {
+        "x": -676.1460354910018,
+        "y": 4.944055494129926,
+        "z": 269.32016113750024
+      },
+      "edge": 8133,
+      "edgeId": "c3528000",
+      "dir": 1,
+      "lane": 0,
+      "at": 12
+    },
+    {
+      "id": "embarcadero",
+      "district": "embarcadero",
+      "districtName": "Embarcadero",
+      "label": "The Ferry Building · The Embarcadero curb",
+      "stop": {
+        "x": -20.460714357534783,
+        "y": 2.843659469099239,
+        "z": 15.171930918625392,
+        "radiusM": 3.8
+      },
+      "heading": -0.6380486914219978,
+      "passenger": {
+        "x": -17.89028382089233,
+        "y": 2.8440670069687974,
+        "z": 13.265917577566107
+      },
+      "edge": 2900,
+      "edgeId": "c12553201",
+      "dir": 1,
+      "lane": 2,
+      "at": 204.62845645263616
+    },
+    {
+      "id": "north-beach",
+      "district": "north-beach",
+      "districtName": "North Beach",
+      "label": "Washington Square · Columbus Ave curb",
+      "stop": {
+        "x": -1481.6913195897837,
+        "y": 23.48119439959396,
+        "z": -565.7662836643611,
+        "radiusM": 3.8
+      },
+      "heading": -0.8532048033197059,
+      "passenger": {
+        "x": -1479.5870890144042,
+        "y": 23.379593191909322,
+        "z": -568.1771369750456
+      },
+      "edge": 8963,
+      "edgeId": "c4296000",
+      "dir": 1,
+      "lane": 1,
+      "at": 22.788471640503406
+    },
+    {
+      "id": "fishermans-wharf",
+      "district": "fishermans-wharf",
+      "districtName": "Fisherman's Wharf",
+      "label": "Jefferson St · Jefferson St curb",
+      "stop": {
+        "x": -2070.030283296636,
+        "y": 3.2883729378179036,
+        "z": -1390.4147866818578,
+        "radiusM": 3.8
+      },
+      "heading": 1.4180743205856587,
+      "passenger": {
+        "x": -2069.5434704436866,
+        "y": 3.3893613379090963,
+        "z": -1387.2520326215167
+      },
+      "edge": 12526,
+      "edgeId": "c7457000",
+      "dir": -1,
+      "lane": 0,
+      "at": 12
+    },
+    {
+      "id": "marina",
+      "district": "marina",
+      "districtName": "The Marina",
+      "label": "Marina Green and Chestnut St · Beach St curb",
+      "stop": {
+        "x": -3922.9821208175977,
+        "y": 4.564238209311558,
+        "z": -964.8270063428611,
+        "radiusM": 3.8
+      },
+      "heading": 1.4135650352515532,
+      "passenger": {
+        "x": -3922.481051201815,
+        "y": 4.5499865249961315,
+        "z": -961.6664796082582
+      },
+      "edge": 7381,
+      "edgeId": "c2852000",
+      "dir": -1,
+      "lane": 0,
+      "at": 76.62084133611826
+    },
+    {
+      "id": "soma",
+      "district": "soma",
+      "districtName": "SoMa",
+      "label": "Yerba Buena Gardens · Mission St curb",
+      "stop": {
+        "x": -799.175741723442,
+        "y": 9.18653665832112,
+        "z": 1103.5264469084486,
+        "radiusM": 3.8
+      },
+      "heading": 0.7880111774545786,
+      "passenger": {
+        "x": -796.9189203179241,
+        "y": 9.341865236215547,
+        "z": 1105.7950934528878
+      },
+      "edge": 14563,
+      "edgeId": "c9095101",
+      "dir": -1,
+      "lane": 0,
+      "at": 163.42936153948628
+    },
+    {
+      "id": "mission-bay",
+      "district": "mission-bay",
+      "districtName": "Mission Bay",
+      "label": "4th St & Mission Bay Blvd · 4th St curb",
+      "stop": {
+        "x": 230.538407841002,
+        "y": 3.6676340738612345,
+        "z": 2830.8621576651603,
+        "radiusM": 3.8
+      },
+      "heading": -0.07571772925769346,
+      "passenger": {
+        "x": 233.72923914349826,
+        "y": 3.6859383913550117,
+        "z": 2830.6200923867536
+      },
+      "edge": 6330,
+      "edgeId": "c19986000",
+      "dir": -1,
+      "lane": 0,
+      "at": 27.75150981211537
+    },
+    {
+      "id": "dogpatch",
+      "district": "dogpatch",
+      "districtName": "Dogpatch",
+      "label": "3rd St & 22nd St · 3rd St curb",
+      "stop": {
+        "x": 474.67305144298984,
+        "y": 13.1091028582168,
+        "z": 4053.3213227640567,
+        "radiusM": 3.8
+      },
+      "heading": -0.07631519638529528,
+      "passenger": {
+        "x": 477.86373754993747,
+        "y": 13.071509689904069,
+        "z": 4053.077351112155
+      },
+      "edge": 5477,
+      "edgeId": "c190101",
+      "dir": 1,
+      "lane": 2,
+      "at": 102.72606195523255
+    },
+    {
+      "id": "rincon-hill",
+      "district": "rincon-hill",
+      "districtName": "Rincon Hill",
+      "label": "Harrison St & Fremont St · 1st St curb",
+      "stop": {
+        "x": 113.40687394391865,
+        "y": 35.60214035883893,
+        "z": 1090.6981301704536,
+        "radiusM": 3.8
+      },
+      "heading": -0.7846629296385517,
+      "passenger": {
+        "x": 115.67127867642499,
+        "y": 35.61512368087887,
+        "z": 1088.437052726534
+      },
+      "edge": 1556,
+      "edgeId": "c114000",
+      "dir": -1,
+      "lane": 0,
+      "at": 20.45751160621793
+    }
+  ],
+  "roads": [
+    {
+      "id": "downtown-to-soma",
+      "pickup": "downtown",
+      "destination": "soma",
+      "links": [
+        {
+          "edge": 722,
+          "dir": 1
+        },
+        {
+          "edge": 2484,
+          "dir": 1
+        },
+        {
+          "edge": 2483,
+          "dir": 1
+        },
+        {
+          "edge": 2482,
+          "dir": 1
+        },
+        {
+          "edge": 2481,
+          "dir": 1
+        },
+        {
+          "edge": 6972,
+          "dir": 1
+        },
+        {
+          "edge": 6984,
+          "dir": 1
+        },
+        {
+          "edge": 6994,
+          "dir": 1
+        },
+        {
+          "edge": 14563,
+          "dir": -1
+        }
+      ],
+      "edgeIds": [
+        "c10628000",
+        "c12197000",
+        "c12196000",
+        "c12195000",
+        "c12194000",
+        "c249000",
+        "c250000",
+        "c251000",
+        "c9095101"
+      ],
+      "distanceM": 766.2185899460649
+    },
+    {
+      "id": "embarcadero-to-rincon-hill",
+      "pickup": "embarcadero",
+      "destination": "rincon-hill",
+      "links": [
+        {
+          "edge": 2900,
+          "dir": 1
+        },
+        {
+          "edge": 2899,
+          "dir": 1
+        },
+        {
+          "edge": 2898,
+          "dir": 1
+        },
+        {
+          "edge": 2896,
+          "dir": 1
+        },
+        {
+          "edge": 2894,
+          "dir": 1
+        },
+        {
+          "edge": 10459,
+          "dir": 1
+        },
+        {
+          "edge": 2325,
+          "dir": 1
+        },
+        {
+          "edge": 11761,
+          "dir": 1
+        },
+        {
+          "edge": 11762,
+          "dir": 1
+        },
+        {
+          "edge": 11764,
+          "dir": 1
+        },
+        {
+          "edge": 11765,
+          "dir": 1
+        },
+        {
+          "edge": 1556,
+          "dir": 1
+        },
+        {
+          "edge": 1556,
+          "dir": -1
+        }
+      ],
+      "edgeIds": [
+        "c12553201",
+        "c12553103",
+        "c12553102",
+        "c12552101",
+        "c12551102",
+        "c5650000",
+        "c12047000",
+        "c6708000",
+        "c6709000",
+        "c6710000",
+        "c6711000",
+        "c114000",
+        "c114000"
+      ],
+      "distanceM": 1894.0244982334777
+    },
+    {
+      "id": "fidi-to-embarcadero",
+      "pickup": "fidi",
+      "destination": "embarcadero",
+      "links": [
+        {
+          "edge": 8133,
+          "dir": 1
+        },
+        {
+          "edge": 8133,
+          "dir": -1
+        },
+        {
+          "edge": 8132,
+          "dir": -1
+        },
+        {
+          "edge": 8131,
+          "dir": -1
+        },
+        {
+          "edge": 8130,
+          "dir": -1
+        },
+        {
+          "edge": 8129,
+          "dir": -1
+        },
+        {
+          "edge": 9740,
+          "dir": -1
+        },
+        {
+          "edge": 14098,
+          "dir": 1
+        },
+        {
+          "edge": 14097,
+          "dir": 1
+        },
+        {
+          "edge": 2443,
+          "dir": 1
+        },
+        {
+          "edge": 4788,
+          "dir": 1
+        },
+        {
+          "edge": 2898,
+          "dir": 1
+        },
+        {
+          "edge": 2900,
+          "dir": 1
+        }
+      ],
+      "edgeIds": [
+        "c3528000",
+        "c3528000",
+        "c3527000",
+        "c3526000",
+        "c3525000",
+        "c3524000",
+        "c4969000",
+        "c8737102",
+        "c8737101",
+        "c12158001",
+        "c15081000",
+        "c12553102",
+        "c12553201"
+      ],
+      "distanceM": 1256.224723376922
+    },
+    {
+      "id": "north-beach-to-downtown",
+      "pickup": "north-beach",
+      "destination": "downtown",
+      "links": [
+        {
+          "edge": 8963,
+          "dir": 1
+        },
+        {
+          "edge": 805,
+          "dir": 1
+        },
+        {
+          "edge": 804,
+          "dir": -1
+        },
+        {
+          "edge": 803,
+          "dir": -1
+        },
+        {
+          "edge": 802,
+          "dir": -1
+        },
+        {
+          "edge": 801,
+          "dir": -1
+        },
+        {
+          "edge": 800,
+          "dir": -1
+        },
+        {
+          "edge": 799,
+          "dir": -1
+        },
+        {
+          "edge": 797,
+          "dir": -1
+        },
+        {
+          "edge": 796,
+          "dir": -1
+        },
+        {
+          "edge": 795,
+          "dir": -1
+        },
+        {
+          "edge": 794,
+          "dir": -1
+        },
+        {
+          "edge": 793,
+          "dir": -1
+        },
+        {
+          "edge": 792,
+          "dir": -1
+        },
+        {
+          "edge": 791,
+          "dir": -1
+        },
+        {
+          "edge": 790,
+          "dir": -1
+        },
+        {
+          "edge": 789,
+          "dir": -1
+        },
+        {
+          "edge": 788,
+          "dir": -1
+        },
+        {
+          "edge": 786,
+          "dir": -1
+        },
+        {
+          "edge": 722,
+          "dir": 1
+        }
+      ],
+      "edgeIds": [
+        "c4296000",
+        "c10696000",
+        "c10695000",
+        "c10694000",
+        "c10693000",
+        "c10692000",
+        "c10691000",
+        "c10690000",
+        "c10689000",
+        "c10688000",
+        "c10687000",
+        "c10686000",
+        "c10685000",
+        "c10684000",
+        "c10683000",
+        "c10682000",
+        "c10681000",
+        "c10680000",
+        "c10679000",
+        "c10628000"
+      ],
+      "distanceM": 1500.7692022829792
+    },
+    {
+      "id": "rincon-hill-to-north-beach",
+      "pickup": "rincon-hill",
+      "destination": "north-beach",
+      "links": [
+        {
+          "edge": 1556,
+          "dir": -1
+        },
+        {
+          "edge": 11765,
+          "dir": -1
+        },
+        {
+          "edge": 10704,
+          "dir": -1
+        },
+        {
+          "edge": 10703,
+          "dir": 1
+        },
+        {
+          "edge": 10702,
+          "dir": 1
+        },
+        {
+          "edge": 10701,
+          "dir": 1
+        },
+        {
+          "edge": 10700,
+          "dir": 1
+        },
+        {
+          "edge": 10699,
+          "dir": 1
+        },
+        {
+          "edge": 10698,
+          "dir": 1
+        },
+        {
+          "edge": 10707,
+          "dir": 1
+        },
+        {
+          "edge": 10708,
+          "dir": 1
+        },
+        {
+          "edge": 10709,
+          "dir": 1
+        },
+        {
+          "edge": 10711,
+          "dir": 1
+        },
+        {
+          "edge": 1371,
+          "dir": 1
+        },
+        {
+          "edge": 1372,
+          "dir": 1
+        },
+        {
+          "edge": 1736,
+          "dir": 1
+        },
+        {
+          "edge": 1737,
+          "dir": 1
+        },
+        {
+          "edge": 1738,
+          "dir": 1
+        },
+        {
+          "edge": 1740,
+          "dir": 1
+        },
+        {
+          "edge": 3839,
+          "dir": 1
+        },
+        {
+          "edge": 3840,
+          "dir": 1
+        },
+        {
+          "edge": 8952,
+          "dir": 1
+        },
+        {
+          "edge": 8953,
+          "dir": 1
+        },
+        {
+          "edge": 8954,
+          "dir": 1
+        },
+        {
+          "edge": 8955,
+          "dir": 1
+        },
+        {
+          "edge": 8957,
+          "dir": 1
+        },
+        {
+          "edge": 8958,
+          "dir": 1
+        },
+        {
+          "edge": 8959,
+          "dir": 1
+        },
+        {
+          "edge": 8960,
+          "dir": 1
+        },
+        {
+          "edge": 8961,
+          "dir": 1
+        },
+        {
+          "edge": 8962,
+          "dir": 1
+        },
+        {
+          "edge": 8963,
+          "dir": 1
+        }
+      ],
+      "edgeIds": [
+        "c114000",
+        "c6711000",
+        "c5864000",
+        "c5863001",
+        "c5863000",
+        "c5862000",
+        "c5861002",
+        "c5861001",
+        "c5860000",
+        "c5867000",
+        "c5868000",
+        "c5869000",
+        "c5870000",
+        "c11222000",
+        "c11223000",
+        "c11547000",
+        "c11548000",
+        "c11549000",
+        "c11550000",
+        "c13408000",
+        "c13409000",
+        "c4286000",
+        "c4287000",
+        "c4288000",
+        "c4289000",
+        "c4290000",
+        "c4291000",
+        "c4292000",
+        "c4293000",
+        "c4294000",
+        "c4295000",
+        "c4296000"
+      ],
+      "distanceM": 2605.5635224395314
+    },
+    {
+      "id": "soma-to-fidi",
+      "pickup": "soma",
+      "destination": "fidi",
+      "links": [
+        {
+          "edge": 14563,
+          "dir": -1
+        },
+        {
+          "edge": 5174,
+          "dir": 1
+        },
+        {
+          "edge": 5163,
+          "dir": 1
+        },
+        {
+          "edge": 5152,
+          "dir": 1
+        },
+        {
+          "edge": 14116,
+          "dir": 1
+        },
+        {
+          "edge": 14115,
+          "dir": 1
+        },
+        {
+          "edge": 14113,
+          "dir": 1
+        },
+        {
+          "edge": 14109,
+          "dir": 1
+        },
+        {
+          "edge": 14110,
+          "dir": 1
+        },
+        {
+          "edge": 14111,
+          "dir": 1
+        },
+        {
+          "edge": 2637,
+          "dir": 1
+        },
+        {
+          "edge": 1731,
+          "dir": 1
+        },
+        {
+          "edge": 1732,
+          "dir": 1
+        },
+        {
+          "edge": 1733,
+          "dir": 1
+        },
+        {
+          "edge": 8133,
+          "dir": 1
+        }
+      ],
+      "edgeIds": [
+        "c9095101",
+        "c165000",
+        "c164000",
+        "c163000",
+        "c8744102",
+        "c8744101",
+        "c8743101",
+        "c8742101",
+        "c8742201",
+        "c8742202",
+        "c12315000",
+        "c11542000",
+        "c11543000",
+        "c11544000",
+        "c3528000"
+      ],
+      "distanceM": 1315.7236685622602
+    }
+  ],
+  "maxMoveExcess": -0.5,
+  "minStopClearance": 2.6392996286050185,
+  "driverTrace": [
+    "overtake -2.8 road: kerb at 11 m",
+    "overtake -8.3 road: person at 2 m",
+    "overtake -2.9 road: person at 3 m",
+    "overtake -3.0 kerb: person at 2 m",
+    "overtake 3.0 kerb: vehicle at 6 m",
+    "overtake -3.6 kerb: person at 2 m",
+    "overtake 3.6 kerb: vehicle at 6 m",
+    "overtake -4.2 kerb: person at 2 m",
+    "overtake 4.2 kerb: vehicle at 6 m",
+    "overtake -8.3 road: kerb at 6 m",
+    "overtake -2.9 road: vehicle at 3 m",
+    "overtake -3.0 kerb: person at 3 m",
+    "overtake 3.0 kerb: vehicle at 6 m",
+    "overtake -3.6 kerb: person at 3 m",
+    "overtake 3.6 kerb: vehicle at 6 m",
+    "overtake -4.2 kerb: person at 2 m",
+    "overtake 4.2 kerb: vehicle at 6 m",
+    "overtake -8.3 road: kerb at 6 m",
+    "overtake -2.9 road: vehicle at 3 m",
+    "overtake -3.0 kerb: vehicle at 3 m",
+    "overtake 3.0 kerb: vehicle at 6 m",
+    "overtake -3.6 kerb: vehicle at 3 m",
+    "overtake 3.6 kerb: vehicle at 6 m",
+    "overtake -4.2 kerb: vehicle at 6 m",
+    "overtake 4.2 kerb: vehicle at 6 m",
+    "stalled behind vehicle15 6.5 m ahead"
+  ],
+  "personBumps": 0,
+  "dodgeContacts": 0,
+  "events": [
+    {
+      "id": 3,
+      "tick": 267,
+      "kind": "taxi.picked-up",
+      "tripId": "taxi-physical-1:a1:f0",
+      "routeId": "downtown-to-soma",
+      "passengerId": "taxi-physical-1:a1:f0:passenger",
+      "cashCents": 0,
+      "timeBonusCents": 0,
+      "xp": 0,
+      "reason": "",
+      "pose": {
+        "playerId": "p1",
+        "vehicleId": "p1-car",
+        "kind": "vehicle",
+        "manual": true,
+        "x": -1223.696854858821,
+        "y": 24.135783871227904,
+        "z": 788.5750803220913,
+        "heading": 1.4077976758152504,
+        "speedMps": 0,
+        "lateralMps": 0,
+        "grounded": true,
+        "onWater": false,
+        "personClearanceM": 2.6392996286050185
+      }
+    }
+  ],
+  "trace": [
+    {
+      "tick": 600,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 8367,
+      "car": {
+        "x": -1191.5331191356318,
+        "y": 23.15447665076802,
+        "z": 783.4587829470202,
+        "speed": 6.960568954258941,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    },
+    {
+      "tick": 1200,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 7767,
+      "car": {
+        "x": -1171.1203456144533,
+        "y": 22.544943892229252,
+        "z": 780.2316233124554,
+        "speed": 0,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    },
+    {
+      "tick": 1800,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 7167,
+      "car": {
+        "x": -1155.9069513268532,
+        "y": 22.394326817343604,
+        "z": 778.7135733324365,
+        "speed": 3.0170717388820623,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    },
+    {
+      "tick": 2400,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 6567,
+      "car": {
+        "x": -1159.411663881787,
+        "y": 22.407448813023514,
+        "z": 770.9697771896831,
+        "speed": 1.9760901372602224,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    },
+    {
+      "tick": 3000,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 5967,
+      "car": {
+        "x": -1161.0753139909768,
+        "y": 22.417000763180678,
+        "z": 772.9515023555228,
+        "speed": 0,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    },
+    {
+      "tick": 3600,
+      "phase": "driving",
+      "route": "downtown-to-soma",
+      "remaining": 5367,
+      "car": {
+        "x": -1161.0753139909768,
+        "y": 22.417000763180678,
+        "z": 772.9515023555228,
+        "speed": 0,
+        "grounded": true
+      },
+      "reason": "outside-stop-zone"
+    }
+  ]
+}

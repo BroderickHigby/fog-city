@@ -1,0 +1,16 @@
+{
+  "case": "Marina signed-velocity measurement correction",
+  "test": "tests/sim/traffic-flow-captured.test.ts",
+  "pattern": "Marina Blvd",
+  "wallCapS": 120,
+  "physicalStandstillTicks": 2700,
+  "speedMagnitudeThreshold": 0.05,
+  "snapshotSha256": "415f134bcced8134444459ab8f3d2c6a5a2c770b0b6f85fe9b9ce1dd75fc91b3",
+  "priorExpectedStateHash": "86a30a9c",
+  "startedAt": "2026-10-27T02:30:56Z",
+  "pid": 54878,
+  "exitCode": 1,
+  "timedOut": false,
+  "elapsedS": 67.15284204483032,
+  "processGroupGone": true
+}

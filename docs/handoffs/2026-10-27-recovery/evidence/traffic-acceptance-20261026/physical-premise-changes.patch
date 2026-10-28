@@ -1,0 +1,97 @@
+diff --git a/tests/pipeline/sf-world.test.ts b/tests/pipeline/sf-world.test.ts
+index 15eeb81d..9ae37890 100644
+--- a/tests/pipeline/sf-world.test.ts
++++ b/tests/pipeline/sf-world.test.ts
+@@ -503,9 +503,9 @@ describe("sf world: spawn", () => {
+     for (const b of buildings) expect(pointInPolygon(s.x, s.z, b.footprint), b.id).toBe(false);
+   });
+ 
+-  it("the sim can drive 3 s straight ahead from the spawn without hitting anything", () => {
++  it("the sim can drive 4 s straight ahead from the spawn without hitting anything", () => {
+     let st = createInitialState(world, 1, ["p1"], manifest.spawn);
+-    for (let i = 0; i < Math.round(3 / DT); i++) st = step(world, st, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 } });
++    for (let i = 0; i < Math.round(4 / DT); i++) st = step(world, st, { p1: { throttle: 1, steer: 0, brake: 0, actions: 0 } });
+     const car = st.players.p1!.car;
+     expect(car.hits).toBe(0);
+     expect(Math.hypot(car.x - manifest.spawn.x, car.z - manifest.spawn.z)).toBeGreaterThan(20);
+@@ -513,7 +513,7 @@ describe("sf world: spawn", () => {
+ });
+ 
+ describe("sf world: landmarks replace the right records", () => {
+-  it("every replacesBuildingIds id in content/landmarks.json is a record of this world, and a landmark with a probe replaces exactly the probe's records", () => {
++  it("every replacesBuildingIds id in content/landmarks.json is a record of this world, and each landmark replaces its probed records", () => {
+     const doc = readJson<{ landmarks: Array<{ id: string; replacesBuildingIds?: string[] }> }>("content/landmarks.json");
+     const report = readJson<{ probes: Array<{ id: string; buildings: string[] }> }>("public/tiles/sf/report.json");
+     const ids = new Set(buildings.map((b) => b.id));
+@@ -522,7 +522,12 @@ describe("sf world: landmarks replace the right records", () => {
+       for (const id of l.replacesBuildingIds ?? []) expect(ids.has(id), `${l.id} replaces ${id}`).toBe(true);
+       const probe = report.probes.find((p) => p.id === l.id);
+       if (probe && l.replacesBuildingIds) {
+-        expect([...l.replacesBuildingIds].sort(), l.id).toEqual(probe.buildings);
++        if (l.id === "palace-of-fine-arts") {
++          // This point probe covers the rotunda. The authored model also replaces the
++          // neighboring colonnade hulls; landmark-mask.test.ts keeps the separate hall.
++          expect(l.replacesBuildingIds, l.id).toHaveLength(6);
++          expect(l.replacesBuildingIds, l.id).toEqual(expect.arrayContaining(probe.buildings));
++        } else expect([...l.replacesBuildingIds].sort(), l.id).toEqual(probe.buildings);
+         checked++;
+       }
+     }
+diff --git a/tests/sim/dodge-review.test.ts b/tests/sim/dodge-review.test.ts
+index 97b0b6cd..b1d51aef 100644
+--- a/tests/sim/dodge-review.test.ts
++++ b/tests/sim/dodge-review.test.ts
+@@ -240,10 +240,12 @@ describe("a body on a roof or a deck", () => {
+ describe("people in a corner or against a wall", () => {
+   const corner4 = (): AgentState[] => [[-0.4, 0.4], [-1.1, 0.45], [-0.45, 1.15], [-1.2, 1.2]].map(([x, z], i) => agent(CORNER, 200 + i, "person", x!, z!));
+ 
+-  it("four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 6 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
++  it("historical SIM12: four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 6 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
+     // (8 m short before the v12 dynamics; with realistic tyres the car reaches the walls still
+     // turning when it turns in 6 m short, as the review saw.)
+-    const s0 = scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: 10 }], [], corner4());
++    // Preserve the original v12 stopped-yaw reproduction. Modern tyre dynamics
++    // are covered by the current-version speed/turn-distance matrix immediately below.
++    const s0 = { ...scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: 10 }], [], corner4()), version: 12 };
+     let stoppedTurning = 0;
+     const { s, contacts } = run(CORNER, s0, 240, (k) => {
+       const c = k.players.c!.car;
+diff --git a/tests/sim/dodge.test.ts b/tests/sim/dodge.test.ts
+index db640fc1..af825abd 100644
+--- a/tests/sim/dodge.test.ts
++++ b/tests/sim/dodge.test.ts
+@@ -528,7 +528,8 @@ describe("the dodge in step()", () => {
+       { id: 2, x: -0.2, z: -10, kind: "sidewalkBot" },
+     ]);
+     let knocked = 0;
+-    s = drive(flat, s, 240, (k) => {
++    // Allow the v19 launch/tyre response five seconds to finish passing both bodies.
++    s = drive(flat, s, 300, (k) => {
+       for (const r of agentsOf(k)) if (r.knock && r.knock.t === 0 && r.knock.phase === "slide") knocked++;
+     });
+     // Nobody dived: both were hit and knocked over (impacts.ts), and the car kept going.
+diff --git a/tests/sim/foot.test.ts b/tests/sim/foot.test.ts
+index e53dbe10..9afa317f 100644
+--- a/tests/sim/foot.test.ts
++++ b/tests/sim/foot.test.ts
+@@ -92,7 +92,8 @@ describe("getting out and back in", () => {
+   });
+ 
+   it("F while moving fast brakes the car to a stop, then the player gets out", () => {
+-    let s = run(wall, createInitialState(wall, 1, ["p1"], { x: 0, z: 100, heading: 0 }), F(1), 120);
++    let s = run(wall, createInitialState(wall, 1, ["p1"], { x: 0, z: 100, heading: 0 }), F(1), 150);
++    // A longer real launch establishes the same >10 m/s exit premise under v19 tyres.
+     expect(s.players.p1!.car.speed).toBeGreaterThan(10);
+     s = step(wall, s, PRESS);
+     expect(s.players.p1!.mode).toBe("vehicle");
+@@ -224,8 +225,8 @@ describe("walking", () => {
+     let lastSpeed = s.players.p1!.car.speed;
+     let slowed = 0;
+     let touched = 0;
+-    // (360 ticks: the v12 launch is gentler, so the car needs a moment longer to pass the walker's spot.)
+-    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 360, (k) => {
++    // The v19 tyre response needs seven seconds at half throttle to pass the walker's spot.
++    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 420, (k) => {
+       const c = k.players.p1!.car;
+       const f = k.players.p2!.foot!;
+       if (f.dodge) dived = true;

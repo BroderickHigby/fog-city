@@ -79,6 +79,12 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     actors.push({kind:"player",firmware:"none",robotBody:false,radius:0.35,height:1.8,...actorMetadata(options,id),id,playerId:player.id,x:player.x,y:player.y,z:player.z,heading:player.heading,speed:player.speed});
   }
   actors.push(...(options.extraActors??[]));
+  if(state.version>=21)for(let i=actors.length-1;i>=0;i--){
+    const actor=actors[i]!,target=state.ext.combat?.targets[actor.id];
+    if(actor.kind!=="robot"||actor.protected||!target)continue;
+    if(target.phase==="cleared"){actors.splice(i,1);continue;}
+    if(target.phase==="slumping"||target.phase==="heap")actors[i]={...actor,height:actor.height*Math.max(.3,Math.min(1,target.heightScale))};
+  }
   const walls:Wall[]=[...(options.walls??[]),...agentsOf(state).filter(isCivilianTraffic).map(civilianWall)];
   const seen=new Set(walls.map(wall=>wall.id));
   for (const player of players) for (const building of nearbyBuildings(world,player.x,player.z,40)) {
@@ -86,10 +92,13 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     seen.add(building.id);
     walls.push(buildingWall(building));
   }
-  return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
+  return {simVersion:state.version,wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),
     ...(options.fog!==undefined?{fog:options.fog}:{}),...(options.fogAt?{fogAt:options.fogAt}:{}),...(options.rain!==undefined?{rain:options.rain}:{}),...(options.night!==undefined?{night:options.night}:{}),
     ...(options.mode?{mode:options.mode}:{}),...(options.safeLots?{safeLots:options.safeLots}:{}),...(options.streaks?{streaks:options.streaks}:{}),
     ...(options.rivalPlayerIds?{rivalPlayerIds:options.rivalPlayerIds}:{}),
+    ...(options.worldAgiSequence!==undefined?{worldAgiSequence:options.worldAgiSequence}:{}),
+    ...(options.devicePlacementAllowed?{devicePlacementAllowed:options.devicePlacementAllowed}:{}),
+    ...(options.aimPlacement?{aimPlacement:options.aimPlacement}:{}),...(options.deviceEffectAllowed?{deviceEffectAllowed:options.deviceEffectAllowed}:{}),
   };
 }

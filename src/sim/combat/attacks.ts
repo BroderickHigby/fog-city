@@ -212,6 +212,7 @@ export function stepAttacks(state: CombatState, ctx: CombatContext, inputs: Comb
     const targetId = pair.target.player?.id ?? request.targetId;
     state.attacks.push({ id: request.id, kind: request.kind, attackerId: request.attackerId, targetId,
       startTick: state.tick, resolveTick, endTick: resolveTick + (request.kind === "ad-blast" ? AD_POPUP_TICKS : request.kind === "handshake" ? HANDSHAKE_TICKS : 0), presses: 0, active: false });
+    if((ctx.simVersion??21)>=21)targetState(state,request.attackerId).hasAttacked=true;
     emit(state, ATTACK_EVENT.windup, request.attackerId, targetId, windup, request.kind);
   }
 

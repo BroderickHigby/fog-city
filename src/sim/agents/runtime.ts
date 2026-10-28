@@ -1,3 +1,5 @@
+import { runtimeDeviceLure,lureStepAllowed } from "./lures.ts";
+import { activeWorldTick } from "../pause-timers.ts";
 import { isCivilianTraffic } from "../civilian-traffic.ts";
 import { BOT_TELLS, botAtLevel } from "../../content/botTells.ts";
 import { agentActorId } from "../identity.ts";
@@ -116,6 +118,8 @@ export interface AgentsRuntimeState {
 export interface AgentRuntimeOptions {
   graph?: SidewalkGraph;
   services?: boolean;
+  /** v21 authored weather scaling for autonomous robots only; finite values clamp to .5..1. */
+  speedMultiplier?: number;
   transit?: TransitLayer;
   vehicleControls?: Readonly<Record<string,Readonly<SimInput>>>;
   spawns?: readonly RuntimeSpawn[];
@@ -333,7 +337,7 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(received.kind!=="robot.broadcast")continue;
     const source=others.find(other=>other.id===received.sourceId);
     if(!source?.brain)continue;
-    for(const known of source.brain.knowledge)broadcasts.push({sourceId:source.numericId,sourcePosition:{x:source.x,z:source.z},sourceSeized:phase(sim,source.id)==="seized",emittedTick:sim.tick,observedTick:known.observedTick,playerId:known.playerId,position:{x:known.x,z:known.z}});
+    for(const known of source.brain.knowledge)broadcasts.push({sourceId:source.numericId,sourcePosition:{x:source.x,z:source.z},sourceSeized:phase(sim,source.id)==="seized",emittedTick:sim.tick,observedTick:known.observedTick,...(sim.version>=21?{expiresTick:known.expiresTick}:{}),playerId:known.playerId,position:{x:known.x,z:known.z}});
   }
   return {sight,sounds,scans,watches,broadcasts};
 }
@@ -554,10 +558,11 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const frozen=Boolean(effect&&effect.phase!=="active"||updating);
   let speed=frozen?0:wanted.speed*(effect?.movementScale??1);
   let goal=wanted.goal,direct=false;
+  const lure=runtimeDeviceLure(sim,actor,intent);if(lure){goal=lure.goal;speed=frozen?0:lure.speed;direct=distance(actor,lure)<lure.stopRadius;}
   // Bad firmware has no splash seal: in the rain an idle bad robot heads for shelter (a tell),
   // and on a King-tide day it keeps off the flooded waterfront. Chases and flight still win, and
   // authored mission and scene bodies (significant) keep their scripts.
-  if(actor.firmware==="bad"&&!actor.significant&&!wanted.goal&&intent?.movement?.kind!=="hold"&&options.weatherRefuge){
+  if(actor.firmware==="bad"&&!actor.significant&&!wanted.goal&&!lure&&intent?.movement?.kind!=="hold"&&options.weatherRefuge){
     const refuge=options.weatherRefuge(actor.x,actor.z);
     if(refuge){const d=distance(actor,refuge);goal=d>.4?refuge:null;speed=d>.4?Math.min(speed,1.6):0;direct=d<10;}
   }
@@ -596,6 +601,9 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     if(reaction.movement.kind==="hold")speed=0;
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
+  }
+  if(sim.version>=21 && actor.firmware!=="none" && actor.model!=="person" && actor.model!=="walker" && !animal(actor.model)) {
+    speed *= Number.isFinite(options.speedMultiplier) ? clamp(options.speedMultiplier!, .5, 1) : 1;
   }
   if(speed<=0||frozen||actor.posted){delete actor.stall;state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actor.x,actor.y,actor.z,actor.heading,0));return;}
   // (The last few metres to a shelter leave the sidewalk line for the wall or the stop itself.)
@@ -648,7 +656,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
   const length=distance(actor,goal),travel=Math.min(length,speed*DT);
   const dx=length>1e-8?(goal.x-actor.x)/length:0,dz=length>1e-8?(goal.z-actor.z)/length:0;
   const x=actor.x+dx*travel,z=actor.z+dz*travel;
-  const clear=!segmentBlocked(world,actor.x,actor.z,x,z);
+  const clear=!segmentBlocked(world,actor.x,actor.z,x,z)&&(!lure||lureStepAllowed(lure,actor,{x,z}));
   const y=actor.model==="drone"?actor.y+clamp(groundHeight(world,x,z)+6-actor.y,-2*DT,2*DT):groundHeight(world,x,z);
   const actualX=clear?x:actor.x,actualZ=clear?z:actor.z;
   actor.pendingPoint={x:actualX,z:actualZ};
@@ -710,7 +718,7 @@ export function planAgentRuntime(world:World,sim:Readonly<SimState>,inputs:Input
     if(actor.retired)continue;
     if(controlled.has(actor.id)){actor.intent=null;actor.behavior="controlled";continue;}
     if(actor.legacyId!==null&&!presentLegacy.has(actor.legacyId)){actor.fidelity="abstract";continue;}
-    const fidelity=planFidelity(actor,anchors,sim.tick);actor.fidelity=fidelity.tier;
+    const fidelity=planFidelity(actor,anchors,activeWorldTick(sim));actor.fidelity=fidelity.tier;
     if(fidelity.tier==="despawn"){
       actor.retired=true;actor.intent=null;
       event(state,"actor.retired",actor.id,"outside-fidelity");
@@ -802,7 +810,7 @@ export function observeAgentRuntime(sim:Readonly<SimState>,options:AgentRuntimeO
         waiting.add(id);
         if(actor.fidelity!=="abstract"||actor.behavior!=="pending-admission"||actor.speed!==0||actor.intent!==null){const body=own(id);body.fidelity="abstract";body.behavior="pending-admission";body.speed=0;body.intent=null;}
       }else if(actor.behavior==="pending-admission"){
-        const body=own(id);body.fidelity=planFidelity(body,anchors,sim.tick).tier;body.behavior="idle";
+        const body=own(id);body.fidelity=planFidelity(body,anchors,activeWorldTick(sim)).tier;body.behavior="idle";
       }
     }
     if(waiting.size)attacks=attacks.filter(attack=>!waiting.has(attack.attackerId)&&!waiting.has(attack.targetId));

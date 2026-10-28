@@ -40,6 +40,8 @@ export interface CombatPlayer extends Vec3 {
   nozzle?: "standard" | "pressure" | "wide";
   gear?: "boots" | "airplane" | "microclimate" | "none";
   gadget?: "balloon" | "sprinkler" | "speaker";
+  /** SIM21 validated profile rank and ownership; missing fails closed for new gadgets. */
+  gadgetEnabled?: boolean;
   perks?: readonly ("quiet" | "stealth" | "marine" | "brackish" | "whisperer" | "lean")[];
   trunk?: boolean;
   roofCannon?: boolean;
@@ -71,12 +73,23 @@ export interface CombatInput {
   /** Recorded UI clicks address exact live popups; these are pulses, not held controls. */
   closeAdIds?: readonly string[];
   streak?: StreakKind;
+  placementBlocked?:boolean;
   targetX?: number;
   targetZ?: number;
   boost?: "salt" | "pressure" | "wide";
 }
 export type CombatInputs = Readonly<Record<string, Readonly<CombatInput>>>;
 export interface CombatContext {
+  /** Simulation behavior boundary. The world adapter supplies authoritative SimState.version. */
+  simVersion?: number;
+  /** Trusted previous progression world.agi-achieved event cursor. */
+  worldAgiSequence?:number;
+  /** Trusted immutable world placement validation; context only, never serialized. */
+  devicePlacementAllowed?: (point:Vec3,clearance:number)=>boolean;
+  /** Recorded aim becomes a desired point on accepted world support, never a completion fact. */
+  aimPlacement?:(player:Readonly<CombatPlayer>,input:Readonly<CombatInput>,range:number)=>Vec3|null;
+  /** Light effects share human/protected-area exclusions without treating the target as a new body. */
+  deviceEffectAllowed?:(point:Vec3,clearance:number)=>boolean;
   wave?: CombatWave;
   actors: readonly CombatActor[];
   players: readonly CombatPlayer[];
@@ -95,7 +108,7 @@ export interface CombatContext {
   rain?: number;
   conversionCap?: number;
   rivalPlayerIds?: Readonly<Record<string, readonly string[]>>;
-  mode?: "free-roam" | "clean-streets" | "fog-royale" | "other-pvp";
+  mode?: "bot-sweep" | "free-roam" | "clean-streets" | "fog-royale" | "other-pvp";
 }
 export interface ScanResult { targetId: string; bad: boolean; confidence: number; tick: number }
 export interface PlayerCombat {
@@ -126,6 +139,8 @@ export interface PlayerCombat {
   marks: { targetId: string; untilTick: number; confidence: number; hallucination: boolean }[];
 }
 export interface TargetCombat {
+  /** SIM21 true only after an accepted windup; absent legacy targets infer conservatively. */
+  hasAttacked?:boolean;
   rust: number;
   phase: "active" | "seized" | "slumping" | "heap" | "disabled" | "cleared";
   phaseTick: number;
@@ -180,6 +195,7 @@ export interface Gadget extends Vec3 {
 }
 export interface PendingAttack { id: string; kind: AttackKind; attackerId: string; targetId: string; startTick: number; resolveTick: number; endTick: number; presses: number; active: boolean }
 export interface CombatEvent { id: number; tick: number; kind: string; sourceId: string; targetId: string; amount: number; detail: string }
+export interface FlowerReceipt { projectileId:number;ownerId:string;untilTick:number }
 export interface CombatState {
   version: 1;
   tick: number;
@@ -196,4 +212,7 @@ export interface CombatState {
   maintenanceChannels?: Record<string, MaintenanceChannel>;
   events: CombatEvent[];
   pauseUntil: number;
+  worldAgiSequence?:number;
+  /** SIM21 bounded contact receipts; absent in older saves and until the first valid flower hit. */
+  flowerReceipts?: FlowerReceipt[];
 }

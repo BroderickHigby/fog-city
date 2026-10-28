@@ -1,0 +1,12 @@
+{
+  "case": "514 exact first raw threshold prefix",
+  "snapshotSha256": "1b5d01f3dc0f384ddf4962914480fd28ffc3e76ae746ba0b208cd238e0e50d22",
+  "harnessSha256": "017718f3176e77b02f797521d4a34e7277585e01006aab92263222bb28dbe145",
+  "wallCapS": 65,
+  "tickCap": 5000,
+  "physicalThresholdUnchanged": 2700,
+  "pid": 54449,
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedS": 31.387701988220215
+}

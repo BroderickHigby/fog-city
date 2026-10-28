@@ -52,7 +52,10 @@ export function drawMap(canvas:HTMLCanvasElement,view:UiView,size=202,heading=0,
   for(const blip of map?.blips??[]){
     if(blip.kind==="robot"&&!blip.confirmed)continue;
     const p=point(blip);if(!Number.isFinite(p.x+p.z)||p.x<3||p.x>size-3||p.z<3||p.z>size-3)continue;
-    c.fillStyle=COLORS[blip.kind]??"#fff";c.strokeStyle="#111b21";c.lineWidth=1.5;c.beginPath();c.arc(p.x,p.z,3.6,0,Math.PI*2);c.fill();c.stroke();
+    c.fillStyle=COLORS[blip.kind]??"#fff";c.strokeStyle="#111b21";c.lineWidth=1.5;c.beginPath();
+    if(blip.kind==="robot"&&blip.confirmed){c.moveTo(p.x,p.z-5);c.lineTo(p.x+4.5,p.z);c.lineTo(p.x,p.z+5);c.lineTo(p.x-4.5,p.z);c.closePath();}
+    else c.arc(p.x,p.z,3.6,0,Math.PI*2);
+    c.fill();c.stroke();
   }
   const own=point({x:view.x,z:view.z});
   if(own.x>=-8&&own.x<=size+8&&own.z>=-8&&own.z<=size+8){c.save();c.translate(own.x,own.z);c.rotate(view.heading-heading);c.fillStyle="#f8fcff";c.strokeStyle="#111820";c.lineWidth=2.5;c.beginPath();c.moveTo(0,-8);c.lineTo(5.5,6);c.lineTo(0,3);c.lineTo(-5.5,6);c.closePath();c.stroke();c.fill();c.restore();}

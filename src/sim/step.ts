@@ -45,6 +45,7 @@ import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
 import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
+import { holdPausedWorldTimers } from "./pause-timers.ts";
 import { movementLimit } from "./combat/system.ts";
 import { stepManualTaxis, syncManualTaxiImpacts, commandeerTaxi } from "./manual-taxi.ts";
 import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, hailableTaxi, takeoverTaxi } from "./ride.ts";
@@ -164,6 +165,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v17 -> v18: swept full-hull vehicle contacts; every saved field remains unchanged.
  *  - v18 -> v19: fixed-step city-road handling; no field rewrite or progress reset.
  *  - v19 -> v20: shared traffic signals; no field rewrite or progress reset.
+ *  - v20 -> v21: measured side activities and collapsed robot projectile silhouettes.
+ *    Optional activity state starts only when a run is booked; preserve every saved field.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -183,6 +186,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 17) return upgradeState({ ...s, version: 18 });
   if (s.version === 18) return upgradeState({ ...s, version: 19 });
   if (s.version === 19) return upgradeState({ ...s, version: 20 });
+  if (s.version === 20) return upgradeState({ ...s, version: 21 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
@@ -527,6 +531,11 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
       : input;
   }
   const prior: SimState = { ...prev, players };
+  if(prior.version>=21&&(prior.ext.combat?.pauseUntil??0)>prior.tick){
+    const held=holdPausedWorldTimers(prior);
+    // Combat owns its pause deadline and membership cleanup; no preparer or physical owner runs.
+    return runSystems({world,previous:prior,state:held,inputs:sanitized,events},systems.filter(system=>system.key==="combat"));
+  }
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
   const admitted = releaseActorIds(prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements), prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };

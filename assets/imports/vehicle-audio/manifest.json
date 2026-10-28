@@ -1,0 +1,124 @@
+{
+  "schema": 1,
+  "stage": "candidate-public-previews",
+  "files": [
+    {
+      "path": "vehicle-audio/raw/865228-engine-idle-rev-preview-hq.mp3",
+      "acquisition_url": "https://cdn.freesound.org/previews/865/865228_13610145-hq.mp3",
+      "bytes": 770225,
+      "sha256": "453c8f91c675a5b3b626ff569f835709fb729e05bd802b09bdac707b049cca1a",
+      "acquired_utc": "2026-10-26T22:15:08.063643+00:00",
+      "sound_id": "865228",
+      "title": "Elantra Engine Idle and Rev",
+      "author": "microman502",
+      "source_page": "https://freesound.org/people/microman502/sounds/865228/",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "representation": "Public HQ MP3 preview, not original WAV/AIFF",
+      "quality_acceptance": "Not listened to or approved; lossy preview candidate only",
+      "media_probe": {
+        "codec": "mp3",
+        "sample_rate_hz": 44100,
+        "channels": 1,
+        "duration_seconds": 34.605828,
+        "average_container_bitrate_bps": 178056
+      },
+      "source_capture": {
+        "path": "raw/865228-source.html",
+        "sha256": "0f8045ff7074f56cb596b86561a6f912e31d092ac369bfed300f7759fb788914"
+      }
+    },
+    {
+      "path": "vehicle-audio/raw/162499-engine-acceleration-preview-hq.mp3",
+      "acquisition_url": "https://cdn.freesound.org/previews/162/162499_1277206-hq.mp3",
+      "bytes": 79536,
+      "sha256": "015e0cdc4c2d4c85d39c4b0f2316e18fcefe035cdb0d9506f26a70ed6f89d127",
+      "acquired_utc": "2026-10-26T22:15:09.127636+00:00",
+      "sound_id": "162499",
+      "title": "Acceleration Sweep - 4062.wav",
+      "author": "Chippy569",
+      "source_page": "https://freesound.org/people/Chippy569/sounds/162499/",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "representation": "Public HQ MP3 preview, not original WAV/AIFF",
+      "quality_acceptance": "Not listened to or approved; lossy preview candidate only",
+      "media_probe": {
+        "codec": "mp3",
+        "sample_rate_hz": 48000,
+        "channels": 2,
+        "duration_seconds": 4.265104,
+        "average_container_bitrate_bps": 149184
+      },
+      "source_capture": {
+        "path": "raw/162499-source.html",
+        "sha256": "9a595566ad34122d9ad7bf9b61760c09ab79a584ab87470fbd0a818cdc259ed2"
+      }
+    },
+    {
+      "path": "vehicle-audio/raw/439311-road-cabin-preview-hq.mp3",
+      "acquisition_url": "https://cdn.freesound.org/previews/439/439311_5618682-hq.mp3",
+      "bytes": 1167456,
+      "sha256": "4af31569947c498349c0bd15a15e85dcdaa1a29adfcba671abefc80b50e57fea",
+      "acquired_utc": "2026-10-26T22:15:23.991629+00:00",
+      "sound_id": "439311",
+      "title": "Inside Car Noise While Driving",
+      "author": "jackthemurray",
+      "source_page": "https://freesound.org/people/jackthemurray/sounds/439311/",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "representation": "Public HQ MP3 preview, not original WAV/AIFF",
+      "quality_acceptance": "Not listened to or approved; lossy preview candidate only",
+      "media_probe": {
+        "codec": "mp3",
+        "sample_rate_hz": 48000,
+        "channels": 2,
+        "duration_seconds": 52.277333,
+        "average_container_bitrate_bps": 178655
+      },
+      "source_capture": {
+        "path": "raw/439311-source.html",
+        "sha256": "c6598c24dd828b5d02a215ffa1071a2817e2b5d3559a6254f8c0b9f1328fe1e9"
+      }
+    },
+    {
+      "path": "vehicle-audio/raw/104026-tire-braking-preview-hq.mp3",
+      "acquisition_url": "https://cdn.freesound.org/previews/104/104026_179538-hq.mp3",
+      "bytes": 45120,
+      "sha256": "0bfe34b01bbfcbf782b88a1cb7df7b88f58ed30ad9c3d6bf1fe08234a9e8fe47",
+      "acquired_utc": "2026-10-26T22:15:24.963608+00:00",
+      "sound_id": "104026",
+      "title": "Tires Squeaking.aif",
+      "author": "RutgerMuller",
+      "source_page": "https://freesound.org/people/RutgerMuller/sounds/104026/",
+      "license": "CC0-1.0",
+      "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+      "representation": "Public HQ MP3 preview, not original WAV/AIFF",
+      "quality_acceptance": "Not listened to or approved; lossy preview candidate only",
+      "media_probe": {
+        "codec": "mp3",
+        "sample_rate_hz": 48000,
+        "channels": 2,
+        "duration_seconds": 2.0,
+        "average_container_bitrate_bps": 180480
+      },
+      "source_capture": {
+        "path": "raw/104026-source.html",
+        "sha256": "b67a50d7721f4b80d8f2d0da466bf8512c2442c35a985a06d087eac9c391b71e"
+      }
+    }
+  ],
+  "license_file": {
+    "path": "vehicle-audio/raw/CC0-1.0-legalcode.txt",
+    "acquisition_url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode.txt",
+    "bytes": 7048,
+    "sha256": "a2010f343487d3f7618affe54f789f5487602331c0a8d03f49e9a7c547cf0499",
+    "acquired_utc": "2026-10-26T22:15:25.123814+00:00"
+  },
+  "originals_acquired": false,
+  "listened": false,
+  "transcoded": false,
+  "acquired_utc": "2026-10-26T22:16:49.342958+00:00",
+  "license_verified_from_source_pages": true,
+  "original_download_requires_login": true,
+  "browser_compatibility_verified": false
+}

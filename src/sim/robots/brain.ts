@@ -37,6 +37,8 @@ export interface RobotBroadcast {
   readonly sourcePosition: BrainPoint;
   readonly sourceSeized: boolean;
   readonly emittedTick: number;
+  /** SIM21 paused-clock TTL; original observedTick is never refreshed by forwarding. */
+  readonly expiresTick?:number;
   /** Original observation time. Forwarding a report must not refresh old knowledge. */
   readonly observedTick: number;
   readonly playerId: string;
@@ -82,9 +84,9 @@ export interface PlayerKnowledge extends BrainPoint {
   /** Last-seen v17 encounter eligibility. Absent in legacy observations and saves. */
   readonly targetable?: boolean;
 }
-export interface CloseWatch { readonly playerId: string; readonly startedTick: number }
-export interface RobotWindup { readonly target: BrainTarget; readonly attack: RobotAttack; readonly startedTick: number }
-export interface RobotUpdateChannel { readonly targetId: number; readonly startedTick: number }
+export interface CloseWatch { readonly playerId: string; readonly startedTick: number; readonly pausedTicks?:number }
+export interface RobotWindup { readonly target: BrainTarget; readonly attack: RobotAttack; readonly startedTick: number; readonly pausedTicks?:number }
+export interface RobotUpdateChannel { readonly targetId: number; readonly startedTick: number; readonly pausedTicks?:number }
 export interface RobotBrainState {
   readonly id: number;
   readonly archetype: RobotArchetype;
@@ -98,6 +100,7 @@ export interface RobotBrainState {
   readonly update: RobotUpdateChannel | null;
   readonly cooldownUntilTick: number;
   readonly fogChaseSinceTick: number | null;
+  readonly fogChasePausedTicks?:number;
   /** Bounded unacknowledged completion intents, not permanent immunity from future updates. */
   readonly pendingUpdates: readonly RobotUpdateCompletion[];
 }
@@ -168,6 +171,7 @@ function boolean(value: boolean, label: string): void {
 /** Reject malformed numeric data before it can poison a serializable deterministic state. */
 function validateInput(state: RobotBrainState, input: RobotBrainInput): void {
   integer(input.tick, "tick");
+  integer(state.windup?.pausedTicks??0,"windup pause");integer(state.update?.pausedTicks??0,"update pause");integer(state.fogChasePausedTicks??0,"fog chase pause");for(const watch of state.closeWatches)integer(watch.pausedTicks??0,"watch pause");
   if (input.tick <= state.lastTick) throw new RangeError("brain tick must increase");
   point(input.self);
   unit(input.self.rust, "rust");
@@ -219,6 +223,7 @@ function validateInput(state: RobotBrainState, input: RobotBrainInput): void {
     integer(broadcast.sourceId, "broadcast source");
     integer(broadcast.emittedTick, "broadcast emission");
     integer(broadcast.observedTick, "broadcast observation");
+    if(broadcast.expiresTick!==undefined)integer(broadcast.expiresTick,"broadcast expiry");
     boolean(broadcast.sourceSeized, "broadcast seized flag");
     point(broadcast.sourcePosition); point(broadcast.position); playerId(broadcast.playerId);
   }
@@ -329,11 +334,13 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
     alarm = alarm || sound.kind === "spray";
   }
   for (const broadcast of input.observations.broadcasts) {
+    const expires=broadcast.expiresTick??broadcast.observedTick+ROBOT_MEMORY_TICKS;
+    if(expires<broadcast.observedTick||expires>tick+ROBOT_MEMORY_TICKS)continue;
     if (!broadcast.sourceSeized || broadcast.sourceId === previous.id || distanceSq(input.self, broadcast.sourcePosition) > 60 * 60 ||
         broadcast.emittedTick > tick || broadcast.emittedTick < tick - 1 || broadcast.observedTick > broadcast.emittedTick ||
-        tick >= broadcast.observedTick + ROBOT_MEMORY_TICKS) continue;
+        tick >= expires) continue;
     remember(knowledge, { playerId: broadcast.playerId, ...copyPoint(broadcast.position), observedTick: broadcast.observedTick,
-      expiresTick: broadcast.observedTick + ROBOT_MEMORY_TICKS, channel: "broadcast" });
+      expiresTick: expires, channel: "broadcast" });
     alarm = true;
   }
   // Churn in player identities cannot grow saved state. Retain the freshest evidence,
@@ -348,8 +355,8 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
     if (!watch.lineOfSight || distanceSq(input.self, watch) > 10 * 10) continue;
     const prior = consecutive ? previous.closeWatches.find((w) => w.playerId === watch.playerId) : undefined;
     const startedTick = prior?.startedTick ?? tick;
-    closeWatches.push({ playerId: watch.playerId, startedTick });
-    if (tick - startedTick > WATCH_TICKS) waryUntilTick = tick + ROBOT_WARY_TICKS;
+    closeWatches.push({ playerId: watch.playerId, startedTick,...(prior?.pausedTicks!==undefined?{pausedTicks:prior.pausedTicks}:{}) });
+    if (tick - startedTick - (prior?.pausedTicks??0) > WATCH_TICKS) waryUntilTick = tick + ROBOT_WARY_TICKS;
   }
   closeWatches.sort((a, b) => compareString(a.playerId, b.playerId));
   // Every retained watch was observed this tick, so ID resolves equal-recency ties.
@@ -373,7 +380,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   else if ((mode === "attack" || mode === "alerted") && currentPlayer) fogChaseSinceTick ??= tick;
   // A rusted robot keeps fleeing while damaged; fog permits pursuit only with current sight.
   const fogBreakoff = avoidFog && inFog &&
-    (!(mode === "attack" || mode === "alerted") || !currentPlayer || (fogChaseSinceTick !== null && tick - fogChaseSinceTick >= ROBOT_FOG_CHASE_TICKS));
+    (!(mode === "attack" || mode === "alerted") || !currentPlayer || (fogChaseSinceTick !== null && tick - fogChaseSinceTick - (previous.fogChasePausedTicks??0) >= ROBOT_FOG_CHASE_TICKS));
   if (input.self.rust >= 0.6 || fogBreakoff) mode = "flee";
   const movementAvoidFog = avoidFog && !(mode === "attack" && currentPlayer && inFog);
 
@@ -405,7 +412,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
       (!maySabotage || !!playerTarget || mode === "alerted" || mode === "flee" || mode === "wary") ? "state" : null;
     if (reason) action = { kind: "cancel", activity: "update", reason };
     else if (target) {
-      const elapsed = tick - previous.update.startedTick;
+      const elapsed = tick - previous.update.startedTick - (previous.update.pausedTicks??0);
       movement = { kind: "hold", face: copyPoint(target), avoidFog: movementAvoidFog };
       sabotageActive = true;
       if (elapsed >= ROBOT_UPDATE_TICKS) {
@@ -455,7 +462,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
     } else if (!converting && attack && contact && tick >= cooldownUntilTick && !input.self.shoved) {
       const prior = previous.windup;
       windup = consecutive && prior && prior.attack === attack && targetEqual(prior.target, target) ? { ...prior, target: { ...target } } : { target: { ...target }, attack, startedTick: tick };
-      const remainingTicks = ATTACKS[attack].windup - (tick - windup.startedTick);
+      const remainingTicks = ATTACKS[attack].windup - (tick - windup.startedTick - (windup.pausedTicks??0));
       movement = { kind: "hold", face: destination, avoidFog: movementAvoidFog };
       sabotageActive = target.kind === "robot";
       if (remainingTicks <= 0) {
@@ -470,7 +477,7 @@ export function stepRobotBrain(previous: RobotBrainState, input: RobotBrainInput
   const state: RobotBrainState = {
     ...previous, mode, modeSinceTick: mode === previous.mode ? previous.modeSinceTick : tick,
     lastTick: tick, waryUntilTick, knowledge, closeWatches, windup, update, cooldownUntilTick,
-    fogChaseSinceTick, pendingUpdates,
+    fogChaseSinceTick, pendingUpdates,...(previous.fogChasePausedTicks!==undefined?{fogChasePausedTicks:fogChaseSinceTick===null?0:previous.fogChasePausedTicks}:{}),
   };
   return { state, intent: { movement, action, hideOneTell: mode === "wary", sabotageActive,
     fogRustMultiplier: mode === "attack" && avoidFog && inFog ? 3 : 1 } };

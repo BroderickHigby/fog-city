@@ -133,7 +133,7 @@ export function observedVehicleBoxes(state: SimState): Box[] {
 }
 
 /** Small bounded A* on committed ground geometry and observed traffic; never moves a body. */
-function walkingRoute(world: World, start: Point, target: Point, stopDistance: number, cars: readonly Box[]): Point[] {
+export function walkingRoute(world: World, start: Point, target: Point, stopDistance: number, cars: readonly Box[]): Point[] {
   const size = 2, padding = 80;
   const minX = Math.min(start.x, target.x) - padding, maxX = Math.max(start.x, target.x) + padding;
   const minZ = Math.min(start.z, target.z) - padding, maxZ = Math.max(start.z, target.z) + padding;

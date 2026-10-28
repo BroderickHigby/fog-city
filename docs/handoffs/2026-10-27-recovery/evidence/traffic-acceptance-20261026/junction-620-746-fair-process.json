@@ -1,0 +1,26 @@
+{
+  "case": "junction-620-746-fair",
+  "snapshotSha256": "84776f1861f507a41423a6bbd87ce129f283cee29994aa0b7e1c4ea3f1346fb6",
+  "test": "tests/sim/junction-captured.test.ts",
+  "pattern": "\\(-620, 746\\)",
+  "wallCapS": 90,
+  "physicalStandstillTicks": 2400,
+  "speedMagnitudeThreshold": 0.05,
+  "startedAt": "2026-10-27T03:31:47.945719+00:00",
+  "pid": 57249,
+  "timedOut": false,
+  "exitCode": 1,
+  "elapsedS": 73.02961993217468,
+  "processGroupGone": true,
+  "sourceMismatches": [],
+  "sourceUnchanged": true,
+  "capture": {
+    "x": -620,
+    "z": 746,
+    "tick": 5400,
+    "stateHash": "ba96e299",
+    "worst": 3586,
+    "who": "1252 robotaxi at -724.9,737.1",
+    "contacts": 0
+  }
+}

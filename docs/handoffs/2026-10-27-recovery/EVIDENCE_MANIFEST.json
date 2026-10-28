@@ -1,0 +1,297 @@
+[
+  {
+    "path": "allocation-diagnosis/README.md",
+    "bytes": 4456,
+    "sha256": "0f00a2edd8502077692ff57ca7b47d2f5bd1efbfe61a335d61a36b8c5ed50c00"
+  },
+  {
+    "path": "allocation-diagnosis/browser-memory-1gb.config.ts",
+    "bytes": 1214,
+    "sha256": "9c63c2c9a1dda6716a665adb216bfb5efcb1670ebc69a45c95488b9c63577b80"
+  },
+  {
+    "path": "allocation-diagnosis/browser-memory-1gb.spec.ts",
+    "bytes": 3910,
+    "sha256": "8c10cc76a0f5435685bb84292027297cb5f67ccd62e3486f5f47652d8352adf8"
+  },
+  {
+    "path": "allocation-diagnosis/browser-partial-reporter.ts",
+    "bytes": 1036,
+    "sha256": "e4e315627ec12b5d1ede9f15cb5c40c9596d245b1bdaa240c7543b9ba08ca729"
+  },
+  {
+    "path": "allocation-diagnosis/profile-allocation.ts",
+    "bytes": 7547,
+    "sha256": "af321469ff822b82e7bbceb53f7ba04c22b4765510e306d3b3adc36b64d9ca94"
+  },
+  {
+    "path": "allocation-diagnosis/run-profile.py",
+    "bytes": 1406,
+    "sha256": "0c013ae7cbfbc66878fdab1dbdd7fd389c2652be5abb9e07842a356392c817f7"
+  },
+  {
+    "path": "baseline.json",
+    "bytes": 3885,
+    "sha256": "a91e01200f5b8f5091740f21c494bdb9f7e22264ed655f627d6f1d5b6b8c83a4"
+  },
+  {
+    "path": "baseline.png",
+    "bytes": 337835,
+    "sha256": "0fe25cac116ad1b736d05c2a6028249a300ec4e3f08832498217cc0b3783b4ef",
+    "local_only": true
+  },
+  {
+    "path": "driving-review.json",
+    "bytes": 225,
+    "sha256": "c7e096dc9ea827f855b23890a2a0d1d1d5e8f64499a1344e6b8a9ec57357894d"
+  },
+  {
+    "path": "driving-review.wav",
+    "bytes": 4224044,
+    "sha256": "4ac5674ac67d018302aa3a0bb05967e9ecdbfed8742ab071aa718d2f912721c0",
+    "local_only": true
+  },
+  {
+    "path": "feature-browser.json",
+    "bytes": 4198,
+    "sha256": "b8ff2554a0172271d2054597dba312a6ee1059af2fb46b5959f6fa50712f816a"
+  },
+  {
+    "path": "feature-game.png",
+    "bytes": 490408,
+    "sha256": "d917db6357970d86d99b88e2df2b39aed5d6763cf97c93c5478352d87e2420d0",
+    "local_only": true
+  },
+  {
+    "path": "feature-pause.png",
+    "bytes": 327116,
+    "sha256": "7b17087cf1267d7f39d42684b31b86f3dbddc22b8f71df1e9ef96e2595c9ed8b",
+    "local_only": true
+  },
+  {
+    "path": "fresh/focused-tests.log",
+    "bytes": 428,
+    "sha256": "ee9b86ff66975553ec994f8aeba9f67cf9409272844e5620347e9bff5ca75438"
+  },
+  {
+    "path": "fresh/results.json",
+    "bytes": 1478,
+    "sha256": "65e73c90fd0da8e75b0c35eaf5ac26350eebc10d259867a205e25e77d594e0ce"
+  },
+  {
+    "path": "fresh/typecheck.log",
+    "bytes": 117,
+    "sha256": "1b09bf5c8f4e636de06adc4162b6d40812451fc0f5f1d9870c0a897c1cacf8ca"
+  },
+  {
+    "path": "industrial-porter/05-porter-turntable.png",
+    "bytes": 134940,
+    "sha256": "84b1fc5958991a89375642b113dfb36fd9a6f68318382f815cda4ec6a7801cfd",
+    "local_only": true
+  },
+  {
+    "path": "mission-next-runs.md",
+    "bytes": 6118,
+    "sha256": "9cad7d8cb4d550e0f80ac45d1fae5ce4fb98dd699a10a13df11256a8d9dca56d"
+  },
+  {
+    "path": "plain-words-fourth/commands.json",
+    "bytes": 377,
+    "sha256": "db9df7ef54143bfe4d382e1174d9ac50207995f2b657413d053b61a072e85c76"
+  },
+  {
+    "path": "plain-words-fourth/control-profile.json",
+    "bytes": 8597,
+    "sha256": "3d7f8c117f943c0e43f70cb4072d1928dc6f1b95dd3cc12be0d64461de095ad9"
+  },
+  {
+    "path": "plain-words-fourth/events.json",
+    "bytes": 5769,
+    "sha256": "4b34093e47ddefc5d2e8ced4ae336fe99b292c584418a1a0ead18454f6b98563"
+  },
+  {
+    "path": "plain-words-fourth/progress.jsonl",
+    "bytes": 6823,
+    "sha256": "0a7dc37b2659e484517f628f48eb86acb3e7ea57114bc2d2aeb1e26fc807105a"
+  },
+  {
+    "path": "plain-words-fourth/proof.json",
+    "bytes": 98881,
+    "sha256": "a022d732bb34eaf71cb70498455b4389dbf60441cfab537721eb8a9e97c050e0"
+  },
+  {
+    "path": "progression-draft/STANDARDS_AUDIT.md",
+    "bytes": 8422,
+    "sha256": "9e85f70cf27e0066dce4b3384283f62e5a35f6a5625ac68be2736ec29b308b57"
+  },
+  {
+    "path": "structural-draft/README.md",
+    "bytes": 5002,
+    "sha256": "de5f63f54f343f15011cd4c7116420358db4efcda2784eb87f4afc22b1181378"
+  },
+  {
+    "path": "taxi-draft/INTEGRATION.md",
+    "bytes": 11989,
+    "sha256": "c19ede4a3de313efe158ca935b6f5d94d6e479a7a4cb5cb7400fb712522129ef"
+  },
+  {
+    "path": "taxi-draft/physical-smoke-traffic-jam.json",
+    "bytes": 60017,
+    "sha256": "49645b94c6360bfb8da25451f2370f7ae5670a8a951963b6c74827de0f9dec0f"
+  },
+  {
+    "path": "taxi-draft/physical-smoke.ts",
+    "bytes": 10457,
+    "sha256": "87cf56f680bdca75223c12d30f9326f737f054b19081e8d42dcb3b12ef16126b"
+  },
+  {
+    "path": "traffic-acceptance-20261026/RESULTS.md",
+    "bytes": 5645,
+    "sha256": "51c35f1f12d29b948b28b29e83ace7cdad623a0919c06db02836f02304817a98"
+  },
+  {
+    "path": "traffic-acceptance-20261026/fair-admission-draft/src/sim/agents.ts",
+    "bytes": 136928,
+    "sha256": "a7e275f59aeb45245c67257c7358e4cb2d033499bd629bf13bbab9a85e551f40"
+  },
+  {
+    "path": "traffic-acceptance-20261026/fair-admission-draft/tests/sim/fixtures/pending-junction-priority-v21.json",
+    "bytes": 24180,
+    "sha256": "884e3297159d90f2ec6a48aed5d4182548440361bdfc1769aa2869a3410e93d3"
+  },
+  {
+    "path": "traffic-acceptance-20261026/fair-admission-draft/tests/sim/junction-hulls.test.ts",
+    "bytes": 18145,
+    "sha256": "08082ee02b2ea18301d326a2be59367fbc451ca4aa167dd26e960ac38a87ac33"
+  },
+  {
+    "path": "traffic-acceptance-20261026/fillmore-pending-yield-process.json",
+    "bytes": 444,
+    "sha256": "f9edf422ce38402cd463d37780c2f36efc9b83f20f50d1efe71f4ba1f7969dcb"
+  },
+  {
+    "path": "traffic-acceptance-20261026/historical-replays-process.json",
+    "bytes": 179,
+    "sha256": "a37c66c107ee825698b82df6c32db210e1f64ce55cd5ca3d40cc49c444ee2cd2"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-2161-arrivals-process.json",
+    "bytes": 108,
+    "sha256": "782d46ae8f02094ad7dcd84d6cffb40c1fa99d76c04f908414159c797f09c4ec"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-2161-prefix-process.json",
+    "bytes": 109,
+    "sha256": "876927f66e9356e51030402406b8962b4e4a34d1930fe8bdbb8d8388a376d103"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-4332-prefix-process.json",
+    "bytes": 109,
+    "sha256": "c7ddd1b8963730f1a739aafc86244b12dfdf7812cfec7c9ccda304ac53fbdfe3"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-5992-prefix-process.json",
+    "bytes": 107,
+    "sha256": "024197c2f0e061d1263f04663e006113d2663883b1a3e40cbb96b0da8b5984ef"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-620-746-cli-error-process.json",
+    "bytes": 429,
+    "sha256": "2b9b23c1da7f1019bbf59b802b66ac9983d084bdb44edf293176541eed5ab678"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-620-746-fair-process.json",
+    "bytes": 691,
+    "sha256": "2632a757a177552c190b23a3020f155527cbcdc554aec77839c51aac4cbf801f"
+  },
+  {
+    "path": "traffic-acceptance-20261026/junction-620-746-process.json",
+    "bytes": 686,
+    "sha256": "ef17e01fc25359b5e536fa2532deaa23566f28df293c69e90c61e42ccf0ca170"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-1359-recovery-process.json",
+    "bytes": 108,
+    "sha256": "e67878859eda193bf3dff1e6782fb9a11f2ad0fa26052bc855bd2f3d5e3862b5"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-2499-early-process.json",
+    "bytes": 177,
+    "sha256": "572b6e83f823a444337f83fbef42cf36e4aaef21d11bc9a66b3eced140ade138"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-2499-late-process.json",
+    "bytes": 108,
+    "sha256": "5f4eafbb39044c41e741303ea87dd34f068b6801c5bdd1a19f4e35d7b1d02e97"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-514-prefix-process.json",
+    "bytes": 390,
+    "sha256": "500a5839987b8c2cb86823f4be2d7c7463e630ce84d798b34d63cde5779df632"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-magnitude-process.json",
+    "bytes": 513,
+    "sha256": "a58ea1cbd244bda49fa1b88e065c56042f1afd0e961c30a25b22e512ae624c3f"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-pending-yield-process.json",
+    "bytes": 443,
+    "sha256": "36113fbedb0e3664b0314069599d069bc9e9a7df266424a97e235c59ac72d0d6"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-process.json",
+    "bytes": 335,
+    "sha256": "46fef6cdd49e5491117a20a4288d4a46300f296a3b25088252e1982569561ea3"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-progress-process.json",
+    "bytes": 607,
+    "sha256": "a2615e8db86913ca75c2ce4f6fec30da1a8ce4bab506566b398fcb243c617d16"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-short-signal-process.json",
+    "bytes": 524,
+    "sha256": "c5447abeab7aaff0ed6f38550d0331e82bcbc2a6923fc24c423f51fb9cde791d"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-sweep-budget-process.json",
+    "bytes": 516,
+    "sha256": "812f1d6e6714331f3d871df07b83a19306a1f9f57798b5cceca3ea1248cd07f2"
+  },
+  {
+    "path": "traffic-acceptance-20261026/marina-threshold-process.json",
+    "bytes": 108,
+    "sha256": "20122d54a619dfb6fef2cecc564ad7adb0d3b8ea3f8d851b85041b99eae8b0ad"
+  },
+  {
+    "path": "traffic-acceptance-20261026/physical-premise-changes.patch",
+    "bytes": 6341,
+    "sha256": "d955a5339c2810d256be9f927d7465e37c64dc51a29e919eb764622ce3e3dbec"
+  },
+  {
+    "path": "traffic-acceptance-20261026/physical-premise-notes.md",
+    "bytes": 1841,
+    "sha256": "5169c0e637674b24fa8ac455828bd17222bd82e47f876208b99e8e6e7f56de7e"
+  },
+  {
+    "path": "traffic-acceptance-20261026/restored-types-process.json",
+    "bytes": 156,
+    "sha256": "8eabea054ad1f0b4cdc8fd7931ea11ac9133977f7d297cebbf1e27d3aa280496"
+  },
+  {
+    "path": "traffic-acceptance-20261026/sf-premises-process.json",
+    "bytes": 180,
+    "sha256": "185ccf013ee4e37ad1eff1d9c5ad7b8419c39d0ff327d408452a486a7b981ecb"
+  },
+  {
+    "path": "traffic-acceptance-20261026/strict-acceptance.md",
+    "bytes": 13868,
+    "sha256": "c08a5286ca1b3e2d1ecf3181c3f8a85940f2ad1c5bf6d100b3c2c0f5cec46870"
+  },
+  {
+    "path": "vehicle-audio-draft/README.md",
+    "bytes": 3435,
+    "sha256": "980850160512896970f911e4d7a5c66430768a32f32db04ae974049b8626310c"
+  }
+]

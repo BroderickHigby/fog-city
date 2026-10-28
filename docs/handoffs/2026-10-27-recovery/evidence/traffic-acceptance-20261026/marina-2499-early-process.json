@@ -1,0 +1,9 @@
+{
+  "case": "2499 wasted-green reservation prefix",
+  "tickCap": 3300,
+  "wallCapS": 35,
+  "pid": 55183,
+  "exitCode": 0,
+  "timedOut": false,
+  "elapsedS": 18.917346000671387
+}

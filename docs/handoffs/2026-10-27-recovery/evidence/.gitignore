@@ -1,0 +1,6 @@
+# Local QA media; excluded from the remote source checkpoint.
+/baseline.png
+/driving-review.wav
+/feature-game.png
+/feature-pause.png
+/industrial-porter/05-porter-turntable.png

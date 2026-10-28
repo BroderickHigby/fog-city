@@ -1,0 +1,13 @@
+{
+  "mimeType": "audio/wav",
+  "seconds": 22,
+  "graph": {
+    "kind": "recorded",
+    "ready": 5,
+    "activeSources": 0,
+    "missing": {},
+    "enabled": true,
+    "qualityApproved": false
+  },
+  "qualityApproved": false
+}

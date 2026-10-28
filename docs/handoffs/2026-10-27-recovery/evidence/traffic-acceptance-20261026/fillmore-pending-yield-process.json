@@ -1,0 +1,15 @@
+{
+  "case": "Fillmore prospective queue yield",
+  "snapshotSha256": "0865c50d05fe06849c947b94ef8e44c41a4676878b62ea30535bfc5cecfef17d",
+  "wallCapS": 120,
+  "physicalStandstillTicks": 5400,
+  "speedMagnitudeThreshold": 0.05,
+  "startedAt": "2026-10-27T03:06:59.196471+00:00",
+  "pid": 56209,
+  "timedOut": false,
+  "exitCode": 0,
+  "elapsedS": 70.2376811504364,
+  "processGroupGone": true,
+  "sourceMismatches": [],
+  "sourceUnchanged": true
+}

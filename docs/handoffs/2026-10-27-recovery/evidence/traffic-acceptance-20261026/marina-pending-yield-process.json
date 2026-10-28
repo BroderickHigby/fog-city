@@ -1,0 +1,15 @@
+{
+  "case": "Marina prospective queue yield",
+  "snapshotSha256": "0865c50d05fe06849c947b94ef8e44c41a4676878b62ea30535bfc5cecfef17d",
+  "wallCapS": 120,
+  "physicalStandstillTicks": 2700,
+  "speedMagnitudeThreshold": 0.05,
+  "startedAt": "2026-10-27T03:05:14.155951+00:00",
+  "pid": 56091,
+  "timedOut": false,
+  "exitCode": 0,
+  "elapsedS": 68.08552289009094,
+  "processGroupGone": true,
+  "sourceUnchanged": true,
+  "sourceMismatches": []
+}

@@ -601,5 +601,12 @@
       -4830.0,
       -865.714286
     ]
-  ]
+  ],
+  "provenance": {
+    "source": "agent",
+    "authorSession": "codex/consolidated-game-upgrade",
+    "contentHash": "fnv1a32:2e352c34",
+    "reviewedBy": [],
+    "review": "Added provenance for unchanged existing original geometry metadata; pending independent review."
+  }
 }

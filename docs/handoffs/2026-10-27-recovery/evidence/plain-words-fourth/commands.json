@@ -1,0 +1,22 @@
+[
+  {
+    "tick": 2,
+    "kind": "gameplay.command",
+    "playerId": "p1",
+    "payload": {
+      "kind": "mission-start",
+      "targetId": "launch-day",
+      "sequence": 1
+    }
+  },
+  {
+    "tick": 12117,
+    "kind": "gameplay.command",
+    "playerId": "p1",
+    "payload": {
+      "kind": "activity-start",
+      "targetId": "plain-words",
+      "sequence": 2
+    }
+  }
+]

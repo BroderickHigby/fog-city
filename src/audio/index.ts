@@ -1,3 +1,6 @@
+import coitManifest from "../../public/audio/coit/manifest.json" with { type:"json" };
+import { vehicleModelForActor } from "../render/vehicle-models.ts";
+import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 // The game's audio, as one object main.ts drives: effects, contextual music, mission voices with
 // subtitles, preferences and the settings panel. Everything here is presentation: it reads the
 // sim state after each step and never feeds anything back, so slow, failed or muted audio
@@ -26,6 +29,9 @@ import { audible } from "./buses.ts";
 import { EffectCueTracker, type HummingActor } from "./cues.ts";
 import { GameAudio } from "./mixer.ts";
 import { MissionVoice } from "./mission-voice.ts";
+import { OpeningNarration,type OpeningStatus,type OpeningManifest } from "./opening.ts";
+import openingManifest from "../../public/audio/opening/manifest.json" with { type:"json" };
+import { mountOpeningControls } from "../ui/opening.ts";
 import { MUSIC_MANIFEST_PATH, MusicContextTracker, type MusicContext, type MusicManifestFile, type MusicTrack } from "./music.ts";
 import { AudioPrefsStore, type AudioPrefs } from "./prefs.ts";
 import { VOICE_MANIFEST_PATH, type VoiceManifest } from "./voice-lines.ts";
@@ -39,6 +45,8 @@ export interface GameAudioDirectorOptions {
   host: HTMLElement;
   missions: readonly Mission[];
   prefs?: AudioPrefsStore;
+  /** Close the settings modal when a player explicitly replays the opening. */
+  onOpeningReplay?:()=>void;
   /** URL prefix for audio/ (relative to the page; "" in dev and in the static build). */
   base?: string;
   /** The sim's weather at a point (src/sim/fog weatherView), for rain, fog and the hour. */
@@ -54,6 +62,7 @@ export interface AudioFrame {
 }
 
 export interface AudioDebugInfo {
+  opening:OpeningStatus&{files:number};
   unlocked: boolean;
   context: string;
   musicContext: MusicContext | null;
@@ -64,6 +73,7 @@ export interface AudioDebugInfo {
   musicSwitches: number;
   /** The car's live engine sound is running. */
   engine: boolean;
+  driving: ReturnType<GameAudio["info"]>["driving"];
   /** Robots whose servos are audible now. */
   robotVoices: number;
   /** The ambience layer levels now (null before the first sample). */
@@ -92,6 +102,8 @@ export interface GameAudioDirector {
   /** Tune the car radio (M / Shift+M call this): +1 next station, -1 previous. */
   tuneRadio(step: number): RadioStation;
   /** The player answered a dialogue question (UI callback): the speaker replies. */
+  playGuide(id:string,text:string):void;
+  skipGuide():void;
   answered(questionId: string, answerId: string): void;
   /** A save restore jumped the game to another moment. */
   restore(state?: SimState): void;
@@ -131,6 +143,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       if (voiceEvents.length > VOICE_EVENT_LOG) voiceEvents.shift();
     },
   });
+  const opening=new OpeningNarration(queue,openingManifest as OpeningManifest);
+  const openingControls=mountOpeningControls(options.host,()=>opening.skip());
+  let autoOpening=true;
+  try{autoOpening=localStorage.getItem("fogcity.opening-seen.v1")!=="1";}catch{/* Text/voice still work without storage. */}
+  const startOpening=(at:number)=>{autoOpening=false;try{localStorage.setItem("fogcity.opening-seen.v1","1");}catch{}opening.start(at);};
   const missionVoice = new MissionVoice(queue, options.missions);
   const inner = new InnerVoice(options.missions);
   const cues = new EffectCueTracker();
@@ -242,12 +259,19 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       // The car (engine, road, tyres, impacts), the doors and footsteps.
       const dtS = lastFrameMs === null ? 0 : Math.min(0.25, Math.max(0, (frame.nowMs - lastFrameMs) / 1000));
       lastFrameMs = frame.nowMs;
-      const taxiCar = player?.ride?.manual ? agentsOf(state).find(a => a.id === player.ride!.agentId)?.manualCar ?? null : null;
+      const occupiedAgent = player?.ride ? agentsOf(state).find(a => a.id === player.ride!.agentId) ?? null : null;
+      const taxiCar = player?.ride?.manual ? occupiedAgent?.manualCar ?? null : null;
       const previousTaxi = prevTaxiId === player?.ride?.agentId ? prevTaxiCar : null;
       if (player && !frame.paused) {
         // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
         const ride = player.ride ?? null;
-        mixer.setEngine(taxiCar ? engineParams(taxiCar, previousTaxi, dtS) : ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
+        const params=taxiCar ? engineParams(taxiCar,previousTaxi,dtS) : ride ? rideEngineParams(ride.speed,prevTaxiId===ride.agentId?prevRideSpeed:null,dtS) : inCar ? engineParams(player.car,prevCar,dtS) : null;
+        if(params?.recording){
+          params.recording.identity=ride?`a:${ride.agentId}`:`p:${playerId}`;
+          params.recording.profile=ride?(occupiedAgent&&isCivilianTraffic(occupiedAgent)?vehicleModelForActor(occupiedAgent.id).audioProfile:"road-only"):"light-ice";
+          params.recording.cabin=!!ride&&!ride.manual;
+        }
+        mixer.setEngine(params);
         // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's
         // own body is the ridden taxi while riding. When it is in one, the car's generic hit
         // one-shot stands down (landings still play).
@@ -348,8 +372,11 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.tick();
       // Voices and subtitles.
       queue.setPaused(frame.paused, frame.nowMs);
-      missionVoice.observe(missions, frame.nowMs);
-      if (!frame.paused && missions) {
+      if(autoOpening&&!frame.paused&&mixer.isUnlocked())startOpening(frame.nowMs);
+      opening.update(frame.nowMs);
+      const openingActive=opening.status().active;
+      if(!openingActive)missionVoice.observe(missions, frame.nowMs);
+      if (!openingActive && !frame.paused && missions) {
         // The player's inner voice, behind (and interrupted by) the mission's own lines.
         const own = combat?.players[playerId];
         const line = inner.observe({
@@ -361,6 +388,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         if (line) queue.enqueue({ ...missionVoice.item(line, "inner"), priority: PRIORITY.ambient }, frame.nowMs);
       }
       queue.update(frame.nowMs);
+      openingControls.update(opening.status());
       mixer.setVoiceActive(queue.speaking());
       subtitles.update(queue.subtitle(), prefs.get().subtitles);
     },
@@ -369,10 +397,18 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.playHorn(hornGain(blast, listener), panOf(listener, blast.x, blast.z), blast.inVehicle);
     },
     tuneRadio,
+    playGuide(id,text){
+      opening.skip();queue.cancel(group=>group==="coit-guide");
+      const line=coitManifest.lines.find(line=>line.id===id);
+      queue.enqueue({id,group:"coit-guide",speaker:"coit-guide",speakerName:"AI coin-op guide",text,url:line?`${base}${line.file}`:null,durationS:line?.durationS??Math.max(2,text.length/14),cues:line?.cues??[],priority:PRIORITY.critical},clock());
+    },
+    skipGuide(){queue.cancel(group=>group==="coit-guide");},
     answered(questionId, answerId) {
       missionVoice.answered(questionId, answerId, now);
     },
     restore(state) {
+      mixer.resetDriving();
+      prevTaxiCar=null;prevTaxiId=null;
       missionVoice.reset();
       inner.reset();
       prevCar = null;
@@ -395,7 +431,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       subtitles.update(null, false);
     },
     mountSettings(doc) {
-      return mountAudioSettings(doc, {
+      const panel=mountAudioSettings(doc, {
         store: prefs,
         stations: RADIO_STATIONS.map((s) => ({ id: s.id, name: s.name })),
         nowPlaying: () => {
@@ -404,11 +440,16 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
           return track ? `"${track.title}" by ${track.author} (${track.licence})` : null;
         },
       });
+      const replay=doc.createElement("button");replay.type="button";replay.textContent="Replay opening story";replay.style.minHeight="44px";
+      replay.addEventListener("click",()=>{mixer.unlock();startOpening(clock());options.onOpeningReplay?.();});
+      const credit=doc.createElement("p");credit.className="fc-audio-credit";credit.textContent=openingManifest.disclosure;
+      panel.element.append(replay,credit);return panel;
     },
     info() {
       const m = mixer.info();
       const sub = queue.subtitle();
       return {
+        opening:{...opening.status(),files:openingManifest.lines.filter(line=>line.file).length},
         unlocked: m.unlocked,
         context: m.state,
         musicContext,
@@ -418,6 +459,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
         engine: m.engine,
+        driving: m.driving,
         robotVoices: m.robotVoices,
         ambience: m.ambience,
         effectsLoaded: m.effectsLoaded,
@@ -434,7 +476,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
     dispose() {
       disposed = true;
       unsubscribe();
-      queue.reset();
+      opening.skip();openingControls.dispose();queue.reset();
       if (typeof window !== "undefined") window.removeEventListener("keydown", onKey);
       if (typeof document !== "undefined") document.removeEventListener("click", onClick, true);
       toast.dispose();
