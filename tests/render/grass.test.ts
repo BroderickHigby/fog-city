@@ -121,6 +121,28 @@ describe("DataSF grass", () => {
     l.dispose();
   });
 
+  it("re-assembles a camera move from its per-lawn cache, as a fresh build would", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const moved = flat(), fresh = flat();
+    moved.setData({ grass }); fresh.setData({ grass });
+    settle(moved, 0, 0); settle(moved, 60, 30); settle(fresh, 60, 30);
+    for (const name of ["grass-surface", "grass-blades"]) for (const attr of ["position", "color", "normal"]) {
+      expect(Array.from(mesh(moved, name).geometry.getAttribute(attr).array), `${name} ${attr}`).toEqual(Array.from(mesh(fresh, name).geometry.getAttribute(attr).array));
+    }
+    expect(moved.info()).toMatchObject({ patches: fresh.info().patches, blades: fresh.info().blades });
+    // One lawn, all cached: a 25 m move is one update, even with a zero budget.
+    const one = flat(); one.setData(doc()); settle(one);
+    const cached = one.info().cachedLawns;
+    one.update(35, 10, 0);
+    expect(one.settled()).toBe(true);
+    expect(one.info().cachedLawns).toBe(cached);
+    expect(one.info().blades).toBeGreaterThan(0);
+    moved.dispose(); fresh.dispose(); one.dispose();
+  });
+
   it("draws short bent leaves in small tufts with separate leaf and triangle counts", () => {
     const l = flat(); l.setData(doc()); settle(l);
     const g = mesh(l, "grass-blades").geometry, p = g.getAttribute("position"), roots = g.getAttribute("_grassRoot");

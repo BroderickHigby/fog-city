@@ -6,15 +6,20 @@
 //
 // The world's street-detail.json lists the layer files. They load once, after boot, and never
 // block it (a world or a build without them simply has no street detail). Records are
-// bucketed into CELL_M cells; cells within NEAR_M of the camera are built (a few per frame)
-// and cells beyond NEAR_M + HYSTERESIS_M are disposed.
+// bucketed into CELL_M cells; cells within NEAR_M of the camera are built, nearest first,
+// under a per-frame time budget, and cells beyond NEAR_M + HYSTERESIS_M are disposed.
+//
+// Every cell's instanced furniture, signs, storefront parts and palms go into one shared
+// instance pool (instance-pool.ts): one draw per kind for the whole layer, whose shaders are
+// built once, instead of ~20 new InstancedMeshes (each its own shader build) per cell.
 
 import * as THREE from "three";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { SharedMaterials } from "./materials.ts";
+import { InstancePool, type InstanceBlock } from "./instance-pool.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
-import { buildPalms, foliagePlacements, type TreePlacement, type TreeRecord } from "./street-trees.ts";
+import { addPalms, foliagePlacements, type TreePlacement, type TreeRecord } from "./street-trees.ts";
 import { SignCell, type CornerRecord, type CurbRecord } from "./street-signs.ts";
 import { StorefrontCell, type StorefrontRecord } from "./storefront-signs.ts";
 import { STREET_DETAIL_INDEX, buildMarkingMeshes, decodeJunction, type MarkingJunction } from "./street-markings.ts";
@@ -28,9 +33,12 @@ import { supplementalSignals } from "./signal-placement.ts";
 const CELL_M = 200;
 const NEAR_M = 450;
 const HYSTERESIS_M = 120;
-const BUILDS_PER_UPDATE = 2;
 const TREES_NEAR_M = 1300;
-const TREES_PER_UPDATE = 6;
+/**
+ * Main-thread time per frame for building cells and placing their trees. At least one cell
+ * (and one tree cell) is done each frame, so a slow device still makes progress.
+ */
+export const STREET_DETAIL_BUDGET_MS = 4;
 
 export interface StreetDetailInfo {
   /** Layers loaded from street-detail.json. */
@@ -73,7 +81,8 @@ interface Cell {
   curb: CurbRecord[];
   trees: TreeRecord[];
   shops: StorefrontRecord[];
-  treesPlaced: THREE.Group | null | false;
+  /** The cell's palm instances once its trees are placed (empty without palms); false before. */
+  treesPlaced: InstanceBlock[] | false;
   built: Built | null;
 }
 
@@ -105,6 +114,10 @@ export class StreetDetailLayer {
   readonly grass: GrassLayer;
   private readonly opts: StreetDetailOptions;
   private readonly cells = new Map<string, Cell>();
+  /** Cells built now, and cells whose trees are placed: the only ones a frame has to visit. */
+  private readonly builtCells = new Set<Cell>();
+  private readonly treeCells = new Set<Cell>();
+  private readonly pool = new InstancePool("street-detail instances");
   private readonly paint: THREE.MeshStandardMaterial;
   private layers: string[] = [];
   private junctions = 0;
@@ -118,7 +131,7 @@ export class StreetDetailLayer {
     this.opts = opts;
     this.group.name = "street-detail";
     this.grass = new GrassLayer(opts);
-    this.group.add(this.grass.group);
+    this.group.add(this.grass.group, this.pool.group);
     this.paint = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.7, metalness: 0, name: "fc:road-paint" });
     this.paint.polygonOffset = true;
     this.paint.polygonOffsetFactor = -2;
@@ -194,33 +207,38 @@ export class StreetDetailLayer {
     this.lastX = Number.NaN;
   }
 
-  /** Build the cells near (x, z) a few at a time; drop the far ones; light the signals for `tick`. */
-  update(x: number, z: number, tick = 0): void {
+  /** Build the cells near (x, z) under a time budget; drop the far ones; light the signals for `tick`. */
+  update(x: number, z: number, tick = 0, budgetMs = STREET_DETAIL_BUDGET_MS): void {
     this.grass.update(x, z);
     if (!(Math.abs(x - this.lastX) < 25 && Math.abs(z - this.lastZ) < 25)) {
       this.lastX = x;
       this.lastZ = z;
-      const want: Array<{ cell: Cell; d: number }> = [];
-      for (const cell of this.cells.values()) {
-        const d = distToCell(cell, x, z);
-        if (cell.built && d > NEAR_M + HYSTERESIS_M) this.drop(cell);
-        else if (!cell.built && d <= NEAR_M) want.push({ cell, d });
-      }
-      want.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
-      this.queue = want.map((w) => w.cell);
-      const trees: Array<{ cell: Cell; d: number }> = [];
-      for (const cell of this.cells.values()) {
-        if (!cell.trees.length) continue;
-        const d = distToCell(cell, x, z);
-        if (cell.treesPlaced !== false && d > TREES_NEAR_M + HYSTERESIS_M) this.dropTrees(cell);
-        else if (cell.treesPlaced === false && d <= TREES_NEAR_M) trees.push({ cell, d });
-      }
-      trees.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
-      this.treeQueue = trees.map((w) => w.cell);
+      for (const cell of [...this.builtCells]) if (distToCell(cell, x, z) > NEAR_M + HYSTERESIS_M) this.drop(cell);
+      this.queue = this.near(x, z, NEAR_M, (cell) => !cell.built);
+      for (const cell of [...this.treeCells]) if (distToCell(cell, x, z) > TREES_NEAR_M + HYSTERESIS_M) this.dropTrees(cell);
+      this.treeQueue = this.near(x, z, TREES_NEAR_M, (cell) => cell.trees.length > 0 && cell.treesPlaced === false);
     }
-    for (let k = 0; k < BUILDS_PER_UPDATE && this.queue.length; k++) this.build(this.queue.shift()!);
-    for (let k = 0; k < TREES_PER_UPDATE && this.treeQueue.length; k++) this.placeTrees(this.treeQueue.shift()!);
-    for (const cell of this.cells.values()) cell.built?.furniture?.update(tick);
+    // Nearest first; at least one of each per frame, then only while the budget lasts.
+    const start = performance.now();
+    for (let k = 0; this.queue.length && (k === 0 || performance.now() - start < budgetMs); k++) this.build(this.queue.shift()!);
+    for (let k = 0; this.treeQueue.length && (k === 0 || performance.now() - start < budgetMs); k++) this.placeTrees(this.treeQueue.shift()!);
+    for (const cell of this.builtCells) cell.built?.furniture?.update(tick);
+    this.pool.flush();
+  }
+
+  /** The loaded cells within `radius` of (x, z) that pass `keep`, nearest first. */
+  private near(x: number, z: number, radius: number, keep: (cell: Cell) => boolean): Cell[] {
+    const want: Array<{ cell: Cell; d: number }> = [];
+    const x0 = Math.floor((x - radius) / CELL_M), x1 = Math.floor((x + radius) / CELL_M);
+    const z0 = Math.floor((z - radius) / CELL_M), z1 = Math.floor((z + radius) / CELL_M);
+    for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
+      const cell = this.cells.get(`${cx},${cz}`);
+      if (!cell || !keep(cell)) continue;
+      const d = distToCell(cell, x, z);
+      if (d <= radius) want.push({ cell, d });
+    }
+    want.sort((a, b) => a.d - b.d || (a.cell.key < b.cell.key ? -1 : 1));
+    return want.map((w) => w.cell);
   }
 
   /** True when every cell near the camera is built. */
@@ -230,12 +248,12 @@ export class StreetDetailLayer {
 
   info(): StreetDetailInfo {
     const out: StreetDetailInfo = { layers: [...this.layers], junctions: this.junctions, cellsBuilt: 0, patches: 0, crosswalks: 0, stopBars: 0, signals: 0, stopSigns: 0, signPosts: 0, blades: 0, curbSigns: 0, trees: 0, palms: 0, storefronts: 0 };
-    for (const c of this.cells.values()) {
+    for (const c of this.treeCells) {
       if (c.treesPlaced === false) continue;
       out.trees += c.trees.length;
-      if (c.treesPlaced) out.palms += (c.treesPlaced.children[0] as THREE.InstancedMesh).count;
+      out.palms += c.treesPlaced[0]?.count ?? 0;
     }
-    for (const c of this.cells.values()) {
+    for (const c of this.builtCells) {
       if (!c.built) continue;
       out.cellsBuilt++;
       out.patches += c.junctions.length;
@@ -251,8 +269,14 @@ export class StreetDetailLayer {
     return out;
   }
 
+  /** The shared instance pool's draws and instances (instance-pool.ts). */
+  poolInfo(): ReturnType<InstancePool["info"]> {
+    return this.pool.info();
+  }
+
   dispose(): void {
     for (const c of this.cells.values()) { this.drop(c); this.dropTrees(c); }
+    this.pool.dispose();
     this.paint.dispose();
     this.grass.dispose();
   }
@@ -277,17 +301,17 @@ export class StreetDetailLayer {
       built.stopBars = m.stopBars;
     }
     if (cell.signals.length || cell.stopSigns.length) {
-      built.furniture = new FurnitureCell(cell.signals, cell.stopSigns, this.opts.ground, this.opts.signals);
+      built.furniture = new FurnitureCell(cell.signals, cell.stopSigns, this.opts.ground, this.opts.signals, this.pool);
       built.furniture.group.name = `street furniture ${cell.key}`;
       built.meshes.push(built.furniture.group);
     }
     if (cell.corners.length || cell.curb.length) {
-      built.signs = new SignCell(cell.corners, cell.curb, this.opts.ground);
+      built.signs = new SignCell(cell.corners, cell.curb, this.opts.ground, this.pool);
       built.signs.group.name = `street signs ${cell.key}`;
       built.meshes.push(built.signs.group);
     }
     if (cell.shops.length) {
-      built.shops = new StorefrontCell(cell.shops, this.opts.ground);
+      built.shops = new StorefrontCell(cell.shops, this.opts.ground, this.pool);
       built.shops.group.name = `storefront signs ${cell.key}`;
       built.meshes.push(built.shops.group);
     }
@@ -297,24 +321,22 @@ export class StreetDetailLayer {
       this.opts.surfaces.add(built.surface, floor);
     }
     cell.built = built;
+    this.builtCells.add(cell);
   }
 
   private placeTrees(cell: Cell): void {
     if (cell.treesPlaced !== false) return;
     this.opts.foliage?.setPlacements(cell.key, foliagePlacements(cell.trees, this.treeClasses, this.opts.ground));
-    const palms = buildPalms(cell.trees, this.treeClasses, this.opts.ground);
-    if (palms) this.group.add(palms);
-    cell.treesPlaced = palms;
+    cell.treesPlaced = addPalms(cell.trees, this.treeClasses, this.opts.ground, this.pool);
+    this.treeCells.add(cell);
   }
 
   private dropTrees(cell: Cell): void {
     if (cell.treesPlaced === false) return;
     this.opts.foliage?.removePlacements(cell.key);
-    if (cell.treesPlaced) {
-      this.group.remove(cell.treesPlaced);
-      for (const o of cell.treesPlaced.children) (o as THREE.InstancedMesh).dispose();
-    }
+    for (const block of cell.treesPlaced) this.pool.release(block);
     cell.treesPlaced = false;
+    this.treeCells.delete(cell);
   }
 
   private drop(cell: Cell): void {
@@ -333,6 +355,7 @@ export class StreetDetailLayer {
     cell.built.signs?.dispose();
     cell.built.shops?.dispose();
     cell.built = null;
+    this.builtCells?.delete(cell);
   }
 }
 

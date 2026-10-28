@@ -5,6 +5,7 @@
 
 import * as THREE from "three";
 import type { Species } from "./foliage.ts";
+import { LocalInstances, type InstanceBlock, type InstanceSink } from "./instance-pool.ts";
 import { hashId } from "./street-furniture.ts";
 
 /** [treeid, x, z, class index, height] as the file stores it. */
@@ -100,36 +101,40 @@ function getPalms(): PalmProtos {
   return palms;
 }
 
-/** Instanced palms for one cell; null when it has none. */
-export function buildPalms(trees: readonly TreeRecord[], classes: readonly string[], ground: (x: number, z: number) => number): THREE.Group | null {
-  const list = trees.filter((t) => classes[t[3]] === "palm");
-  if (!list.length) return null;
-  const p = getPalms();
-  const trunks = new THREE.InstancedMesh(p.trunk, p.trunkMat, list.length);
-  const crowns = new THREE.InstancedMesh(p.crown, p.crownMat, list.length);
-  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), pos = new THREE.Vector3(), s = new THREE.Vector3();
-  list.forEach(([id, x, z, , h], i) => {
+/** The palm trunk and crown placements of one cell. */
+function palmMatrices(trees: readonly TreeRecord[], classes: readonly string[], ground: (x: number, z: number) => number): { trunks: THREE.Matrix4[]; crowns: THREE.Matrix4[] } {
+  const trunks: THREE.Matrix4[] = [], crowns: THREE.Matrix4[] = [];
+  const q = new THREE.Quaternion(), lean = new THREE.Quaternion(), up = new THREE.Vector3(0, 1, 0), side = new THREE.Vector3(1, 0, 0), pos = new THREE.Vector3(), s = new THREE.Vector3(), top = new THREE.Vector3();
+  for (const [id, x, z, cls, h] of trees) {
+    if (classes[cls] !== "palm") continue;
     const v = (hashId(`tree:${id}`) % 1000) / 1000;
     const y = ground(x, z);
     // A slight lean, the same way up the trunk.
-    q.setFromAxisAngle(up, v * Math.PI * 2).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), (v - 0.5) * 0.12));
+    q.setFromAxisAngle(up, v * Math.PI * 2).multiply(lean.setFromAxisAngle(side, (v - 0.5) * 0.12));
     const girth = 0.8 + Math.min(1.6, h / 12);
-    trunks.setMatrixAt(i, m.compose(pos.set(x, y - 0.1, z), q, s.set(girth, h, girth)));
-    const top = new THREE.Vector3(0, h - 0.1, 0).applyQuaternion(q);
+    trunks.push(new THREE.Matrix4().compose(pos.set(x, y - 0.1, z), q, s.set(girth, h, girth)));
+    top.set(0, h - 0.1, 0).applyQuaternion(q);
     const k = 0.75 + Math.min(0.7, h / 20);
-    crowns.setMatrixAt(i, m.compose(pos.set(x + top.x, y + top.y, z + top.z), q, s.set(k, k, k)));
-  });
-  const g = new THREE.Group();
-  for (const im of [trunks, crowns]) {
-    im.instanceMatrix.needsUpdate = true;
-    im.computeBoundingSphere();
-    im.castShadow = true;
-    im.receiveShadow = true;
-    im.matrixAutoUpdate = false;
-    g.add(im);
+    crowns.push(new THREE.Matrix4().compose(pos.set(x + top.x, y + top.y, z + top.z), q, s.set(k, k, k)));
   }
-  trunks.name = "palm trunks";
-  crowns.name = "palm crowns";
+  return { trunks, crowns };
+}
+
+/** One cell's palms as instances in `sink` (trunks, then crowns); empty when it has none. */
+export function addPalms(trees: readonly TreeRecord[], classes: readonly string[], ground: (x: number, z: number) => number, sink: InstanceSink): InstanceBlock[] {
+  const { trunks, crowns } = palmMatrices(trees, classes, ground);
+  if (!trunks.length) return [];
+  const p = getPalms();
+  return [
+    sink.add(p.trunk, p.trunkMat, trunks, { name: "palm trunks", castShadow: true, receiveShadow: true })!,
+    sink.add(p.crown, p.crownMat, crowns, { name: "palm crowns", castShadow: true, receiveShadow: true })!,
+  ];
+}
+
+/** Instanced palms for one cell in their own group; null when it has none. */
+export function buildPalms(trees: readonly TreeRecord[], classes: readonly string[], ground: (x: number, z: number) => number): THREE.Group | null {
+  const g = new THREE.Group();
+  if (!addPalms(trees, classes, ground, new LocalInstances(g)).length) return null;
   g.name = "palms";
   return g;
 }
