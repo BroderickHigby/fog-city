@@ -41,7 +41,7 @@
       #splash.gone { opacity: 0; pointer-events: none; }
       #splash .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; }
       #splash::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, #14112bd9 0%, #14112b80 32%, #14112b00 55%); }
-      #splash .logo { position: absolute; z-index: 2; left: 4vw; top: 50%; width: clamp(220px, 34vw, 560px); height: auto; transform: translateY(-58%); filter: drop-shadow(0 6px 18px #0009); }
+      #splash .logo { position: absolute; z-index: 2; left: 4vw; top: 50%; width: min(clamp(220px, 34vw, 560px), 62vh); height: auto; transform: translateY(-58%); filter: drop-shadow(0 6px 18px #0009); }
       #splash .line { position: absolute; z-index: 2; left: 4vw; bottom: 5vh; margin: 0; display: flex; align-items: center; gap: 12px; color: #f6f1ff; font: 700 13px/1.2 "Avenir Next", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; text-shadow: 0 1px 3px #000c; }
       #splash .line::before { content: ""; width: 28px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #ffd166, #f0468f); animation: splash-pulse 1.2s ease-in-out infinite alternate; }
       @keyframes splash-pulse { from { opacity: .35; transform: scaleX(.6); } to { opacity: 1; transform: scaleX(1); } }

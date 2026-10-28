@@ -451,7 +451,8 @@ async function boot(): Promise<void> {
   container.setAttribute("aria-busy", "false");
   loading?.classList.remove("loading-screen");
   loading?.removeAttribute("role");
-  if (splash) { splash.classList.add("gone"); setTimeout(() => splash.remove(), 700); }
+  // Automated browsers drop it at once, so a screenshot taken at "ready" shows the game, not the fade.
+  if (splash) { if (navigator.webdriver) splash.remove(); else { splash.classList.add("gone"); setTimeout(() => splash.remove(), 700); } }
   if (resumingAfterReset) setSessionValue(RESUME_KEY, null);
   if (legacyHud) legacyHud.hidden = !diagnostics;
   keyboard.setBlocked(false);
