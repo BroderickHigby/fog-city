@@ -189,8 +189,9 @@ describe.each<VehicleSpec>([
 describe("robotaxi (the Meander)", () => {
   // design.md, The robots (owner, 2026-10-27: "make the robotaxis look more like bigger Zoox or
   // something"): a tall, two-ended carriage pod of its own, the same both ways round, short
-  // overhangs, big glass, a light bar across each end and a low sensor pod on each roof corner;
-  // the Meander's sensor band and teal status line, one sliding kerb-side door, no badge.
+  // overhangs, big glass and a light bar across each end; the Meander's sensor band and teal
+  // status line, one sliding kerb-side door, no badge. Nothing on the roof: sensor housings on
+  // the roof corners are the best-known real pod's signature (tests/assets/trade-dress.json).
   it("is a tall, boxy pod inside the sim's 5.0 x 2.0 m robotaxi box, its wheels at the corners", async () => {
     const { doc } = await loadModel("robotaxi.glb");
     const all = box(allPositions(doc));
@@ -200,9 +201,9 @@ describe("robotaxi (the Meander)", () => {
     expect(all.size[2]).toBeLessThanOrEqual(5.0);
     expect(all.size[0]).toBeLessThanOrEqual(2.0);
     expect(Math.abs(all.center[2])).toBeLessThan(0.02);
-    // taller than the old 1.53 m hatch: about 1.95 m to the roof, 2.0 m to the pods
+    // taller than the old 1.53 m hatch: about 1.95 m to the roof
     expect(all.max[1]).toBeGreaterThan(1.9);
-    expect(all.max[1]).toBeLessThan(2.1);
+    expect(all.max[1]).toBeLessThan(2.0);
     expect(body.size[2] / all.max[1]).toBeLessThan(2.7);
     // short overhangs: each axle within 0.8 m of its end of the body
     for (const name of ["wheel_FL", "wheel_RR"]) expect(body.size[2] / 2 - Math.abs(worldOrigin(node(doc, name))[2])).toBeLessThan(0.8);
@@ -236,14 +237,14 @@ describe("robotaxi (the Meander)", () => {
     expect(Math.abs(head.center[1] - tail.center[1])).toBeLessThan(0.01);
   });
 
-  it("has a sensor pod on each roof corner, and nothing else stands on the roof", async () => {
+  it("has nothing standing on the roof: no dome and no sensor housings on its corners", async () => {
     const { doc } = await loadModel("robotaxi.glb");
-    const high = allPositions(doc).filter((p) => p[1] > 1.97);
-    for (const [sx, sz] of [[1, 1], [1, -1], [-1, 1], [-1, -1]] as const) {
-      const pod = high.filter((p) => p[0] * sx > 0.5 && p[2] * sz > 1.8);
-      expect(pod.length, `pod at x ${sx}, z ${sz}`).toBeGreaterThan(10);
-    }
-    expect(high.every((p) => Math.abs(p[0]) > 0.5 && Math.abs(p[2]) > 1.8)).toBe(true);
+    const all = allPositions(doc);
+    // the highest point is the low crown in the middle of the roof
+    expect(box(all).max[1]).toBeLessThan(1.96);
+    // and the roof's corners sit at its edge, below the crown
+    const corners = all.filter((p) => Math.abs(p[0]) > 0.7 && Math.abs(p[2]) > 1.9);
+    expect(box(corners).max[1]).toBeLessThan(1.92);
   });
 
   it("wraps its sensors in one band round the roof edge, with the status light in it", async () => {

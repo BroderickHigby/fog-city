@@ -69,7 +69,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `ferry-building.glb` | 31,886 (100k) | 204.9 x 59.5 m, tower 75.4 m | `ferry_building` > `building`, `tower`, `tower_outline_lights`, `clock_hour_N/E/S/W`, `clock_minute_N/E/S/W`; `light_tower_outline`, `light_clock_face` |
 | `r-evolution.glb` | 32,216 (40k) | 14.3 m on a 7.2 m plinth | `r_evolution` > `frame` (rods), `shell` (`steel_mesh`, MASK), `glow` (`light_sculpture_glow`, MASK), `plinth` |
 | `player-car.glb` | 2,992 (8k) | 4.33 x 2.04 x 1.50 m | `player_car` > `body`, `wheel_FL/FR/RL/RR`; `paint` (recolourable), `light_headlight`, `light_taillight` |
-| `robotaxi.glb` (Meander) | 5,136 (10k) | 4.98 x 1.95 x 2.02 m (1.95 m to the roof) | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
+| `robotaxi.glb` (Meander) | 4,488 (10k) | 4.98 x 1.95 x 1.95 m | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
 | `errand-robot.glb` (Porter) | 4,948 (6k) | 1.95 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
 | `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
 | `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
@@ -107,18 +107,19 @@ true}` (steer only on front wheels; steering is a rotation about local +Y).
 **Meander robotaxi (`robotaxi.glb`).** Remodelled on 2026-10-27 at the owner's request
 ("make the robotaxis look more like bigger Zoox or something"): a tall, two-ended carriage pod
 of its own, the same both ways round. 4.96 m long and 1.92 m wide (inside the sim's 5.0 x 2.0 m
-robotaxi box, which did not change), 1.95 m to the roof and 2.02 m to the tops of its pods, on
-a 3.40 m wheelbase with 0.38 m wheels at the corners. The body is a stack of horizontal rings
+robotaxi box, which did not change) and 1.95 m to the roof, on a 3.40 m wheelbase with wheels
+of 0.38 m radius at the corners. The body is a stack of horizontal rings
 round one rounded, bow-ended outline, each offset inward by its own inset, so the sides lean in
 above the belt and every column stays plumb; the rings below the belt rise over the wheels to
 cut the arches. Big glass from the belt (0.88 m) to the band, wrapping round the corners past a
 slim white post in each; dark cladding along the sills; a light bar across each end in a dark
 housing (`light_headlight` at the front, `light_taillight` at the back: the same housing both
 ways). The Meander's own marks stay: one dark sensor band (`sensor_lens`) round the roof edge
-with the teal status line in it (`light_status`), and now a low white lantern pod with a dark
-lens ring and a teal ring on each roof corner (still **no `sensor_dome` node**, nothing else on
-the roof). Nobody drives it, so the sides still differ: the kerb side (right, +X) has one wide
-sliding door in the middle with dark posts at its edges; the street side (left) has no door,
+with the teal status line in it (`light_status`), and every sensor is in that band: **no
+`sensor_dome` node** and nothing on the roof (2026-10-28 review: the WIP's four roof-corner
+sensor pods were dropped, since corner housings are the best-known real pod's signature).
+Nobody drives it, so the sides still differ: the kerb side (right, +X) has one wide sliding
+door in the middle with dark posts at its edges; the street side (left) has no door,
 two windows either side of a white post, and a charging flap. No grille, badge, text or
 livery. Root extras `fcActor: "robotaxi"`, `kerbSide: "right"` (traffic drives on the right, so
 the door opens onto the pavement).
@@ -128,9 +129,11 @@ the door opens onto the pavement).
 rotation is the identity); close in reverse. The body under it is `cabin_dark`, so the
 opening reads as the dark cabin. `sensor_band` (no mesh, extras `sprayTarget: true`) marks
 the front of the band on the centre line: aim there when a mission says to water a rogue
-robotaxi's sensors. The sim's robotaxi is still 1.6 m tall (`ROBOTAXI_BODY.height`), so the
-top 0.35 m of the drawn pod (0.42 m to the tops of its corner pods) is above its water and
-collision box. Built with Blender 4.5.9 LTS (a 5.2 build writes the same geometry byte for
+robotaxi's sensors. The sim did not change with the model: an ambient robotaxi's water
+cylinder is 1.8 m tall (`src/sim/combat/adapter.ts`) and a mission robotaxi's box 1.6 m
+(`ROBOTAXI_BODY.height`), so the band (1.76-1.87 m) and `sensor_band` sit above a mission
+taxi's hit volume and the roof's top 0.15 m above an ambient one's. Today any water on the
+body counts; a mission that scores the band itself needs the sim's height raised to 1.95 m. Built with Blender 4.5.9 LTS (a 5.2 build writes the same geometry byte for
 byte; only the generator string differs). Wheels as for the other cars (`radius: 0.38`).
 
 **Porter (`errand-robot.glb`).** Bramblecot Home's errand humanoid, remodelled in wave 2 to
@@ -613,7 +616,7 @@ Generated by `tools/landmarks.py` (run by `build.sh`).
   inward ring by ring, the rings below the belt raised over the wheels for the arches, a
   material per band and column (cladding, paint, glass, the dark cabin behind the door, the
   sensor band), a crowned roof, then ribbons over the outline for the light bars and the
-  status line, lathed corner pods, and the door built from the body's own kerb side pushed
+  status line, and the door built from the body's own kerb side pushed
   out 8 mm. No real vehicle, badge or livery.
 - **Porter, Trundle, bus, van, props**: capsules, lathes, lofts, gridded panels and boxes from
   `lib/fc.py` and `lib/vehicle.py`; the robots' melt keys from `lib/melt.py`.

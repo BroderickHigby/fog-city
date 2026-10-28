@@ -146,7 +146,7 @@ it passes the name search (see Legal and taste).
 |---|---|---|---|---|---|
 | Footman | Bramblecot Home | Tall, slim errand humanoid; opaque ceramic shell, no translucent face plate or torso; a lantern-shaped head with a soft face-light strip; carries groceries | yes | 1.0× | 1 |
 | Trundle | Trundle | Four-wheeled sidewalk delivery bot with a roll-top lid like a bread bin; not a cooler, no flag on a whip antenna | yes | 1.0× | 1 |
-| Meander robotaxi | Meander ("We'll get you there.") | Tall, two-ended carriage pod, the same both ways round, in its own design (owner, 2026-10-27): big glass round slim white corner posts, a light bar across each end, a dark sensor band with a teal status line round the roof edge, a low white sensor pod on each roof corner, one sliding kerb-side door and a white post between the street side's windows; no logo, badge or livery, and not a copy of any real pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
+| Meander robotaxi | Meander ("We'll get you there.") | Tall, two-ended carriage pod, the same both ways round, in its own design (owner, 2026-10-27): big glass round slim white corner posts, a light bar across each end, every sensor in one dark band with a teal status line round the roof edge and nothing on the roof (no corner sensor housings), one sliding kerb-side door and a white post between the street side's windows; no logo, badge or livery, and not a copy of any real pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
 | Ad drone | Moat Labs | Hovering screen at 6 m; ad blasts | always bad | 1.5× | 3 |
 | Patrol unit | Moat Labs | Low, wide graphite wedge on treads with a fold-out lectern, no white egg or bullet shape; reads Terms of Service aloud | always bad | 0.5× | 3 |
 | Sign-spinner | Moat Labs | Rebrands sandwich boards with buzzwords | always bad | 1.0× | 3 |
@@ -1325,7 +1325,7 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
 - 2026-10-27 · **The Meander becomes a tall two-ended pod** (owner: "make the robotaxis look more like bigger Zoox
   or something"). The long, low, asymmetric hatch becomes a carriage pod of its own in the genre of today's
   bidirectional robotaxis: the same both ways round, 4.96 x 1.92 m (inside the sim's unchanged 5.0 x 2.0 m robotaxi
-  box) and 1.95 m to the roof, big glass, wheels at the corners, a light bar across each end and a low sensor pod on
-  each roof corner. It keeps the Meander's own marks (warm white, the dark sensor band with the teal status line, one
+  box) and 1.95 m to the roof, big glass, wheels at the corners and a light bar across each end, with nothing on the
+  roof (no corner sensor housings: that is the best-known real pod's signature). It keeps the Meander's own marks (warm white, the dark sensor band with the teal status line, one
   sliding kerb-side door, a different street side) and copies no real pod's shape, logo, name or livery
   (`tests/assets/trade-dress.json`). Render only: the sim's footprint, its 1.6 m height and SIM_VERSION are unchanged.

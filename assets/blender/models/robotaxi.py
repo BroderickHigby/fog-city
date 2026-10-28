@@ -3,17 +3,17 @@
 Meander ("We'll get you there.") is most of the city's traffic. Owner, 2026-10-27: "make the
 robotaxis look more like bigger Zoox or something". So the Meander is now a tall, two-ended
 carriage pod of its own: the same both ways round, short overhangs and big wheels at the
-corners, big glass, a light bar across each end and a low sensor pod on each roof corner.
+corners, big glass and a light bar across each end.
 
-It keeps the Meander's own marks: warm white paint, one dark sensor band round the roof edge
-with the teal status line (light_status) in it, and one wide sliding door on the kerb side
-only. It is not a copy of any real pod: the corners are white posts, not dark glass; the
-pods are white lanterns with a dark lens ring sitting on the roof, not dark horns that form
-the corners; the street side has no door (two windows either side of a white post with the
-charging flap); no logo, badge, text or livery.
+It keeps the Meander's own marks: warm white paint, every sensor in one dark band round the
+roof edge with the teal status line (light_status) in it, and one wide sliding door on the
+kerb side only. It is not a copy of any real pod: nothing stands on the roof (no sensor
+housings on the roof corners, the best-known pod's signature), the corners are white posts,
+not dark glass, and the roof is white; the street side has no door (two windows either side
+of a white post with the charging flap); no logo, badge, text or livery.
 
 4.96 m long, 1.92 m wide (inside the sim's 5.0 x 2.0 m robotaxi box, src/sim/agents.ts
-ROBOTAXI_BODY), 1.95 m to the roof and 2.02 m to the top of the pods; 3.40 m wheelbase.
+ROBOTAXI_BODY), 1.95 m to the roof; 3.40 m wheelbase, wheels 0.38 m in radius.
 
 Nodes: robotaxi (root, origin on the ground at the body centre; extras fcActor, kerbSide)
   body
@@ -272,25 +272,11 @@ def main() -> None:
         ny = (loop[i][3] + loop[j][3]) / 2
         mb.poly_n([pt(i, zl[0]), pt(j, zl[0]), pt(j, zl[1]), pt(i, zl[1])], status, (nx, ny, 0.1), smooth=True)
 
-    # --- a sensor pod on each roof corner: a white lantern with a dark lens ring and a teal
-    # ring, standing on the corner of the roof and a little over its edge
-    top_rc = RC - RINGS[-1][1]
-    for sx in (1, -1):
-        for sy in (1, -1):
-            cx = sx * (HW - RC + top_rc * 0.42)
-            cy = sy * (HL - RC - BOW + top_rc * 0.42)
-            mb.push(Matrix.Translation((cx, cy, Z_BAND_TOP - 0.03)))
-            mb.lathe([(0.122, 0.0), (0.128, 0.06), (0.13, 0.075)], 12, paint, smooth=True)
-            mb.lathe([(0.13, 0.075), (0.132, 0.13)], 12, lens, smooth=True)
-            mb.lathe([(0.132, 0.13), (0.118, 0.158), (0.07, 0.178), (0.0, 0.183)], 12, paint, smooth=True)
-            mb.lathe([(0.1335, 0.096), (0.1335, 0.108)], 12, status, smooth=False)
-            mb.pop()
-
     # --- street side (left): the charging flap on the rear quarter
     mb.box(-(HW + 0.006), -1.02, 0.66, -(HW - 0.004), -0.80, 0.78, clad)
-    # --- kerb side (right): the door's rail along the rear quarter, under the belt
-    for p0, p1 in zip([(HW + 0.004, y, 0.93) for y in (-DOOR_Y - 0.02, -1.0, -1.25)], [(HW + 0.004, y, 0.93) for y in (-1.0, -1.25, -1.30)]):
-        mb.cyl_between(p0, p1, 0.007, 6, clad, caps=False)
+    # --- kerb side (right): the door's rail along the rear quarter, just above the belt, as
+    # far back as the open door reaches
+    mb.cyl_between((HW + 0.004, -DOOR_Y - 0.02, 0.93), (HW + 0.004, -DOOR_Y - SLIDE_M, 0.93), 0.007, 6, clad, caps=False)
     # wheel-arch liners
     for yw in (Y_F, Y_R):
         mb.push(Matrix.Translation((0, yw, WR + 0.02)) @ Matrix.Rotation(math.pi / 2, 4, "Y"))

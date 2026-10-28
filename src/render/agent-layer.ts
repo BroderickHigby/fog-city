@@ -339,9 +339,10 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
  * Vertex-cluster cell for each kind's mid-range proxy, metres. The wave-2 Trundle has twice the
  * wave-1 bot's detail; 0.12 m cells left it 302 triangles (budget 200), 0.2 m leaves 176. At the
  * mid tier's 60 m the 0.56 m bot is about six pixels tall, so the coarser cell does not show.
- * The Meander pod (2026-10-28) is taller than the hatch it replaced and its light triangles are
- * kept whole: 0.2 m cells left it 1406 triangles (budget 1200), 0.25 m leaves 1078, fewer than
- * the hatch's 1116; at 60 m a 0.25 m cell is about two pixels.
+ * The Meander pod (2026-10-28) is taller than the hatch it replaced: 0.2 m cells left it 1280
+ * triangles (budget 1200) and the count jumps about between 0.2 and 0.24 m as the grid meets
+ * its rings; from 0.25 to 0.3 m it stays 956-1034, under the hatch's 1116 at 0.2 m. At the
+ * mid tier's 60 m a 0.25 m cell is about two pixels.
  */
 export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.25, errandRobot: 0.16, sidewalkBot: 0.2 };
 /** Peak limb swing, radians, for a walking errand robot. */
@@ -1115,7 +1116,7 @@ function taper(w: number, h: number, d: number, kx: number, kz: number, x: numbe
  * boxes in the model's proportions and colours, lights included. Faces -z, origin on the ground.
  * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, a two-ended
  * pod 4.96 x 1.92 m and 1.95 m to the roof, its sensors in one dark roof band round a teal
- * status line and a low pod on each roof corner, no dome; the
+ * status line, nothing on the roof; the
  * Footman, 1.95 m to the ring on its lantern head; the Trundle, a 0.56 m bread bin with a sage
  * roll-top lid and no flag.
  */
@@ -1142,8 +1143,6 @@ export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferG
       box(1.4, 0.07, 0.04, 0, 0.83, 2.47, tail),
     ];
     for (const [x, z] of [[-0.8, -1.7], [0.8, -1.7], [-0.8, 1.7], [0.8, 1.7]] as const) parts.push(box(0.25, 0.76, 0.76, x, 0.38, z, dark));
-    // A low white sensor pod on each roof corner.
-    for (const [x, z] of [[-0.68, -2.2], [0.68, -2.2], [-0.68, 2.2], [0.68, 2.2]] as const) parts.push(box(0.26, 0.15, 0.26, x, 1.95, z, white));
     return mergePacked(parts);
   }
   if (kind === "errandRobot") {

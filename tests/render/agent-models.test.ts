@@ -113,10 +113,10 @@ describe("agent models, packed", () => {
     // Shut: it lies inside the car's length, between the axles.
     expect(bb.min.z).toBeGreaterThan(part(m, "wheelFL").pivot.z);
     expect(bb.max.z).toBeLessThan(part(m, "axleRear").pivot.z);
-    // The door stops under the sensor band; nothing but the low corner pods stands on the 1.95 m
-    // roof (the wave-1 dome rose to 2.12 m).
+    // The door stops under the sensor band, and nothing stands on the 1.95 m roof (the wave-1
+    // dome rose to 2.12 m).
     expect(bb.max.y).toBeLessThan(1.77);
-    for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(2.05);
+    for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(1.96);
   });
 
   it("keeps the lights as packed channels: head, tail and status on the robotaxi body", () => {
@@ -170,7 +170,10 @@ describe("agent models, packed", () => {
       const far = fallbackProxy(kind);
       expect(triangleCount(far), `${kind} far`).toBeLessThan(budget[kind][1]);
     }
-    expect(channels(proxyOf(packed.robotaxi!, 0.2))).toEqual(new Set([0, 1, 2, 3]));
+    // Vertex clustering is not monotonic in the cell size: the robotaxi stays within budget a
+    // little coarser than its cell too, so the budget does not rest on one lucky grid.
+    for (const cell of [0.26, 0.28, 0.3]) expect(triangleCount(proxyOf(packed.robotaxi!, cell)), `robotaxi mid at ${cell}`).toBeLessThan(budget.robotaxi[0]);
+    expect(channels(proxyOf(packed.robotaxi!, CELL.robotaxi))).toEqual(new Set([0, 1, 2, 3]));
     expect(channels(fallbackProxy("robotaxi"))).toEqual(new Set([0, 1, 2, 3]));
   });
 
