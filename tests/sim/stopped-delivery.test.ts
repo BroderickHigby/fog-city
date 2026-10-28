@@ -9,7 +9,7 @@ import { gridCity, LONG_RUN_MS } from "./fixtures.ts";
 function scenario(kind: AgentState["kind"], flags: Partial<AgentState> = {}): { passed: boolean; planned: boolean } {
   const world = gridCity();
   let state = createInitialState(world, 7, ["p1"], { x: 80, z: 135, heading: 0 });
-  // From v24 an ambient Trundle leaves the street on the first step: a stopped one is a v23 scene.
+  // From v26 an ambient Trundle leaves the street on the first step: a stopped one is a v25 scene.
   if (kind === "sidewalkBot") state = { ...state, version: TRUNDLE_FREE_VERSION - 1 };
   const template = agentsOf(state).find(a => a.kind === "robotaxi")!;
   const edge = world.roads!.edges[world.roads!.edgeIndex.get("h11")!]!;

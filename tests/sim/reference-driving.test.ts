@@ -70,7 +70,7 @@ describe("SIM19 city-road reference handling",()=>{
     }
   });
   it("the normal game step keeps the19 driving profile while18 and standalone callers retain legacy handling",()=>{
-    let state=createInitialState(world,7,["p"],{x:0,z:0,heading:0});expect(state.version).toBe(24);
+    let state=createInitialState(world,7,["p"],{x:0,z:0,heading:0});expect(state.version).toBe(26);
     const initial={...state,players:{p:{...state.players.p!,car:{...state.players.p!.car,speed:50/3.6}}}};
     state=initial;let old:SimState={...initial,version:18};
     for(let t=0;t<300;t++){state=step(world,state,{p:idle},[],[]);old=step(world,old,{p:idle},[],[]);}

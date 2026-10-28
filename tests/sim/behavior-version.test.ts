@@ -19,7 +19,7 @@ describe("v14 civilian traffic save through the current migration chain", () => 
     expect(dodgeExtOf(old).dives).toBeGreaterThan(0);
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     const before = canonicalJson(old), upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(24);
+    expect(SIM_VERSION).toBe(26);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);

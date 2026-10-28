@@ -49,9 +49,9 @@
 //    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
 //    whatever the first player's areas left over. The whole city's road graph is loaded, but
 //    only the areas around players are ever populated or stepped.
-//  - v24 (owner, 2026-10-27: "remove the little vacuum robots for now"): Trundles (sidewalkBot)
+//  - v26 (owner, 2026-10-27: "remove the little vacuum robots for now"): Trundles (sidewalkBot)
 //    are no longer part of the street. The initial fill is unchanged (older replays restamp the
-//    state createInitialState makes, so it must not change), but the first step of a v24 state
+//    state createInitialState makes, so it must not change), but the first step of a v26 state
 //    takes every ambient Trundle off the street (one mid-dodge waits for its dodge to end), and
 //    population passes give each area's Trundle budget to Footmen (errandRobot), one for one,
 //    with the Trundles' hour and district shaping. Missions and the Ambient Director still stage
@@ -342,10 +342,10 @@ export const MAX_AGENTS = 512;
 /** The most ambient agents in a state, however many players. */
 export const MAX_AGENTS_TOTAL = 1024;
 /**
- * v24: the first SIM_VERSION with no ambient Trundles (sidewalkBot); their population budget goes
+ * v26: the first SIM_VERSION with no ambient Trundles (sidewalkBot); their population budget goes
  * to Footmen. See the header (Population). Older versions keep them, bit for bit.
  */
-export const TRUNDLE_FREE_VERSION = 24;
+export const TRUNDLE_FREE_VERSION = 26;
 export const ROBOTAXI_GAP_M = 1.5;
 /** A robotaxi waiting at an all-way stop keeps its front bumper this far behind the line. */
 export const STOPLINE_M = 0.5;
@@ -2240,7 +2240,7 @@ export function populate(
   }
   // Each area is scaled by its owner's density (the nearest player's).
   const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[nearestBody(bodies, ar.cx, ar.cz)]?.[kind] ?? 1;
-  // v24: no ambient Trundles; Footmen take each area's Trundle budget, one for one, with its hour
+  // v26: no ambient Trundles; Footmen take each area's Trundle budget, one for one, with its hour
   // and district shaping. Never in the initial fill (see the header, Population).
   const trundleFree = !initial && version >= TRUNDLE_FREE_VERSION;
   const areaWant = (ar: AreaRoads, kind: AgentKind): number => {
@@ -2476,7 +2476,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
-  // v24: ambient Trundles leave the street on the state's first step (before a new game's first
+  // v26: ambient Trundles leave the street on the state's first step (before a new game's first
   // frame); one diving out of a vehicle's way goes once its dodge ends. No RNG is drawn.
   if (prev.version >= TRUNDLE_FREE_VERSION && ext.list.some((a) => a.kind === "sidewalkBot" && a.dodge === null)) {
     ext = { ...ext, list: ext.list.filter((a) => a.kind !== "sidewalkBot" || a.dodge !== null) };

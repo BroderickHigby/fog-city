@@ -245,7 +245,7 @@ test.describe("sf world: in the browser", () => {
     });
     expect(run.tick - run.t0, "ticks stepped").toBe(120);
     expect(run.after.length, "state.ext.agents is non-empty after 120 ticks").toBeGreaterThan(0);
-    // SIM_VERSION 24: no ambient Trundles (sidewalkBot); Footmen take their places.
+    // SIM_VERSION 26: no ambient Trundles (sidewalkBot); Footmen take their places.
     expect(new Set(run.after.map((a) => a.kind)), "kinds of agent").toEqual(new Set(["robotaxi", "errandRobot", "person"]));
     const moved = run.after.filter((a) => {
       const b = run.before.find((x) => x.id === a.id);

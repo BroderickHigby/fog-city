@@ -1,7 +1,7 @@
-// v24 (owner, 2026-10-27: "We can probably remove the little vacuum robots for now"): no ambient
+// v26 (owner, 2026-10-27: "We can probably remove the little vacuum robots for now"): no ambient
 // Trundles (sidewalkBot). The initial fill is unchanged, because older replays restamp the state
-// createInitialState makes; the first v24 step takes the Trundles off the street, and population
-// passes give their budget to Footmen (errandRobot), one for one. v23 keeps every Trundle.
+// createInitialState makes; the first v26 step takes the Trundles off the street, and population
+// passes give their budget to Footmen (errandRobot), one for one. v25 keeps every Trundle.
 import { describe, expect, it } from "vitest";
 import {
   SIM_VERSION, TRUNDLE_FREE_VERSION, agentsOf, buildWorld, canonicalJson, createGameSystems, createInitialState,
@@ -13,24 +13,24 @@ import { LONG_RUN_MS, gridCity } from "./fixtures.ts";
 const count = (s: SimState, kind: AgentKind): number => agentsOf(s).filter((a) => a.kind === kind).length;
 const spawn = { x: 150, z: 40, heading: 0 };
 
-describe("v24: no ambient Trundles", () => {
-  it("the initial fill is unchanged; the first v24 step takes every Trundle off the street, a v23 step keeps them", () => {
+describe("v26: no ambient Trundles", () => {
+  it("the initial fill is unchanged; the first v26 step takes every Trundle off the street, a v25 step keeps them", () => {
     expect(TRUNDLE_FREE_VERSION).toBe(SIM_VERSION);
     const world = gridCity();
     const initial = createInitialState(world, 7, ["p1"], spawn);
     expect(count(initial, "sidewalkBot")).toBeGreaterThan(0);
     const before = canonicalJson(initial);
-    const v24 = step(world, initial, {});
-    const v23 = step(world, { ...initial, version: TRUNDLE_FREE_VERSION - 1 }, {});
+    const v26 = step(world, initial, {});
+    const v25 = step(world, { ...initial, version: TRUNDLE_FREE_VERSION - 1 }, {});
     expect(canonicalJson(initial)).toBe(before);
-    expect(count(v24, "sidewalkBot")).toBe(0);
-    expect(count(v23, "sidewalkBot")).toBe(count(initial, "sidewalkBot"));
-    // Nothing else is touched: every other agent is where v23 put it, and no RNG was drawn.
-    expect(agentsOf(v24)).toEqual(agentsOf(v23).filter((a) => a.kind !== "sidewalkBot"));
-    expect(v24.rng).toEqual(v23.rng);
+    expect(count(v26, "sidewalkBot")).toBe(0);
+    expect(count(v25, "sidewalkBot")).toBe(count(initial, "sidewalkBot"));
+    // Nothing else is touched: every other agent is where v25 put it, and no RNG was drawn.
+    expect(agentsOf(v26)).toEqual(agentsOf(v25).filter((a) => a.kind !== "sidewalkBot"));
+    expect(v26.rng).toEqual(v25.rng);
   });
 
-  it("Footmen take the Trundles' budget one for one in the game composition: no Trundle comes back, no more bodies than v23", () => {
+  it("Footmen take the Trundles' budget one for one in the game composition: no Trundle comes back, no more bodies than v25", () => {
     const world = gridCity(), systems = createGameSystems({ wave: 2 });
     const run = (version: number): SimState => {
       let s: SimState = { ...createInitialState(world, 7, ["p1"], spawn), version };
@@ -58,7 +58,7 @@ describe("v24: no ambient Trundles", () => {
     expect(count(s, "errandRobot")).toBe(robots);
   }, LONG_RUN_MS);
 
-  it("upgrades a v23 save by restamping only", () => {
+  it("upgrades a v25 save by restamping only", () => {
     const old = { ...createInitialState(gridCity(), 7, ["p1"], spawn), version: TRUNDLE_FREE_VERSION - 1 };
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
