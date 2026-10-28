@@ -35,7 +35,8 @@ export const REFERENCE_DRIVE = Object.freeze({
 /** First SIM_VERSION with brake-steer rotation and the handbrake drift. */
 export const BRAKE_DRIFT_VERSION = 24;
 /** The handbrake is engaging (its kick fires) while the grip at the tick's start is at least this (dodge.ts assumes it). */
-const HANDBRAKE_ENGAGED = .95;
+/** v24: the kick fires only once grip has fully recovered, so a flickering handbrake cannot re-kick. */
+const HANDBRAKE_ENGAGED = 1;
 const H = DT / 2;
 // 1-exp(-rate/120), recorded constants: no host-dependent transcendental in the sim.
 const STEER_RESPONSE = .07995558537067671;
@@ -71,7 +72,7 @@ export function stepReferenceDriving(c: Readonly<CarState>, input: Readonly<SimI
   for(let i=0;i<2;i++) {
     const fx=dsin(heading),fz=-dcos(heading),rx=-fz,rz=fx;
     const handbrake=input.brake>.5&&Math.abs(input.steer)>.3&&Math.abs(speed)>REFERENCE_DRIVE.handbrakeMinSpeed;
-    // v24: the handbrake engages this tick (once: one tick of it takes grip below HANDBRAKE_ENGAGED).
+    // v24: the handbrake engages this tick (once per pull: grip must be fully back before it can kick again).
     const kick=drift&&i===0&&handbrake&&c.grip>=HANDBRAKE_ENGAGED;
     grip=handbrake?Math.max(0,grip-REFERENCE_DRIVE.handbrakeDrop*H):Math.min(1,grip+REFERENCE_DRIVE.gripRecover*H);
     const forward=speed,sideways=lateral;
@@ -100,7 +101,8 @@ export function stepReferenceDriving(c: Readonly<CarState>, input: Readonly<SimI
     const targetYaw=clamp(next*dtan(steer)/REFERENCE_DRIVE.wheelbase,-yawLimit,yawLimit);
     if(kick) {
       // v24: the tail steps out toward the steering, to the most yaw the tyres allow (never past it).
-      const side=input.steer<0?-1:1,gap=side*yawLimit-yawRate;
+      // In reverse the yaw for a steer is the other way round, so the kick follows the yaw, not the stick.
+      const side=(input.steer<0?-1:1)*(next<0?-1:1),gap=side*yawLimit-yawRate;
       if(gap*side>0)yawRate+=side*Math.min(gap*side,REFERENCE_DRIVE.handbrakeKick);
     }
     const yawStep=steeringGrip*.65*H;
