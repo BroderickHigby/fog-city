@@ -9,9 +9,9 @@ export const STREET_LIGHTS = 8;
 /** Lamps farther than this from the camera are not lit (the decal pools carry them). */
 export const STREET_LIGHT_RANGE_M = 140;
 /** A lamp's reach and its candela-like intensity at full night (warm LED, about 7 m up). */
-const REACH_M = 30;
-const NIGHT_INTENSITY = 90;
-const COLOR = 0xffc08a;
+export const STREET_LIGHT_REACH_M = 30;
+export const STREET_LIGHT_NIGHT_INTENSITY = 90;
+export const STREET_LIGHT_COLOR = 0xffc08a;
 /** Re-pick when the camera has moved this far, or this often. */
 const REPICK_M = 4;
 const REPICK_S = 0.5;
@@ -28,7 +28,7 @@ export class StreetLightRig {
   constructor() {
     this.group.name = "street-lights";
     for (let i = 0; i < STREET_LIGHTS; i++) {
-      const light = new THREE.PointLight(COLOR, 0, REACH_M, 2);
+      const light = new THREE.PointLight(STREET_LIGHT_COLOR, 0, STREET_LIGHT_REACH_M, 2);
       light.name = `street-light:${i}`;
       light.castShadow = false;
       this.lights.push(light);
@@ -82,7 +82,7 @@ export class StreetLightRig {
       l.position.set(p[i * 4]!, p[i * 4 + 1]! - 0.3, p[i * 4 + 2]!);
       // Fade the farthest picks so a light handing over to another lamp does not pop.
       const fade = 1 - Math.max(0, Math.min(1, (Math.sqrt(p[i * 4 + 3]!) - STREET_LIGHT_RANGE_M * 0.7) / (STREET_LIGHT_RANGE_M * 0.3)));
-      l.intensity = NIGHT_INTENSITY * this.night * fade;
+      l.intensity = STREET_LIGHT_NIGHT_INTENSITY * this.night * fade;
     }
   }
 

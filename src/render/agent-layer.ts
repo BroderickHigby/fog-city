@@ -521,6 +521,25 @@ export class AgentLayer {
     return out;
   }
 
+  /**
+   * After update(): the road vehicles drawn this frame, packed x, y, z, compass heading, id (5
+   * floats each), up to out.length / 5 of them; returns how many. Render-only: the night light
+   * pool (night-light-pools.ts) puts a headlight ahead of each of the nearest.
+   */
+  vehiclePoses(out: Float32Array): number {
+    if (this.disposed) return 0;
+    const cap = Math.floor(out.length / 5);
+    let n = 0;
+    for (let i = 0; i < this.pairs.length && n < cap; i++) {
+      const actor = this.pairs[i]![1];
+      if (!AGENT_SPEC[actor.kind].road || actor.id === this.hiddenAgent || this.tiers[i] === TIER_HIDDEN) continue;
+      const pose = this.poses[i]!;
+      const o = n++ * 5;
+      out[o] = pose.x; out[o + 1] = pose.y; out[o + 2] = pose.z; out[o + 3] = pose.heading; out[o + 4] = actor.id;
+    }
+    return n;
+  }
+
   /** After update(): the visible vehicle's interpolated, grounded frame and model bounds. */
   copyVehicleFrame(id: number, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean {
     if (this.disposed || id === this.hiddenAgent) return false;
