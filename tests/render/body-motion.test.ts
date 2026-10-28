@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, TRAFFIC_BODY, TrafficLean, advanceAxis, bodyFeel, lowestDrop, minHeave, newAccel,
+  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, LEAN_DROP_MAX, TRAFFIC_BODY, TrafficLean, advanceAxis, bodyFeel, lowestDrop, minHeave, newAccel,
   updateAccel,
   type BodyFeel,
 } from "../../src/render/body-motion.ts";
@@ -417,6 +417,37 @@ describe("ambient traffic's lean", () => {
   it("at the caps an axle of a whole-tilted vehicle dips or floats by less than 5 cm", () => {
     expect(1.35 * Math.sin(TRAFFIC_BODY.pitchMax)).toBeLessThan(0.05); // CAR.axle from the centre
     expect(0.8 * Math.sin(TRAFFIC_BODY.rollMax)).toBeLessThan(0.05); // CAR.track
+  });
+
+  it("braking hard through a turn, pitch and roll together still move a wheel no more than LEAN_DROP_MAX", () => {
+    const l = new TrafficLean();
+    let worst = 0, scaled = false;
+    for (let k = 0; k < 240; k++) {
+      const t = k / 60;
+      l.update(1 / 60, Math.max(0, 25 - 9 * t), 0.6 * t); // full brake while turning right
+      worst = Math.max(worst, lowestDrop(l.pitch, l.roll, 1.35, 0.8));
+      if (Math.abs(l.pitch) < Math.abs(l.spring.pitch.x) - 1e-12) scaled = true;
+    }
+    expect(scaled).toBe(true); // the unscaled spring would have gone past it
+    expect(worst).toBeLessThanOrEqual(LEAN_DROP_MAX + 1e-12);
+    // One axis alone within the caps is drawn as the spring has it.
+    const up = new TrafficLean();
+    for (let k = 0; k < 90; k++) up.update(1 / 60, 3 * k / 60, 0);
+    expect(up.pitch).toBe(up.spring.pitch.x);
+  });
+
+  it("a NaN heading costs a frame of turning, never a roll stuck on a straight road", () => {
+    const l = new TrafficLean();
+    for (let k = 0; k < 60; k++) l.update(1 / 60, 14, 0.5 * k / 60); // turning right
+    expect(l.roll).toBeLessThan(-0.02);
+    l.update(1 / 60, 14, NaN);
+    for (let k = 0; k < 180; k++) l.update(1 / 60, 14, 1.2); // then straight
+    expect(Math.abs(l.roll)).toBeLessThan(1e-4);
+    const first = new TrafficLean();
+    first.update(1 / 60, 14, NaN); // a NaN very first heading
+    for (let k = 0; k < 60; k++) first.update(1 / 60, 14, 0.5 * k / 60);
+    expect(first.roll).toBeLessThan(-0.02);
+    expect(Number.isFinite(first.pitch) && Number.isFinite(first.roll)).toBe(true);
   });
 });
 

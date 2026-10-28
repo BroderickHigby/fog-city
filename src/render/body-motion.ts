@@ -344,8 +344,8 @@ export class CarBodyMotion {
 /**
  * Ambient traffic and robotaxis: the same spring, lighter (Slop's traffic.js:1117-1122 uses 0.008 rad
  * per m/s^2 pitch and 0.01 roll with caps of 0.22 and 0.26; a car 30 m off needs a hint, and the
- * whole vehicle tilts, wheels included, so the caps keep an axle's dip or float under 5 cm). Pitch and roll
- * only: a driving agent has no hit or landing events to kick the body with.
+ * whole vehicle tilts, wheels included, so TrafficLean keeps a wheel's dip or float under 5 cm, pitch and
+ * roll together). Pitch and roll only: a driving agent has no hit or landing events to kick the body with.
  */
 export const TRAFFIC_BODY: BodyTune = {
   ...CAR_BODY,
@@ -360,6 +360,11 @@ export const TRAFFIC_BODY: BodyTune = {
 /** The fastest a drawn heading may turn and still count as driving (rad/s): more is a respawn or a spin. */
 const LEAN_YAW_CAP = 2.5;
 const TWO_PI = Math.PI * 2;
+/** Half the wheelbase and half the track of a traffic car (the sim car's ground samples, sim/car.ts CAR.axle and CAR.track), metres. */
+const LEAN_HALF_LENGTH = 1.35;
+const LEAN_HALF_WIDTH = 0.8;
+/** How far the drawn lean may drop or lift a wheel of a vehicle tilted whole, pitch and roll together, metres. */
+export const LEAN_DROP_MAX = 0.05;
 
 /**
  * One ambient vehicle's lean, from what the renderer already has: its drawn speed and heading each
@@ -372,32 +377,50 @@ export class TrafficLean {
   private has = false;
   /** The frame it was last stepped (the layer's pruning clock). */
   seen = 0;
+  /**
+   * The lean to draw, rad: the spring's pitch and roll, scaled down together when both at once would
+   * move a wheel more than LEAN_DROP_MAX (braking through a turn); the spring itself runs unscaled.
+   */
+  pitch = 0;
+  roll = 0;
 
   constructor(tune: BodyTune = TRAFFIC_BODY) {
     this.spring = new BodySpring(tune);
   }
 
-  /** The vehicle jumped (a respawn) or was out of sight: it starts level. */
+  /** The vehicle was out of sight (or its id jumped, if a caller sees that): it starts level. */
   reset(): void {
     this.spring.reset();
+    this.pitch = this.roll = 0;
     this.accel.has = false;
     this.accel.aLong = this.accel.aLat = 0;
     this.has = false;
   }
 
-  /** `speed` m/s along the car (signed), `heading` compass radians, both as drawn this frame. */
+  /**
+   * `speed` m/s along the car (signed), `heading` compass radians, both as drawn this frame. A
+   * non-finite heading reads as not turning and is not kept, so the next good one carries on.
+   */
   update(dt: number, speed: number, heading: number): void {
-    if (!(dt > 0)) return;
+    if (!(dt > 0) || !finite(dt)) return;
     let yawRate = 0;
-    if (this.has) {
-      let dh = heading - this.heading;
-      dh -= Math.round(dh / TWO_PI) * TWO_PI;
-      yawRate = Math.max(-LEAN_YAW_CAP, Math.min(LEAN_YAW_CAP, dh / dt));
+    if (finite(heading)) {
+      if (this.has) {
+        let dh = heading - this.heading;
+        dh -= Math.round(dh / TWO_PI) * TWO_PI;
+        yawRate = Math.max(-LEAN_YAW_CAP, Math.min(LEAN_YAW_CAP, dh / dt));
+      }
+      this.heading = heading;
+      this.has = true;
     }
-    this.heading = heading;
-    this.has = true;
     const tune = this.spring.tune;
     updateAccel(this.accel, dt, speed, 0, yawRate, tune);
     this.spring.step(dt, this.accel.aLong, this.accel.aLat);
+    // |sin a| <= |a|, so this linear bound holds lowestDrop under LEAN_DROP_MAX too.
+    const p = this.spring.pitch.x, r = this.spring.roll.x;
+    const drop = LEAN_HALF_LENGTH * Math.abs(p) + LEAN_HALF_WIDTH * Math.abs(r);
+    const k = drop > LEAN_DROP_MAX ? LEAN_DROP_MAX / drop : 1;
+    this.pitch = p * k;
+    this.roll = r * k;
   }
 }

@@ -230,7 +230,7 @@ function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx:
 /**
  * A vehicle's placement with its drawn body lean (body-motion.ts TrafficLean) added to pitch and roll,
  * turned about the vehicle's origin on the road. A one-instance car or a far proxy tilts whole, wheels
- * included (as Slop New York's traffic does): at the caps an axle dips or floats by at most 4.7 cm. A
+ * included (as Slop New York's traffic does): a wheel dips or floats by at most 5 cm (LEAN_DROP_MAX). A
  * near model with its own wheel parts keeps its wheels flat instead (drawNear) and tilts only the body.
  */
 function vehicleMatrix(pose: Readonly<AgentPose>, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
@@ -963,11 +963,11 @@ export class AgentLayer {
     if (tier < TIER_MID || pose.roll !== undefined) return;
     let l = this.leans.get(b.id);
     if (!l) this.leans.set(b.id, l = new TrafficLean());
-    else if (this.frameNo - l.seen > 2) l.reset();
+    else if (this.frameNo - l.seen > 1) l.reset(); // a skipped frame would read its change as one frame's
     l.seen = this.frameNo;
     l.update(dt, pose.speed, pose.heading);
-    pose.leanPitch = l.spring.pitch.x;
-    pose.leanRoll = l.spring.roll.x;
+    pose.leanPitch = l.pitch;
+    pose.leanRoll = l.roll;
   }
 
   /**
