@@ -1,8 +1,9 @@
 // Node-material counterparts for render layers that previously supplied raw GLSL.
 import * as THREE from "three";
 import { MeshStandardNodeMaterial, MeshBasicNodeMaterial, LineBasicNodeMaterial } from "three/webgpu";
-import { uniform, texture, positionWorld, normalWorld, positionLocal, attribute, uv, vec2, vec3, float, dot, sin, smoothstep } from "three/tsl";
+import { Fn, If, fwidth, max, uniform, texture, positionWorld, normalWorld, positionLocal, attribute, uv, vec2, vec3, float, dot, smoothstep } from "three/tsl";
 import { fcUniforms } from "./materials.ts";
+import { DISTANT_WINDOW_GAIN, distantWindowLight, gpuMaterialUniforms } from "./node-materials.ts";
 
 export function createFarNodeMaterial(mask: THREE.Texture, rectangle: THREE.Vector4): MeshStandardNodeMaterial {
   const material = new MeshStandardNodeMaterial({ vertexColors: true, flatShading: true, roughness: .92, metalness: 0, name: "fc:far" });
@@ -10,12 +11,17 @@ export function createFarNodeMaterial(mask: THREE.Texture, rectangle: THREE.Vect
   const rect = uniform(rectangle), farUv = positionWorld.xz.sub(rect.xy).div(rect.zw);
   const outside = farUv.x.lessThan(0).or(farUv.y.lessThan(0)).or(farUv.x.greaterThanEqual(1)).or(farUv.y.greaterThanEqual(1));
   material.maskNode = outside.or(texture(mask, farUv).r.lessThanEqual(.5));
-  const cell = vec2(positionWorld.x.add(positionWorld.z).div(4), positionWorld.y.div(3.2)).floor();
-  const random = sin(dot(cell, vec2(12.9898, 78.233))).mul(43758.5453).fract();
-  const wall = float(1).sub(smoothstep(.25, .45, normalWorld.y.abs()));
+  // The skyline is a kilometre or more away: a window is a pixel or less. Lit windows are filtered
+  // clusters (window-clusters.ts), not a hard-edged cell grid, which aliased into white noise. The
+  // grid is 4 m x 3.2 m cells along the wall (x + z follows either axis-aligned face).
+  const wall = float(1).sub(smoothstep(.25, .45, normalWorld.y.abs())).mul(positionWorld.y.greaterThan(2).select(1, 0));
+  const grid = vec2(positionWorld.x.add(positionWorld.z).div(4), positionWorld.y.div(3.2)), fw = max(fwidth(grid), .0001);
   const night = uniform(0).onRenderUpdate(() => fcUniforms.fcNight.value);
-  const lit = random.greaterThan(.72).select(1, 0).mul(wall).mul(positionWorld.y.greaterThan(2).select(1, 0));
-  material.emissiveNode = vec3(1, .72, .42).mul(lit).mul(night).mul(.9);
+  material.emissiveNode = Fn(() => {
+    const light = vec3(0).toVar();
+    If(night.greaterThan(0), () => { light.assign(distantWindowLight(grid, fw, float(.3), float(0), gpuMaterialUniforms.time)); });
+    return light.mul(wall).mul(night).mul(DISTANT_WINDOW_GAIN * .9);
+  })();
   return material;
 }
 

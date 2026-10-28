@@ -12,7 +12,7 @@ import { SkyMesh } from "three/addons/objects/SkyMesh.js";
 import { SunLight } from "three/addons/lights/SunLight.js";
 import { SunLightNode } from "three/addons/lights/SunLightNode.js";
 import { ClusteredLighting } from "three/addons/lighting/ClusteredLighting.js";
-import { sunDirection, type LightingPreset } from "./sky.ts";
+import { skyHaze, sunDirection, type LightingPreset } from "./sky.ts";
 import { presentationLook, type PresentationLook } from "./quality.ts";
 import { RendererWarmup, compileForTarget, type WarmupStats } from "./renderer-warmup.ts";
 
@@ -75,6 +75,7 @@ export class GpuEngine {
   private fogTexture: THREE.Texture | null = null;
   private seaLevel = 0;
   private readonly skyExposure = uniform(0.148);
+  private readonly skyNightColor = uniform(new THREE.Color(0x101723));
   private readonly night = uniform(0);
   private readonly fogDensity = uniform(0.0002);
   private readonly time = uniform(0);
@@ -133,7 +134,7 @@ export class GpuEngine {
     this.sky.cloudSpeed.value = .000015;
     this.sky.cloudElevation.value = .52;
     const rawSky = this.sky.material.colorNode! as Node<"vec4">;
-    this.sky.material.colorNode = Fn(() => vec4(mix(rawSky.rgb.mul(this.skyExposure), vec3(.005, .009, .018), this.night), 1))();
+    this.sky.material.colorNode = Fn(() => vec4(mix(rawSky.rgb.mul(this.skyExposure), this.skyNightColor, this.night), 1))();
     const rawVertex = this.sky.material.vertexNode! as Node<"vec4">;
     if (renderer.reversedDepthBuffer) this.sky.material.vertexNode = Fn(() => { const p = rawVertex.toVar(); p.z.assign(0); return p; })();
     this.sky.material.userData.skipGpuAdapter = true;
@@ -254,9 +255,12 @@ export class GpuEngine {
 
   setPreset(preset: LightingPreset, look: PresentationLook = presentationLook(preset.name), key: string = preset.name): void {
     this.night.value = preset.nightFactor ?? (preset.name === "night" ? 1 : 0);
-    this.skyExposure.value = .148 * (1 - this.night.value * .85);
-    this.sky.turbidity.value = 8; this.sky.rayleigh.value = 2.8;
-    this.sky.mieCoefficient.value = .008; this.sky.mieDirectionalG.value = .88;
+    // Haze, scattering, exposure and the night sky follow the time of day (Slop lighting.js:44-47 and
+    // the other three presets); daylight.ts blends them between the elevation keys.
+    const haze = skyHaze(preset);
+    this.skyExposure.value = haze.exposure; this.skyNightColor.value.setHex(haze.nightColor);
+    this.sky.turbidity.value = haze.turbidity; this.sky.rayleigh.value = haze.rayleigh;
+    this.sky.mieCoefficient.value = haze.mie; this.sky.mieDirectionalG.value = haze.mieG;
     this.sky.cloudCoverage.value = preset.cloudCoverage ?? .35;
     this.sky.cloudDensity.value = Math.min(.55, (preset.cloudOpacity ?? .65) * .58);
     const direction = sunDirection(preset); this.sky.sunPosition.value.copy(direction); this.sun.position.copy(direction);

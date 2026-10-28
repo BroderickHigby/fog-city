@@ -1,12 +1,12 @@
 // WebGPU/TSL city materials. Procedural filtering, metre-scaled room-box interiors,
-// derivative relief and canyon ambient shading are adapted from Slop New York
+// derivative relief, distant lit-window clusters and canyon ambient shading are adapted from Slop New York
 // (Mr.doob, MIT, source 64ad030; see the repository's third-party notice).
 // Geometry, placement, game state and the legacy WebGL materials remain independent.
 import * as THREE from "three";
 import { MeshBasicNodeMaterial, MeshPhysicalNodeMaterial, MeshStandardNodeMaterial, InterpolationSamplingMode, InterpolationSamplingType } from "three/webgpu";
 import {
-  Fn, If, abs, attribute, cameraPosition, clamp, color, cos, dot, float, floor, fract,
-  fwidth, instanceIndex, length, max, min, mix, mod, normalGeometry, normalLocal, normalView, normalWorldGeometry,
+  Fn, If, abs, attribute, cameraPosition, clamp, color, cos, dot, exp2, float, floor, fract,
+  fwidth, instanceIndex, length, log2, max, min, mix, mod, normalGeometry, normalLocal, normalView, normalWorldGeometry,
   normalize, positionGeometry, positionLocal, positionView, positionWorld, pow, select, sign, sin,
   smoothstep, step, texture, uniform, uv, varying, vec2, vec3, vec4,
 } from "three/tsl";
@@ -15,6 +15,10 @@ import type NodeBuilder from "three/src/nodes/core/NodeBuilder.js";
 import { interleaveAttributes } from "three/addons/utils/BufferGeometryUtils.js";
 import { fcUniforms } from "./materials.ts";
 import { WINDOW_PROFILES } from "./building-window-profile.ts";
+import {
+  CLUSTER_CORE_HI, CLUSTER_CORE_LO, CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_PIXELS, CLUSTER_SWITCHY, CLUSTER_SWITCH_RATE,
+  WINDOW_LOD_END, WINDOW_LOD_START,
+} from "./window-clusters.ts";
 
 type F = Node<"float">;
 type V2 = Node<"vec2">;
@@ -34,13 +38,13 @@ export function updateGpuMaterialTime(seconds: number, cameraGround = 0): void {
   gpuMaterialUniforms.cameraGround.value = Number.isFinite(cameraGround) ? cameraGround : 0;
 }
 
-const hash2 = Fn(([p]: [V2]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)));
+export const hash2 = Fn(([p]: [V2]) => fract(sin(dot(p, vec2(127.1, 311.7))).mul(43758.5453)));
 const noise2 = Fn(([p]: [V2]) => {
   const i = floor(p), f = fract(p), u = f.mul(f).mul(float(3).sub(f.mul(2)));
   return mix(mix(hash2(i), hash2(i.add(vec2(1, 0))), u.x), mix(hash2(i.add(vec2(0, 1))), hash2(i.add(1)), u.x), u.y);
 });
 /** Box-filtered repeating coverage converges to its mean rather than shimmering. */
-const pulse = Fn(([x, a, b, width]: [F, F, F, F]) => {
+export const pulse = Fn(([x, a, b, width]: [F, F, F, F]) => {
   const hw = max(width, .0001).mul(.5);
   const integral = (t: F): F => floor(t).mul(b.sub(a)).add(clamp(fract(t), a, b).sub(a));
   return integral(x.add(hw)).sub(integral(x.sub(hw))).div(hw.mul(2));
@@ -101,6 +105,49 @@ function common(source?: THREE.Material, physical = false): CityNodeMaterial {
   return m;
 }
 
+/** Distant lit windows' emission, as a multiple of a near room's: the filtered mean matches, this sets the sparkle. */
+export const DISTANT_WINDOW_GAIN = .5;
+/** Window cells' pixel footprint at which per-window room shading hands over to clusters (window-clusters.ts). */
+const windowLod = (footprint: V2): F => smoothstep(WINDOW_LOD_START, WINDOW_LOD_END, max(footprint.x, footprint.y));
+
+/**
+ * One octave of lit-window clusters: a world-anchored cell of `size` window cells, lit or dark by hash,
+ * its middle half box-filtered over the pixel footprint. Returns the lit window colour (warm bulb, a
+ * few cool screens; the near rooms' palette) and the filtered brightness, which averages `probability`.
+ * `time` lets a share of clusters switch on and off slowly, as lights do, never with the camera.
+ */
+const windowCluster = Fn(([grid, fw, size, probability, seed, time]: [V2, V2, F, F, F, F]) => {
+  const p = grid.div(size), width = fw.div(size), id = floor(p);
+  const roll = hash2(id.add(vec2(seed, 73.1))), pick = hash2(id.add(vec2(seed.mul(1.7), 41.3)));
+  const phase = hash2(id.add(vec2(19.7, seed.mul(2.3))));
+  const stable = step(float(1).sub(probability), roll);
+  // A switchy cluster is lit probability of the time overall: sin(theta) > cos(pi p) for that share of a turn.
+  const threshold = cos(probability.mul(Math.PI));
+  const rate = mix(CLUSTER_SWITCH_RATE[0], CLUSTER_SWITCH_RATE[1], fract(phase.mul(37.7)));
+  const cycle = smoothstep(threshold.sub(.12), threshold.add(.12), sin(time.mul(rate).add(phase.mul(6.2832))));
+  const switchy = step(float(1).sub(CLUSTER_SWITCHY), hash2(id.add(vec2(seed.mul(3.1), 5.9))));
+  const lit = mix(stable, cycle, switchy);
+  const coverage = pulse(fract(p.x), float(CLUSTER_CORE_LO), float(CLUSTER_CORE_HI), width.x)
+    .mul(pulse(fract(p.y), float(CLUSTER_CORE_LO), float(CLUSTER_CORE_HI), width.y));
+  const bulb = mix(color(0xffb855), color(0xffe9b0), roll.mul(7.31).fract());
+  const light = mix(bulb, color(0xb6c9ec), step(.83, pick));
+  return vec4(light, lit.mul(coverage).mul(CLUSTER_GAIN));
+});
+
+/**
+ * Emitted colour (before any strength factor) of distant lit windows. `grid` is the window grid in
+ * cells and `fw` its pixel footprint (fwidth, taken outside any branch). Cluster size follows the
+ * footprint in power-of-two octaves, cross-faded, so it is world-anchored and stable under motion.
+ * Slop New York's distantWindowLight, js/tsl-materials.js:166-188 (MIT).
+ */
+export const distantWindowLight = Fn(([grid, fw, probability, seed, time]: [V2, V2, F, F, F]) => {
+  const level = log2(max(max(fw.x, fw.y).mul(CLUSTER_PIXELS), CLUSTER_MIN_SCALE));
+  const scale = exp2(floor(level));
+  const near = windowCluster(grid, fw, scale, probability, seed, time);
+  const far = windowCluster(grid, fw, scale.mul(2), probability, seed, time);
+  return mix(near.rgb.mul(near.a), far.rgb.mul(far.a), smoothstep(0, 1, fract(level)));
+});
+
 /** Genuine world-metre room slab intersection, sharing two/three window bays. */
 const roomInterior = Fn(([u, v, winUv, cell, bayWidth, floorHeight, seed, footprint]: [F, F, V2, V2, F, F, F, V2]) => {
   const level = floor(v.div(floorHeight));
@@ -128,7 +175,7 @@ const roomInterior = Fn(([u, v, winUv, cell, bayWidth, floorHeight, seed, footpr
   const ceiling = yPlane.mul(step(0, dy)), floorPlane = yPlane.mul(float(1).sub(step(0, dy)));
   const a = hash2(roomId.add(vec2(seed.mul(79), 19.4))), b = hash2(roomId.add(vec2(83.1, seed.mul(131))));
   const litSeed = hash2(roomId.add(vec2(seed.mul(211), 63.2)));
-  const lod = smoothstep(.28, .8, max(footprint.x, footprint.y));
+  const lod = windowLod(footprint);
   const lit = step(.68, litSeed), bulb = mix(color(0xffb855), color(0xffe9b0), a);
   const light = mix(bulb, color(0xb6c9ec), step(.83, b));
   const wall = mix(color(0x807565), color(0xb2a68d), a);
@@ -157,7 +204,8 @@ const roomInterior = Fn(([u, v, winUv, cell, bayWidth, floorHeight, seed, footpr
   const pleat = sin(curtainX.mul(48).add(ca.mul(6.28))).mul(float(1).sub(smoothstep(.6, 1.6, fwidth(curtainX).mul(48)))).mul(.16).add(.94);
   const room = mix(shaded, fabric.mul(pleat).mul(.75), coverage);
   const warmth = mix(vec3(1), light, lit.mul(.75));
-  return vec4(room.mul(warmth).mul(mix(.72, 1.25, lit)), mix(lit, .32, lod).mul(mix(1, .2, coverage)));
+  // Distant windows are not lit per room: buildingMaterial replaces them with filtered clusters.
+  return vec4(room.mul(warmth).mul(mix(.72, 1.25, lit)), lit.mul(mix(1, .2, coverage)));
 });
 
 function buildingMaterial(source: THREE.Material): CityNodeMaterial {
@@ -240,7 +288,19 @@ function buildingMaterial(source: THREE.Material): CityNodeMaterial {
   const reliefFade = float(1).sub(smoothstep(18, 140, length(positionWorld.sub(cameraPosition))))
     .mul(float(1).sub(smoothstep(.03, .1, max(fw.x, fw.y)))).mul(float(1).sub(roof));
   m.normalNode = bumpNormal(relief.mul(reliefFade));
-  m.emissiveNode = room.rgb.mul(room.a).mul(glassMask).mul(gpuMaterialUniforms.night).mul(.95);
+  // Past a few pixels per window, lit windows become filtered clusters (window-clusters.ts) instead
+  // of a flat glow. The grid is the room grid, so shops borrow the floors' pattern. fwidth stays outside
+  // the branch; by day, and wherever windows still resolve, the branch skips the cluster work.
+  const roomGrid = vec2(fuv.x.div(bayW), fuv.y.div(story)), roomFw = max(fwidth(roomGrid), .0001), lod = windowLod(roomFw);
+  const distant = Fn(() => {
+    const light = vec3(0).toVar();
+    If(lod.greaterThan(0).and(gpuMaterialUniforms.night.greaterThan(0)), () => {
+      // A drape's mean coverage (.29) still dims what the glass shows.
+      light.assign(distantWindowLight(roomGrid, roomFw, float(.32), seed.mul(97), gpuMaterialUniforms.time).mul(mix(1, .2, .29)));
+    });
+    return light;
+  })();
+  m.emissiveNode = mix(room.rgb.mul(room.a), distant.mul(DISTANT_WINDOW_GAIN), lod).mul(glassMask).mul(gpuMaterialUniforms.night).mul(.95);
   m.userData.fcGpuKind = "building";
   return m;
 }
