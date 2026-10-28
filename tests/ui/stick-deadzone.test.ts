@@ -58,6 +58,17 @@ describe("gamepad drive stick",()=>{
     const c=new InputController(undefined,()=>[pad(0.1,0)]);c.setStick(0.5,0);
     expect(c.sample().steer).toBeCloseTo(0.5,12);
   });
+  it("after a menu, waits for the pad stick to leave its round zone, and only that",()=>{
+    let axes=[0.3,0];const c=new InputController(undefined,()=>[{...pad(0,0),axes}]);
+    c.setBlocked(true);c.setBlocked(false);
+    expect(c.sample().steer).toBe(0);
+    axes=[0.13,0.13];expect(c.sample()).toEqual({throttle:0,steer:0,brake:0,actions:0});
+    axes=[0.6,0];expect(c.sample().steer).toBeGreaterThan(0);
+  });
+  it("keeps a worn pad resting at (0.15, 0.15) under the sim's 0.05 hold-still check",()=>{
+    const s=new InputController(undefined,()=>[pad(0.15,0.15)]).sample();
+    expect(Math.abs(s.steer)).toBeLessThan(0.05);expect(Math.abs(s.throttle)).toBeLessThan(0.05);
+  });
 });
 
 /** The smallest stand-in for a DOM element that touch.ts needs. */

@@ -1,6 +1,6 @@
 import { Action, type SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "./keyboard.ts";
-import { radialDeadZone } from "./stick.ts";
+import { PAD_DEAD_ZONE, radialDeadZone } from "./stick.ts";
 
 export type VirtualAction = keyof typeof Action | "brake";
 export interface PadLike { readonly connected: boolean; readonly axes: readonly number[]; readonly buttons: readonly { readonly pressed: boolean; readonly value: number }[] }
@@ -12,6 +12,11 @@ function axis(v:number):number { return Number.isFinite(v) ? Math.max(-1,Math.mi
 function strongest(a:number,b:number):number { return Math.abs(a)>=Math.abs(b)?a:b; }
 
 /** Combines input devices into one recorded sim sample. Modal blocking releases all devices. */
+/** A pad stick (axes 0-1 drive, 2-3 camera) is off centre by the drive stick's own round zone. */
+function padStickHeld(axes:readonly number[]):boolean {
+  for(let i=0;i+1<axes.length;i+=2){const d=radialDeadZone(axes[i]??0,axes[i+1]??0,PAD_DEAD_ZONE);if(d.x!==0||d.y!==0)return true;}
+  return false;
+}
 export class InputController {
   private readonly held = new Set<VirtualAction>();
   private pressed = 0;
@@ -34,7 +39,7 @@ export class InputController {
   sample():SimInput {
     if(this.blocked)return neutral();
     if(this.awaitPadRelease){
-      const held=this.gamepads().some(pad=>pad?.connected&&(pad.buttons.some(button=>button.pressed)||pad.axes.some(value=>Number.isFinite(value)&&Math.abs(value)>.16)));
+      const held=this.gamepads().some(pad=>pad?.connected&&(pad.buttons.some(button=>button.pressed)||padStickHeld(pad.axes)));
       if(held)return neutral();this.awaitPadRelease=false;
     }
     const base=this.keyboard?.sample()??neutral();
@@ -45,7 +50,7 @@ export class InputController {
     const pad=this.gamepads().find(p=>p?.connected);
     const now=new Set<number>();
     if(pad){
-      const drive=radialDeadZone(axis(pad.axes[0]??0),axis(pad.axes[1]??0));
+      const drive=radialDeadZone(axis(pad.axes[0]??0),axis(pad.axes[1]??0),PAD_DEAD_ZONE);
       steer=strongest(steer,drive.x);throttle=strongest(throttle,-drive.y);
       brake=Math.max(brake,Math.max(0,axis(pad.buttons[6]?.value??0)));
       for(const [index,action] of Object.entries(PAD_ACTIONS))if(pad.buttons[Number(index)]?.pressed){

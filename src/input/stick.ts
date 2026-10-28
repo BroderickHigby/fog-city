@@ -1,5 +1,11 @@
-/** Share of full travel (0..1) around the stick centre that reads as no input. */
+/** Share of full travel (0..1) around the stick centre that reads as no input (the touch stick). */
 export const STICK_DEAD_ZONE = 0.15;
+/**
+ * The gamepad drive stick's zone. A worn pad can rest at (0.15, 0.15), which the old per-axis .16
+ * zone swallowed; at 0.2 that rest reads about 0.015 per axis, under the sim's 0.05 hold-still
+ * check (src/sim/car.ts), so a parked car does not creep.
+ */
+export const PAD_DEAD_ZONE = 0.2;
 
 /**
  * Round (radial) dead zone for a two-axis stick. Inside the zone the stick reads (0,0). Beyond it the
