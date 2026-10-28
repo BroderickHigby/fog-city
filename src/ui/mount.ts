@@ -1,3 +1,4 @@
+import { mountLoadout } from "./loadout.ts";
 import { matchKit } from "../content/kits.ts";
 import { InputController, availableGamepads } from "../input/controller.ts";
 import { Keyboard, isTextEntry } from "../input/keyboard.ts";
@@ -6,7 +7,7 @@ import { bounded, formatMoney } from "./copy.ts";
 import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap, releaseMapCache } from "./minimap.ts";
 import { formatCompass } from "./compass.ts";
-import { UI_STYLES } from "./styles.ts";
+import { UI_STYLES, LOADOUT_STYLES } from "./styles.ts";
 import { createTouchControls } from "./touch.ts";
 import { createControlsHelp } from "./controls-help.ts";
 import { mountSavePanel } from "./save-panel.ts";
@@ -16,18 +17,19 @@ import { createIcon, type IconName } from "./icons.ts";
 import { PHONE_APPS, createPhoneAppIcon, createPhoneShell, phoneAppLabel } from "./phone-shell.ts";
 import type { MapPoint, MountedGameUI, PhoneApp, UiLightingPreset, UiMountOptions, UiView } from "./types.ts";
 
-const IMPLEMENTED_PHONE_APPS:readonly PhoneApp[]=["map","botBounty","botCheck","bank","settings","officeHours"];
+const IMPLEMENTED_PHONE_APPS:readonly PhoneApp[]=["map","loadout","botBounty","botCheck","bank","settings","officeHours"];
 /** Mount once, update with immutable projections, then dispose when leaving the game. */
 export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGameUI {
   const doc=options.document??host.ownerDocument,win=doc.defaultView!,copy=options.copy,callbacks=options.callbacks??{};
   const root=doc.createElement("section");root.className="fc-ui";root.setAttribute("aria-label",copy("ui.brand"));root.dataset.touch=String(!!options.touch);
-  const style=doc.createElement("style");style.textContent=UI_STYLES;root.append(style);
+  const style=doc.createElement("style");style.textContent=UI_STYLES+LOADOUT_STYLES;root.append(style);
   let view:UiView|undefined,modal:"phone"|"vendor"|"startup"|"pause"|"interaction"|"help"|"status"|"lighting"|"tools"|"objective"|undefined,app:PhoneApp|undefined,previousFocus:HTMLElement|null=null,freeText:FreeTextControl|undefined,disposed=false,panelStamp="",crisis=false,interactionId="";
   let lightingPreset=options.lightingPreset??"live",previousRunway:number|undefined,runwayAlertUntil=-1;
   const keyboard=options.keyboard??new Keyboard(win,()=>!!modal||isTextEntry(doc.activeElement));const controls=new InputController(keyboard);
   let phoneMap:HTMLCanvasElement|undefined,phoneCenter:MapPoint|undefined,phoneRadius=400;
   let phoneBody:HTMLElement|undefined,phoneLocation:HTMLElement|undefined,phoneStatus:HTMLElement|undefined;
   const phoneScrollOffsets=new Map<string,number>();
+  let loadoutPanel:ReturnType<typeof mountLoadout>|undefined;
   let savePanel:ReturnType<typeof mountSavePanel>|undefined,audioPanel:{element:HTMLElement;dispose():void}|undefined,graphicsPanel:{element:HTMLElement;dispose():void}|undefined,creditsPanel:{element:HTMLElement;dispose():void}|undefined;
   function node<K extends keyof HTMLElementTagNameMap>(tag:K,className?:string,text?:string):HTMLElementTagNameMap[K]{const element=doc.createElement(tag);if(className)element.className=className;if(text!==undefined)element.textContent=text;return element;}
   function button(label:string,fn:()=>void){const b=node("button",undefined,label);b.type="button";b.addEventListener("click",fn);return b;}
@@ -91,6 +93,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     const mapOpen=modal==="phone"&&app==="map";mapButton.setAttribute("aria-expanded",String(mapOpen));mini.setAttribute("aria-expanded",String(mapOpen));
     if(phoneMap){releaseMapCache(phoneMap);phoneMap=undefined;}
     statusValues.clear();statusWaterDetail=undefined;statusButton.setAttribute("aria-expanded",String(modal==="status"));objectiveButton.setAttribute("aria-expanded",String(modal==="objective"));moreButton.setAttribute("aria-expanded",String(modal==="tools"));lightingButton?.setAttribute("aria-expanded",String(modal==="lighting"));
+    loadoutPanel?.dispose();loadoutPanel=undefined;
     savePanel?.dispose();savePanel=undefined;audioPanel?.dispose();audioPanel=undefined;graphicsPanel?.dispose();graphicsPanel=undefined;creditsPanel?.dispose();creditsPanel=undefined;
     layer.hidden=!modal;if(!modal){freeText?.dispose();freeText=undefined;layer.replaceChildren();return;}
     freeText?.dispose();freeText=undefined;
@@ -177,6 +180,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       const book=button("Book interview",()=>{callbacks.bookOfficeHours?.();setModal(undefined);});book.disabled=!booking?.available||!callbacks.bookOfficeHours;content.append(book);
       if(booking){const route=button("Route to Ramen",()=>{callbacks.waypoint?.({...booking.destination});});route.disabled=!callbacks.waypoint;content.append(route);}
     }
+    else if(app==="loadout"){loadoutPanel=mountLoadout(doc,copy,{select:id=>callbacks.loadout?.(id),call:id=>{callbacks.streak?.(id);setModal(undefined);}});loadoutPanel.update(view?.loadout);content.append(loadoutPanel.element);}
     else if(app==="settings"){if(options.graphicsSettings){graphicsPanel=options.graphicsSettings(doc);content.append(graphicsPanel.element);}if(options.audioSettings){audioPanel=options.audioSettings(doc);content.append(audioPanel.element);}if(options.saves){savePanel=mountSavePanel(doc,copy,options.saves);content.append(savePanel.element);}creditsPanel=mountCredits(doc);content.append(creditsPanel.element);}
     else content.append(node("p",undefined,copy("ui.common.empty")));
     dialog.append(content);
@@ -233,7 +237,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(phoneStatus)phoneStatus.dataset.tick=String(next.tick);if(phoneLocation)phoneLocation.textContent=next.streetName??"";
     renderAds();if(phoneMap)drawMap(phoneMap,next,600,0,phoneRadius,phoneCenter);
     // Never replace a focused form while sim snapshots arrive.
-    if(modal&&!["startup","interaction","status","lighting","tools","objective"].includes(modal)){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.officeHours,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;if(modal==="phone"&&app==="settings"&&phoneAppAvailable("settings"))return;const active=doc.activeElement as HTMLElement|null,mapFocused=active===phoneMap;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(mapFocused)phoneMap?.focus();else if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
+    if(modal&&!["startup","interaction","status","lighting","tools","objective"].includes(modal)){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.officeHours,next.loadout,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;if(modal==="phone"&&app==="loadout"&&loadoutPanel){loadoutPanel.update(next.loadout);return;}if(modal==="phone"&&app==="settings"&&phoneAppAvailable("settings"))return;const active=doc.activeElement as HTMLElement|null,mapFocused=active===phoneMap;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(mapFocused)phoneMap?.focus();else if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));const input=controls.sample();reticle.hidden=(input.actions&(Action.fire|Action.scan|Action.watch|Action.altFire))===0;return input;},hideReticle:()=>{reticle.hidden=true;},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();graphicsPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);releaseMapCache(canvas);if(phoneMap)releaseMapCache(phoneMap);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));const input=controls.sample();reticle.hidden=(input.actions&(Action.fire|Action.scan|Action.watch|Action.altFire))===0;return input;},hideReticle:()=>{reticle.hidden=true;},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;loadoutPanel?.dispose();freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();graphicsPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);releaseMapCache(canvas);if(phoneMap)releaseMapCache(phoneMap);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }

@@ -32,6 +32,9 @@ describe("Clean Streets match instance", () => {
     let state = stepBotSweep(world, createBotSweep(world, config), {});
     const toward = PI / 2; // p2 spawns 4 m east of p1
     state = stepBotSweep(world, state, { p1: lob(toward) });
+    expect(botSweepView(state)!.players.p1!.score).toBe(0);
+    expect(state.ext.combat!.projectiles.some(projectile=>projectile.kind==="flower")).toBe(true);
+    for(let flight=0;flight<40&&botSweepView(state)!.players.p1!.score===0;flight++)state=stepBotSweep(world,state,{});
     let view = botSweepView(state)!;
     expect(view.players.p1!.score).toBe(MATCH_RULES.flowerPoints);
     expect(view.players.p2).toMatchObject({ distracted: true, flowers: 1 });
@@ -42,13 +45,18 @@ describe("Clean Streets match instance", () => {
     view = botSweepView(state)!;
     expect(view.players.p1!.score).toBe(25);
     expect(view.players.p2!.distracted).toBe(false);
+    while((state.ext.combat!.players.p1!.nextFlowerTick??0)>state.tick+1)state=stepBotSweep(world,state,{});
     state = stepBotSweep(world, state, { p1: lob(toward) });
+    expect(botSweepView(state)!.players.p1!.score).toBe(25);
+    for(let flight=0;flight<40&&botSweepView(state)!.players.p1!.score===25;flight++)state=stepBotSweep(world,state,{});
     expect(botSweepView(state)!.players.p1!.score).toBe(50);
   });
 
   it("strips a distracted player's spray, scan and lobs, and never scores a teammate", () => {
     let state = stepBotSweep(world, createBotSweep(world, config), {});
     state = stepBotSweep(world, state, { p1: lob(PI / 2) });
+    for(let flight=0;flight<40&&!botSweepView(state)!.players.p2!.distracted;flight++)state=stepBotSweep(world,state,{});
+    expect(botSweepView(state)!.players.p2!.distracted).toBe(true);
     // p2 lobs back while distracted: blocked.
     state = stepBotSweep(world, state, { p2: lob(-PI / 2) });
     expect(botSweepView(state)!.players.p2!.score).toBe(0);

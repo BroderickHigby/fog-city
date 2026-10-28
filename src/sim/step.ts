@@ -45,6 +45,7 @@ import type { SimSystem } from "./system-contract.ts";
 import { prepareMotionBodies, applyMotionBodies, observedMotionBodies } from "./motion.ts";
 import { tractionAt } from "./fog/index.ts";
 import { releaseActorIds } from "./identity.ts";
+import { holdPausedWorldTimers } from "./pause-timers.ts";
 import { movementLimit } from "./combat/system.ts";
 import { stepManualTaxis, syncManualTaxiImpacts, commandeerTaxi } from "./manual-taxi.ts";
 import { RIDE, RIDE_DESTINATION_EVENT, arrived, boardableTaxi, canTakeOverTaxi, destinationOf, hailableTaxi, takeoverTaxi } from "./ride.ts";
@@ -530,6 +531,11 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
       : input;
   }
   const prior: SimState = { ...prev, players };
+  if(prior.version>=21&&(prior.ext.combat?.pauseUntil??0)>prior.tick){
+    const held=holdPausedWorldTimers(prior);
+    // Combat owns its pause deadline and membership cleanup; no preparer or physical owner runs.
+    return runSystems({world,previous:prior,state:held,inputs:sanitized,events},systems.filter(system=>system.key==="combat"));
+  }
   const prepared = prepareSystems({ world,previous:prior,state:{...prior,tick,ext:{...prior.ext}},inputs:sanitized,events }, systems);
   const admitted = releaseActorIds(prepareMotionBodies(world, prepared.state, prepared.motions, prepared.retirements), prepared.retirements);
   const before: SimState = { ...admitted, tick:prev.tick };

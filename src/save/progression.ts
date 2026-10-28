@@ -6,7 +6,9 @@ import { createPlayerStatus } from "../sim/player/system.ts";
 import { createWallet } from "../sim/economy/system.ts";
 import { createProgressionPlayer, rankForXp } from "../sim/progression/system.ts";
 import { createMissionProgress } from "../sim/missions/system.ts";
-import { gameTime } from "../sim/clock/calendar.ts";
+import { createDoomClock } from "../sim/progression/doom-clock.ts";
+import { STREAK_REWARDS } from "../sim/progression/rules.ts";
+import { DAY_TICKS,gameTime } from "../sim/clock/calendar.ts";
 import { isGameplayId } from "../sim/gameplay-contract.ts";
 import type { SimState } from "../sim/contract.ts";
 import type { JsonObject } from "../sim/extensions.ts";
@@ -28,13 +30,14 @@ const activityIds=new Set(DEFAULT_CATALOG.activities.map(a=>a.id));
 export function validateSavedProgression(data:ProgressionDocument):ProgressionDocument {
   shape(data as RecordData,["wallet","progression","missions","activities","player","profile"]);
   const wallet=object(data.wallet),progression=object(data.progression),missions=object(data.missions),activities=object(data.activities),player=object(data.player);
-  shape(wallet,["cashCents","runwayMonths","reputation","ownedItemIds","ownedSiteIds","settledModeIds"]);
-  shape(progression,["xp","rank","tankTier","flowTier","scannerTier","nozzle","gadget","gear","perks","streaks","streakPoints","banked","achievements","doom"]);
+  shape(wallet,["cashCents","runwayMonths","reputation","ownedItemIds","ownedSiteIds","settledModeIds","microclimatePaid"]);
+  shape(progression,["xp","rank","tankTier","flowTier","scannerTier","nozzle","gadget","gear","perks","streaks","streakPoints","banked","earnedStreaks","achievements","doom"]);
   shape(missions,["completedIds","rewardedIds"]);shape(activities,["completedIds","officeHoursBookings","officeHoursSequence","officeHoursCooldownTicks"]);shape(player,["startupKitId","safehouseId","downRounds"]);
+  if(wallet.microclimatePaid!==undefined&&typeof wallet.microclimatePaid!=="boolean")throw new SaveError("invalid","Invalid subscription payment");
   const banked=object(progression.banked),cleanBank:RecordData={};for(const [key,value]of Object.entries(banked))cleanBank[id(key)]=number(value);
   const xp=number(progression.xp),clean:RecordData={
-    wallet:{cashCents:number(wallet.cashCents),runwayMonths:number(wallet.runwayMonths,0,18,false),reputation:number(wallet.reputation,0,100,false),ownedItemIds:list(wallet.ownedItemIds),ownedSiteIds:list(wallet.ownedSiteIds,siteIds),settledModeIds:list(wallet.settledModeIds??[])},
-    progression:{xp,rank:rankForXp(xp),tankTier:number(progression.tankTier,0,2),flowTier:number(progression.flowTier,0,1),scannerTier:number(progression.scannerTier,1,4),nozzle:enumId(progression.nozzle,["standard","pressure","wide"]),gadget:enumId(progression.gadget,["balloon","sprinkler","speaker"]),gear:enumId(progression.gear,["none","boots","airplane","microclimate"]),perks:list(progression.perks),streaks:list(progression.streaks),streakPoints:number(progression.streakPoints),banked:cleanBank,achievements:list(progression.achievements??[])},
+    wallet:{cashCents:number(wallet.cashCents),runwayMonths:number(wallet.runwayMonths,0,18,false),reputation:number(wallet.reputation,0,100,false),ownedItemIds:list(wallet.ownedItemIds),ownedSiteIds:list(wallet.ownedSiteIds,siteIds),settledModeIds:list(wallet.settledModeIds??[]),...(wallet.microclimatePaid!==undefined?{microclimatePaid:wallet.microclimatePaid===true}: {})},
+    progression:{xp,rank:rankForXp(xp),tankTier:number(progression.tankTier,0,2),flowTier:number(progression.flowTier,0,1),scannerTier:number(progression.scannerTier,1,4),nozzle:enumId(progression.nozzle,["standard","pressure","wide"]),gadget:enumId(progression.gadget,["balloon","sprinkler","speaker"]),gear:enumId(progression.gear,["none","boots","airplane","microclimate"]),perks:list(progression.perks),streaks:list(progression.streaks),streakPoints:number(progression.streakPoints),banked:cleanBank,...(progression.earnedStreaks!==undefined?{earnedStreaks:list(progression.earnedStreaks,new Set(STREAK_REWARDS.map(reward=>reward.runtimeId)))}:{}),achievements:list(progression.achievements??[])},
     missions:{completedIds:list(missions.completedIds,missionIds),rewardedIds:list(missions.rewardedIds)},activities:{completedIds:list(activities.completedIds,activityIds)},
     player:{startupKitId:id(player.startupKitId,kitIds,true),safehouseId:id(player.safehouseId,siteIds,true),downRounds:number(player.downRounds)},
   };
@@ -46,10 +49,10 @@ export function validateSavedProgression(data:ProgressionDocument):ProgressionDo
   if(activities.officeHoursCooldownTicks!==undefined)(clean.activities as RecordData).officeHoursCooldownTicks=number(activities.officeHoursCooldownTicks,0,60*720);
   if(progression.doom!==undefined){
     const doom=object(progression.doom),factions=object(doom.factions),cleanFactions:RecordData={};
-    shape(doom,["months","resets","winters","stopped","factions"]);
+    shape(doom,["months","resets","winters","stopped","factions","winterRemainingTicks"]);
     for(const [playerId,value]of Object.entries(factions)){const faction=object(value);shape(faction,["pauser","accelerator"]);cleanFactions[id(playerId)]={pauser:number(faction.pauser),accelerator:number(faction.accelerator)};}
     if(doom.stopped!==undefined&&typeof doom.stopped!=="boolean")throw new SaveError("invalid","Invalid world clock flag");
-    (clean.progression as RecordData).doom={months:number(doom.months,-Number.MAX_SAFE_INTEGER,Number.MAX_SAFE_INTEGER,false),resets:number(doom.resets),winters:number(doom.winters),stopped:doom.stopped??false,factions:cleanFactions};
+    (clean.progression as RecordData).doom={months:number(doom.months,-Number.MAX_SAFE_INTEGER,Number.MAX_SAFE_INTEGER,false),resets:number(doom.resets),winters:number(doom.winters),stopped:doom.stopped??false,factions:cleanFactions,...(doom.winterRemainingTicks!==undefined?{winterRemainingTicks:number(doom.winterRemainingTicks,0,DAY_TICKS)}:{})};
   }
   if(data.profile!==undefined){
     const profile=object(data.profile);shape(profile,["version","nameParts","look","preferences","lifetime","achievements"]);
@@ -67,13 +70,14 @@ export function validateSavedProgression(data:ProgressionDocument):ProgressionDo
 
 export function captureProgression(state:SimState,playerId:string,profile?:JsonObject):ProgressionDocument {
   const snapshot=gameplaySnapshot({state}),wallet=snapshot.economy.players[playerId]??createWallet(),progression=snapshot.progression.players[playerId]??createProgressionPlayer(),player=snapshot.player.players[playerId]??createPlayerStatus(),mission=snapshot.missions.players[playerId]??createMissionProgress();
-  const {commandSequence:_command,streakSequence:_streak,...durable}=progression;
-  const economy=snapshot.economy as typeof snapshot.economy&{settledModeIds?:string[]},worldProgression=snapshot.progression as typeof snapshot.progression&{doom?:{months:number;resets:number;winters:number;stopped?:boolean;factions:Record<string,{pauser:number;accelerator:number}>}};
+  const {commandSequence:_command,streakSequence:_streak,pendingStreak:_pending,streakHeld:_held,...durable}=progression;
+  const economy=snapshot.economy as typeof snapshot.economy&{settledModeIds?:string[]},worldProgression=snapshot.progression as typeof snapshot.progression&{doom?:{months:number;resets:number;winters:number;stopped?:boolean;winterUntilTick?:number;winterUntilDay?:number;factions:Record<string,{pauser:number;accelerator:number}>}};
   const doom=worldProgression.doom;
   const activity=snapshot.activities.players[playerId],day=gameTime(state).dayIndex;
+  const winterRemaining=doom?Math.min(DAY_TICKS,Math.max(0,(doom.winterUntilTick??0)-state.tick),doom.winterUntilDay===undefined||doom.winterUntilDay<0?DAY_TICKS:Math.max(0,(doom.winterUntilDay-day)*DAY_TICKS)):0;
   return validateSavedProgression({
-    wallet:{cashCents:wallet.cashCents,runwayMonths:wallet.runwayMonths,reputation:wallet.reputation,ownedItemIds:wallet.ownedItemIds,ownedSiteIds:wallet.ownedSiteIds,settledModeIds:economy.settledModeIds??[]},
-    progression:{...durable,...(doom?{doom:{months:doom.months,resets:doom.resets,winters:doom.winters,stopped:doom.stopped??false,factions:doom.factions}}:{})} as unknown as Json,missions:{completedIds:mission.completedIds,rewardedIds:mission.rewardedIds},activities:{completedIds:activity?.completedIds??[],...(activity?.officeHoursBookings?{officeHoursBookings:{day,count:activity.officeHoursBookings.day===day?activity.officeHoursBookings.count:0},officeHoursSequence:activity.officeHoursSequence??0,officeHoursCooldownTicks:Math.max(0,Math.min(60*720,(activity.cooldowns?.["office-hours"]??0)-state.tick))}:{})},
+    wallet:{cashCents:wallet.cashCents,runwayMonths:wallet.runwayMonths,reputation:wallet.reputation,ownedItemIds:wallet.ownedItemIds,ownedSiteIds:wallet.ownedSiteIds,settledModeIds:economy.settledModeIds??[],...(wallet.microclimatePaidWeek!==undefined?{microclimatePaid:wallet.microclimatePaidWeek===gameTime(state).gameWeek}: {})},
+    progression:{...durable,...(doom?{doom:{months:doom.months,resets:doom.resets,winters:doom.winters,stopped:doom.stopped??false,factions:doom.factions,...(winterRemaining>0?{winterRemainingTicks:winterRemaining}:{})}}:{})} as unknown as Json,missions:{completedIds:mission.completedIds,rewardedIds:mission.rewardedIds},activities:{completedIds:activity?.completedIds??[],...(activity?.officeHoursBookings?{officeHoursBookings:{day,count:activity.officeHoursBookings.day===day?activity.officeHoursBookings.count:0},officeHoursSequence:activity.officeHoursSequence??0,officeHoursCooldownTicks:Math.max(0,Math.min(60*720,(activity.cooldowns?.["office-hours"]??0)-state.tick))}:{})},
     player:{startupKitId:player.startupKitId,safehouseId:player.safehouseId,downRounds:player.downRounds},...(profile?{profile}:{}),
   });
 }
@@ -82,13 +86,14 @@ export function captureProgression(state:SimState,playerId:string,profile?:JsonO
 export function restoreProgression(fresh:SimState,data:ProgressionDocument,playerId:string):SimState {
   const clean=validateSavedProgression(data),snapshot=gameplaySnapshot({state:fresh}),wallet=object(clean.wallet),progression=object(clean.progression),player=object(clean.player),mission=object(clean.missions),activities=object(clean.activities);
   const activity=snapshot.activities.players[playerId];if(!activity)throw new SaveError("invalid","Initialize player systems before restoring");
-  const {settledModeIds,...savedWallet}=wallet,{doom,...savedProgression}=progression;
-  const restoredDoom=doom?{...object(doom),lastDay:gameTime(fresh).dayIndex,pausedUntil:0,winterUntilDay:-1,factCursors:{}}:undefined;
+  const {settledModeIds,microclimatePaid,...savedWallet}=wallet,{doom,...savedProgression}=progression;
+  const savedDoom=doom?object(doom):undefined,remainingWinter=(savedDoom?.winterRemainingTicks as number|undefined)??0;
+  const restoredDoom=savedDoom?{...createDoomClock(),months:savedDoom.months as number,resets:savedDoom.resets as number,winters:savedDoom.winters as number,factions:savedDoom.factions,...(savedDoom.stopped!==undefined?{stopped:savedDoom.stopped}:{}),lastDay:gameTime(fresh).dayIndex,lastTick:fresh.tick,pausedUntil:0,winterUntilDay:remainingWinter>0?gameTime(fresh).dayIndex+Math.ceil(remainingWinter/DAY_TICKS):-1,winterUntilTick:remainingWinter>0?fresh.tick+remainingWinter:0,factCursors:{},streakCursor:0}:undefined;
   const allowance=activities.officeHoursBookings?object(activities.officeHoursBookings):undefined;
   const restoredActivities={completedIds:activities.completedIds,...(allowance?{officeHoursBookings:{day:gameTime(fresh).dayIndex,count:allowance.count},officeHoursSequence:activities.officeHoursSequence??0,cooldowns:{...activity.cooldowns,"office-hours":fresh.tick+(activities.officeHoursCooldownTicks as number??0)}}:{})};
   const copy=<T>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
   return {...fresh,ext:{...fresh.ext,
-    economy:{...snapshot.economy,settledModeIds:copy(settledModeIds??[]),players:{...snapshot.economy.players,[playerId]:{...createWallet(),...copy(savedWallet)}}} as unknown as typeof snapshot.economy,
+    economy:{...snapshot.economy,settledModeIds:copy(settledModeIds??[]),players:{...snapshot.economy.players,[playerId]:{...createWallet(),...copy(savedWallet),...(microclimatePaid===true?{microclimatePaidWeek:gameTime(fresh).gameWeek,microclimateActive:object(clean.progression).gear==="microclimate"}: {})}}} as unknown as typeof snapshot.economy,
     progression:{...snapshot.progression,...(restoredDoom?{doom:copy(restoredDoom)}:{}),players:{...snapshot.progression.players,[playerId]:{...createProgressionPlayer(),...copy(savedProgression)}}} as unknown as typeof snapshot.progression,
     player:{...snapshot.player,players:{...snapshot.player.players,[playerId]:{...createPlayerStatus(),...copy(player),status:"active",bridgeUntil:0,resumeTick:0}}} as unknown as typeof snapshot.player,
     missions:{...snapshot.missions,players:{...snapshot.missions.players,[playerId]:{...createMissionProgress(),...copy(mission)}}} as unknown as typeof snapshot.missions,

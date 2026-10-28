@@ -36,13 +36,13 @@ describe("Coit Tower Recon", () => {
     expect(definition.wave).toBe(4);
     expect(activityAvailable(recon)).toBe(true);
     // The wave-three game does not offer it.
-    expect(DEFAULT_CATALOG.activities.some(value => value.id === "coit-recon")).toBe(false);
+    expect(DEFAULT_CATALOG.activities.filter(value => value.wave <= 3).some(value => value.id === "coit-recon")).toBe(false);
   });
-  it("reads a relay's signal after a held one-second Bot Check beside it, and pays once on the route", () => {
+  it("reads a relay's signal after a held one-second Bot Check but cannot substitute for the paid viewer", () => {
     const relay = RECON_RELAYS[0]!;
     const state = run({ x: relay.x + 3, z: relay.z }, 80, Action.scan);
-    expect(state.seen).toEqual(["recon.signalFound", "activity.cash", "activity.xp", "activity.finished"]);
-    expect(state.players.p!.completedIds).toEqual(["coit-recon"]);
+    expect(state.seen).toEqual(["recon.signalFound"]);
+    expect(state.players.p!.completedIds).toEqual([]);
   });
   it("ignores scans out of range, from a car, released early, and claimed signals", () => {
     const relay = RECON_RELAYS[0]!, claim: GameplayFact = { id: "spoof", source: "world", sequence: 1, tick: 3, kind: "recon.signalFound", playerId: "p" };

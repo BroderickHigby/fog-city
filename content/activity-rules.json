@@ -173,7 +173,7 @@
       "kind": "recon",
       "wave": 4,
       "objective": {
-        "event": "recon.signalFound",
+        "event": "recon.viewerCompleted",
         "count": 1
       },
       "timeLimitS": 240,
@@ -533,6 +533,71 @@
           "radiusM": 12
         }
       ]
+    },
+    {
+      "id": "faction-pauser",
+      "kind": "faction",
+      "wave": 4,
+      "objective": {
+        "event": "faction.pauser-completed",
+        "count": 1
+      },
+      "timeLimitS": 240,
+      "maxSpeedMps": 5.36448,
+      "reward": {
+        "cashCents": 20000,
+        "xp": 250
+      },
+      "repeatable": true,
+      "cooldownS": 300,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "Ferry Building binder pickup",
+          "lat": 37.7954,
+          "lon": -122.394,
+          "radiusM": 12
+        },
+        {
+          "id": "delivery",
+          "label": "R-Evolution binder delivery",
+          "lat": 37.7934,
+          "lon": -122.3948,
+          "radiusM": 12
+        }
+      ]
+    },
+    {
+      "id": "faction-accelerator",
+      "kind": "faction",
+      "wave": 4,
+      "objective": {
+        "event": "faction.accelerator-completed",
+        "count": 1
+      },
+      "timeLimitS": 300,
+      "reward": {
+        "cashCents": 30000,
+        "xp": 350
+      },
+      "repeatable": true,
+      "cooldownS": 300,
+      "checkpoints": [
+        {
+          "id": "pickup",
+          "label": "Pier 70 loading point",
+          "lat": 37.7608,
+          "lon": -122.385,
+          "radiusM": 12
+        },
+        {
+          "id": "delivery",
+          "label": "SoMa convention-center delivery",
+          "lat": 37.783,
+          "lon": -122.4,
+          "radiusM": 12
+        }
+      ]
     }
   ],
   "plainWords": {
@@ -795,7 +860,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:d9434d36",
+    "contentHash": "fnv1a32:1993e441",
     "reviewedBy": [],
     "review": "Consolidated mission recovery; pending independent review."
   },

@@ -92,7 +92,8 @@ describe("getting out and back in", () => {
   });
 
   it("F while moving fast brakes the car to a stop, then the player gets out", () => {
-    let s = run(wall, createInitialState(wall, 1, ["p1"], { x: 0, z: 100, heading: 0 }), F(1), 120);
+    let s = run(wall, createInitialState(wall, 1, ["p1"], { x: 0, z: 100, heading: 0 }), F(1), 150);
+    // A longer real launch establishes the same >10 m/s exit premise under v19 tyres.
     expect(s.players.p1!.car.speed).toBeGreaterThan(10);
     s = step(wall, s, PRESS);
     expect(s.players.p1!.mode).toBe("vehicle");
@@ -224,8 +225,8 @@ describe("walking", () => {
     let lastSpeed = s.players.p1!.car.speed;
     let slowed = 0;
     let touched = 0;
-    // (360 ticks: the v12 launch is gentler, so the car needs a moment longer to pass the walker's spot.)
-    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 360, (k) => {
+    // The v19 tyre response needs seven seconds at half throttle to pass the walker's spot.
+    s = run(world, s, { p1: { throttle: 0.5, steer: 0, brake: 0, actions: 0 } }, 420, (k) => {
       const c = k.players.p1!.car;
       const f = k.players.p2!.foot!;
       if (f.dodge) dived = true;

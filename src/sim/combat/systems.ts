@@ -39,20 +39,35 @@ function recordedInputs(system: SimSystemContext, ctx: CombatContext, state: Com
   const frame=system.inputs;
   const mapped: Record<string, CombatInput> = {};
   for (const player of sortedPlayers(ctx)) {
+    const modern=system.state.version>=21;
     const recorded = frame[player.id];
-    if (!recorded) { mapped[player.id] = {}; continue; }
+    if (!recorded&&!modern) { mapped[player.id] = {}; continue; }
+    const actions=recorded?.actions??0;
     const input: CombatInput = {
-      fire: (recorded.actions & Action.fire) !== 0,
-      scan: (recorded.actions & Action.scan) !== 0,
-      cone: (recorded.actions & Action.cone) !== 0,
-      altFire: (recorded.actions & Action.altFire) !== 0,
+      fire: (actions & Action.fire) !== 0,
+      scan: (actions & Action.scan) !== 0,
+      cone: (actions & Action.cone) !== 0,
+      altFire: (actions & Action.altFire) !== 0,
     };
-    if (recorded.aimYaw !== undefined) input.aimYaw = recorded.aimYaw;
-    if (recorded.aimPitch !== undefined) input.aimPitch = recorded.aimPitch;
-    if ((recorded.actions & Action.gadget) !== 0 && player.gadget) input.gadget = player.gadget;
-    if ((recorded.actions & Action.interact) !== 0) {
+    if (recorded?.aimYaw !== undefined) input.aimYaw = recorded.aimYaw;
+    if (recorded?.aimPitch !== undefined) input.aimPitch = recorded.aimPitch;
+    if ((actions & Action.gadget) !== 0 && player.gadget) input.gadget = player.gadget;
+    if ((actions & Action.interact) !== 0) {
       const source = nearestRefill(ctx, player, state);
       if (source !== undefined) input.refill = source;
+    }
+    if(modern){
+      if((actions&Action.gear)!==0)input.gear=true;
+      // The equipped nozzle is a validated loadout choice. Hold Interact in a safe
+      // stopped crate zone for three seconds to load its corresponding boost.
+      if((actions&Action.interact)!==0)input.boost=player.nozzle==="pressure"?"pressure":player.nozzle==="wide"?"wide":"salt";
+      // A bank reservation remains in context until its exact used/rejected acknowledgment.
+      // Its unique sequence is the edge; holding X or replaying a frame cannot repeat it.
+      const grant=[...(ctx.streaks??[])].filter(grant=>grant.playerId===player.id&&Number.isSafeInteger(grant.sequence)&&grant.sequence>0&&grant.sequence>(state?.players[player.id]?.streakSequence[grant.kind]??0))
+        .sort((a,b)=>a.sequence-b.sequence||(a.kind<b.kind?-1:a.kind>b.kind?1:0))[0];
+      if(grant)input.streak=grant.kind;
+      const range=grant?.kind==="parrots"||grant?.kind==="blimp"?200:input.gadget==="sprinkler"||input.gadget==="speaker"||input.gear&&player.gear==="microclimate"?2:0;
+      if(range&&ctx.aimPlacement&&(state?.pauseUntil??0)<=(state?.tick??0)){const point=ctx.aimPlacement(player,input,range);if(point&&[point.x,point.y,point.z].every(Number.isFinite)){input.targetX=point.x;input.targetZ=point.z;}else input.placementBlocked=true;}
     }
     mapped[player.id] = input;
   }
@@ -78,8 +93,9 @@ export function createCombatSystem(provider: CombatContextProvider): SimSystem {
     key: "combat",
     step(system) {
       const snapshot = provider(system);
-      const inputs = snapshot.inputs ?? recordedInputs(system, snapshot.context, combatOf(system.previous));
-      return stepCombatSystem(system.previous, system.state, snapshot.context, inputs);
+      const context={...snapshot.context,simVersion:system.previous.version};
+      const inputs = snapshot.inputs ?? recordedInputs(system, context, combatOf(system.previous));
+      return stepCombatSystem(system.previous, system.state, context, inputs);
     },
   };
 }

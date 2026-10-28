@@ -1,0 +1,11 @@
+/** Original fictional coin-op guide script. Wrong labels are gameplay, not historical claims. */
+export const COIT_GUIDE_LINES = [
+  { id: "coit:intro", speaker: "coit-guide", text: "Pan across the city. Observe a robot's actual sabotage before tagging it. The AI guide sometimes gets landmark names wrong." },
+  { id: "coit:claim:ferry-building", speaker: "coit-guide", text: "With 98% confidence: that is the Ferry Building." },
+  { id: "coit:claim:600-montgomery", speaker: "coit-guide", text: "With 98% confidence: that is the Transamerica Pyramid." },
+  { id: "coit:claim:415-mission", speaker: "coit-guide", text: "With 98% confidence: that is the Salesforce Tower." },
+  { id: "coit:correct:ferry-building", speaker: "coit-guide", text: "You're absolutely right! That is the Ferry Building." },
+  { id: "coit:correct:600-montgomery", speaker: "coit-guide", text: "You're absolutely right! That is the Transamerica Pyramid." },
+  { id: "coit:correct:415-mission", speaker: "coit-guide", text: "You're absolutely right! That is the Salesforce Tower." },
+] as const;
+export const COIT_LABEL_IDS: Readonly<Record<string, string>> = { "Ferry Building": "ferry-building", "Transamerica Pyramid": "600-montgomery", "Salesforce Tower": "415-mission" };

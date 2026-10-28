@@ -1,3 +1,4 @@
+import coitManifest from "../../public/audio/coit/manifest.json" with { type:"json" };
 import { vehicleModelForActor } from "../render/vehicle-models.ts";
 import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 // The game's audio, as one object main.ts drives: effects, contextual music, mission voices with
@@ -101,6 +102,8 @@ export interface GameAudioDirector {
   /** Tune the car radio (M / Shift+M call this): +1 next station, -1 previous. */
   tuneRadio(step: number): RadioStation;
   /** The player answered a dialogue question (UI callback): the speaker replies. */
+  playGuide(id:string,text:string):void;
+  skipGuide():void;
   answered(questionId: string, answerId: string): void;
   /** A save restore jumped the game to another moment. */
   restore(state?: SimState): void;
@@ -394,6 +397,12 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       mixer.playHorn(hornGain(blast, listener), panOf(listener, blast.x, blast.z), blast.inVehicle);
     },
     tuneRadio,
+    playGuide(id,text){
+      opening.skip();queue.cancel(group=>group==="coit-guide");
+      const line=coitManifest.lines.find(line=>line.id===id);
+      queue.enqueue({id,group:"coit-guide",speaker:"coit-guide",speakerName:"AI coin-op guide",text,url:line?`${base}${line.file}`:null,durationS:line?.durationS??Math.max(2,text.length/14),cues:line?.cues??[],priority:PRIORITY.critical},clock());
+    },
+    skipGuide(){queue.cancel(group=>group==="coit-guide");},
     answered(questionId, answerId) {
       missionVoice.answered(questionId, answerId, now);
     },

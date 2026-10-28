@@ -14,9 +14,9 @@ export function createMissions(tick=0):MissionState{return {version:1,tick,nextI
 export function missionPlace(place:Place):{x:number;y:number;z:number}{return {...toLocal(place.lat,place.lon),y:0};}
 function near(ctx:GameplayContext,id:string,place:Place):boolean {const body=ctx.bodies.find(b=>b.id===id);return !!body&&distanceSquared({...body,y:0},missionPlace(place))<=(place.radiusM??25)*(place.radiusM??25);}
 function initial(mission:Mission):string{return mission.start??mission.steps[0]?.id??"";}
-function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
+function enter(progress:MissionProgress,stepId:string,tick:number):void {progress.stepId=stepId;progress.stepStartedTick=tick;if(progress.stepPausedTicks!==undefined)progress.stepPausedTicks=0;progress.deadlineTick=0;progress.objectiveCount=0;progress.objectiveIds=[];progress.questionIndex=0;progress.visits++;}
 function attemptId(playerId:string,tick:number):string {let hash=2166136261;for(const char of playerId)hash=Math.imul(hash^char.charCodeAt(0),16777619);return `a${tick}-${hash>>>0}`;}
-function start(progress:MissionProgress,mission:Mission,tick:number,playerId:string):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;progress.meters={};progress.outcome="";progress.visits=0;if((mission.wave??2)>=3)progress.actorAttempt=attemptId(playerId,tick);else delete progress.actorAttempt;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
+function start(progress:MissionProgress,mission:Mission,tick:number,playerId:string):void {progress.missionId=mission.id;progress.status="active";progress.startedTick=tick;if(progress.pausedTicks!==undefined)progress.pausedTicks=0;progress.meters={};progress.outcome="";progress.visits=0;if((mission.wave??2)>=3)progress.actorAttempt=attemptId(playerId,tick);else delete progress.actorAttempt;delete progress.observed;for(const key of Object.keys(mission.meters).sort())if(validId(key))progress.meters[key]=mission.meters[key]!.start;enter(progress,initial(mission),tick);}
 
 /** A real graph interpreter. All completions come from authoritative facts or measured state. */
 /** A side activity backed by a mission of the same id (Ramen Office Hours): repeatable, never part of the campaign. */
@@ -49,7 +49,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     const earlier=wanted&&eligible.some(m=>(m.campaign??0)>0&&(m.campaign??0)<(wanted.campaign??0)&&!own.completedIds.includes(m.id));
     if(wanted&&!earlier)start(own,wanted,tick,body.id);
    }
-   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";own.startedTick=tick;own.actorAttempt=attemptId(body.id,tick);delete own.observed;enter(own,own.retryFrom,tick);}
+   if(command.kind==="mission-retry"&&own.status==="retry"&&tick>=own.deadlineTick){own.status="active";own.startedTick=tick;if(own.pausedTicks!==undefined)own.pausedTicks=0;own.actorAttempt=attemptId(body.id,tick);delete own.observed;enter(own,own.retryFrom,tick);}
   }
   // A side activity in progress keeps the campaign's start area from firing until it ends.
   const busy=Boolean(activities?.players[body.id]?.activeActivityId);
@@ -74,11 +74,11 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
   function advance(step:Step,mission:Mission,own:MissionProgress,incoming:GameplayFact[]):string|undefined {
    if(step.type==="trigger")return step.event.kind==="phoneCall"?requests.some(c=>c.kind==="mission-ack")?step.next:undefined:!busy&&near(ctx,body.id,step.event.place)?step.next:undefined;
    if(step.type==="goto"){
-    own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60);
+    own.deadlineTick=own.stepStartedTick+Math.ceil(step.timer.limitS*60)+(own.stepPausedTicks??0);
     if(near(ctx,body.id,step.target)&&(!step.travel||step.travel==="any"||step.travel===body.mode))return step.next;
     return tick>=own.deadlineTick?step.onTimeout:undefined;
    }
-   if(step.type==="timer"){own.deadlineTick=own.stepStartedTick+Math.ceil(step.durationS*60);return tick>=own.deadlineTick?step.next:undefined;}
+   if(step.type==="timer"){own.deadlineTick=own.stepStartedTick+Math.ceil(step.durationS*60)+(own.stepPausedTicks??0);return tick>=own.deadlineTick?step.next:undefined;}
    if(step.type==="stage"){
     event(state,"mission.stage",body.id,mission.id,step.nearHydrantM??0,JSON.stringify({...(own.actorAttempt?{attemptId:own.actorAttempt}:{}),stepId:step.id,actors:step.actors,definitions:mission.actors??{},place:missionPlace(step.place),radius:step.place.radiusM}));return step.next;
    }
@@ -96,7 +96,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
     if(ctx.wave>=3)own.observed=measured.state;
     if(measured.handled){
      if(measured.complete){event(state,step.objective.kind==="event"?step.objective.event!:"mission.observed",body.id,mission.id);return step.next;}
-     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
+     if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60)+(own.stepPausedTicks??0);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
      return;
     }
     const objective=step.objective;const observation=ctx.observations.find(o=>o.playerId===body.id);const target=objective.actor?(observation?.actorBindings?.[objective.actor]??`mission:${mission.id}:${objective.actor}`):undefined;
@@ -115,7 +115,7 @@ export function stepMissions(previous:MissionState,ctx:GameplayContext,tick:numb
      complete=own.objectiveCount>=required;
     }
     if(complete)return step.next;
-    if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
+    if(step.timeLimitS!==undefined){own.deadlineTick=own.stepStartedTick+Math.ceil(step.timeLimitS*60)+(own.stepPausedTicks??0);if(tick>=own.deadlineTick){if(step.onFail)return step.onFail;own.status="failed";}}
     return;
    }
    if(step.type==="retry"){own.status="retry";own.retryFrom=step.retryFrom;own.deadlineTick=tick+Math.ceil((step.cooldownS??0)*60);own.outcome=step.outcome;event(state,"mission.retry",body.id,mission.id,own.deadlineTick,step.outcome);return;}

@@ -1,9 +1,9 @@
 """The Porter (Bramblecot Home's errand robot) -> public/models/errand-robot.glb
 
-A tall, slim errand humanoid, 1.9 m to the top of its lantern: an opaque glazed-ceramic
-shell (no translucent face plate or torso), graphite joints, and a lantern-shaped head (a
-barrel with a cap, a collar and a carrying ring) whose soft face light is one horizontal
-strip across the front (light_face). It carries a paper grocery tote in its right hand
+A tall, slim original industrial errand humanoid, 1.9 m tall: powder-coated
+magnesium casing, machined joints, service-panel seams, replaceable motor shrouds
+and a chamfered sensor pod. Its single horizontal status strip is light_face.
+This design depicts no existing manufacturer or real robot product. It carries a paper grocery tote in its right hand
 (node "bag", a child of the right forearm) with the groceries as the child node
 "bag_contents" (hide it for an empty bag).
 
@@ -48,10 +48,10 @@ SHIN = HIP_Z - 0.04 - THIGH - 0.075  # knee to ankle
 
 def main() -> None:
     fc.reset()
-    shell = fc.material("shell_ceramic", "#f3f1ec", 0.24, 0.0, extras={"rustable": True})
-    shell_grey = fc.material("shell_ceramic_grey", "#d9dcdf", 0.3, 0.0, extras={"rustable": True})
+    shell = fc.material("shell_powder_coat", "#dce1df", 0.38, 0.25, extras={"rustable": True})
+    shell_grey = fc.material("shell_cast_alloy", "#9da9ae", 0.4, 0.55, extras={"rustable": True})
     joint = fc.material("joint_graphite", "#2b2f35", 0.45, 0.4, extras={"rustable": True})
-    trim = fc.material("trim_bronze", "#9a7b55", 0.35, 0.7, extras={"rustable": True})
+    trim = fc.material("trim_machined_alloy", "#71858b", 0.28, 0.75, extras={"rustable": True})
     face = fc.material("light_face", "#ffe7c2", 0.4, emission="#ffd9a0", strength=1.0)
     paper = fc.material("bag_paper", "#b98b58", 0.85)
     green = fc.material("produce_green", "#4f9a3a", 0.7)
@@ -63,58 +63,64 @@ def main() -> None:
     root["robot"] = "porter"
     root["slumpKeys"] = ["seize", "slump", "melt"]
 
-    # ---- torso: a slim glazed vase (pelvis, waist ring, chest) with a bronze seam
+    # ---- torso: tapered manufactured casing with a replaceable front service panel
     t = fc.MeshBuilder()
     t.lathe([(0.0, -0.1), (0.07, -0.095), (0.12, -0.06), (0.135, 0.0), (0.12, 0.06), (0.09, 0.1)], 16, shell_grey, phase=0.2)
     t.cylinder(0.085, 0.09, 0.17, 16, joint, caps=False)
     t.lathe([(0.093, 0.12), (0.093, 0.14)], 16, trim, smooth=True)
     chest = [(0.09, 0.16), (0.13, 0.22), (0.16, 0.32), (0.175, 0.42), (0.17, 0.5), (0.145, 0.56), (0.09, 0.6), (0.05, 0.61)]
     t.push(Matrix.Diagonal((1.0, 0.72, 1.0, 1.0)))
-    t.lathe(chest, 18, shell, smooth=True)
+    t.lathe(chest, 16, shell, smooth=True)
     t.lathe([(0.176, 0.40), (0.177, 0.415)], 18, trim, smooth=True)
     t.pop()
+    # Recessed front service panel, flush fasteners and a protected intake below it.
+    t.box(-0.105, 0.116, 0.265, 0.105, 0.122, 0.47, joint)
+    t.box(-0.096, 0.122, 0.276, 0.096, 0.128, 0.459, shell_grey)
+    for sx in (-1, 1):
+        for z in (0.29, 0.444):
+            t.cyl_between((sx * 0.083, 0.127, z), (sx * 0.083, 0.132, z), 0.009, 8, trim)
+    for z in (0.2, 0.216, 0.232):
+        t.box(-0.065, 0.105, z, 0.065, 0.111, z + 0.007, joint)
+    # Rear battery spine: restrained casing and two mounting rails.
+    t.box(-0.075, -0.12, 0.24, 0.075, -0.105, 0.47, joint)
+    for sx in (-1, 1):
+        t.box(sx * 0.067 - 0.007, -0.13, 0.26, sx * 0.067 + 0.007, -0.12, 0.45, trim)
     for sx in (1, -1):
         t.sphere((sx * SHOULDER[0], 0, SHOULDER[2]), 0.058, 12, 6, joint)
         t.sphere((sx * HIP[0], 0, HIP[2]), 0.062, 12, 6, joint)
     t.cylinder(0.04, NECK_Z - 0.02, NECK_Z + 0.02, 12, joint, caps=False)
     torso = t.build("torso", parent=root, location=(0, 0, HIP_Z))
 
-    # ---- head: a lantern. Collar, gently bulging barrel, cap, finial and carrying ring
+    # ---- head: original chamfered sensor pod, service lid and guarded optical band.
+    # The four corner chamfers are geometry rather than an expensive bevel modifier.
     h = fc.MeshBuilder()
-    h.cylinder(0.035, 0.0, 0.05, 12, joint, caps=False)
-    h.lathe([(0.0, 0.04), (0.075, 0.045), (0.085, 0.06), (0.08, 0.075)], 16, trim, smooth=True)
-    barrel = [(0.08, 0.075), (0.098, 0.105), (0.108, 0.16), (0.108, 0.215), (0.098, 0.27), (0.082, 0.3)]
-    h.lathe(barrel, 18, shell, smooth=True, phase=math.pi / 18)
-    # vertical ribs, like a lantern's frame (none across the face)
-    for k in range(6):
-        a = math.pi / 2 + (k + 0.5) * math.pi / 3
-        h.push(Matrix.Rotation(a, 4, "Z"))
-        h.box(0.103, -0.006, 0.09, 0.111, 0.006, 0.29, trim)
-        h.pop()
-    h.lathe([(0.082, 0.3), (0.105, 0.305), (0.11, 0.315), (0.07, 0.34), (0.02, 0.355), (0.0, 0.358)], 16, trim, smooth=True)
-    h.cylinder(0.012, 0.355, 0.372, 8, trim, caps=True)
-    # the carrying ring (bail) on top, across the head from side to side
-    ring_r, tube = 0.035, 0.007
-    pts = [(ring_r * math.cos(math.pi * k / 12), 0.0, 0.372 + ring_r * math.sin(math.pi * k / 12)) for k in range(13)]
-    for p0, p1 in zip(pts, pts[1:]):
-        h.cyl_between(p0, p1, tube, 6, trim, caps=False)
-    # the face light: one soft horizontal strip wrapping the front of the barrel
-    z0, z1 = 0.178, 0.203
-    seg = 10
-    for k in range(seg):
-        a0 = math.radians(35 + 110 * k / seg)
-        a1 = math.radians(35 + 110 * (k + 1) / seg)
-        r = 0.1105
-        h.poly_n([(r * math.cos(a0), r * math.sin(a0), z0), (r * math.cos(a1), r * math.sin(a1), z0),
-                  (r * math.cos(a1), r * math.sin(a1), z1), (r * math.cos(a0), r * math.sin(a0), z1)],
-                 face, (math.cos((a0 + a1) / 2), math.sin((a0 + a1) / 2), 0.0), smooth=True)
+    h.cylinder(0.035, 0.0, 0.065, 12, joint, caps=True)
+    h.cylinder(0.052, 0.035, 0.075, 12, trim, caps=True)
+    profile = [(-0.085, -0.078), (0.085, -0.078), (0.11, -0.053), (0.11, 0.065),
+               (0.085, 0.09), (-0.085, 0.09), (-0.11, 0.065), (-0.11, -0.053)]
+    h.prism(profile, 0.078, 0.3, shell, top=True, bottom=True, smooth=False)
+    h.prism([(x * 1.015, y * 1.015) for x, y in profile], 0.3, 0.316, joint, top=True, bottom=True)
+    h.frustum(profile, [(x * .85, y * .85) for x, y in profile], 0.316, 0.345, shell_grey, top=True, bottom=True)
+    # Flush camera window and two recessed lenses. The status light stays a single strip.
+    h.box(-0.089, 0.09, 0.158, 0.089, 0.097, 0.247, joint)
+    for sx in (-1, 1):
+        h.cyl_between((sx * 0.043, 0.096, 0.211), (sx * 0.043, 0.101, 0.211), 0.018, 12, trim)
+        h.cyl_between((sx * 0.043, 0.101, 0.211), (sx * 0.043, 0.103, 0.211), 0.012, 12, joint)
+    h.box(-0.082, 0.097, 0.163, 0.082, 0.102, 0.18, face)
+    # Rear heat-exchanger slots and a modest rectangular lidar mast, no ornamental ring.
+    for z in (0.16, 0.185, 0.21, 0.235):
+        h.box(-0.062, -0.081, z, 0.062, -0.078, z + 0.008, joint)
+    h.box(-0.04, -0.026, 0.345, 0.04, 0.026, 0.374, joint)
+    h.box(-0.047, -0.032, 0.374, 0.047, 0.032, 0.39, shell_grey)
     h.build("head", parent=torso, location=(0, 0, NECK_Z))
 
-    # ---- arms: long tapered ceramic segments, graphite elbows and wrists, three-finger hands
+    # ---- arms: replaceable actuator shrouds, exposed piston rails and three-finger grippers
     for side, sx in (("L", -1), ("R", 1)):
         ua = fc.MeshBuilder()
         ua.capsule((sx * 0.008, 0, -0.05), (sx * 0.006, 0, -UPPER_ARM + 0.04), 0.047, 0.04, shell)
         ua.lathe([(0.049, -0.11), (0.049, -0.12)], 12, trim, smooth=True)
+        ua.cyl_between((sx * 0.043, 0, -0.09), (sx * 0.043, 0, -0.275), 0.009, 8, trim)
+        ua.cyl_between((sx * 0.043, 0, -0.07), (sx * 0.043, 0, -0.16), 0.015, 8, joint)
         upper = ua.build(f"arm_upper_{side}", parent=torso, location=(sx * SHOULDER[0], 0, SHOULDER[2]))
         la = fc.MeshBuilder()
         la.sphere((0, 0, 0), 0.04, 12, 6, joint)
@@ -134,6 +140,7 @@ def main() -> None:
         ul = fc.MeshBuilder()
         ul.capsule((0, 0, -0.05), (0, 0.005, -THIGH + 0.045), 0.062, 0.05, shell)
         ul.lathe([(0.064, -0.16), (0.064, -0.172)], 12, trim, smooth=True)
+        ul.cyl_between((sx * 0.051, -0.005, -0.09), (sx * 0.051, -0.005, -0.37), 0.01, 8, trim)
         upper = ul.build(f"leg_upper_{side}", parent=torso, location=(sx * HIP[0], 0, HIP[2]))
         ll = fc.MeshBuilder()
         ll.sphere((0, 0, 0), 0.05, 12, 6, joint)
@@ -141,6 +148,8 @@ def main() -> None:
         ll.sphere((0, 0, -SHIN), 0.034, 10, 5, joint)
         ll.sphere((0, 0.05, -SHIN - 0.03), 1.0, 14, 7, shell_grey, scale=(0.055, 0.115, 0.05))
         ll.box(-0.052, -0.06, -SHIN - 0.075, 0.052, 0.16, -SHIN - 0.055, sole)
+        for y in (-0.02, 0.035, 0.09):
+            ll.box(-0.053, y, -SHIN - 0.076, 0.053, y + 0.012, -SHIN - 0.07, joint)
         ll.build(f"leg_lower_{side}", parent=upper, location=(0, 0, -THIGH))
 
     top = HIP_Z + NECK_Z + 0.42

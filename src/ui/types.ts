@@ -1,3 +1,4 @@
+import type { LoadoutView } from "./loadout.ts";
 import type { SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "../input/keyboard.ts";
 import type { SavePanelOptions } from "./save-panel.ts";
@@ -37,8 +38,9 @@ export interface ObjectiveView { readonly id:string; readonly title:string; read
 export interface PopupView { readonly id:string; readonly title:string; readonly detail:string }
 export interface ScanView { readonly targetId:string; readonly bad:boolean; readonly confidence:number }
 export interface InteractionView { readonly id:string;readonly title:string;readonly detail:string;readonly startup?:boolean;readonly choices:readonly {readonly id:string;readonly label:string}[] }
-export type PhoneApp="map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings"|"officeHours";
+export type PhoneApp="loadout"|"map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings"|"officeHours";
 export interface UiView {
+  readonly loadout?:LoadoutView;
   readonly tick:number;
   readonly playerId:string;
   readonly x:number;
@@ -75,6 +77,8 @@ export interface UiView {
 export type UiCopy=(key:string,values?:Readonly<Record<string,string|number>>)=>string;
 export type UiLightingPreset="live"|"noon"|"golden"|"twilight"|"night";
 export interface UiCallbacks {
+  readonly loadout?:(itemId:string)=>void;
+  readonly streak?:(itemId:string)=>void;
   readonly openTaxi?:()=>void;
   readonly lighting?:(preset:UiLightingPreset)=>void;
   readonly purchase?:(itemId:string,siteId?:string)=>void;

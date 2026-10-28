@@ -92,10 +92,13 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     seen.add(building.id);
     walls.push(buildingWall(building));
   }
-  return {wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
+  return {simVersion:state.version,wave:options.wave??2,actors,players,walls,refills:options.refills??[],groundHeight:(x,z)=>groundHeight(world,x,z),
     ...(options.attacks?{attacks:options.attacks}:{}),...(options.conversionCap!==undefined?{conversionCap:options.conversionCap}:{}),
     ...(options.fog!==undefined?{fog:options.fog}:{}),...(options.fogAt?{fogAt:options.fogAt}:{}),...(options.rain!==undefined?{rain:options.rain}:{}),...(options.night!==undefined?{night:options.night}:{}),
     ...(options.mode?{mode:options.mode}:{}),...(options.safeLots?{safeLots:options.safeLots}:{}),...(options.streaks?{streaks:options.streaks}:{}),
     ...(options.rivalPlayerIds?{rivalPlayerIds:options.rivalPlayerIds}:{}),
+    ...(options.worldAgiSequence!==undefined?{worldAgiSequence:options.worldAgiSequence}:{}),
+    ...(options.devicePlacementAllowed?{devicePlacementAllowed:options.devicePlacementAllowed}:{}),
+    ...(options.aimPlacement?{aimPlacement:options.aimPlacement}:{}),...(options.deviceEffectAllowed?{deviceEffectAllowed:options.deviceEffectAllowed}:{}),
   };
 }

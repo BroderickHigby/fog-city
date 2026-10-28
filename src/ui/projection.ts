@@ -1,3 +1,4 @@
+import { loadoutProjection } from "./loadout.ts";
 import { hostileMarkers } from "../presentation/hostile-robots.ts";
 import { canStartActivity,activityUnlocked,missionEngaged } from "../sim/activities/system.ts";
 import { gameTime } from "../sim/clock/calendar.ts";
@@ -25,7 +26,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const snapshot=gameplaySnapshot({state}),own=playerView(snapshot,playerId),player=state.players[playerId];
   const body=player?playerPose(player):undefined;
   const combat=state.ext.combat?.players[playerId],progression=snapshot.progression.players[playerId],progress=snapshot.missions.players[playerId];
-  const loadout=player&&body?combatLoadout(snapshot,{id:playerId,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading):undefined;
+  const loadout=player&&body?combatLoadout(snapshot,{id:playerId,mode:player.mode,x:body.x,y:body.y,z:body.z,speed:body.speed},body.heading,state.version,"freeRoam",wave):undefined;
   const mission=MISSIONS.find(m=>m.id===progress?.missionId),step=mission?.steps.find(s=>s.id===progress?.stepId);
   let interaction:InteractionView|undefined;
   const lines=step&&"lines"in step?step.lines?.map(line=>`${line.speaker}: ${line.text}`).join("\n"):"";
@@ -64,7 +65,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   for(const id of Object.keys(runtime?.incidents??{}).sort()){
     const incident=runtime!.incidents![id]!;if(incident.playerId!==playerId)continue;
     const card=CITY_DIRECTOR_CARDS.find(c=>c.id===incident.cardId);
-    const live=incident.targetIds.map(t=>runtime!.actors[t]).filter(a=>a&&!a.retired&&(state.ext.combat?.targets[a.id]?.phase??"active")==="active");
+    const live=incident.targetIds.map(t=>runtime!.actors[t]).filter(a=>a&&!a.retired&&a.firmware==="bad"&&!a.protected&&!a.child&&!a.mobilityAid&&(state.ext.combat?.targets[a.id]?.phase??"active")==="active");
     if(!live.length)continue;
     for(const actor of live)shown.add(actor!.id);
     for(const actor of live)blips.push({id:`${id}:${actor!.id}`,kind:"bounty",label:card?.title??id,x:actor!.x,z:actor!.z});
@@ -99,8 +100,9 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
     map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target,radius:170,...(geography?{geography}:{})},
     vendorSiteId:vendorSite?.id,
-    vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
-    phoneApps:["map","botBounty","botCheck","bank","settings",...(wave>=3?["officeHours" as const]:[])],
+    vendor:DEFAULT_CATALOG.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:VENDOR.items.find(row=>row.id===item.id)?.name??item.id.replaceAll("-"," "),description:VENDOR.items.find(row=>row.id===item.id)?.blurb??uiText("ui.loadout.rankRequired",{rank:item.rank??1}),priceCents:item.priceCents,owned:owned.has(item.id),available:(progression?.rank??1)>=(item.rank??1)&&!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
+    loadout:loadoutProjection(state,playerId,wave,uiText),
+    phoneApps:[...(wave>=4?["loadout" as const]:[]),"map","botBounty","botCheck","bank","settings",...(wave>=3?["officeHours" as const]:[])],
     ...(wave>=3&&officeDoor?{officeHours:{available:officeAvailable,detail:officeDetail,remaining,destination:{x:officeDoor.x,z:officeDoor.z}}}:{}),
     popups,
     ...(bounties.length?{bounties}:{}),

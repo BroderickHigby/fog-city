@@ -528,7 +528,8 @@ describe("the dodge in step()", () => {
       { id: 2, x: -0.2, z: -10, kind: "sidewalkBot" },
     ]);
     let knocked = 0;
-    s = drive(flat, s, 240, (k) => {
+    // Allow the v19 launch/tyre response five seconds to finish passing both bodies.
+    s = drive(flat, s, 300, (k) => {
       for (const r of agentsOf(k)) if (r.knock && r.knock.t === 0 && r.knock.phase === "slide") knocked++;
     });
     // Nobody dived: both were hit and knocked over (impacts.ts), and the car kept going.

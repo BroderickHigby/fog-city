@@ -46,7 +46,7 @@ export function hullContact(a: Readonly<VehicleHull>, b: Readonly<VehicleHull>):
  * until its gap can close: translation plus each corner's angular travel bounds that change.
  * Exhausting the bounded search fails closed at its last proven-safe pose, never tunnels.
  */
-export function sweepHulls(a: Readonly<VehicleMotion>, b: Readonly<VehicleMotion>): HullSweep|null {
+export function sweepHulls(a: Readonly<VehicleMotion>, b: Readonly<VehicleMotion>, iterationBudget: 32 | 128 = 32): HullSweep|null {
   const dyA=a.after.y-a.before.y,dyB=b.after.y-b.before.y;
   // The common height interval is linear even on a hill / airborne step.
   let lo=0,hi=1;
@@ -69,7 +69,10 @@ export function sweepHulls(a: Readonly<VehicleMotion>, b: Readonly<VehicleMotion
   const startGap=hullContact(hullAt(a,lo),hullAt(b,lo)).gap;
   const margin=startGap>0&&startGap<=VEHICLE_SKIN+1e-9?0:VEHICLE_SKIN;
   let t=lo,last:HullContact|null=null;
-  for(let i=0;i<32;i++){
+  // Legacy replays retain their exact work budget. SIM21 can spend more bounded
+  // iterations proving a tight separating turn, with the same skin and closing bound.
+  const iterations = iterationBudget === 128 ? 128 : 32;
+  for(let i=0;i<iterations;i++){
     const c=hullContact(hullAt(a,t),hullAt(b,t));last=c;
     if(c.gap<=margin+1e-9){
       // A touching pair that is separating along a fixed axis may leave contact freely.

@@ -1,0 +1,208 @@
+{
+  "version": 1,
+  "status": "generated",
+  "title": "Coit coin-op guide",
+  "disclosure": "Machine-generated fictional guide using Supertonic 3 stock voice M1. No real person is portrayed.",
+  "generator": {
+    "engine": "Supertonic 3",
+    "codeRevision": "1e9799e964ea4c0dad7cde993b65c3c813a7b373",
+    "modelRevision": "aafc6e32416a594460b32413efc49d7fe4ce6d46",
+    "voicePreset": "M1",
+    "voiceLicense": "OpenRAIL-M",
+    "codeLicense": "MIT",
+    "provider": "CPUExecutionProvider",
+    "steps": 8,
+    "speed": 1.05,
+    "threads": {
+      "intraOp": 4,
+      "interOp": 1
+    },
+    "encoding": "mono44.1kHz96kbpsMP3; loudnormI-18TP-1.5LRA9",
+    "scriptSha256": "11fb8b1f0c00e7544d150fae74cd81186aad810efacffcd78c42f2824d11c5ad",
+    "noPaidApi": true
+  },
+  "speakers": {
+    "coit-guide": {
+      "name": "AI coin-op guide",
+      "voiced": true,
+      "voiceId": "supertonic3-stock-M1",
+      "voiceName": "Stock M1",
+      "why": "Original fictional guide; bundled stock preset, no real person portrayed."
+    }
+  },
+  "lines": [
+    {
+      "id": "coit:intro",
+      "speaker": "coit-guide",
+      "text": "Pan across the city. Observe a robot's actual sabotage before tagging it. The AI guide sometimes gets landmark names wrong.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-intro.mp3",
+      "durationS": 8.403084,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 8.403084,
+          "text": "Pan across the city. Observe a robot's actual sabotage before tagging it. The AI guide sometimes gets landmark names wrong."
+        }
+      ],
+      "bytes": 101608,
+      "sha256": "23f08561c2c0511deb81f1ac8e8e6409f6fbcfbe55d176fb171b814f8e94e1c6",
+      "sourceWavSha256": "a77674c80e72e1e04da53c0f9695761536a2d8520ac8aab788d35575409132d2",
+      "sourcePeak": 0.40714937448501587,
+      "sourceGain": 1.0,
+      "hash": "23f08561c2c0511deb81f1ac8e8e6409f6fbcfbe55d176fb171b814f8e94e1c6"
+    },
+    {
+      "id": "coit:claim:ferry-building",
+      "speaker": "coit-guide",
+      "text": "With 98% confidence: that is the Ferry Building.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-claim-ferry-building.mp3",
+      "durationS": 4.279569,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 4.279569,
+          "text": "With 98% confidence: that is the Ferry Building."
+        }
+      ],
+      "bytes": 52079,
+      "sha256": "5febee435f98546322a35380c87c37b08a4080eecb1f1c48507070f40758fcf3",
+      "sourceWavSha256": "941669cbef606d21ddac993f57ab84245c5428dc56956461f06080c478044bd4",
+      "sourcePeak": 0.5107080340385437,
+      "sourceGain": 1.0,
+      "hash": "5febee435f98546322a35380c87c37b08a4080eecb1f1c48507070f40758fcf3"
+    },
+    {
+      "id": "coit:claim:600-montgomery",
+      "speaker": "coit-guide",
+      "text": "With 98% confidence: that is the Transamerica Pyramid.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-claim-600-montgomery.mp3",
+      "durationS": 4.864535,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 4.864535,
+          "text": "With 98% confidence: that is the Transamerica Pyramid."
+        }
+      ],
+      "bytes": 59289,
+      "sha256": "1cb97e21455414673ec0ed7bf51168b90b2ffd4a7a0c4ebc8d629af5d081eb2a",
+      "sourceWavSha256": "62ee7cf193e5924fc6ecf4effa819709006b9d45a2a27dc0c1a143fe005dd417",
+      "sourcePeak": 0.4847851097583771,
+      "sourceGain": 1.0,
+      "hash": "1cb97e21455414673ec0ed7bf51168b90b2ffd4a7a0c4ebc8d629af5d081eb2a"
+    },
+    {
+      "id": "coit:claim:415-mission",
+      "speaker": "coit-guide",
+      "text": "With 98% confidence: that is the Salesforce Tower.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-claim-415-mission.mp3",
+      "durationS": 4.443379,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 4.443379,
+          "text": "With 98% confidence: that is the Salesforce Tower."
+        }
+      ],
+      "bytes": 54274,
+      "sha256": "e64a14060ef40a4001229af45747bf711073fa64c0b0f644ce1b460074764ada",
+      "sourceWavSha256": "e40172fb24c477e88475ae8c007d948dc6b0d737c58b49804c35b384dcf088f8",
+      "sourcePeak": 0.5513939261436462,
+      "sourceGain": 1.0,
+      "hash": "e64a14060ef40a4001229af45747bf711073fa64c0b0f644ce1b460074764ada"
+    },
+    {
+      "id": "coit:correct:ferry-building",
+      "speaker": "coit-guide",
+      "text": "You're absolutely right! That is the Ferry Building.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-correct-ferry-building.mp3",
+      "durationS": 3.936576,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 3.936576,
+          "text": "You're absolutely right! That is the Ferry Building."
+        }
+      ],
+      "bytes": 48004,
+      "sha256": "feb4babbaea84e378c81672d73acb3aa25bd4ebc66dd7daeaa0c82474c6364d2",
+      "sourceWavSha256": "a9c7584a00c1af7e89f4b47ff9e836c4ebac7c15a4ab0f3a33e7828a3816b959",
+      "sourcePeak": 0.46194860339164734,
+      "sourceGain": 1.0,
+      "hash": "feb4babbaea84e378c81672d73acb3aa25bd4ebc66dd7daeaa0c82474c6364d2"
+    },
+    {
+      "id": "coit:correct:600-montgomery",
+      "speaker": "coit-guide",
+      "text": "You're absolutely right! That is the Transamerica Pyramid.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-correct-600-montgomery.mp3",
+      "durationS": 4.422381,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 4.422381,
+          "text": "You're absolutely right! That is the Transamerica Pyramid."
+        }
+      ],
+      "bytes": 53960,
+      "sha256": "e18acda2e3a60bef6071280fbe8e586820a725c0289a77d910b8d06af8dca25d",
+      "sourceWavSha256": "2a745b94c2fee71aed123987dfeb97556f8f247e8153574a022d50a54c6ec026",
+      "sourcePeak": 0.4289332926273346,
+      "sourceGain": 1.0,
+      "hash": "e18acda2e3a60bef6071280fbe8e586820a725c0289a77d910b8d06af8dca25d"
+    },
+    {
+      "id": "coit:correct:415-mission",
+      "speaker": "coit-guide",
+      "text": "You're absolutely right! That is the Salesforce Tower.",
+      "missionId": "coit-recon",
+      "stepId": "viewer",
+      "kind": "line",
+      "file": "audio/coit/coit-correct-415-mission.mp3",
+      "durationS": 4.053039,
+      "measured": true,
+      "cues": [
+        {
+          "startS": 0,
+          "endS": 4.053039,
+          "text": "You're absolutely right! That is the Salesforce Tower."
+        }
+      ],
+      "bytes": 49572,
+      "sha256": "027acc082336d20c78fed74304cfc1a4122008decd06d8a3c3d1c211b0cf94ea",
+      "sourceWavSha256": "83fb9d6b65dd68c3e17a410b7687fed66dd694a1795bd89c9dc9640ac3f5da19",
+      "sourcePeak": 0.4258013665676117,
+      "sourceGain": 1.0,
+      "hash": "027acc082336d20c78fed74304cfc1a4122008decd06d8a3c3d1c211b0cf94ea"
+    }
+  ],
+  "review": {
+    "generated": true,
+    "humanListening": false,
+    "browserPlayback": false
+  }
+}

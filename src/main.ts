@@ -1,3 +1,4 @@
+import { TacticalEffectsLayer } from "./render/tactical-effects.ts";
 // Boot: load a world manifest, the whole world's colliders (the citywide collider pack when
 // the manifest names one, else every tile's collider JSON), the road graph and the world's
 // edge (the sim needs the whole world for determinism: src/io/world-load.ts), build the sim
@@ -43,6 +44,7 @@ import { createSfTaxiSession,createSfTaxiStepper,decodeSfTaxiSession,encodeTaxiS
 import type { TaxiCommand } from "./sim/modes/taxi.ts";
 import { relayUrl } from "./net/config.ts";
 import { nextCampaignMission } from "./ui/campaign.ts";
+import { mountCoitViewer } from "./ui/coit-viewer.ts";
 import { activityProjection,activityDestination,mountActivityPanel } from "./ui/activities.ts";
 import { uiProjection } from "./ui/projection.ts";
 import { landmarkBlips } from "./ui/landmarks.ts";
@@ -329,7 +331,7 @@ async function boot(): Promise<void> {
   let resumedSequence=1;
   const commandCursor=(value:unknown):void=>{if(!value||typeof value!=="object")return;for(const [key,child] of Object.entries(value)){if(key==="commandSequence"&&typeof child==="number")resumedSequence=Math.max(resumedSequence,child+1);else if(typeof child==="object")commandCursor(child);}};
   if(graphicsRestart){commandCursor(curr.ext);for(const event of [...queuedEvents,...recordedCommands]){const payload=event.payload as {sequence?:number}|undefined;if(typeof payload?.sequence==="number")resumedSequence=Math.max(resumedSequence,payload.sequence+1);}}
-  const send=createGameplayDispatcher({initialSequence:resumedSequence,playerId:LOCAL_PLAYER,tick:()=>curr.tick+1,emit:event=>{if(taxiSession)return;queuedEvents.push(event);recordedCommands.push(event);}});
+  const send=createGameplayDispatcher({initialSequence:resumedSequence,playerId:LOCAL_PLAYER,tick:()=>Math.max(curr.tick+1,(curr.ext.combat?.pauseUntil??0)+1),emit:event=>{if(taxiSession)return;queuedEvents.push(event);recordedCommands.push(event);}});
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
@@ -346,6 +348,8 @@ async function boot(): Promise<void> {
   const gameUI=mountGameUI(container,{graphicsSettings:doc=>mountGraphicsSettings(doc,{controller:graphicsController}),audioSettings:doc=>audio.mountSettings(doc),copy:uiText,keyboard,startupChoices:startupForm?.type==="form"?startupForm.form.multipleChoice:undefined,touch:matchMedia("(pointer: coarse)").matches,showPerformance:params.get("debug")==="1"||params.get("perf")==="1",lightingPreset:["noon","golden","twilight","night"].includes(params.get("tod")??"")?params.get("tod") as "noon"|"golden"|"twilight"|"night":bootedAtNight?"night":"live",saves:{store:saveStore,capture:()=>captureProgression(curr,LOCAL_PLAYER),restore:restoreSave},callbacks:{
     pause:value=>{if(value)taxiControl?.close();uiPaused=value;setPaused();},
     openTaxi:()=>{gameUI.setPhoneOpen(false);taxiControl.open();},
+    loadout:itemId=>send({kind:"loadout",itemId}),
+    streak:itemId=>send({kind:"streak-call",itemId}),
     bookOfficeHours:()=>send({kind:"activity-start",targetId:"office-hours"}),
     lighting:preset=>{if(preset==="live")view.setNight(false);else view.setTimeOfDay(preset);},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
@@ -393,7 +397,9 @@ async function boot(): Promise<void> {
   });
   const plainWordsLayer=new PlainWordsLayer(view.scene,ground);
   const hostileMarkerLayer=new HostileMarkerLayer(view.scene);
-  window.addEventListener("pagehide",()=>{persistTaxi();taxiControl.dispose();plainWordsLayer.dispose();hostileMarkerLayer.dispose();},{once:true});
+  window.addEventListener("pagehide",()=>{persistTaxi();taxiControl.dispose();plainWordsLayer.dispose();hostileMarkerLayer.dispose();coitViewer.dispose();tacticalLayer.dispose();},{once:true});
+  const tacticalLayer=new TacticalEffectsLayer(view.scene,container.ownerDocument);
+  const coitViewer=mountCoitViewer(container,{voice:{play:(id,text)=>audio.playGuide(id,text),skip:()=>audio.skipGuide()},command:choiceId=>send({kind:"coit-viewer",targetId:"coit-recon",choiceId})});
   const activityPanel=mountActivityPanel(gameUI.element,uiText,id=>send({kind:"activity-start",targetId:id}));
   const combatLayer=new CombatLayer(view.scene);
   const impactLayer=new ImpactLayer(view.scene, {
@@ -638,7 +644,7 @@ async function boot(): Promise<void> {
           keyboard.clearActions();
           advance({ ...NEUTRAL_INPUT });
         } else {
-          const input = gameUI.sampleInput();
+          const input = coitViewer.input(gameUI.sampleInput());
           const before = curr.players[LOCAL_PLAYER];
           advance(input);
           // (A robotaxi rider gets out when the taxi stops: no car exit hints.)
@@ -766,6 +772,8 @@ async function boot(): Promise<void> {
       view.setWeather(weatherView(world, shown, cam.x, cam.z));
     }
     local.id = me_;
+    coitViewer.update(shown,me_,world);
+    view.setObservationPose(match||taxiSession?null:coitViewer.camera());
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
     impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
     if (!guard.contextLost) view.render();
@@ -825,6 +833,7 @@ async function boot(): Promise<void> {
     hudData.viewHeading = view.rig.viewHeading();
     hud.update(now, hudData);
     hostileMarkerLayer.update(shown,me_,view.camera);
+    tacticalLayer.update(shown,me_,view.camera);
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!inOnlineMatch&&!taxiSession)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(!inOnlineMatch&&!taxiSession&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}

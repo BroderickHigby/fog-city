@@ -35,7 +35,7 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
   const running = activities.find(value => value.id === own.activeActivityId);
   if (running) {
     const checkpoints = running.checkpoints ?? [], index = own.checkpointIndex ?? 0, next = checkpoints[index];
-    const remainingTicks = Math.max(0, Math.ceil((running.timeLimitS ?? 600) * 60) - (state.tick - own.activityStartedTick));
+    const remainingTicks = Math.max(0, Math.ceil((running.timeLimitS ?? 600) * 60) - (state.tick - own.activityStartedTick - (own.pausedTicks ?? 0)));
     const title = copy(activityCopyKey(running.id));
     // An activity mission (Office Hours) is guided by its own mission objective and dialogues.
     if (snapshot.missions.players[playerId]?.missionId === running.id && snapshot.missions.players[playerId]?.status === "active") {
@@ -49,11 +49,11 @@ export function activityProjection(state: SimState, playerId: string, wave: numb
     if (running.id === PLAIN_WORDS_ID && run) {
       const runtime = agentsRuntimeOf(state)?.actors ?? {};
       const blips: MapBlip[] = [
-        ...run.boards.filter(board => board.word >= 0).map(board => {
+        ...run.boards.filter(board => board.qualified !== true && board.word >= 0).map(board => {
           const at = PLAIN_WORDS_BOARDS.find(value => value.id === board.id)!;
           return { id: board.id, kind: "mission" as const, label: copy("ui.activity.board", { word: PLAIN_WORDS_LADDER[board.word] ?? "" }), x: at.x, z: at.z };
         }),
-        ...run.spinnerIds.filter(id => !run.rusted.includes(id) && runtime[id]).map(id => ({ id, kind: "robot" as const, confirmed: true, label: copy("ui.activity.spinner"), x: runtime[id]!.x, z: runtime[id]!.z })),
+        ...run.spinnerIds.filter(id => !run.rusted.includes(id) && runtime[id] && (state.ext.combat?.targets[id]?.phase ?? "active") === "active").map(id => ({ id, kind: "robot" as const, confirmed: true, label: copy("ui.activity.spinner"), x: runtime[id]!.x, z: runtime[id]!.z })),
       ];
       const detail = copy("ui.activity.plainWordsProgress", { washed: Math.min(own.objectiveCount ?? 0, running.objective?.count ?? 20), total: running.objective?.count ?? 20, rusted: run.rusted.length, spinners: run.spinnerIds.length, word: PLAIN_WORDS_LADDER[run.rung] ?? "" });
       // Point at the nearest board still showing a hype word, else the nearest standing spinner.
