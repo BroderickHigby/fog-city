@@ -70,12 +70,26 @@ route, and it hasn't been diagnosed.
 
 ## Browser QA
 
-Playwright chromium (SwiftShader) on `1cfaa6ec`: 39 passed, 10 failed. Baseline reruns of the 10 failures on main and the snapshot are in progress; results follow in the next commit.
+The in-app browser could not hold a WebGL context in a hidden pane, so QA ran the Playwright chromium
+suite (SwiftShader) against the dev server at `1cfaa6ec`: **39 passed, 10 failed**. The 10 failures
+were rerun on main (`fcf590b7`) and on the pre-merge snapshot (`48306f89`):
+
+| Spec | Merge | main | Snapshot | Cause |
+| --- | --- | --- | --- | --- |
+| `demo-day` "Demo Day completes in SF" | fail | pass | pass | **Merge.** `demo-day-driver.ts:171` "The update pusher never began its channel". |
+| `city-life` "traffic goes round a car abandoned mid-lane" | fail | pass | fail | Recovered work, **made worse by the merge**: on the snapshot no agent goes round the car (`seen.size` 0); on the merge an agent touches it (`contacts: 1` at tick 5203, `gameplay-driver.ts:36`). Same combined-traffic area as `ram-soak`. |
+| `sf-world` "renderer draws it with the asset models" | fail | pass | fail | Recovered work: five `civilian:*` car models drawn that the spec does not list. Update the spec if the civilian cars are intended. |
+| `determinism` (render pokes; 600-tick multiplayer), `weather` | fail | fail | fail | Already failing on main: browser and Node states part after chunk 0. |
+| `dynamics` "W pulls away at an EV's rate" | fail | fail | fail | Already failing on main (pull 4.5 against > 5). |
+| `multiplayer`, `realism`, `web-build` | fail | fail | fail | Already failing on main (timeouts on boot / surface textures under SwiftShader). |
+
+Logs: `$TMPDIR/e2e.log` and `$TMPDIR/e2e-baselines.log` on Brody's Mac (not committed).
 
 ## What is left, in order
 
 1. Decide the engine audio (above).
-2. Diagnose `ram-soak` liveness under combined v21+v24 traffic.
+2. Fix the merge-caused failures: `demo-day` update pusher, then `ram-soak` liveness and the `city-life`
+   contact under combined v21+v24 traffic (likely one cause).
 3. Fix the snapshot's own failures: forbidden APIs, `activity-rules.json` contract, Presidio checkpoint.
 4. Re-record composed and wave2 goldens at v24 once behaviour is accepted.
 5. Still open from IMPLEMENTATION_LEDGER.md: mission completion by real controls, traffic/bridge
