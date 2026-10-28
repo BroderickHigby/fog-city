@@ -29,6 +29,20 @@ export const WINDOW_LOD_END = 0.8;
 export const CLUSTER_SWITCHY = 0.22;
 /** The slowest and fastest switching rate, radians per second. */
 export const CLUSTER_SWITCH_RATE: readonly [number, number] = [0.05, 0.16];
+/** Cluster ids are offset by size x this before hashing, so each octave has its own pattern. */
+export const CLUSTER_SIZE_SALT = 17.3;
+
+/** The shader's hash2 (node-materials.ts): a number in [0, 1) for the point (x, y). */
+export function hash2(x: number, y: number): number {
+  const s = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return s - Math.floor(s);
+}
+
+/** The shader's lit roll for cluster cell (ix, iy) of `size` cells and a facade `seed` (windowCluster). */
+export function clusterRoll(ix: number, iy: number, size: number, seed: number): number {
+  const salt = size * CLUSTER_SIZE_SALT;
+  return hash2(ix + salt + seed, iy + salt + 73.1);
+}
 
 const clamp = (x: number, lo: number, hi: number): number => Math.min(hi, Math.max(lo, x));
 const fract = (x: number): number => x - Math.floor(x);

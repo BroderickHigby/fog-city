@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { AgentLayer } from "../../src/render/agent-layer.ts";
 import { ImpactLayer } from "../../src/render/impact-layer.ts";
-import { Actors } from "../../src/render/actors.ts";
+import { Actors, makeBoxCar } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
 import type { SimState } from "../../src/sim/contract.ts";
@@ -78,6 +78,32 @@ describe("vehicle damage follows the displayed body", () => {
       expect(bounds.isEmpty()).toBe(false);
       actors.hideFor("p1"); expect(actors.copyCarFrame("p1", matrix, bounds)).toBe(false);
       actors.remove(new Set()); expect(actors.copyCarFrame("p1", matrix, bounds)).toBe(false);
+    } finally { actors.dispose(); }
+  });
+
+  it("follows the chassis tilt of the player's car, so scuffs stay on the body in a nose dive", () => {
+    const registry = new ModelRegistry<THREE.Object3D>({ load: async () => new THREE.Group(), fallback: () => makeBoxCar(0xffffff), clone: root => root.clone(), available: new Set() });
+    const actors = new Actors(registry, new NightLights()), level = new THREE.Matrix4(), tilted = new THREE.Matrix4(), bounds = new THREE.Box3();
+    const feel = (speed: number) => ({ speed, lateral: 0, yawRate: 0, grounded: true, hits: 0, personBumps: 0, impactSpeed: 0, landingSpeed: 0 });
+    const at = { x: 8, y: 3, z: -5, heading: .4, pitch: .1, roll: .07, steer: 0 };
+    try {
+      actors.setCar("p1", { ...at, speed: 30, feel: feel(30) });
+      actors.update(1 / 60);
+      const car = actors.group.children.find(c => c.name === "box-car")!;
+      expect(actors.copyCarFrame("p1", level, bounds)).toBe(true);
+      expect(level.equals(car.matrixWorld)).toBe(true); // level body: exactly the root's frame
+      const lamp = car.getObjectByName("headlight")!;
+      const restLocal = lamp.position.clone();
+      const restWorld = lamp.getWorldPosition(new THREE.Vector3());
+      for (let i = 0; i < 60; i++) { const v = 30 - 11 * i / 60; actors.setCar("p1", { ...at, speed: v, feel: feel(v) }); actors.update(1 / 60); }
+      expect(actors.bodyMotion("p1")!.pitch).toBeLessThan(-.04);
+      expect(actors.copyCarFrame("p1", tilted, bounds)).toBe(true);
+      const drawn = lamp.getWorldPosition(new THREE.Vector3());
+      // The frame puts the body's rest point where the body is drawn now, not where the root alone would.
+      expect(restLocal.clone().applyMatrix4(tilted).distanceTo(drawn)).toBeLessThan(1e-9);
+      expect(restLocal.clone().applyMatrix4(level).distanceTo(restWorld)).toBeLessThan(1e-9);
+      expect(drawn.distanceTo(restWorld)).toBeGreaterThan(.05); // a nose dive moves the front by centimetres
+      expect(restLocal.clone().applyMatrix4(car.matrixWorld).distanceTo(drawn)).toBeGreaterThan(.05); // the root alone misses it
     } finally { actors.dispose(); }
   });
 

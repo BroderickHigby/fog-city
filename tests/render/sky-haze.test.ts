@@ -1,5 +1,6 @@
 // The GPU sky's haze follows the time of day (src/render/sky.ts presets, blended by sun elevation
 // in daylight.ts), as in Slop New York's per-preset turbidity/Rayleigh/Mie settings.
+import { Color } from "three";
 import { describe, expect, it } from "vitest";
 import { DAYLIGHT_KEYS, blendPresets, daylightAt, sunPosition } from "../../src/render/daylight.ts";
 import { DAY, GOLDEN, NIGHT, NOON, TWILIGHT, skyHaze, type LightingPreset } from "../../src/render/sky.ts";
@@ -49,6 +50,7 @@ describe("haze through the day", () => {
     const colour = skyHaze(blendPresets(NIGHT, TWILIGHT, 0.5)).nightColor;
     expect(colour).not.toBe(NIGHT.skyNightColor);
     expect(colour).not.toBe(TWILIGHT.skyNightColor);
+    expect(colour).toBe(new Color(NIGHT.skyNightColor!).lerp(new Color(TWILIGHT.skyNightColor!), 0.5).getHex());
   });
 
   it("follows the game clock at the keys: night preset at midnight, noon preset at midday", () => {
@@ -72,6 +74,9 @@ describe("haze through the day", () => {
           // A game minute is a quarter of a degree of sun at most: a few percent of the full range.
           expect(Math.abs(haze[channel] - last[channel]), `${channel} jumps at ${month}/${day} minute ${minute}`).toBeLessThan((hi[channel]! - lo[channel]!) * 0.12);
         }
+        // The flat night sky moves by a small step too (per channel, 0-255).
+        const step = new Color(haze.nightColor).sub(new Color(last.nightColor));
+        expect(Math.max(Math.abs(step.r), Math.abs(step.g), Math.abs(step.b)), `night colour jumps at ${month}/${day} minute ${minute}`).toBeLessThan(0.01);
         last = haze;
       }
     }

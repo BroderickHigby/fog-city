@@ -147,6 +147,8 @@ export interface DebugHandle {
    * the same events), and read this player's run (null before one starts). Plain data, no handles.
    */
   runway?: { start(): void; quit(): void; clear(): void; state(): RunwayRun | null };
+  /** Where a player's car body is on its springs (render/body-motion.ts): pitch/roll rad, heave m. QA only. */
+  bodyMotion?(id: string): { pitch: number; roll: number; heave: number; shown: number } | null;
   /** The HUD hint on screen now ("" when none), e.g. "No room to get out". */
   hint(): string;
   /**

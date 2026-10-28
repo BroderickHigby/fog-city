@@ -17,9 +17,12 @@ export function createFarNodeMaterial(mask: THREE.Texture, rectangle: THREE.Vect
   const wall = float(1).sub(smoothstep(.25, .45, normalWorld.y.abs())).mul(positionWorld.y.greaterThan(2).select(1, 0));
   const grid = vec2(positionWorld.x.add(positionWorld.z).div(4), positionWorld.y.div(3.2)), fw = max(fwidth(grid), .0001);
   const night = uniform(0).onRenderUpdate(() => fcUniforms.fcNight.value);
+  // The mean glow (p .3 x gain .5 x .9, about .14) matches the tile buildings' distant windows
+  // (.32 x .5 x drape .8 x .95, about .12), so the far cells do not read brighter than the city in front.
   material.emissiveNode = Fn(() => {
-    const light = vec3(0).toVar();
-    If(night.greaterThan(0), () => { light.assign(distantWindowLight(grid, fw, float(.3), float(0), gpuMaterialUniforms.time)); });
+    // Before the branch, as in buildingMaterial: no derivative inside the cluster work.
+    const footprint = fw.toVar(), light = vec3(0).toVar();
+    If(night.greaterThan(0), () => { light.assign(distantWindowLight(grid, footprint, float(.3), float(0), gpuMaterialUniforms.time)); });
     return light.mul(wall).mul(night).mul(DISTANT_WINDOW_GAIN * .9);
   })();
   return material;
