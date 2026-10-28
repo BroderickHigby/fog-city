@@ -68,6 +68,8 @@ import { gameplaySnapshot } from "./sim/player/adapter.ts";
 import { gameTime } from "./sim/clock/calendar.ts";
 import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/index.ts";
 import { RIDE_DESTINATION_EVENT, boardableTaxi, takeoverTaxi } from "./sim/ride.ts";
+import { runwayOf } from "./sim/runway-run/index.ts";
+import { bindRunwaySender, clearRunwayRun, quitRunwayRun, startRunwayRun } from "./ui/runway.ts";
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
@@ -311,6 +313,7 @@ async function boot(): Promise<void> {
     lighting:preset=>{if(preset==="live")view.setNight(false);else view.setTimeOfDay(preset);},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{waypoint=point;sendRideDestination();},
+    runway:action=>(action==="start"?startRunwayRun:action==="quit"?quitRunwayRun:clearRunwayRun)(),
     interaction:choiceId=>{
       const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
       const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
@@ -319,6 +322,12 @@ async function boot(): Promise<void> {
       else send({kind:"mission-ack"});
     },
   }});
+  /** Runway Run starts, ends and clears only as recorded events (src/sim/runway-run/system.ts), so a replay reproduces a run. */
+  const sendRunway=(kind:string):void=>{
+    const event:SimEvent={tick:curr.tick+1,kind,playerId:LOCAL_PLAYER};
+    queuedEvents.push(event);recordedCommands.push(event);
+  };
+  bindRunwaySender(sendRunway);
   /** A rider's destination enters the sim as a recorded event (src/sim/ride.ts). */
   const sendRideDestination=():void=>{
     if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride||curr.players[LOCAL_PLAYER]?.ride?.manual)return;
@@ -500,6 +509,12 @@ async function boot(): Promise<void> {
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
     hint: () => hud.hintText(),
+    runway: {
+      start: startRunwayRun,
+      quit: quitRunwayRun,
+      clear: clearRunwayRun,
+      state: () => { const run = runwayOf(curr)?.runs[LOCAL_PLAYER]; return run ? JSON.parse(JSON.stringify(run)) as NonNullable<typeof run> : null; },
+    },
     setAgentBags: (full) => view.agents.setBags(full),
   });
 

@@ -22,6 +22,7 @@ export const KEYBOARD_ROWS: readonly ControlRow[] = [
   { keys: "Y", action: "ui.help.emote", icon: "emote" },
   { keys: "H", action: "ui.help.horn", icon: "horn" },
   { keys: "P", action: "ui.controls.phone", icon: "phone" },
+  { keys: "I", action: "ui.help.runway", icon: "car" },
   { keys: "Esc", action: "ui.help.pause", icon: "pause" },
   { keys: "Mouse drag", action: "ui.help.orbit", icon: "camera", hold: true },
   { keys: "C", action: "ui.help.camera", icon: "camera" },

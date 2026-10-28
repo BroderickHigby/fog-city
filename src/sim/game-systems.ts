@@ -11,6 +11,7 @@ import type { AgentRuntimeOptions } from "./agents/runtime.ts";
 import { createCombatSystem } from "./combat/systems.ts";
 import { contextFromState, type CombatAdapterOptions } from "./combat/adapter.ts";
 import { systems as modeSystems } from "./modes/systems.ts";
+import { systems as runwaySystems } from "./runway-run/system.ts";
 import { combatLoadout, createPlayerSystems, createObservedGameplayProvider, gameplaySnapshot } from "./player/adapter.ts";
 import type { SimSystem, SimSystemContext } from "./system-contract.ts";
 import type { CombatActor, CombatWave, RefillSource } from "./combat-contract.ts";
@@ -144,5 +145,5 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     cachedObservation={context,value};
     return value;
   };
-  return Object.freeze([createClockSystem(),...(weather?[createFogSystem()]:[]),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...(options.modes??modeSystems)]);
+  return Object.freeze([createClockSystem(),...(weather?[createFogSystem()]:[]),agents,createCombatSystem(context=>({context:combatContext(context)})),...createPlayerSystems(gameplay),...(options.modes??modeSystems),...runwaySystems]);
 }
