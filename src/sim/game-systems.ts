@@ -87,8 +87,8 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     // City life (content/city-life.json): ambient density by district and hour, and the director's incidents.
     densityAt:(x:number,z:number)=>{const p=toLatLon(x,z);return populationScale([p.lat,p.lon],gameTime(context.state).hour);},
     director:{cards:CITY_DIRECTOR_CARDS,stageM:CITY_LIFE.director.stageM,maxActive:3},
-    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return cityBadRate([p.lat,p.lon])*(context.state.version>=21&&wave>=4?effects(context.state).badRateMultiplier:1);},
-    ...(context.state.version>=21?{anchors:[...sortedIds(context.state.players).map(id=>{const body=playerPose(context.state.players[id]!);return {id,x:body.x,z:body.z};}),...coitFidelityAnchors(context.state,context.world)],speedMultiplier:wave>=4?effects(context.state).robotSpeedMultiplier:1}:{}),
+    badRateAt:(x:number,z:number)=>{const p=toLatLon(x,z);return cityBadRate([p.lat,p.lon])*(context.state.version>=24&&wave>=4?effects(context.state).badRateMultiplier:1);},
+    ...(context.state.version>=24?{anchors:[...sortedIds(context.state.players).map(id=>{const body=playerPose(context.state.players[id]!);return {id,x:body.x,z:body.z};}),...coitFidelityAnchors(context.state,context.world)],speedMultiplier:wave>=4?effects(context.state).robotSpeedMultiplier:1}:{}),
     fog:0,
     fogAt:(x:number,z:number)=>fogAt(context,x,z),
     ...(weather?{weatherRefuge:(x:number,z:number)=>weatherRefuge(context.world,context.state,x,z)}:{}),
@@ -128,7 +128,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     const agentOptions=agentsCombatOptions(context.state),runtime=agentsRuntimeOf(context.state);
     // From wave 4: the same live conversion budget the brains use (agents/runtime.ts naturalBad).
     const conversionCap=wave>=4&&runtime?2*sortedIds(runtime.actors).filter(id=>{const a=runtime.actors[id]!;return a.firmware==="bad"&&!a.converted&&!a.retired&&(context.state.ext.combat?.targets[id]?.phase??"active")==="active";}).length:agentOptions.conversionCap;
-    const modern=context.state.version>=21;
+    const modern=context.state.version>=24;
     const combat=contextFromState(context.world,context.state,{...supplied,...agentOptions,...(modern?{streaks:pendingStreakGrants(snapshot),...(wave>=4&&!supplied.mode?{worldAgiSequence:snapshot.progression.events.filter(event=>event.kind==="world.agi-achieved").reduce((value,event)=>Math.max(value,event.id),0)}:{})}:{}),...(conversionCap!==undefined?{conversionCap}:{}),wave,loadouts,
       refills:extra.length?[...context.world.gameplay?.refills??[],...extra]:context.world.gameplay?.refills??[],night:calendar.hour>=19||calendar.hour<6,
       fog:0,rain,
@@ -147,7 +147,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     return rain>0?{...combat,actors:combat.actors.map(actor=>actor.kind==="robot"&&actor.sheltered===undefined?{...actor,sheltered:shelteredAt(context.world,actor.x,actor.z)}:actor)}:combat;
   };
   const observed=createObservedGameplayProvider({wave,actors:context=>combatContext(context).actors,
-    facts:context=>[...rammedRobotFacts(context,()=>combatContext(context).actors),...(context.state.version>=21?modeProgressionFacts(context.state,context.state.tick):[])],
+    facts:context=>[...rammedRobotFacts(context,()=>combatContext(context).actors),...(context.state.version>=24?modeProgressionFacts(context.state,context.state.tick):[])],
     associateIds:context=>sortedIds(agentsRuntimeOf(context.state)?.actors??{}).filter(id=>{const actor=agentsRuntimeOf(context.state)!.actors[id]!;return actor.model==="associate"&&!actor.retired&&actor.fidelity==="full";}),
     protectedArea,fog:(context,x,z)=>fogAt(context,x,z),
     missionParking:context=>buildMissionParkingWorld(context,context.world.parking?.rules??[],context.world.streetCleaning?.rules??[]),
@@ -160,7 +160,7 @@ export function createGameSystems(options: GameSystemsOptions = {}): readonly Si
     if(previous&&previous.previous===context.previous&&previous.world===context.world&&previous.inputs===context.inputs&&previous.events===context.events&&previous.state.tick===context.state.tick&&previous.state.players===context.state.players&&previous.state.ext.agents===context.state.ext.agents&&previous.state.ext.robots===context.state.ext.robots&&previous.state.ext.combat===context.state.ext.combat&&previous.state.ext.clock===context.state.ext.clock&&previous.state.ext.fog===context.state.ext.fog)return cachedObservation!.value;
     const calendar=gameTime(context.state);
     const supplied=options.combat?.(context),mode:GameplayMode=supplied?.mode==="bot-sweep"?"botSweep":supplied?.mode==="clean-streets"?"cleanStreets":supplied?.mode==="fog-royale"?"fogRoyale":supplied?.mode==="other-pvp"?"otherPvP":"freeRoam";
-    const value={...observed(context),day:calendar.dayIndex,month:calendar.month,...(context.state.version>=21?{mode,simVersion:context.state.version,associatesAnswer:mode!=="freeRoam"||effects(context.state).associatesAnswer,gameDay:calendar.dayIndex,gameWeek:calendar.gameWeek,hasCoastline:context.world.tiles.some(tile=>!!tile.ground?.water),doomPayFactor:mode==="freeRoam"&&wave>=4?effects(context.state).bountyMultiplier:1}:{})};
+    const value={...observed(context),day:calendar.dayIndex,month:calendar.month,...(context.state.version>=24?{mode,simVersion:context.state.version,associatesAnswer:mode!=="freeRoam"||effects(context.state).associatesAnswer,gameDay:calendar.dayIndex,gameWeek:calendar.gameWeek,hasCoastline:context.world.tiles.some(tile=>!!tile.ground?.water),doomPayFactor:mode==="freeRoam"&&wave>=4?effects(context.state).bountyMultiplier:1}:{})};
     cachedObservation={context,value};
     return value;
   };

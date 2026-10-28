@@ -29,7 +29,7 @@ export const FLOWER_EVENT = {
 } as const;
 
 function enabled(ctx: CombatContext): boolean {
-  return (ctx.simVersion??21)>=21&&((ctx.wave??2)>=4&&ctx.mode==="clean-streets"||(ctx.wave??2)>=5&&(ctx.mode==="fog-royale"||ctx.mode==="other-pvp"));
+  return (ctx.simVersion??24)>=24&&((ctx.wave??2)>=4&&ctx.mode==="clean-streets"||(ctx.wave??2)>=5&&(ctx.mode==="fog-royale"||ctx.mode==="other-pvp"));
 }
 function authorizedRival(ctx: CombatContext, ownerId: string, targetId: string): boolean {
   const rivals = ctx.rivalPlayerIds && Object.hasOwn(ctx.rivalPlayerIds, ownerId) ? ctx.rivalPlayerIds[ownerId] : undefined;

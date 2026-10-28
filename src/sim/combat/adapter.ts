@@ -79,13 +79,15 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     actors.push({kind:"player",firmware:"none",robotBody:false,radius:0.35,height:1.8,...actorMetadata(options,id),id,playerId:player.id,x:player.x,y:player.y,z:player.z,heading:player.heading,speed:player.speed});
   }
   actors.push(...(options.extraActors??[]));
-  if(state.version>=21)for(let i=actors.length-1;i>=0;i--){
+  if(state.version>=24)for(let i=actors.length-1;i>=0;i--){
     const actor=actors[i]!,target=state.ext.combat?.targets[actor.id];
     if(actor.kind!=="robot"||actor.protected||!target)continue;
     if(target.phase==="cleared"){actors.splice(i,1);continue;}
     if(target.phase==="slumping"||target.phase==="heap")actors[i]={...actor,height:actor.height*Math.max(.3,Math.min(1,target.heightScale))};
   }
-  const walls:Wall[]=[...(options.walls??[]),...agentsOf(state).filter(isCivilianTraffic).map(civilianWall)];
+  // A civilian car someone is driving (steal-car.ts) is their vehicle, not a wall: the driver's
+  // shot starts inside its box, and scans and attacks on the driver must reach them.
+  const walls:Wall[]=[...(options.walls??[]),...agentsOf(state).filter(agent=>isCivilianTraffic(agent)&&!ridden.has(agent.id)).map(civilianWall)];
   const seen=new Set(walls.map(wall=>wall.id));
   for (const player of players) for (const building of nearbyBuildings(world,player.x,player.z,40)) {
     if (seen.has(building.id)) continue;

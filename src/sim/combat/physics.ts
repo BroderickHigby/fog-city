@@ -117,7 +117,7 @@ export function lineOfSight(a: Vec3, b: Vec3, walls: readonly Wall[]): boolean {
 
 function canHit(projectile: Projectile, actor: CombatActor,ctx:CombatContext): boolean {
   if (actor.id === projectile.ownerId || actor.playerId === projectile.ownerId) return false;
-  if (projectile.kind === "flower") return (ctx.simVersion??20)>=21?true:actor.kind === "player";
+  if (projectile.kind === "flower") return (ctx.simVersion??20)>=24?true:actor.kind === "player";
   if (projectile.kind === "water" && actor.kind === "player" && actor.robotBody !== true) return false;
   // Protected subjects still intercept the path. The effect layer removes the
   // projectile without applying an effect, including when another target is behind.

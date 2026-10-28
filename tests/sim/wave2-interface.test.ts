@@ -4,7 +4,7 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v21-consolidated.json";
+import currentReplay from "../golden/wave2-v24-consolidated.json";
 import previous19 from "../golden/wave2-v19-reference-driving.json";
 import previous18 from "../golden/wave2-v18-solid-vehicles.json";
 import previousReplay from "../golden/wave2-v16-robotaxi-takeover.json";
@@ -89,7 +89,7 @@ describe("wave-2 shared interface", () => {
       // v11 changed the on-foot pace, which the log's last (walking) segment uses; v14 changes how
       // people dodge (on their feet), which this replay's traffic does. The v7 and v11 fixtures
       // stay as the record. The combined v15 release adds civilian traffic and faster walking;
-      // its separate pin normalizes only the version header. The consolidated v21 pin keeps
+      // its separate pin normalizes only the version header. The consolidated v24 pin keeps
       // the same input log; v19 handling and every earlier recorded fixture remain separate.
       expect(hashState(state)).toBe(currentReplay.hashes[i]);
       // The old v11 prefix-equality assertion predates v14 dodge velocity/profile fields and

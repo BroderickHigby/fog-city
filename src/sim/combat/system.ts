@@ -40,7 +40,7 @@ export function createCombatState(seed: number, ctx: CombatContext, tick = 0): C
   const players: Record<string,PlayerCombat> = {};
   const targets: Record<string,TargetCombat> = {};
   for (const player of sortedPlayers(ctx)) { players[player.id] = initialPlayer(player); targets[player.id] = initialTarget(); }
-  for (const actor of sortedActors(ctx)) targets[actor.id] = {...initialTarget(),...((ctx.simVersion??21)>=21&&actor.kind==="robot"?{hasAttacked:false}:{})};
+  for (const actor of sortedActors(ctx)) targets[actor.id] = {...initialTarget(),...((ctx.simVersion??24)>=24&&actor.kind==="robot"?{hasAttacked:false}:{})};
   return { version:1,tick,rng:seedRng(seed),nextId:1,players,targets,projectiles:[],gadgets:[],attacks:[],attackSequence:{},events:[],pauseUntil:0 };
 }
 
@@ -56,7 +56,7 @@ function cloneState(prev: CombatState, ctx: CombatContext): CombatState {
   }
   for (const actor of sortedActors(ctx)) {
     const old = prev.targets[actor.id] ?? initialTarget();
-    targets[actor.id] = {...old,wetHits:[...old.wetHits],...((ctx.simVersion??21)>=21&&actor.kind==="robot"&&old.hasAttacked===undefined?{hasAttacked:Boolean((prev.attackSequence[actor.id]??0)>0||prev.attacks.some(attack=>attack.attackerId===actor.id))}:{})};
+    targets[actor.id] = {...old,wetHits:[...old.wetHits],...((ctx.simVersion??24)>=24&&actor.kind==="robot"&&old.hasAttacked===undefined?{hasAttacked:Boolean((prev.attackSequence[actor.id]??0)>0||prev.attacks.some(attack=>attack.attackerId===actor.id))}:{})};
   }
   return {
     ...prev,tick:prev.tick+1,rng:[...prev.rng],players,targets,
@@ -95,7 +95,7 @@ function fireWeapons(state: CombatState, ctx: CombatContext, inputs: CombatInput
     const input=inputs[player.id]??{}, own=state.players[player.id]!;
     const direction=aim(player,input.aimYaw,input.aimPitch);
     const shot=waterShot(state,player,input,ctx);
-    const modern=(ctx.simVersion??21)>=21;
+    const modern=(ctx.simVersion??24)>=24;
     const wide=modern&&(ctx.wave??2)>=4&&(player.nozzle==="wide"||own.boost==="wide"&&own.boostUntil>state.tick);
     const pellets=wide?3:1,spread=wide?3.141592653589793/15:0;
     if (shot && state.projectiles.length+pellets<=MAX_PROJECTILES) {
@@ -145,10 +145,10 @@ function particles(state:CombatState,ctx:CombatContext):void {
     if (moved.hit) {
       if (projectile.kind==="water") applyWaterHit(state,moved.hit,projectile);
       if (projectile.kind==="cone") coneHit(state,moved.projectile,moved.hit);
-      if ((ctx.simVersion??21)>=21&&projectile.kind==="flower")applyFlowerHit(state,ctx,moved.projectile,moved.hit);
+      if ((ctx.simVersion??24)>=24&&projectile.kind==="flower")applyFlowerHit(state,ctx,moved.projectile,moved.hit);
     }
     if (moved.hit || moved.landed || moved.blocked || moved.expired) {
-      if ((ctx.simVersion??21)>=21&&projectile.kind==="balloon")applyBalloon(state,ctx,moved.projectile,moved.projectile);
+      if ((ctx.simVersion??24)>=24&&projectile.kind==="balloon")applyBalloon(state,ctx,moved.projectile,moved.projectile);
       emit(state,"projectile.ended",projectile.ownerId,moved.hit?.id??"",projectile.id,moved.hit?"actor":moved.blocked?"wall":moved.landed?"ground":"range");
     } else alive.push(moved.projectile);
   }
@@ -159,8 +159,8 @@ function particles(state:CombatState,ctx:CombatContext):void {
 export function stepCombat(prev: Readonly<CombatState>, ctx: CombatContext, inputs: CombatInputs = {}): CombatState {
   validateContext(ctx);
   if (prev.version!==1 || !Number.isSafeInteger(prev.tick) || prev.tick<0) throw new Error("Unsupported combat state");
-  const modern=(ctx.simVersion??21)>=21;
-  if(modern&&ctx.simVersion===undefined)ctx={...ctx,simVersion:21};
+  const modern=(ctx.simVersion??24)>=24;
+  if(modern&&ctx.simVersion===undefined)ctx={...ctx,simVersion:24};
   const state=cloneState(prev as CombatState,ctx);
   if(modern)stepWorldAgi(state,ctx,prev.pauseUntil>prev.tick);
   if(modern&&prev.pauseUntil>prev.tick){holdCombatTimers(state);return state;}

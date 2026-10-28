@@ -51,7 +51,7 @@ export function coitCameraPose(world: World, viewer: Pick<CoitViewerSession, "ya
   return { x: COIT_VIEWER.x, y, z: COIT_VIEWER.z, ...angles, fovDegrees: 18, aim: { x, y: groundHeight(world, x, z), z } };
 }
 export function coitFidelityAnchors(state: Readonly<SimState>, world: World): CoitInterestAnchor[] {
-  if (state.version < 21) return [];
+  if (state.version < 24) return [];
   const result: CoitInterestAnchor[] = [];
   for (const playerId of sortedIds(state.ext.activities?.players ?? {})) {
     const own = state.ext.activities!.players[playerId]!, viewer = own.recon?.viewer;

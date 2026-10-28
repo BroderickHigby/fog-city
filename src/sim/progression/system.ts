@@ -10,7 +10,7 @@ import { createDoomClock, stepDoomClock } from "./doom-clock.ts";
 import { loadoutSlots, normalizeLoadoutChoice, normalizeStreakId, STREAK_REWARDS, streakPointsFor, streakResetsOn } from "./rules.ts";
 export { STREAK_COST } from "./rules.ts";
 
-export function rankForXp(xp: number,simVersion=21): number { return simVersion>=21?contentRankForXp(xp):legacyRankForXp(xp); }
+export function rankForXp(xp: number,simVersion=24): number { return simVersion>=24?contentRankForXp(xp):legacyRankForXp(xp); }
 export function conversionCap(localBaseCount: number, inFidelity: boolean, protectedArea = false): number {
   return Math.floor(Math.max(0, localBaseCount) * (inFidelity && !protectedArea ? 2 : 1));
 }
@@ -78,7 +78,7 @@ function requestStreak(state:ProgressionState,own:Progression,playerId:string,id
 export function stepProgression(previous: ProgressionState, ctx: GameplayContext, tick: number,
   groups: Readonly<Record<string, readonly GameplayEvent[]>>,
   ownedByPlayer: Readonly<Record<string, readonly string[]>> = {},simVersion=20): ProgressionState {
-  if(simVersion<21)return stepLegacyProgression(previous,ctx,tick,groups);
+  if(simVersion<24)return stepLegacyProgression(previous,ctx,tick,groups);
   const state: ProgressionState = { ...previous, tick, players: {}, grantCursors: { ...previous.grantCursors }, events: [],factCursors:{...previous.factCursors} };
   for (const body of sortedBodies(ctx)) state.players[body.id] = normalizePlayer(previous.players[body.id] ?? createProgressionPlayer(), ctx,ownedByPlayer[body.id]??[]);
   for (const source of Object.keys(groups).sort()) {

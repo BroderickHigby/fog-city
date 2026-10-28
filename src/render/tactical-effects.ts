@@ -9,7 +9,7 @@ import {retireRenderTree} from "./renderer-warmup.ts";
 export const TACTICAL_LIMIT=32,TACTICAL_RANGE=250,CONFIDENCE_LIMIT=24;
 export interface TacticalMark {id:string;x:number;y:number;z:number;hallucination:boolean}
 export function tacticalProjection(state:Readonly<SimState>,playerId:string):{devices:Gadget[];marks:TacticalMark[]} {
-  const player=state.players[playerId],combat=state.ext.combat;if(state.version<21||!player||!combat)return {devices:[],marks:[]};
+  const player=state.players[playerId],combat=state.ext.combat;if(state.version<24||!player||!combat)return {devices:[],marks:[]};
   const body=playerPose(player),distance=(point:{x:number;z:number})=>(point.x-body.x)**2+(point.z-body.z)**2;
   const devices=combat.gadgets.filter(gadget=>gadget.untilTick>state.tick&&[gadget.x,gadget.y,gadget.z,gadget.radius].every(Number.isFinite)&&distance(gadget)<=TACTICAL_RANGE**2)
     .sort((a,b)=>distance(a)-distance(b)||a.id-b.id).slice(0,TACTICAL_LIMIT);

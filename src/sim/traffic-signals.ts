@@ -90,3 +90,12 @@ export function signalAspect(controls: TrafficSignalControls | undefined, node: 
   const control = controls?.get(node), group = control?.approaches.get(edgeId);
   return control && group !== undefined ? signalPhase(node, group, tick, control.groupCount).aspect : null;
 }
+
+/** Ticks of amber this approach still shows from tick on (0 when it is not amber). */
+export function amberTicksLeft(controls: TrafficSignalControls | undefined, node: string, edgeId: string, tick: number): number {
+  const control = controls?.get(node), group = control?.approaches.get(edgeId);
+  if (!control || group === undefined || signalPhase(node, group, tick, control.groupCount).aspect !== "yellow") return 0;
+  const slot = SIGNAL_SLOT_S * TICK_HZ, cycle = slot * control.groupCount;
+  const now = ((tick + hashId(node) % cycle) % cycle + cycle) % cycle;
+  return (SIGNAL_GREEN_S + SIGNAL_YELLOW_S) * TICK_HZ - (now - Math.floor(now / slot) * slot);
+}

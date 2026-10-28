@@ -9,6 +9,7 @@ import { VENDOR } from "../content/vendor.ts";
 import { toLocal } from "../geo/project.ts";
 import type { SimState } from "../sim/contract.ts";
 import { playerPose } from "../sim/ride.ts";
+import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 import { gameplaySnapshot, playerView, combatLoadout } from "../sim/player/adapter.ts";
 import { capacity } from "../sim/combat/shared.ts";
 import { canInteractAtSite } from "../sim/player/sites.ts";
@@ -94,7 +95,8 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
   const officeDetail=!unlocked?"Complete Demo’d Correctly to unlock Office Hours.":activity?.activeActivityId?"Finish the current activity before booking another interview.":missionEngaged(progress,DEFAULT_CATALOG)?"Finish the current mission step before booking.":!remaining?"Both interviews are booked for today. Come back next game day.":(activity?.cooldowns?.["office-hours"]??0)>state.tick?`The next interview opens in ${Math.ceil((activity!.cooldowns!["office-hours"]!-state.tick)/60)} seconds.`:!nearOffice?"Travel to the Ramen entrance at Pier 70, then book your interview here.":player?.mode!=="foot"||Math.abs(body?.speed??0)>=.3?"Step out of the car and stop at the Ramen entrance to book.":"Book the partners’ questions and a live three-robot demo. Your campaign will wait.";
   return {tick:state.tick,playerId,x:body?.x??0,z:body?.z??0,heading:body?.heading??0,speedMps:body?.speed??0,...own,
     ...(player?{travelMode:player.mode}:{}),...(streetName?{streetName}:{}),
-    ...(player?.ride?{vehicleControl:player.ride.manual?"robotaxi-driver" as const:"robotaxi-passenger" as const}:{}),
+    // A stolen civilian car (src/sim/steal-car.ts) is driven like the own car: no robotaxi label.
+    ...(player?.ride&&!stolenCar(state,player.ride.agentId)?{vehicleControl:player.ride.manual?"robotaxi-driver" as const:"robotaxi-passenger" as const}:{}),
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
@@ -107,4 +109,10 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     popups,
     ...(bounties.length?{bounties}:{}),
   };
+}
+
+/** Is the ridden agent a civilian car the player stole (not a robotaxi)? */
+function stolenCar(state:Readonly<SimState>,agentId:number):boolean {
+  const agent=state.ext.agents?.list.find(a=>a.id===agentId);
+  return agent!==undefined&&isCivilianTraffic(agent);
 }

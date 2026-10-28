@@ -71,7 +71,7 @@ export function coitPlayerContext(state: Readonly<SimState>, world: World, playe
   const angles = coitAngles(aim?.aimYaw ?? viewer?.yaw ?? PI, aim?.aimPitch ?? viewer?.pitch ?? -.2);
   const result: CoitPlayerContext = { cashCents: state.ext.economy?.players[playerId]?.cashCents ?? 0,
     usable: !!player && !player.ride, aimYaw: angles.yaw, aimPitch: angles.pitch, actors: [], landmark: null };
-  if (state.version < 21 || !coitSessionActive(viewer, state.tick)) return result;
+  if (state.version < 24 || !coitSessionActive(viewer, state.tick)) return result;
   const pose = coitCameraPose(world, angles), runtime = agentsRuntimeOf(state), occupied = new Set(sortedIds(state.players).flatMap(id => state.players[id]!.ride ? [state.players[id]!.ride!.agentId] : []));
   const actors: CoitObservedActor[] = [];
   for (const id of sortedIds(runtime?.actors ?? {})) {

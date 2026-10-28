@@ -11,7 +11,7 @@ export function robotSabotageActive(state:Readonly<SimState>,actor:Readonly<Runt
 }
 /** Current live gadget state is the authority; no old `device.lure` event can restart one. */
 export function runtimeDeviceLure(state:Readonly<SimState>,actor:Readonly<RuntimeActor>,intent?:RobotBrainIntent):DeviceLure|null {
-  if(state.version<21||actor.retired||actor.posted||actor.child||actor.mobilityAid||actor.posture==="seated"||actor.posture==="lying"||intent?.movement.kind==="flee"||robotSabotageActive(state,actor,intent))return null;
+  if(state.version<24||actor.retired||actor.posted||actor.child||actor.mobilityAid||actor.posture==="seated"||actor.posture==="lying"||intent?.movement.kind==="flee"||robotSabotageActive(state,actor,intent))return null;
   const associate=actor.model==="associate",bad=actor.firmware==="bad"&&!actor.protected&&["footman","trundle","patrol","sign-spinner"].includes(actor.model);
   if(!associate&&!bad||(state.ext.combat?.targets[actor.id]?.phase??"active")!=="active"||(state.ext.combat?.pauseUntil??0)>state.tick)return null;
   const candidates=(state.ext.combat?.gadgets??[]).filter((g):g is Gadget&{kind:"speaker"|"parrots"}=>

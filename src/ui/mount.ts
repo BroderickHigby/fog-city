@@ -56,12 +56,14 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const mini=button(copy("ui.phone.map"),()=>setModal("phone","map")),canvas=node("canvas"),street=node("span","fc-street",copy("ui.hud.location")),mapTitle=node("span","fc-map-title");mapTitle.append(node("strong",undefined,copy("ui.phone.map")),node("kbd",undefined,"M"));mini.className="fc-minimap";mini.replaceChildren(mapTitle,canvas,street);mini.setAttribute("aria-label",`${copy("ui.phone.map")} (M)`);mini.setAttribute("aria-keyshortcuts","M");canvas.setAttribute("role","img");canvas.setAttribute("aria-label",copy("ui.phone.map"));
   const navigation=node("nav","fc-navigation"),compass=node("div","fc-compass"),dial=node("span","fc-compass-dial"),needle=node("span","fc-compass-needle","▲"),compassText=node("span"),bearing=node("strong",undefined,"N · 000°");
   navigation.setAttribute("aria-label",copy("ui.map.navigation"));compass.setAttribute("role","img");compass.setAttribute("aria-label",`${copy("ui.hud.compass")}: N · 000°`);dial.setAttribute("aria-hidden","true");dial.append(node("span","fc-compass-north","N"),needle);compassText.append(node("small",undefined,copy("ui.hud.compass")),bearing);compass.append(dial,compassText);navigation.append(compass,mini);
-  const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," km/h");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
+  const speed=node("div","fc-speed"),mode=node("span","fc-travel-mode",copy("ui.hud.driveMode")),speedLine=node("div","fc-speed-line"),speedValue=node("strong",undefined,"0"),speedUnit=node("span",undefined," mph");speedLine.append(speedValue,speedUnit);speed.append(mode,speedLine);
   const hints=node("div","fc-drive-hints");hints.setAttribute("aria-hidden","true");
   let hintMode="";
+  // H offers robotaxi control only to a robotaxi passenger; in any car it drives (own, stolen,
+  // a driven robotaxi) H is the horn. Reads the view update() stored before calling this.
   const updateHints=(onFoot:boolean):void=>{
-    const mode=onFoot?"foot":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
-    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H","ui.hud.robotaxiHint"]];
+    const mode=onFoot?"foot":view?.vehicleControl==="robotaxi-passenger"?"passenger":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
+    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H",mode==="passenger"?"ui.hud.robotaxiHint":"ui.hud.hornHint"]];
     for(const [key,label]of keys){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
   };
   updateHints(false);
@@ -230,7 +232,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     updateStatus(next);
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveButton.setAttribute("aria-label",copy("ui.hud.missionDetails",{title:objectiveTitle.textContent}));
     if(modal==="objective"&&objective.hidden)setModal(undefined);
-    speedValue.textContent=String(Math.round(bounded(next.speedMps,0,200)*3.6));
+    speedValue.textContent=String(Math.round(bounded(next.speedMps,0,200)*2.2369362920544));
     mode.textContent=copy(next.vehicleControl==="robotaxi-driver"?"ui.hud.robotaxiDriver":next.vehicleControl==="robotaxi-passenger"?"ui.hud.robotaxiPassenger":next.travelMode==="foot"?"ui.hud.walkMode":"ui.hud.driveMode");
     speed.dataset.mode=next.travelMode??"vehicle";updateHints(next.travelMode==="foot");street.textContent=next.streetName??copy("ui.hud.location");drawMap(canvas,next);
     if(options.showPerformance&&next.performance)perf.textContent=`${Math.round(next.performance.fps)} fps · ${next.performance.drawCalls} calls · ${next.performance.triangles} tris${next.performance.backend?` · ${next.performance.backend}`:""}${next.performance.shadowCascades?` · ${next.performance.shadowCascades} sun cascades`:""}`;

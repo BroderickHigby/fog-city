@@ -378,7 +378,7 @@ function tickGadgets(state: CombatState, ctx: CombatContext, inputs: CombatInput
 
 /** Called inside the cloned combat reducer; shared input/world objects are never mutated. */
 export function stepDevices(state: CombatState, ctx: CombatContext, inputs: CombatInputs): void {
-  if ((ctx.simVersion??21)<21 || (ctx.wave ?? 2) < 4 || state.pauseUntil>state.tick) return;
+  if ((ctx.simVersion??24)<24 || (ctx.wave ?? 2) < 4 || state.pauseUntil>state.tick) return;
   const actorIds = new Set(ctx.actors.map(actor => actor.id));
   for (const player of sortedPlayers(ctx)) {
     const owner = state.players[player.id];
@@ -407,7 +407,7 @@ export function stepDevices(state: CombatState, ctx: CombatContext, inputs: Comb
 /** Natural Doom-clock AGI and a streak's later Doom acknowledgment share one physical effect. */
 export function stepWorldAgi(state:CombatState,ctx:CombatContext,alreadyPaused:boolean):void {
   const sequence=ctx.worldAgiSequence;
-  if((ctx.simVersion??21)<21||typeof sequence!=="number"||!Number.isSafeInteger(sequence)||sequence<1||sequence<=(state.worldAgiSequence??0))return;
+  if((ctx.simVersion??24)<24||typeof sequence!=="number"||!Number.isSafeInteger(sequence)||sequence<1||sequence<=(state.worldAgiSequence??0))return;
   state.worldAgiSequence=sequence;
   if(alreadyPaused)return;
   state.pauseUntil=Math.max(state.pauseUntil,state.tick+DEVICE_TUNING.agiPauseTicks);

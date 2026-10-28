@@ -129,16 +129,16 @@
   "source": "the owner's supplied Mixamo library in assets/mixamo/ (hashes: assets/imports/mixamo/source-files.json); Mixamo (Adobe) terms; the raw FBX files are not shipped",
   "files": {
    "public/models/anim/mixamo-dodge.json": {
-    "bytes": 95343,
-    "sha256": "9a5a3cead79357b3497bac6e9941e9081ba1e2edd8010d9476e384672a7f87ec",
+    "bytes": 95262,
+    "sha256": "b170ec9a9b94b7d2703ac3e7e00570decf9046136e6500e3834c8f6a9ba9eeb9",
     "clips": [
      "stumble",
      "flinch"
     ]
    },
    "public/models/anim/mixamo-crowd.json": {
-    "bytes": 2215293,
-    "sha256": "5166cf0dfffb33b0778c5e30e78307b1e6005c8e43bc5e53d2d3a287f507c60b",
+    "bytes": 2204611,
+    "sha256": "a330b32c19602bd14a73f1aafadcd3a76d2dbbfde4006374d7762e4d57359f05",
     "clips": [
      "walkCasual",
      "walkTexting",

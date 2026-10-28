@@ -39,7 +39,7 @@ function recordedInputs(system: SimSystemContext, ctx: CombatContext, state: Com
   const frame=system.inputs;
   const mapped: Record<string, CombatInput> = {};
   for (const player of sortedPlayers(ctx)) {
-    const modern=system.state.version>=21;
+    const modern=system.state.version>=24;
     const recorded = frame[player.id];
     if (!recorded&&!modern) { mapped[player.id] = {}; continue; }
     const actions=recorded?.actions??0;

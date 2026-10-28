@@ -58,6 +58,8 @@ interface Built {
   shops: StorefrontCell | null;
   crosswalks: number;
   stopBars: number;
+  /** The id its junction asphalt and paint are registered under with opts.surfaces, if they were. */
+  surface?: string;
 }
 
 interface Cell {
@@ -87,6 +89,11 @@ export interface StreetDetailOptions {
   foliage?: {
     setPlacements(key: string, list: readonly TreePlacement[]): void;
     removePlacements(key: string): void;
+  };
+  /** Told about each cell's junction asphalt and paint, which people stand on (avatar-ground.ts). */
+  surfaces?: {
+    add(id: string, roots: readonly THREE.Object3D[]): void;
+    remove(id: string): void;
   };
 }
 
@@ -253,13 +260,15 @@ export class StreetDetailLayer {
   private build(cell: Cell): void {
     if (cell.built) return;
     const built: Built = { meshes: [], furniture: null, signs: null, shops: null, crosswalks: 0, stopBars: 0 };
+    const floor: THREE.Mesh[] = [];
     if (cell.junctions.length) {
       const m = buildMarkingMeshes(cell.junctions, this.opts.ground);
       const patch = new THREE.Mesh(geometryFromMeshData(m.patch), this.opts.materials.road);
       patch.name = `junctions ${cell.key}`;
       const paint = new THREE.Mesh(geometryFromMeshData(m.paint), this.paint);
       paint.name = `road paint ${cell.key}`;
-      for (const mesh of [patch, paint]) {
+      floor.push(patch, paint);
+      for (const mesh of floor) {
         mesh.receiveShadow = true;
         mesh.matrixAutoUpdate = false;
         built.meshes.push(mesh);
@@ -283,6 +292,10 @@ export class StreetDetailLayer {
       built.meshes.push(built.shops.group);
     }
     for (const o of built.meshes) this.group.add(o);
+    if (floor.length && this.opts.surfaces) {
+      built.surface = surfaceId(cell);
+      this.opts.surfaces.add(built.surface, floor);
+    }
     cell.built = built;
   }
 
@@ -306,6 +319,7 @@ export class StreetDetailLayer {
 
   private drop(cell: Cell): void {
     if (!cell.built) return;
+    if (cell.built.surface) this.opts.surfaces?.remove(cell.built.surface);
     // Owner groups currently also appear in meshes. Make their retirement explicit
     // without dispatching duplicate disposal events on the same subtree.
     const roots = new Set(cell.built.meshes);
@@ -321,6 +335,8 @@ export class StreetDetailLayer {
     cell.built = null;
   }
 }
+
+const surfaceId = (cell: Cell): string => `street-detail:${cell.key}`;
 
 function distToCell(c: { cx: number; cz: number }, x: number, z: number): number {
   const x0 = c.cx * CELL_M, z0 = c.cz * CELL_M;

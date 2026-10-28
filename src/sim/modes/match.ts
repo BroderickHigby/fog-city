@@ -50,7 +50,7 @@ function down(s:MatchState,p:MatchPlayer):void {
 function combat(s:MatchState,ctx:MatchContext):void {
   const events=[...(ctx.combatEvents??[])].filter(e=>e.tick>s.lastCombatTick && e.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
   const seen=new Set<string>();
-  const modern=(ctx.simVersion??20)>=21;
+  const modern=(ctx.simVersion??20)>=24;
   const validFlower=(e:{sourceId:string;targetId:string})=>s.mode==="cleanStreets"&&e.sourceId!==e.targetId&&s.players[e.sourceId]!==undefined&&s.players[e.targetId]!==undefined&&s.players[e.sourceId]!.team!==s.players[e.targetId]!.team;
   const contacts=events.filter(e=>e.kind==="pvp.flower-hit"&&Number.isSafeInteger(e.amount)&&e.amount>0&&validFlower(e));
   for(const e of events) {
@@ -129,7 +129,7 @@ export function stepMatch(previous:MatchState,ctx:MatchContext):MatchState {
   // skipped tick, then advance the match by exactly one active update.
   const skipped=tick-previous.tick-1+(ctx.paused?1:0);
   if(skipped)for(const p of sortedIds(s.players).map(id=>s.players[id]!)){if(p.downUntil>0)p.downUntil+=skipped;if(p.respawnAt>0)p.respawnAt+=skipped;if(p.fleeceUntil>0)p.fleeceUntil+=skipped;}
-  if((ctx.simVersion??20)>=21&&skipped)for(const p of sortedIds(s.players).map(id=>s.players[id]!)){
+  if((ctx.simVersion??20)>=24&&skipped)for(const p of sortedIds(s.players).map(id=>s.players[id]!)){
     if((p.distractedUntil??0)>previous.tick)p.distractedUntil!+=skipped;
     if((p.flowerReadyAt??0)>previous.tick)p.flowerReadyAt!+=skipped;
   }

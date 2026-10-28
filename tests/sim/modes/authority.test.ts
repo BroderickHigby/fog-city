@@ -39,7 +39,7 @@ describe("SIM21 isolated profile authority",()=>{
  });
  it("derives bank points from canonical match score once without economy/combat double counting or city Doom",()=>{
   let match=createMatchState({id:"earned",mode:"botSweep",seed:7,players:["p"],relayId:"relay",badRobotIds:["bad"]});
-  match=stepMatch(match,{simVersion:21,tick:1,positions:{p:{x:0,y:0,z:0}},combatEvents:[{id:1,tick:1,kind:"robot.heap",sourceId:"p",targetId:"bad",amount:1,detail:"footman"}]});
+  match=stepMatch(match,{simVersion:24,tick:1,positions:{p:{x:0,y:0,z:0}},combatEvents:[{id:1,tick:1,kind:"robot.heap",sourceId:"p",targetId:"bad",amount:1,detail:"footman"}]});
   let state=initial();state.ext.modes={match} as unknown as NonNullable<typeof state.ext.modes>;const facts=modeProgressionFacts(state,2);expect(facts[0]?.detail).toBe("melt");
   let profile:ProgressionState={...createProgression(),players:{p:{...createProgressionPlayer(),xp:550,streakPoints:200,earnedStreaks:[]}}};
   profile=stepProgression(profile,ctx({facts}),2,{}, {},21);expect(profile.players.p!.streakPoints).toBe(300);expect(profile.players.p!.banked.confidence).toBe(1);expect(profile.doom?.resets).toBe(0);

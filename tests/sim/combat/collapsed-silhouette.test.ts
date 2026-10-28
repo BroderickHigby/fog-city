@@ -10,7 +10,7 @@ import type { CombatActor, Projectile, TargetCombat } from "../../../src/sim/com
 const world=buildWorld([]);
 const heap:CombatActor={id:"heap",kind:"robot",model:"footman",firmware:"bad",x:4,y:0,z:0,radius:.45,height:2,heading:0,speed:0};
 const behind:CombatActor={...heap,id:"behind",x:7};
-function context(phase:TargetCombat["phase"],heightScale:number,version=21,actor=heap){
+function context(phase:TargetCombat["phase"],heightScale:number,version=24,actor=heap){
  const state={...createInitialState(world,1,["p"],{x:0,z:10,heading:0}),version};
  const base=contextFromState(world,state,{extraActors:[actor,behind]});
  const combat=createCombatState(1,base);

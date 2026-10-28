@@ -18,7 +18,10 @@ Run from the repository root (Blender 4.3+ and Python 3):
 ```sh
 python3 assets/imports/rocketbox/fetch.py /tmp/fog-rocketbox
 flock /tmp/fog.lock blender -b --python assets/imports/rocketbox/convert.py -- /tmp/fog-rocketbox public/models/generic-player.glb
+node assets/imports/rocketbox/outfit.ts public/models/generic-player.glb
 ```
+
+`outfit.ts` (ImageMagick 7) then dresses the converted character in long trousers and a solid YC-orange (`#f26522`) polo. It carries the shorts' cloth and normal map down over the bare calves, widens the calves to the shorts' hem (up to 2.2 cm, none at the shoe), and recolours the striped polo while keeping its folds. It marks the body image's extras with `outfit` and refuses a model that is already dressed. Everything else stays as converted. The Mixamo banks' clip ids hash this file, so after it run `node assets/imports/mixamo/build.ts` (the player bank) and the `--set dodge` and `--set crowd` builds below, then record the two `anim/` hashes in `clips.json`.
 
 `source-files.json` records SHA-256 values for the immutable input files. Conversion retains the original 7,440 triangles and skinned rig, creates neutral idle/walk/run clips from the matching library skeleton, removes planar root travel so the simulation controls position, orients the character toward glTF -Z and normalizes the feet to the origin. Color textures use JPEG; normal/opacity textures remain PNG. Body and normal images are capped at 1024 pixels; the face color retains 2048 pixels.
 

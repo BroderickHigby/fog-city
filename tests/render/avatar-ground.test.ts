@@ -99,4 +99,18 @@ describe("avatar alignment with rendered floors", () => {
     expect(ground.heightAt(1, 0, 1)).toBeCloseTo(0.15);
     expect(ground.heightAt(3, 0, 3)).toBe(0);
   });
+
+  it("stands people on the junction asphalt and crosswalk paint laid over the road ribbons, until the cell goes", () => {
+    const ground = new AvatarGround();
+    ground.addTile(tile("t", 0.15, "fc:road-uv"));
+    // street-markings.ts: the patch at ground + PATCH_LIFT_M (0.2), the paint at PAINT_LIFT_M (0.23).
+    const patch = tile("patch", 0.2, "fc:road").children[0]!, paint = tile("paint", 0.23, "fc:road-paint").children[0]!;
+    paint.position.x = 2; // Paint covers part of the patch.
+    ground.addSurface("street-detail:0,0", [patch, paint]);
+    expect(ground.heightAt(1, 0, 1)).toBeCloseTo(0.2);
+    expect(ground.surfaceAt(3, 0.2, 1)).toBeCloseTo(0.23);
+    ground.removeTile("street-detail:0,0");
+    expect(ground.heightAt(1, 0, 1)).toBeCloseTo(0.15);
+    expect(ground.surfaceAt(3, 0.2, 1)).toBeCloseTo(0.15);
+  });
 });

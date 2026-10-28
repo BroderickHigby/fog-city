@@ -1,7 +1,7 @@
 {
   "file": "public/models/generic-player.glb",
-  "bytes": 5665420,
-  "sha256": "3439b2b3fe4438c124c3d187d83457cb50e5ea860dd96e1bc37c6556c462cf28",
+  "bytes": 5397020,
+  "sha256": "ea960ae908ab57b4ed60d0e961c1781bcd1f4204770941ac0eb111ee78dc231b",
   "triangles": 7440,
   "bones": 80,
   "animations": [
@@ -15,12 +15,12 @@
     {
       "name": "m002_body_normal",
       "mimeType": "image/png",
-      "bytes": 1176792
+      "bytes": 969329
     },
     {
       "name": "m002_body_color",
       "mimeType": "image/jpeg",
-      "bytes": 226874
+      "bytes": 165832
     },
     {
       "name": "m002_head_normal",
@@ -37,5 +37,6 @@
       "mimeType": "image/png",
       "bytes": 1613187
     }
-  ]
+  ],
+  "outfit": "long trousers, YC orange shirt (assets/imports/rocketbox/outfit.ts)"
 }

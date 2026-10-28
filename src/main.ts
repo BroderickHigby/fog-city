@@ -84,7 +84,8 @@ import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
-import { HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_DRIVE, HINT_TAXI_DRIVING, HINT_TAXI_EXIT, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
+import { isCivilianTraffic } from "./sim/civilian-traffic.ts";
+import { HINT_CAR_DRIVING, HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_DRIVE, HINT_TAXI_DRIVING, HINT_TAXI_EXIT, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
 import { prepareStartingStreets } from "./render/startup.ts";
 import { leapDrawOffset } from "./render/human-motion.ts";
@@ -655,7 +656,8 @@ async function boot(): Promise<void> {
           if (hint) hud.hint(hint, now);
           const rider = curr.players[LOCAL_PLAYER];
           if (rider?.ride?.manual && !before?.ride?.manual) {
-            hud.hint(HINT_TAXI_DRIVING, now);
+            const stolen = agentsOf(curr).find(a => a.id === rider.ride!.agentId);
+            hud.hint(stolen && isCivilianTraffic(stolen) ? HINT_CAR_DRIVING : HINT_TAXI_DRIVING, now);
           } else if (rider?.ride && !before?.ride) {
             // Just hopped in as a passenger: head for the waypoint if one is set.
             sendRideDestination();

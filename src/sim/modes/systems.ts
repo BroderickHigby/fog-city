@@ -52,7 +52,7 @@ export const defaultMatchContext:MatchContextProvider=context=>{
     const team=(event.payload as {team?:unknown}|undefined)?.team;
     return {id:event.playerId!,team:team===1?1:0};
   });
-  return {simVersion:context.state.version,tick:context.state.tick,positions,inputs,combatEvents,...(context.state.version>=21?{armouredIds:sortedIds(context.state.ext.robots?.actors??{}).filter(id=>{const model=context.state.ext.robots!.actors[id]!.model;return model==="patrol"||model==="walker";})}:{}),...(endRequested?{endRequested}:{}),...(joins.length?{joins}:{})};
+  return {simVersion:context.state.version,tick:context.state.tick,positions,inputs,combatEvents,...(context.state.version>=24?{armouredIds:sortedIds(context.state.ext.robots?.actors??{}).filter(id=>{const model=context.state.ext.robots!.actors[id]!.model;return model==="patrol"||model==="walker";})}:{}),...(endRequested?{endRequested}:{}),...(joins.length?{joins}:{})};
 };
 export function createModesSystem(provider:MatchContextProvider=defaultMatchContext):SimSystem {
   return {key:"modes",step(context){

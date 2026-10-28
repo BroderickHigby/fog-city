@@ -31,7 +31,7 @@ function localImportCache(rel:string):boolean {
 /** Reviewed generic assets; never a directory-wide exception for private reference photos. */
 const LICENSED = new Map([
   ["public/models/generic-player.glb", {
-    sha256: "3439b2b3fe4438c124c3d187d83457cb50e5ea860dd96e1bc37c6556c462cf28",
+    sha256: "ea960ae908ab57b4ed60d0e961c1781bcd1f4204770941ac0eb111ee78dc231b",
     license: "assets/imports/rocketbox/LICENSE.md",
   }],
   // Reviewed adult Rocketbox imports from Microsoft-Rocketbox@0943055db6ec570bcef9f2c8b41c9e5467c808f9.

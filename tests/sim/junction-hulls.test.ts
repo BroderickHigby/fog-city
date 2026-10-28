@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { junctionPathHitsHull, shortLinkSignalWindow, stepAgents, ROBOTAXI_BODY } from "../../src/sim/agents.ts";
-import pendingYield from "./fixtures/pending-junction-yield-v21.json";
-import separatingTurn from "./fixtures/separating-turn-v21.json";
-import queueFixture from "./fixtures/junction-queue-v21.json";
+import pendingYield from "./fixtures/pending-junction-yield-v24.json";
+import separatingTurn from "./fixtures/separating-turn-v24.json";
+import queueFixture from "./fixtures/junction-queue-v24.json";
 import { makePath, type RoadGraph } from "../../src/sim/roads.ts";
 import { createInitialState, makeFoot, type AgentState, type SimState } from "../../src/sim/index.ts";
 import { agentVelocity, resolveVehicleContacts } from "../../src/sim/impacts.ts";
@@ -50,7 +50,7 @@ describe("physical junction hull reservations", () => {
     expect(accepted.x).toBe(actor.x); expect(accepted.z).toBe(actor.z); expect(accepted.s).toBe(actor.s);
     expect(accepted.edge).toBe(actor.edge); expect(accepted.node).toBe(actor.node); expect(accepted.conn).toBe(actor.conn);
     expect(accepted.wait).toBe(actor.wait + 1);
-    expect(accepted.speed).toBe(version >= 21 ? 0 : attempted.speed);
+    expect(accepted.speed).toBe(version >= 24 ? 0 : attempted.speed);
     expect(JSON.stringify(after)).toBe(frozen);
   });
 });
@@ -118,7 +118,7 @@ describe("the ordinary queue producer emits signed reverse motion", () => {
     const frozen = JSON.stringify(state), before = list.find(actor => actor.id === 536)!;
     const result = stepAgents(world, state, 1)!;
     const after = result.ext.list.find(actor => actor.id === before.id)!;
-    if (version >= 21) {
+    if (version >= 24) {
       expect(after.s).toBeLessThan(before.s); expect(after.speed).toBe(-.8);
       expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeCloseTo(.8 / 60, 9);
       const velocity = agentVelocity(after);
@@ -147,7 +147,7 @@ describe("a tight separating turn keeps the physical sweep and legacy budget", (
     const after: SimState = { ...before, tick: 9001, ext: { ...before.ext, agents: { nextId: 1360, list: afterRows } } };
     const frozen = JSON.stringify(after), result = resolveVehicleContacts(world, before, after);
     const accepted = result.ext.agents!.list.find(actor => actor.id === 1075)!;
-    const expected = (version >= 21 ? afterRows : beforeRows).find(actor => actor.id === accepted.id)!;
+    const expected = (version >= 24 ? afterRows : beforeRows).find(actor => actor.id === accepted.id)!;
     expect(accepted.x).toBe(expected.x); expect(accepted.z).toBe(expected.z); expect(accepted.heading).toBe(expected.heading);
     expect(accepted.s).toBe(expected.s); expect(accepted.conn).toEqual(expected.conn); expect(accepted.node).toBe(expected.node);
     expect(JSON.stringify(after)).toBe(frozen);
@@ -155,7 +155,7 @@ describe("a tight separating turn keeps the physical sweep and legacy budget", (
 });
 
 describe("safe space is yielded before a blocked junction admission", () => {
-  function setup(version = 21): { world: ReturnType<typeof emptyWorld>; state: SimState } {
+  function setup(version = 24): { world: ReturnType<typeof emptyWorld>; state: SimState } {
     const world = emptyWorld(), nodes = pendingYield.nodes as unknown as RoadGraph["nodes"], edges = pendingYield.edges as unknown as RoadGraph["edges"];
     world.roads = { nodes, edges, nodeIndex: new Map(nodes.map((node, index) => [node.id, index])),
       edgeIndex: new Map(edges.map((edge, index) => [edge.id, index])), areas: [], areaIndex: new Map() };

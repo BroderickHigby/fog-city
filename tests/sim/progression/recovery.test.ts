@@ -122,7 +122,7 @@ it("never charges or enables an unpaid subscription, spams one notice, or bills 
 });
 
 it("AI Winter blocks new bridge answers only in21 and a paid accepted bridge is not immediately reopened",()=>{
- const before={...createPlayer(),players:{p:{...createPlayerStatus(),status:"bridge" as const,bridgeUntil:1000}}},economy={...createEconomy(),players:{p:{...createWallet(),runwayMonths:0}}},context=ctx({simVersion:21,associatesAnswer:false,commands:[{kind:"bridge-accept",sequence:1,playerId:"p"}],observations:[{playerId:"p",seenByBad:false,seenByAssociate:true,associateWithin200:true,fog:0,protectedArea:false}]});
+ const before={...createPlayer(),players:{p:{...createPlayerStatus(),status:"bridge" as const,bridgeUntil:1000}}},economy={...createEconomy(),players:{p:{...createWallet(),runwayMonths:0}}},context=ctx({simVersion:24,associatesAnswer:false,commands:[{kind:"bridge-accept",sequence:1,playerId:"p"}],observations:[{playerId:"p",seenByBad:false,seenByAssociate:true,associateWithin200:true,fog:0,protectedArea:false}]});
  expect(stepPlayer(before,context,1,economy,createHeat()).events.some(e=>e.kind==="player.bridge")).toBe(false);
  const accepted=stepPlayer(before,{...context,associatesAnswer:true},1,economy,createHeat());expect(accepted.players.p!.status).toBe("active");expect(accepted.events.filter(e=>e.kind==="player.bridge")).toHaveLength(1);expect(accepted.events.some(e=>e.kind==="player.bridge-offer")).toBe(false);
  expect(stepPlayer(before,{...context,simVersion:20},1,economy,createHeat()).events.some(e=>e.kind==="player.bridge")).toBe(true);
@@ -131,7 +131,7 @@ it("AI Winter blocks new21 Bell Duels but an already accepted round can complete
  const mission=MISSIONS.find(m=>m.steps.some(s=>s.type==="objective"&&s.objective.kind==="event"&&s.objective.event==="bell.duelStarted"))!;
  const step=mission.steps.find(s=>s.type==="objective"&&s.objective.kind==="event"&&s.objective.event==="bell.duelStarted")!;
  const missions={...createMissions(),players:{p:{...createMissionProgress(),missionId:mission.id,stepId:step.id,status:"active" as const,startedTick:0,visits:1}}},body={...TURNTABLES[0]!,id:"p",y:0,mode:"foot" as const,speed:0};
- const context=ctx({simVersion:21,associatesAnswer:false,missions:[mission],bodies:[body],actions:{p:Action.interact}});
+ const context=ctx({simVersion:24,associatesAnswer:false,missions:[mission],bodies:[body],actions:{p:Action.interact}});
  expect(prepareMissionBell(undefined,missions,context,createHeat(),1,7).state.duels.p).toBeUndefined();
  expect(prepareMissionBell(undefined,missions,{...context,simVersion:20},createHeat(),1,7).state.duels.p).toBeDefined();
  let duel=prepareMissionBell(undefined,missions,{...context,associatesAnswer:true},createHeat(),1,7),won=false;const request=duel.state.duels.p!.requestId,responses=new Set(duel.state.duels.p!.responseTicks);
