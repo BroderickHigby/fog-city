@@ -106,12 +106,12 @@ describe("boxHit: the exchange at the box contact", () => {
 });
 
 describe("SIM25 side-swipes spin both cars", () => {
-  it("is the current version; a v24 save upgrades by restamping only", () => {
-    expect(SIM_VERSION).toBe(25);
+  it("is v25 (or later); a v24 save upgrades by restamping only", () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(25);
     expect(BOX_CONTACT_VERSION).toBe(25);
     const old = pair({}, { x: 10 }, 24);
     const up = upgradeState(old);
-    expect(up).toEqual({ ...old, version: 25 });
+    expect(up).toEqual({ ...old, version: SIM_VERSION });
     expect(up.players).toBe(old.players);
     expect(up.ext).toBe(old.ext);
   });

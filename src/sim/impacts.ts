@@ -54,7 +54,7 @@ import { approach, clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
 import { CAR, bodyAfter, bodyHit, boxHit, carCircles, spinKick, type CarContact } from "./car.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
-import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, agentCircles, rejoinAt, type AgentState, type AgentsExt } from "./agents.ts";
+import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, TRUNDLE_FREE_VERSION, agentCircles, rejoinAt, type AgentState, type AgentsExt } from "./agents.ts";
 import { agentDodgeClass } from "./dodge.ts";
 import { connector, lanePath, pathPoint, projectOnPath } from "./roads.ts";
 import { segmentCrossesWall } from "./boundary.ts";
@@ -226,6 +226,20 @@ export const PROP_RESET_CLEAR_M = 80;
 export const FALL_CLEAR_M = 1.2;
 /** A prop hit closing slower than this makes no event (a scrape). */
 const PROP_EVENT_MPS = 2;
+/**
+ * v26 (TRUNDLE_FREE_VERSION): two ambient or runtime vehicles (no player's car) that touch closing
+ * slower than this, m/s, only lean on each other: no knock, no impulse, no event. 0.3 m/s is where
+ * the vehicle follower calls a body stopped (follower.ts `stopped`), and it is under knockMinDv
+ * (0.4), so no hit this small ever knocked a plain robotaxi; it sits far above the sub-millimetre
+ * touches of a car creeping into a stopped one (about 4e-5 m/s) and far below any driven bump
+ * (1 m/s and more). Before v26 such a touch knocked a runtime vehicle (a bus, a van, a civilian
+ * car) at any speed: it sat 100 ticks honking with its wait cleared, crept back into the same car,
+ * and was knocked again, so neither its own blocked-then-reverse breaker nor the robotaxi's
+ * deadlock breaker ever fired (a ferry bus wedged against a robotaxi on The Embarcadero, seed 1).
+ * Now the solid-vehicle pass simply refuses the creep, the follower counts it as blocked, and
+ * after 3 s it backs off and plans again.
+ */
+export const TOUCH_CONTACT_MPS = 0.3;
 
 // ---------------------------------------------------------------- read helpers
 
@@ -1197,6 +1211,10 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
       {key:b.key,mass:bd.mass,x:b.pose.x,z:b.pose.z,...bv},
       {x:contact.x,z:contact.z,r:0,person:false},contact.nx,contact.nz,CAR.bodyRestitution);
     if(!hit)continue;
+    // v26: a creeping touch between two vehicles nobody drives is a lean, not a hit (TOUCH_CONTACT_MPS).
+    // A taxi a player has taken (manualCar) is driven, though its body carries no player id.
+    const driven=(body:SolidVehicle):boolean=>body.player!==null||(body.agent!==null&&!!w.agents[w.index.get(body.agent)!]?.manualCar);
+    if(state.version>=TRUNDLE_FREE_VERSION&&!driven(a)&&!driven(b)&&hit.contact.speed<TOUCH_CONTACT_MPS)continue;
     // receive understands knock velocity. Runtime physical controls also carry lateral speed.
     for(const body of [a,b])if(body.agent!==null){const index=w.index.get(body.agent)!,actor=w.agents[index]!;
       if(actor.vehicle&&!actor.manualCar&&!actor.knock){const v=carVelocity(actor.vehicle);w.agents[index]={...actor,knock:{phase:"slide",...v,yaw:actor.vehicle.yawRate,t:0,age:0}};}}

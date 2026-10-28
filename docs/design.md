@@ -1322,6 +1322,21 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
   (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
   crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.
+- 2026-10-27 · **No ambient Trundles, for now** (owner: "We can probably remove the little vacuum robots for
+  now"). From SIM_VERSION 26 the Trundle (`sidewalkBot`, `public/models/sidewalk-bot.glb`) is no longer part of
+  the street population: a v26 state's first step takes the ambient ones off the street and Footmen take their
+  population budget one for one, keeping the Trundles' hour and district shaping (night still brings more
+  delivery robots out), so the street holds as many robots and bodies as before. Missions and director incidents
+  (which the bounty board posts) that name a Trundle still stage one, because their text and tells are written for
+  it, so a Trundle now appears only when a story calls for it. The model, its content and every code path stay for older
+  saves and replays, which keep their Trundles bit for bit (`src/sim/agents.ts` `TRUNDLE_FREE_VERSION`).
+  Footmen are bigger and faster than Trundles, so they met turning robotaxis on crosswalks more often, and that
+  exposed a stand-off v26 also fixes (`UNSTICK_VERSION`): a walker that turned round mid-crossing used to aim at
+  the far kerb's sidewalk and loop back into the robotaxi; it now walks back to the kerb it came from.
+  The new mix also moved where the ferry bus enters, and on The Embarcadero it met a robotaxi nose to nose. Before
+  v26 every touch knocked a runtime vehicle, however slow, so the creeping bus was knocked, sat honking, crept back and
+  was knocked again, and no deadlock breaker fired. From v26 two vehicles nobody drives that touch closing slower than
+  0.3 m/s (`impacts.ts` `TOUCH_CONTACT_MPS`) only lean on each other, so the bus's own blocked-then-reverse breaker can act.
 - 2026-10-27 · **The Meander becomes a tall two-ended pod** (owner: "make the robotaxis look more like bigger Zoox
   or something"). The long, low, asymmetric hatch becomes a carriage pod of its own in the genre of today's
   bidirectional robotaxis: the same both ways round, 4.96 x 1.92 m (inside the sim's unchanged 5.0 x 2.0 m robotaxi

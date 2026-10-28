@@ -93,7 +93,11 @@
 // faces) with Slop's contact friction 0.35 (car.ts boxHit), so a side-swipe or an offset hit
 // spins both cars from the same point.
 // No field changes: the save upgrade only restamps; v24-and-earlier replays keep the circle contact.
-export const SIM_VERSION = 25;
+// v26 (owner, 2026-10-27): no ambient Trundles (sidewalk bots). The first step of a v26 state takes
+// them off the street and Footmen take their population budget (agents.ts TRUNDLE_FREE_VERSION);
+// missions and director incidents still stage named Trundles. No field changes: the save upgrade
+// only restamps; createInitialState is unchanged and v25-and-earlier replays keep every Trundle.
+export const SIM_VERSION = 26;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

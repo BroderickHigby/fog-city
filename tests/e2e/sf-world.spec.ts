@@ -245,7 +245,8 @@ test.describe("sf world: in the browser", () => {
     });
     expect(run.tick - run.t0, "ticks stepped").toBe(120);
     expect(run.after.length, "state.ext.agents is non-empty after 120 ticks").toBeGreaterThan(0);
-    expect(new Set(run.after.map((a) => a.kind)), "kinds of agent").toEqual(new Set(["robotaxi", "errandRobot", "sidewalkBot", "person"]));
+    // SIM_VERSION 26: no ambient Trundles (sidewalkBot); Footmen take their places.
+    expect(new Set(run.after.map((a) => a.kind)), "kinds of agent").toEqual(new Set(["robotaxi", "errandRobot", "person"]));
     const moved = run.after.filter((a) => {
       const b = run.before.find((x) => x.id === a.id);
       return b && Math.hypot(a.x - b.x, a.z - b.z) > 1;
@@ -270,11 +271,12 @@ test.describe("sf world: in the browser", () => {
     expect(r.agentsTotal, "agents the renderer was given").toBe(run.after.length);
     expect(r.agents ?? 0, "agents drawn").toBeGreaterThan(0);
     expect(r.agentsNear ?? 0, "agents drawn with their full model near the chase camera").toBeGreaterThan(0);
-    expect([...(r.agentModels ?? [])].sort(), "agent kinds drawn from their model files").toEqual(["errandRobot", "robotaxi", "sidewalkBot"]);
+    // (A director incident may still stage a named Trundle, drawn from its own file.)
+    expect([...(r.agentModels ?? [])].filter((m) => m !== "sidewalkBot").sort(), "agent kinds drawn from their model files").toEqual(["errandRobot", "robotaxi"]);
     // Instanced: the draw-call cost does not grow with the number of agents.
     expect(r.agentDrawCalls ?? 0, "agent draw calls").toBeLessThanOrEqual(27);
     expect(r.playerCarsFromFile, "the player car is models/civilian-car.glb").toBe(1);
-    for (const m of ["robotaxi", "errand-robot", "sidewalk-bot", "civilian-car"]) {
+    for (const m of ["robotaxi", "errand-robot", "civilian-car"]) {
       const got = responses.filter((x) => x.path === `/models/${m}.glb`);
       expect(got.length, `GET /models/${m}.glb`).toBeGreaterThan(0);
     }

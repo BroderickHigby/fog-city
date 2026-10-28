@@ -49,6 +49,13 @@
 //    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
 //    whatever the first player's areas left over. The whole city's road graph is loaded, but
 //    only the areas around players are ever populated or stepped.
+//  - v26 (owner, 2026-10-27: "remove the little vacuum robots for now"): Trundles (sidewalkBot)
+//    are no longer part of the street. The initial fill is unchanged (older replays restamp the
+//    state createInitialState makes, so it must not change), but the first step of a v26 state
+//    takes every ambient Trundle off the street (one mid-dodge waits for its dodge to end), and
+//    population passes give each area's Trundle budget to Footmen (errandRobot), one for one,
+//    with the Trundles' hour and district shaping. Missions and the Ambient Director still stage
+//    their own named Trundles (runtime actors, src/sim/agents/incidents.ts, mission-actors.ts).
 //
 // Level of detail (documented rule)
 //  - An agent within NEAR_RANGE_M of a player steps every tick. Farther agents step only on
@@ -66,7 +73,7 @@
 
 import { isCivilianTraffic, CIVILIAN_PASS_INTERVAL_TICKS } from "./civilian-traffic.ts";
 import { agentActorId } from "./identity.ts";
-import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
+import { DT, SIM_VERSION, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
 import { rideRouteNext } from "./ride-route.ts";
@@ -334,6 +341,20 @@ export const TRIM_PER_POP = 4;
 export const MAX_AGENTS = 512;
 /** The most ambient agents in a state, however many players. */
 export const MAX_AGENTS_TOTAL = 1024;
+/**
+ * v26: the first SIM_VERSION with no ambient Trundles (sidewalkBot); their population budget goes
+ * to Footmen. See the header (Population). Older versions keep them, bit for bit.
+ */
+export const TRUNDLE_FREE_VERSION = 26;
+/**
+ * v26: two stand-offs that more Footmen made common are broken (Ctx.unstick). A robotaxi or civilian
+ * car whose pass has stalled behind the vehicle it was going round drops the pass and plans again
+ * (stepAgent). A walker that turns round in the middle of a street crossing walks back to the kerb
+ * it came from (turnAround, crossingTurnBack); v25 and older head for the far kerb's sidewalk, so
+ * the turn loops straight back into the robotaxi that stopped it, and the robotaxi (which waits for
+ * walkers) and every car queued behind it wait for the deadlock breaker.
+ */
+export const UNSTICK_VERSION = 26;
 export const ROBOTAXI_GAP_M = 1.5;
 /** A robotaxi waiting at an all-way stop keeps its front bumper this far behind the line. */
 export const STOPLINE_M = 0.5;
@@ -1405,6 +1426,8 @@ interface Ctx {
   signals: TrafficSignalControls | undefined;
   /** v21 amber dilemma zone (committedOnAmber); v20 replays keep the hard stop. */
   amberCommit: boolean;
+  /** v26 (UNSTICK_VERSION): a stalled pass is dropped; a walker turning round mid-crossing goes back to its kerb. */
+  unstick: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
   world: World;
@@ -1709,6 +1732,12 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
       }
     }
   }
+  // v26: a pass that has eased back in behind the vehicle it was going round (aborted after its
+  // commit point, or eased in short) and stands still blocked by it would wait forever: nothing
+  // replans a robotaxi with a pass. Drop it (a step of under 0.3 m back onto its lane), so the
+  // robotaxi waits, backs up and plans again.
+  if (c.unstick && pass && a.speed < 0.05 && a.s > pass.s1 && blocker?.pass?.key === pass.target && blocker.gap < PASS_STANDOFF_M
+    && Math.abs(passLat(pass, a.s)) < 0.3) pass = undefined;
   // Behind a vehicle standing still that it may go round: wait further back, room to ease out.
   const stoodStill = spec.road && pass === undefined && blocker !== null && blocker.pass !== undefined && Math.abs(blocker.pass.speed) < PASS_STOPPED_MPS;
   const gapMin = spec.road ? (stoodStill ? PASS_STANDOFF_M : ROBOTAXI_GAP_M) : WALKER_GAP_M;
@@ -1955,6 +1984,10 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
   const ei = g.edgeIndex.get(a.edge);
   if (ei === undefined) return { ...a, wait: 0, speed: 0 };
   const e = g.edges[ei]!;
+  if (c.unstick && a.conn !== null) {
+    const back = crossingTurnBack(c, a, e);
+    if (back) return back;
+  }
   const back: Dir = a.dir === 1 ? -1 : 1;
   if (!e.walkClear[dirIndex(back)][sideIndex(a.lane)]) return { ...a, wait: 0, speed: 0 };
   const from = a.conn ? connectorPath(a.conn) : basePath(e, a);
@@ -1980,6 +2013,61 @@ function turnAround(c: Ctx, a: AgentState): AgentState {
     ndir,
     rng,
     heading: datan2(q.tx, -q.tz),
+    mode: "wait",
+  };
+}
+
+/**
+ * v26 (UNSTICK_VERSION): a walker on a connector (crossing a street, or rounding a corner) turns
+ * round back to where that connector began: the end of the sidewalk it walked in on. Its edge is
+ * already the one the connector leads to, whose sidewalk lies ahead of it, so the v25 turn (aimed
+ * at a point on that sidewalk) curves back through whatever stopped it. Of the sidewalks leaving
+ * the connector's start node, it takes the one that starts nearest the connector's start.
+ * null: no sidewalk starts within 2 m of it (then the v25 turn).
+ */
+function crossingTurnBack(c: Ctx, a: AgentState, e: RoadEdgeInfo): AgentState | null {
+  const g = c.g;
+  const cp = a.conn!;
+  const from = connectorPath(cp);
+  const here = pathPoint(from, a.s);
+  const { x: px, z: pz } = offsetPoint(from, a.s, a.lat);
+  const node = g.nodes[startNode(e, a.dir)]!;
+  let best: { edge: RoadEdgeInfo; dir: Dir; side: number; path: Path } | null = null;
+  let bestD2 = 2 * 2;
+  for (const o of node.out) {
+    const ne = g.edges[o.edge]!;
+    if (ne.index === e.index && o.dir === a.dir) continue; // where it was going
+    if (!canWalk(ne, o.dir)) continue;
+    for (const side of [-1, 1]) {
+      if (!ne.walkClear[dirIndex(o.dir)][sideIndex(side)]) continue;
+      const path = walkPath(ne, o.dir, side);
+      const dx = path.xs[0]! - cp[0]!, dz = path.zs[0]! - cp[1]!;
+      if (dx * dx + dz * dz < bestD2) { bestD2 = dx * dx + dz * dz; best = { edge: ne, dir: o.dir, side, path }; }
+    }
+  }
+  if (!best) return null;
+  const s1 = Math.min(1.0, best.path.len);
+  const q = pathPoint(best.path, s1);
+  // Turn on the spot to face back the way it came, then walk to the start of that sidewalk.
+  const turn = connector(px, pz, -here.tx, -here.tz, q.x, q.z, q.tx, q.tz);
+  const [next, ndir, nlane, rng] = chooseNext(g, best.edge, best.dir, best.side, false, a.rng);
+  return {
+    ...a,
+    edge: best.edge.id,
+    dir: best.dir,
+    lane: best.side,
+    nlane,
+    conn: turn,
+    node: "",
+    s: 0,
+    resume: s1,
+    lat: 0,
+    speed: 0,
+    wait: 0,
+    next,
+    ndir,
+    rng,
+    heading: datan2(-here.tx, here.tz),
     mode: "wait",
   };
 }
@@ -2199,6 +2287,7 @@ export function populate(
   initial: boolean,
   cars: readonly CarSpot[] = [],
   scales: PopulationScales = [],
+  version: number = SIM_VERSION,
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
@@ -2227,10 +2316,19 @@ export function populate(
   }
   // Each area is scaled by its owner's density (the nearest player's).
   const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[nearestBody(bodies, ar.cx, ar.cz)]?.[kind] ?? 1;
+  // v26: no ambient Trundles; Footmen take each area's Trundle budget, one for one, with its hour
+  // and district shaping. Never in the initial fill (see the header, Population).
+  const trundleFree = !initial && version >= TRUNDLE_FREE_VERSION;
+  const areaWant = (ar: AreaRoads, kind: AgentKind): number => {
+    if (!trundleFree) return budget(seed, ar, kind, scaleOf(ar, kind));
+    if (kind === "sidewalkBot") return 0;
+    const own = budget(seed, ar, kind, scaleOf(ar, kind));
+    return kind === "errandRobot" ? own + budget(seed, ar, "sidewalkBot", scaleOf(ar, "sidewalkBot")) : own;
+  };
   const room = new Map<AgentKind, number>();
   for (const kind of AGENT_KINDS) {
     let sum = 0;
-    for (const { ar } of active) sum += budget(seed, ar, kind, scaleOf(ar, kind));
+    for (const { ar } of active) sum += areaWant(ar, kind);
     room.set(kind, sum - (totals.get(kind) ?? 0));
   }
   // City-life densities (game composition): a kind over its scaled budget (fewer people than the
@@ -2259,7 +2357,7 @@ export function populate(
   for (const { ar } of active) {
     const owner = nearestBody(bodies, ar.cx, ar.cz);
     for (const kind of AGENT_KINDS) {
-      const want = budget(seed, ar, kind, scaleOf(ar, kind));
+      const want = areaWant(ar, kind);
       const have = counts.get(`${ar.key}|${kind}`) ?? 0;
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
@@ -2454,6 +2552,15 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
+  // v26: ambient Trundles leave the street on the state's first step (the starting street drawn
+  // while a new game loads still shows them). One diving out of a vehicle's way, or knocked flying,
+  // goes once that is over; one a v25 save left in a story (rusting, seized, in a fight, bound to a
+  // mission: protectedTrafficIds) once the story lets it go. No RNG is drawn.
+  const trundleGoes = (a: Readonly<AgentState>): boolean => a.kind === "sidewalkBot" && a.dodge === null && a.knock === undefined;
+  if (prev.version >= TRUNDLE_FREE_VERSION && ext.list.some(trundleGoes)) {
+    const keep = protectedTrafficIds(prev);
+    if (ext.list.some((a) => trundleGoes(a) && !keep.has(a.id))) ext = { ...ext, list: ext.list.filter((a) => !trundleGoes(a) || keep.has(a.id)) };
+  }
 
   // Seized robotaxis stand where they stopped: others may go round them.
   const passable = new Set<number>();
@@ -2595,7 +2702,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { signals, amberCommit, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
+  const ctx: Ctx = { signals, amberCommit, unstick: prev.version >= UNSTICK_VERSION, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -2619,7 +2726,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // only unclaimed rows refills the same slots every population tick. They must
     // also obey the same distance cull: restoring every claimed body afterwards
     // leaves a trail of frozen pedestrians as the player travels across the city.
-    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev));
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev), prev.version);
     out = p.ext;
     rng = p.rng;
   }
