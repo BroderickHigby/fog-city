@@ -1,4 +1,5 @@
 import type { InputController, VirtualAction } from "../input/controller.ts";
+import { radialDeadZone } from "../input/stick.ts";
 import type { UiCopy } from "./types.ts";
 
 export function createTouchControls(doc:Document,controller:InputController,copy:UiCopy):{element:HTMLElement;dispose():void} {
@@ -7,7 +8,7 @@ export function createTouchControls(doc:Document,controller:InputController,copy
   const stick=doc.createElement("div");stick.className="fc-stick";stick.setAttribute("role","group");stick.setAttribute("aria-label",copy("ui.controls.move"));
   const knob=doc.createElement("span");stick.append(knob);let pointer:number|undefined;
   function release(){pointer=undefined;controller.setStick(0,0);knob.style.transform="";}
-  function move(e:PointerEvent){if(pointer!==e.pointerId)return;const r=stick.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2),length=Math.max(1,Math.hypot(x,y));controller.setStick(x/length,y/length);knob.style.transform=`translate(${x/length*34}px,${y/length*34}px)`;}
+  function move(e:PointerEvent){if(pointer!==e.pointerId)return;const r=stick.getBoundingClientRect(),x=(e.clientX-r.left-r.width/2)/(r.width/2),y=(e.clientY-r.top-r.height/2)/(r.height/2),length=Math.max(1,Math.hypot(x,y)),out=radialDeadZone(x/length,y/length);controller.setStick(out.x,out.y);knob.style.transform=`translate(${x/length*34}px,${y/length*34}px)`;}
   const down=(e:PointerEvent)=>{if(pointer!==undefined)return;e.preventDefault();pointer=e.pointerId;stick.setPointerCapture(e.pointerId);move(e);};
   stick.addEventListener("pointerdown",down);stick.addEventListener("pointermove",move);for(const type of ["pointerup","pointercancel","lostpointercapture"])stick.addEventListener(type,release);
   cleanups.push(()=>{stick.removeEventListener("pointerdown",down);stick.removeEventListener("pointermove",move);for(const type of ["pointerup","pointercancel","lostpointercapture"])stick.removeEventListener(type,release);release();});

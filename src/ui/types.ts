@@ -38,6 +38,28 @@ export interface ObjectiveView { readonly id:string; readonly title:string; read
 export interface PopupView { readonly id:string; readonly title:string; readonly detail:string }
 export interface ScanView { readonly targetId:string; readonly bad:boolean; readonly confidence:number }
 export interface InteractionView { readonly id:string;readonly title:string;readonly detail:string;readonly startup?:boolean;readonly choices:readonly {readonly id:string;readonly label:string}[] }
+/** One Runway Run toast: `kind` picks the copy, `name`/`firm` the investor, `amount` dollars, `seconds` the runway change. */
+export interface RunwayNoteView { readonly id:number; readonly kind:"pickup"|"check"|"downRound"|"scandal"|"over"; readonly name:string; readonly firm:string; readonly amount:number; readonly seconds:number }
+/** Runway Run (src/ui/runway.ts). "idle": no run. `canStart`: at the wheel of a car and no run is going. */
+export interface RunwayView {
+  readonly phase:"idle"|"running"|"over";
+  readonly canStart:boolean;
+  /** An online match is on (set by the game, not the sim): runs open after it. */
+  readonly inMatch?:boolean;
+  readonly runwayS:number;
+  readonly raised:number;
+  readonly hype:number;
+  readonly closed:number;
+  readonly best:number;
+  readonly stage:string;
+  readonly carrying:boolean;
+  readonly investor?:{readonly name:string;readonly firm:string};
+  readonly target?:MapPoint;
+  /** Straight-line metres to the target, and the turn from the car's heading to it (radians, + = right). */
+  readonly targetM?:number;
+  readonly targetTurn?:number;
+  readonly notes:readonly RunwayNoteView[];
+}
 export type PhoneApp="loadout"|"map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings"|"officeHours";
 export interface UiView {
   readonly loadout?:LoadoutView;
@@ -71,6 +93,7 @@ export interface UiView {
   readonly phoneApps?:readonly PhoneApp[];
   /** The host checks the actual Ramen door, unlock, cooldown and daily booking cap. */
   readonly officeHours?:{readonly available:boolean;readonly detail:string;readonly remaining:number;readonly destination:MapPoint};
+  readonly runway?:RunwayView;
   readonly airPlaneMode?:boolean;
   readonly performance?:{readonly fps:number;readonly drawCalls:number;readonly triangles:number;readonly simMs?:number;readonly backend?:string;readonly shadowCascades?:number};
 }
@@ -89,6 +112,8 @@ export interface UiCallbacks {
   readonly app?:(app:PhoneApp)=>void;
   readonly bookOfficeHours?:()=>void;
   readonly interaction?:(choiceId:string)=>void;
+  /** Runway Run: start a run (or a new one), end the running one, or leave a finished run's results. */
+  readonly runway?:(action:"start"|"quit"|"clear")=>void;
 }
 export interface UiMountOptions {
   readonly copy:UiCopy;

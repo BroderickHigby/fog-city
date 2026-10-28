@@ -46,6 +46,7 @@ export const CREDITS: readonly CreditGroup[] = [
     entries: [
       { what: "Player character (Male_Adult_01)", who: "Microsoft Rocketbox avatar library, © 2020 Microsoft", licence: "MIT", url: "https://github.com/microsoft/Microsoft-Rocketbox" },
       { what: "Control icons", who: "Lucide Icons and Contributors", licence: "ISC", url: "https://lucide.dev" },
+      { what: "Loading screen art and the Fog City 5.5 mark", who: "Fog City (art generated with Figma AI, gpt-image-2.5)", licence: "Original work" },
       { what: "Asphalt scan (asphalt_02)", who: "Rob Tuytel, Poly Haven", licence: "CC0 1.0", url: "https://polyhaven.com/a/asphalt_02" },
       { what: "Concrete pavement scan", who: "Charlotte Baglioni, Poly Haven", licence: "CC0 1.0", url: "https://polyhaven.com/a/concrete_pavement" },
       { what: "Rendering reference (Slop New York)", who: "Mr.doob", licence: "MIT", url: "https://github.com/mrdoob/slop-newyork" },

@@ -79,6 +79,8 @@ import { gameplaySnapshot } from "./sim/player/adapter.ts";
 import { gameTime } from "./sim/clock/calendar.ts";
 import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/index.ts";
 import { RIDE_DESTINATION_EVENT, boardableTaxi, takeoverTaxi } from "./sim/ride.ts";
+import { runwayOf } from "./sim/runway-run/index.ts";
+import { bindRunwaySender, clearRunwayRun, quitRunwayRun, startRunwayRun } from "./ui/runway.ts";
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
@@ -173,8 +175,11 @@ async function boot(): Promise<void> {
   const tStart = 0;
   const params = new URLSearchParams(location.search);
   const loading = document.getElementById("hud");
+  // The cover-art loading screen (index.html) mirrors the status line and fades out once the city is ready.
+  const splash = document.getElementById("splash"), splashStatus = document.getElementById("splash-status");
   const status = (text: string): void => {
     if (loading) loading.textContent = text;
+    if (splashStatus) splashStatus.textContent = text;
   };
   // A production build (pnpm build) reads its packed layout; the dev server serves loose files.
   const assets = await openAssets(import.meta.env.PROD);
@@ -355,6 +360,7 @@ async function boot(): Promise<void> {
     lighting:preset=>{if(preset==="live")view.setNight(false);else view.setTimeOfDay(preset);},
     purchase:(itemId,targetId)=>send({kind:"buy",itemId,targetId}),startup:kitId=>send({kind:"startup-define",kitId}),closeAd:targetId=>send({kind:"close-ad",targetId}),
     waypoint:point=>{if(taxiSession){taxiWaypoint=point;return;}waypoint=point;sendRideDestination();},
+    runway:action=>(action==="start"?startRunwayRun:action==="quit"?quitRunwayRun:clearRunwayRun)(),
     interaction:choiceId=>{
       const progress=gameplaySnapshot({state:curr}).missions.players[LOCAL_PLAYER];
       const mission=MISSIONS.find(m=>m.id===progress?.missionId),current=mission?.steps.find(s=>s.id===progress?.stepId);
@@ -363,6 +369,16 @@ async function boot(): Promise<void> {
       else send({kind:"mission-ack"});
     },
   }});
+  /** Runway Run starts, ends and clears only as recorded events (src/sim/runway-run/system.ts), so a replay reproduces a run. */
+  const sendRunway=(kind:string):void=>{
+    // The city does not step during an online match, so a queued event would start a run after it.
+    if(multiplayer.inMatch())return;
+    const event:SimEvent={tick:curr.tick+1,kind,playerId:LOCAL_PLAYER};
+    queuedEvents.push(event);recordedCommands.push(event);
+  };
+  bindRunwaySender(sendRunway);
+  /** A match's view: no Runway Run entry (the card says it opens after the match). */
+  const uiProjectionInMatch=(shown:SimState,id:string)=>{const v=uiProjection(shown,id,null,undefined,GAME_WAVE,undefined);return v.runway?{...v,runway:{...v.runway,canStart:false,inMatch:true}}:v;};
   /** A rider's destination enters the sim as a recorded event (src/sim/ride.ts). */
   const sendRideDestination=():void=>{
     if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride||curr.players[LOCAL_PLAYER]?.ride?.manual)return;
@@ -534,6 +550,8 @@ async function boot(): Promise<void> {
   container.setAttribute("aria-busy", "false");
   loading?.classList.remove("loading-screen");
   loading?.removeAttribute("role");
+  // Automated browsers drop it at once, so a screenshot taken at "ready" shows the game, not the fade.
+  if (splash) { if (navigator.webdriver) splash.remove(); else { splash.classList.add("gone"); setTimeout(() => splash.remove(), 700); } }
   if (resumingAfterReset) setSessionValue(RESUME_KEY, null);
   if (legacyHud) legacyHud.hidden = !diagnostics;
   keyboard.setBlocked(false);
@@ -586,6 +604,12 @@ async function boot(): Promise<void> {
     flyTo: (x, y, z, yawDeg, pitchDeg) => view.flyTo(x, y, z, (yawDeg * Math.PI) / 180, (pitchDeg * Math.PI) / 180),
     tilesSettled: () => view.tilesSettled(),
     hint: () => hud.hintText(),
+    runway: {
+      start: startRunwayRun,
+      quit: quitRunwayRun,
+      clear: clearRunwayRun,
+      state: () => { const run = runwayOf(curr)?.runs[LOCAL_PLAYER]; return run ? JSON.parse(JSON.stringify(run)) as NonNullable<typeof run> : null; },
+    },
     setAgentBags: (full) => view.agents.setBags(full),
   });
 
@@ -839,13 +863,15 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!inOnlineMatch&&!taxiSession)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(!inOnlineMatch&&!taxiSession&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;plainWordsLayer.update(shown,me_);const activityView=match||taxiSession?{}:activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:taxiSession?{...uiProjection(shown,me_,roads,taxiWaypoint,GAME_WAVE,taxiSessionView(taxiSession).target??undefined,mapGeography),cashCents:uiProjection(curr,LOCAL_PLAYER,null,undefined,GAME_WAVE).cashCents,interaction:undefined,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView),mapGeography);taxiControl.update(taxiSession,{available:!inOnlineMatch&&worldName==="sf",reason:inOnlineMatch?"Exit the online match to start a taxi shift.":worldName!=="sf"?"Taxi shifts use the San Francisco road network.":""});const pace=pacer.stats();gameUI.update({...uiView,...(uiView.map&&activityView.blips?{map:{...uiView.map,blips:[...uiView.map.blips,...activityView.blips]}}:{}),performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;plainWordsLayer.update(shown,me_);const activityView=match||taxiSession?{}:activityProjection(curr,LOCAL_PLAYER,GAME_WAVE,uiText);activityPanel.update(activityView);const uiView=match?{...uiProjectionInMatch(shown,me_),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:taxiSession?{...uiProjection(shown,me_,roads,taxiWaypoint,GAME_WAVE,taxiSessionView(taxiSession).target??undefined,mapGeography),cashCents:uiProjection(curr,LOCAL_PLAYER,null,undefined,GAME_WAVE).cashCents,interaction:undefined,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER)??activityDestination(activityView),mapGeography);taxiControl.update(taxiSession,{available:!inOnlineMatch&&worldName==="sf",reason:inOnlineMatch?"Exit the online match to start a taxi shift.":worldName!=="sf"?"Taxi shifts use the San Francisco road network.":""});const pace=pacer.stats();gameUI.update({...uiView,...(uiView.map&&activityView.blips?{map:{...uiView.map,blips:[...uiView.map.blips,...activityView.blips]}}:{}),performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
 }
 
 boot().catch((err: unknown) => {
+  // A failed boot shows its message and Retry on the plain card, not behind the cover art.
+  document.getElementById("splash")?.remove();
   const hud = document.getElementById("hud");
   if (hud) {
     hud.hidden = false;

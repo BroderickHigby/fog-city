@@ -4,6 +4,7 @@ import { InputController, availableGamepads } from "../input/controller.ts";
 import { Keyboard, isTextEntry } from "../input/keyboard.ts";
 import { MenuGamepad } from "../input/menu-gamepad.ts";
 import { bounded, formatMoney } from "./copy.ts";
+import { arrowTransform, formatRaised, formatRunway } from "./runway.ts";
 import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap, releaseMapCache } from "./minimap.ts";
 import { formatCompass } from "./compass.ts";
@@ -15,7 +16,7 @@ import { mountCredits } from "./credits.ts";
 import { Action } from "../sim/contract.ts";
 import { createIcon, type IconName } from "./icons.ts";
 import { PHONE_APPS, createPhoneAppIcon, createPhoneShell, phoneAppLabel } from "./phone-shell.ts";
-import type { MapPoint, MountedGameUI, PhoneApp, UiLightingPreset, UiMountOptions, UiView } from "./types.ts";
+import type { MapPoint, MountedGameUI, PhoneApp, RunwayNoteView, UiLightingPreset, UiMountOptions, UiView } from "./types.ts";
 
 const IMPLEMENTED_PHONE_APPS:readonly PhoneApp[]=["map","loadout","botBounty","botCheck","bank","settings","officeHours"];
 /** Mount once, update with immutable projections, then dispose when leaving the game. */
@@ -23,8 +24,10 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   const doc=options.document??host.ownerDocument,win=doc.defaultView!,copy=options.copy,callbacks=options.callbacks??{};
   const root=doc.createElement("section");root.className="fc-ui";root.setAttribute("aria-label",copy("ui.brand"));root.dataset.touch=String(!!options.touch);
   const style=doc.createElement("style");style.textContent=UI_STYLES+LOADOUT_STYLES;root.append(style);
-  let view:UiView|undefined,modal:"phone"|"vendor"|"startup"|"pause"|"interaction"|"help"|"status"|"lighting"|"tools"|"objective"|undefined,app:PhoneApp|undefined,previousFocus:HTMLElement|null=null,freeText:FreeTextControl|undefined,disposed=false,panelStamp="",crisis=false,interactionId="";
+  let view:UiView|undefined,modal:"phone"|"vendor"|"startup"|"pause"|"interaction"|"help"|"status"|"lighting"|"tools"|"objective"|"runway"|undefined,app:PhoneApp|undefined,previousFocus:HTMLElement|null=null,freeText:FreeTextControl|undefined,disposed=false,panelStamp="",crisis=false,interactionId="";
   let lightingPreset=options.lightingPreset??"live",previousRunway:number|undefined,runwayAlertUntil=-1;
+  // Runway Run (src/ui/runway.ts): the run phase last seen, the newest toast shown, and the toasts' timers.
+  let runPhase:string|undefined,lastRunNote:number|undefined;const runTimers=new Set<number>();
   const keyboard=options.keyboard??new Keyboard(win,()=>!!modal||isTextEntry(doc.activeElement));const controls=new InputController(keyboard);
   let phoneMap:HTMLCanvasElement|undefined,phoneCenter:MapPoint|undefined,phoneRadius=400;
   let phoneBody:HTMLElement|undefined,phoneLocation:HTMLElement|undefined,phoneStatus:HTMLElement|undefined;
@@ -63,14 +66,20 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
   // a driven robotaxi) H is the horn. Reads the view update() stored before calling this.
   const updateHints=(onFoot:boolean):void=>{
     const mode=onFoot?"foot":view?.vehicleControl==="robotaxi-passenger"?"passenger":"vehicle";if(mode===hintMode)return;hintMode=mode;hints.replaceChildren();
-    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H",mode==="passenger"?"ui.hud.robotaxiHint":"ui.hud.hornHint"]];
+    const keys=onFoot?[["W A S D","ui.hud.walkHint"],["Shift","ui.hud.runHint"],["E","ui.controls.fire"],["F","ui.hud.vehicleHint"],["H","ui.hud.takeoverHint"]]:[["W A S D","ui.hud.moveHint"],["F","ui.hud.vehicleHint"],["H",mode==="passenger"?"ui.hud.robotaxiHint":"ui.hud.hornHint"],["I","ui.hud.runwayHint"]];
     for(const [key,label]of keys){const item=node("span");item.append(node("kbd",undefined,key),doc.createTextNode(` ${copy(label!)}`));hints.append(item);}
   };
   updateHints(false);
   const perf=node("output","fc-perf");perf.hidden=!options.showPerformance;
+  // Runway Run: the countdown, money and hype, and where to go (the arrow turns toward the target).
+  const runwayHud=node("aside","fc-runway"),runwayClock=node("strong","fc-runway-clock","1:00"),runwayRaised=node("b"),runwayHype=node("b"),runwayArrow=node("span","fc-runway-arrow","➤"),runwayGoal=node("span","fc-runway-goal"),runwayMetres=node("span","fc-runway-metres"),runwayFirm=node("div","fc-runway-firm"),runwayToasts=node("div","fc-runway-toasts");
+  {const head=node("div","fc-runway-head"),stats=node("div","fc-runway-stats"),goal=node("div","fc-runway-target"),raised=node("span"),hype=node("span");
+    head.append(node("small",undefined,copy("ui.runway.hud.runway")),runwayClock);raised.append(node("small",undefined,copy("ui.runway.hud.raised")),runwayRaised);hype.append(node("small",undefined,copy("ui.runway.hud.hype")),runwayHype);
+    stats.append(raised,hype);runwayArrow.setAttribute("aria-hidden","true");goal.append(runwayArrow,runwayGoal,runwayMetres);runwayHud.append(head,stats,goal,runwayFirm);runwayHud.setAttribute("aria-label",copy("ui.runway.title"));runwayHud.hidden=true;
+    runwayToasts.setAttribute("role","status");runwayToasts.setAttribute("aria-live","polite");}
   const ads=node("div","fc-ads"),layer=node("div","fc-modal-layer");layer.hidden=true;
   layer.addEventListener("click",event=>{if(event.target===layer&&["status","lighting","tools","objective"].includes(modal??""))setModal(undefined);});
-  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,navigation,speed,hints,perf,reticle,ads,layer);host.append(root);
+  const reticle=node("div","fc-reticle");reticle.setAttribute("aria-hidden","true");reticle.hidden=true;root.append(hud,objective,runwayHud,runwayToasts,navigation,speed,hints,perf,reticle,ads,layer);host.append(root);
   const touch=options.touch?createTouchControls(doc,controls,copy):undefined;if(touch)root.append(touch.element);
 
   function setModal(next:typeof modal,phoneApp?:PhoneApp):void {
@@ -107,7 +116,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       dialog.setAttribute("aria-labelledby","fc-dialog-title");dialog.append(shell.status,shell.header,shell.body,shell.footer);renderPhone(shell.body);
       layer.replaceChildren(dialog);shell.body.scrollTop=phoneScrollOffsets.get(app??"home")??0;dialog.focus();return;
     }
-    const titleKey=modal==="status"?"ui.hud.status":modal==="lighting"?"ui.hud.lighting":modal==="tools"?"ui.hud.actions":modal==="objective"?"ui.hud.objective":modal==="vendor"?"ui.vendor.title":modal==="startup"?"ui.signup.title":modal==="help"?"ui.help.title":"ui.hud.pause";
+    const titleKey=modal==="status"?"ui.hud.status":modal==="lighting"?"ui.hud.lighting":modal==="tools"?"ui.hud.actions":modal==="objective"?"ui.hud.objective":modal==="runway"?(view?.runway?.phase==="over"?"ui.runway.overTitle":"ui.runway.title"):modal==="vendor"?"ui.vendor.title":modal==="startup"?"ui.signup.title":modal==="help"?"ui.help.title":"ui.hud.pause";
     const header=node("header"),title=node("h1",undefined,modal==="interaction"?(view?.interaction?.title??copy("ui.hud.objective")):copy(titleKey));
     title.id="fc-dialog-title";dialog.setAttribute("aria-labelledby",title.id);header.append(title);header.append(iconButton(copy("ui.common.close"),"close",()=>setModal(undefined)));dialog.append(header);
     if(modal==="status"){
@@ -117,13 +126,15 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     }
     if(modal==="tools"){
       const actions=node("div","fc-action-list");
-      for(const [label,icon,target] of [[copy("ui.vendor.title"),"shop","vendor"],[copy("ui.help.open"),"help","help"],...(callbacks.lighting?[[copy("ui.hud.lighting"),"sun","lighting"]]:[])] as [string,IconName,typeof modal][]){const action=button("",()=>setModal(target));action.append(createIcon(doc,icon),doc.createTextNode(label));actions.append(action);}
+      for(const [label,icon,target] of [[copy("ui.vendor.title"),"shop","vendor"],[copy("ui.runway.title"),"runway","runway"],[copy("ui.help.open"),"help","help"],...(callbacks.lighting?[[copy("ui.hud.lighting"),"sun","lighting"]]:[])] as [string,IconName,typeof modal][]){const action=button("",()=>setModal(target));action.append(createIcon(doc,icon),doc.createTextNode(label));actions.append(action);}
       dialog.append(actions);
     }
     if(modal==="lighting"){
       const choices=node("div","fc-action-list");for(const preset of ["live","noon","golden","twilight","night"] as const){const choice=button(copy(`ui.hud.lighting.${preset}`),()=>{lightingPreset=preset;callbacks.lighting?.(preset);lightingButton?.replaceChildren(createIcon(doc,preset==="night"?"moon":"sun"));setModal(undefined);});choice.setAttribute("aria-pressed",String(lightingPreset===preset));choices.append(choice);}dialog.append(choices);
     }
     if(modal==="objective"){dialog.append(node("h2",undefined,view?.objective?.title??view?.interaction?.title??""),node("p","fc-mission-detail",view?.objective?.detail??view?.interaction?.detail??""));if(view?.interaction)dialog.append(button(copy("ui.common.continue"),()=>setModal("interaction")));}
+    if(modal==="pause"){const play=button("",()=>setModal("runway"));play.className="fc-runway-open";play.append(createIcon(doc,"runway"),doc.createTextNode(copy("ui.runway.title")));dialog.append(play);}
+    if(modal==="runway")renderRunway(dialog);
     if(modal==="pause"&&options.audioSettings){audioPanel=options.audioSettings(doc);dialog.append(audioPanel.element);}
     if(modal==="pause"){creditsPanel=mountCredits(doc);dialog.append(creditsPanel.element);}
     if(modal==="help"||modal==="pause"){dialog.append(createControlsHelp(doc,copy));if(callbacks.openTaxi)dialog.append(button("Taxi shifts",()=>{setModal(undefined);callbacks.openTaxi?.();}));}
@@ -138,6 +149,52 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       freeText=createFreeTextBox(doc,{id:"startup",label:copy("ui.signup.label"),submitLabel:copy("ui.signup.submit"),copy,choices:options.startupChoices,resolve:matchKit,accept:result=>{if(result.kind==="kit"){callbacks.startup?.(result.kitId);setModal(undefined);}},crisis:active=>{crisis=active;controls.setBlocked(true);}});dialog.append(freeText.element);
     }
     layer.replaceChildren(dialog);dialog.focus();
+  }
+  /** Runway Run: how it works and a Start button, the run in progress, or the results card. */
+  function renderRunway(dialog:HTMLElement):void {
+    const run=view?.runway,phase=run?.phase??"idle",card=node("div","fc-runway-card");card.dataset.phase=phase;
+    const row=(label:string,value:string)=>{const item=node("div","fc-runway-row");item.append(node("span",undefined,label),node("strong",undefined,value));return item;};
+    if(phase==="over"&&run){
+      card.append(node("p","fc-runway-stage",run.stage),node("p",undefined,copy("ui.runway.result.shutdown")),row(copy("ui.runway.result.raised"),formatRaised(run.raised)),row(copy("ui.runway.result.closed"),String(run.closed)),row(copy("ui.runway.result.best"),formatRaised(run.best)),row(copy("ui.runway.result.stage"),run.stage));
+      const again=button(copy("ui.runway.again"),()=>{callbacks.runway?.("start");setModal(undefined);});again.disabled=!run.canStart;again.className="fc-runway-primary";
+      const back=button(copy("ui.runway.back"),()=>{callbacks.runway?.("clear");setModal(undefined);});
+      const actions=node("div","fc-runway-actions");actions.append(again,back);card.append(actions);if(!run.canStart)card.append(node("p","fc-runway-note",copy(run.inMatch?"ui.runway.inMatch":"ui.runway.needCar")));
+    }else if(phase==="running"&&run){
+      card.append(node("p",undefined,copy("ui.runway.running")),row(copy("ui.runway.hud.runway"),formatRunway(run.runwayS)),row(copy("ui.runway.hud.raised"),formatRaised(run.raised)),row(copy("ui.runway.hud.hype"),`×${run.hype.toFixed(1)}`));
+      const keep=button(copy("ui.runway.resume"),()=>setModal(undefined));keep.className="fc-runway-primary";
+      const quit=button(copy("ui.runway.quit"),()=>{callbacks.runway?.("quit");setModal("runway");});
+      const actions=node("div","fc-runway-actions");actions.append(keep,quit);card.append(actions);
+    }else{
+      card.append(node("p",undefined,copy("ui.runway.intro")),node("p",undefined,copy("ui.runway.tips")));
+      const go=button(copy("ui.runway.start"),()=>{callbacks.runway?.("start");setModal(undefined);});go.disabled=!run?.canStart;go.className="fc-runway-primary";
+      card.append(go);if(!run?.canStart)card.append(node("p","fc-runway-note",copy(run?.inMatch?"ui.runway.inMatch":"ui.runway.needCar")));
+    }
+    dialog.append(card);
+  }
+  function showRunwayNote(note:RunwayNoteView):void {
+    const text=note.kind==="pickup"?copy("ui.runway.toast.pickup",{name:note.name,firm:note.firm}):note.kind==="check"?copy("ui.runway.toast.check",{amount:formatRaised(note.amount),seconds:note.seconds}):note.kind==="downRound"?copy("ui.runway.toast.downRound"):note.kind==="scandal"?copy("ui.runway.toast.scandal",{name:note.name,seconds:note.seconds}):undefined;
+    if(!text)return;
+    const toast=node("p","fc-runway-toast",text);toast.dataset.kind=note.kind;runwayToasts.append(toast);while(runwayToasts.children.length>3)runwayToasts.firstElementChild?.remove();
+    const timer=win.setTimeout(()=>{runTimers.delete(timer);toast.remove();},4500);runTimers.add(timer);
+  }
+  /** The Runway Run block and toasts follow the sim's view; a run that just ended opens its results. */
+  function updateRunway(next:UiView):void {
+    const run=next.runway,phase=run?.phase??"idle";
+    runwayHud.hidden=phase!=="running";
+    if(run&&phase==="running"){
+      runwayClock.textContent=formatRunway(run.runwayS);runwayHud.dataset.low=String(run.runwayS<10);
+      runwayRaised.textContent=formatRaised(run.raised);runwayHype.textContent=`×${run.hype.toFixed(1)}`;
+      const who={name:run.investor?.name??"",firm:run.investor?.firm??""};
+      runwayGoal.textContent=copy(run.carrying?"ui.runway.hud.demo":"ui.runway.hud.pickup",who);runwayMetres.textContent=copy("ui.runway.hud.distance",{metres:run.targetM??0});runwayFirm.textContent=who.firm;
+      runwayArrow.style.transform=arrowTransform(run.targetTurn??0);
+    }
+    // A new run counts its notes from 1 again; the first look at a run never replays old ones.
+    if(phase==="running"&&runPhase!=="running")lastRunNote=0;
+    const notes=run?.notes??[];
+    if(lastRunNote===undefined)lastRunNote=notes.reduce((top,n)=>Math.max(top,n.id),0);
+    for(const note of notes)if(note.id>lastRunNote){lastRunNote=note.id;showRunwayNote(note);}
+    if(runPhase==="running"&&phase==="over")setModal("runway");
+    runPhase=phase;
   }
   function renderPhone(dialog:HTMLElement):void {
     if(view?.interaction)dialog.append(button(copy("ui.common.continue"),()=>setModal("interaction")));
@@ -203,6 +260,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(isTextEntry(event.target))return;
     if((event.code==="F1"||event.key==="?")&&!event.repeat){event.preventDefault();setModal(modal==="help"?undefined:"help");return;}
     if(event.code==="KeyM"&&!event.repeat){event.preventDefault();setModal(modal==="phone"&&app==="map"?undefined:"phone","map");return;}
+    if(event.code==="KeyI"&&!event.repeat&&(!modal||modal==="runway")){event.preventDefault();setModal(modal==="runway"?undefined:"runway");return;}
     if(event.code==="KeyP"&&!event.repeat){event.preventDefault();setModal(modal==="phone"?undefined:"phone");}
   };win.addEventListener("keydown",keydown);
   const menuPad=new MenuGamepad({isOpen:()=>!!modal,toggle:()=>setModal(modal?undefined:"phone"),close:()=>setModal(undefined),move:delta=>{const items=focusableControls();if(!items.length)return;const index=items.indexOf(doc.activeElement as HTMLElement);items[(index+delta+items.length)%items.length]?.focus();},activate:()=>{(doc.activeElement as HTMLElement|null)?.click();}});
@@ -229,7 +287,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     const heading=formatCompass(next.heading);bearing.textContent=heading.label;needle.style.transform=`rotate(${heading.rotation}deg)`;compass.setAttribute("aria-label",`${copy("ui.hud.compass")}: ${heading.label}`);
     const nextInteraction=next.interaction?.id??"";
     if(nextInteraction!==interactionId){interactionId=nextInteraction;if(next.interaction)setModal("interaction");else if(modal==="interaction")setModal(undefined);}
-    updateStatus(next);
+    updateStatus(next);updateRunway(next);
     objective.hidden=!next.objective&&!next.interaction;resumeInteraction.hidden=!next.interaction;objectiveTitle.textContent=next.objective?.title??next.interaction?.title??"";objectiveButton.setAttribute("aria-label",copy("ui.hud.missionDetails",{title:objectiveTitle.textContent}));
     if(modal==="objective"&&objective.hidden)setModal(undefined);
     speedValue.textContent=String(Math.round(bounded(next.speedMps,0,200)*2.2369362920544));
@@ -239,7 +297,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(phoneStatus)phoneStatus.dataset.tick=String(next.tick);if(phoneLocation)phoneLocation.textContent=next.streetName??"";
     renderAds();if(phoneMap)drawMap(phoneMap,next,600,0,phoneRadius,phoneCenter);
     // Never replace a focused form while sim snapshots arrive.
-    if(modal&&!["startup","interaction","status","lighting","tools","objective"].includes(modal)){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.officeHours,next.loadout,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;if(modal==="phone"&&app==="loadout"&&loadoutPanel){loadoutPanel.update(next.loadout);return;}if(modal==="phone"&&app==="settings"&&phoneAppAvailable("settings"))return;const active=doc.activeElement as HTMLElement|null,mapFocused=active===phoneMap;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(mapFocused)phoneMap?.focus();else if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
+    if(modal&&!["startup","interaction","status","lighting","tools","objective","runway"].includes(modal)){const stamp=JSON.stringify([next.vendor,next.bounties,next.scan,next.phoneApps,next.cashCents,next.officeHours,next.loadout,next.map?.waypoint]);if(stamp!==panelStamp){panelStamp=stamp;if(modal==="phone"&&app==="loadout"&&loadoutPanel){loadoutPanel.update(next.loadout);return;}if(modal==="phone"&&app==="settings"&&phoneAppAvailable("settings"))return;const active=doc.activeElement as HTMLElement|null,mapFocused=active===phoneMap;const index=[...layer.querySelectorAll("button")].indexOf(active as HTMLButtonElement);renderPanel();if(mapFocused)phoneMap?.focus();else if(index>=0)(layer.querySelectorAll("button")[index] as HTMLElement|undefined)?.focus();}}
   }
-  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));const input=controls.sample();reticle.hidden=(input.actions&(Action.fire|Action.scan|Action.watch|Action.altFire))===0;return input;},hideReticle:()=>{reticle.hidden=true;},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;loadoutPanel?.dispose();freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();graphicsPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);releaseMapCache(canvas);if(phoneMap)releaseMapCache(phoneMap);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
+  return{element:root,update,sampleInput:()=>{controls.setBlocked(!!modal||crisis||isTextEntry(doc.activeElement));const input=controls.sample();reticle.hidden=(input.actions&(Action.fire|Action.scan|Action.watch|Action.altFire))===0;return input;},hideReticle:()=>{reticle.hidden=true;},setPhoneOpen:open=>setModal(open?"phone":undefined),setVendorOpen:open=>setModal(open?"vendor":undefined),showStartup:()=>{setModal("startup");freeText?.focus();},dispose(){if(disposed)return;disposed=true;loadoutPanel?.dispose();freeText?.dispose();savePanel?.dispose();audioPanel?.dispose();graphicsPanel?.dispose();creditsPanel?.dispose();win.cancelAnimationFrame(gamepadFrame);for(const timer of runTimers)win.clearTimeout(timer);runTimers.clear();releaseMapCache(canvas);if(phoneMap)releaseMapCache(phoneMap);if(!options.keyboard)keyboard.dispose();controls.releaseAll();touch?.dispose();win.removeEventListener("keydown",keydown);callbacks.pause?.(false);root.remove();}};
 }

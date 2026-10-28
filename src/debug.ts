@@ -5,6 +5,7 @@
 import type { InputFrame, SimEvent, SimInput, SimState } from "./sim/contract.ts";
 import type { BuildingDetailStats } from "./render/building-character.ts";
 import type { GrassInfo } from "./render/grass.ts";
+import type { RunwayRun } from "./sim/runway-run/index.ts";
 
 export type CameraModeName = "chase" | "first-person" | "fly";
 
@@ -141,6 +142,11 @@ export interface DebugHandle {
   flyTo(x: number, y: number, z: number, yawDeg: number, pitchDeg: number): void;
   /** True when no tile is queued, loading or building. */
   tilesSettled(): boolean;
+  /**
+   * Runway Run (QA): queue a recorded start, quit or clear for the next tick (the UI buttons send
+   * the same events), and read this player's run (null before one starts). Plain data, no handles.
+   */
+  runway?: { start(): void; quit(): void; clear(): void; state(): RunwayRun | null };
   /** The HUD hint on screen now ("" when none), e.g. "No room to get out". */
   hint(): string;
   /**
