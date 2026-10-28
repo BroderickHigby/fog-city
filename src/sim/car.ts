@@ -57,6 +57,7 @@ import { stepReferenceDriving, type ReferenceDrivingResult } from "./reference-d
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { approach, clamp, datan, datan2, dcos, dsin, dtan, wrapAngle } from "./dmath.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Box, type Circle, type ImpactBody } from "./collide.ts";
+import { BOX_CONTACT_VERSION, boxContact } from "./vehicle-contacts.ts";
 import { segmentCrossesWall } from "./boundary.ts";
 import { ROOF_STEP_M, meshGroundHeight, surfaceHeight, type World } from "./world.ts";
 
@@ -164,6 +165,12 @@ export const CAR = {
   maxSpinKick: 2.5,
   /** Coulomb friction between the bodies along the contact, as a share of the normal impulse. */
   bodyFriction: 0.15,
+  /**
+   * v25: contact friction of a box-to-box hit on a car or a robotaxi (Slop New York's 0.35): a
+   * side-swipe's scrape along the panels turns both bodies. (Restitution stays bodyRestitution:
+   * Slop's 0.08 left a shoved car touching the one that shoved it, a new hit almost every tick.)
+   */
+  boxFriction: 0.35,
 } as const;
 
 /**
@@ -196,6 +203,13 @@ export interface CarContact {
   x: number;
   z: number;
   speed: number;
+  /**
+   * v25: the body's centre when stepCar met it box to box (the start of the tick). A driving car
+   * that takes its share later (impacts.ts receive, unmet) has moved on since: its spin and dent
+   * are taken from the point this far from that centre.
+   */
+  bx?: number;
+  bz?: number;
 }
 
 const SINCE_CONTACT_CAP = 600;
@@ -269,6 +283,41 @@ export function bodyHit(
   const pz = circle.z + nz * circle.r;
   const kick = spinKick(self.mass, self.k2, px - self.x, pz - self.z, jx, jz);
   return { vx: self.vx + jx / self.mass, vz: self.vz + jz / self.mass, kick, contact: { key: body.key, j, nx, nz, jt, tx, tz, x: px, z: pz, speed: -vn } };
+}
+
+/**
+ * v25: one hit of `self` on a body it can shove at a box contact (vehicle-contacts.ts boxContact:
+ * the normal (nx, nz) points out of the body toward self, (x, z) is the clipped contact point).
+ * The same exchange as bodyHit (the closing speed of the two centres over the two masses, as
+ * dodge.ts bounds a hit, with `restitution`, and Coulomb friction along the contact up to
+ * `friction` of it), at the point where the boxes touch rather than on a circle: both bodies
+ * spin from the same impulse at the same point (spinKick; the body's share in impacts.ts receive).
+ * Null when they are not closing.
+ */
+export function boxHit(
+  self: Readonly<Shover>,
+  body: Readonly<ImpactBody>,
+  g: Readonly<{ nx: number; nz: number; x: number; z: number }>,
+  restitution: number,
+  friction: number,
+): { vx: number; vz: number; kick: number; contact: CarContact } | null {
+  const nx = g.nx;
+  const nz = g.nz;
+  const rvx = self.vx - body.vx;
+  const rvz = self.vz - body.vz;
+  const vn = rvx * nx + rvz * nz;
+  if (vn >= 0) return null;
+  // (A prop hit below its break speed does not give: an immovable body.)
+  const inv = 1 / self.mass + (body.breakSpeed !== undefined && -vn < body.breakSpeed ? 0 : 1 / body.mass);
+  const j = ((1 + restitution) * -vn) / inv;
+  const tx = -nz;
+  const tz = nx;
+  const vt = rvx * tx + rvz * tz;
+  const jt = clamp(-vt / inv, -friction * j, friction * j);
+  const jx = j * nx + jt * tx;
+  const jz = j * nz + jt * tz;
+  const kick = spinKick(self.mass, self.k2, g.x - self.x, g.z - self.z, jx, jz);
+  return { vx: self.vx + jx / self.mass, vz: self.vz + jz / self.mass, kick, contact: { key: body.key, j, nx, nz, jt, tx, tz, x: g.x, z: g.z, speed: -vn } };
 }
 
 /** A body's velocity once it has taken the opposite of contact `k`'s impulse. */
@@ -532,6 +581,9 @@ export function stepCar(
     const res = resolveBox(world, { x, z, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, colY, obstacles, ref, pushLeft, topY);
     pushLeft -= res.pushed;
     if (!res.hit) continue;
+    // (Where the body met what it hit, before the push: v25's box contact is taken there.)
+    const metX = x;
+    const metZ = z;
     x = res.x;
     z = res.z;
     touched = true;
@@ -563,25 +615,34 @@ export function stepCar(
       // Another car or a robotaxi: momentum is exchanged once a tick; after that the car only
       // stops closing on it (it moves at the body's velocity along the normal).
       // (After the exchange the body moves at its new velocity: bodyAfter.)
+      // v25: a body with a box is met box to box where they touched (boxContact: the face normal
+      // and the clipped contact point); a round body, or boxes that do not overlap, keep the circle's.
+      const box = handlingVersion >= BOX_CONTACT_VERSION && body.box
+        ? boxContact({ x: metX, z: metZ, heading, hl: dimensions.halfLength, hw: dimensions.halfWidth }, { x: body.x, z: body.z, heading: body.box.heading, hl: body.box.hl, hw: body.box.hw })
+        : null;
+      const nx = box ? box.nx : res.nx;
+      const nz = box ? box.nz : res.nz;
       const hit = contacts.find((k) => k.key === body.key);
       const bv = hit ? bodyAfter(body, hit) : body;
       const rvx = vx - bv.vx;
       const rvz = vz - bv.vz;
-      const vn = rvx * res.nx + rvz * res.nz;
+      const vn = rvx * nx + rvz * nz;
       if (vn < 0) {
         if (-vn > impact) {
           impact = -vn;
           impactPerson = false;
         }
         if (hit) {
-          vx -= vn * res.nx;
-          vz -= vn * res.nz;
+          vx -= vn * nx;
+          vz -= vn * nz;
         } else {
-          const h = bodyHit({ mass: CAR.mass, k2: CAR.yawK2, x, z, vx, vz }, body, res.circle!, res.nx, res.nz, CAR.bodyRestitution)!;
+          const h = box
+            ? boxHit({ mass: CAR.mass, k2: CAR.yawK2, x: metX, z: metZ, vx, vz }, body, box, CAR.bodyRestitution, CAR.boxFriction)!
+            : bodyHit({ mass: CAR.mass, k2: CAR.yawK2, x, z, vx, vz }, body, res.circle!, res.nx, res.nz, CAR.bodyRestitution)!;
           vx = h.vx;
           vz = h.vz;
           yawRate += h.kick;
-          contacts.push(h.contact);
+          contacts.push(box ? { ...h.contact, bx: body.x, bz: body.z } : h.contact);
         }
       }
       continue;
