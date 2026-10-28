@@ -25,6 +25,7 @@
 
 import * as THREE from "three";
 import { carAppearance, type CarAppearance } from "./car-appearance.ts";
+import { TrafficLean } from "./body-motion.ts";
 import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
@@ -199,6 +200,8 @@ function flag(a: THREE.BufferAttribute, count: number): void {
 // ---------------------------------------------------------------- scratch maths
 
 const _base = new THREE.Matrix4();
+/** A near vehicle's placement without its body lean: its wheels' parent. */
+const _flat = new THREE.Matrix4();
 const _local = new THREE.Matrix4();
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -222,6 +225,16 @@ function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx:
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
+}
+
+/**
+ * A vehicle's placement with its drawn body lean (body-motion.ts TrafficLean) added to pitch and roll,
+ * turned about the vehicle's origin on the road. A one-instance car or a far proxy tilts whole, wheels
+ * included (as Slop New York's traffic does): a wheel dips or floats by at most 5 cm (LEAN_DROP_MAX). A
+ * near model with its own wheel parts keeps its wheels flat instead (drawNear) and tilts only the body.
+ */
+function vehicleMatrix(pose: Readonly<AgentPose>, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
+  return baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch + (pose.leanPitch ?? 0), scale, out, (pose.roll ?? 0) + (pose.leanRoll ?? 0));
 }
 
 // ---------------------------------------------------------------- people (agents and players)
@@ -427,6 +440,8 @@ export class AgentLayer {
   private readonly nearPeopleWet = new Map<number, number>();
   private readonly personCue: AgentCue = { brake: 0, flash: 0, rust: 0, wet: 0, brakeUntil: 0 };
   private anims = new Map<number, Anim>();
+  /** Per vehicle id: its body spring (near and mid tiers only; a far car is too small to show it). */
+  private leans = new Map<number, TrafficLean>();
   private frameNo = 0;
   private readonly cue: AgentCue = { brake: 0, flash: 0, brakeUntil: 0 };
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
@@ -558,7 +573,7 @@ export class AgentLayer {
         const part = tier === TIER_NEAR && this.civilianNear.count ? this.civilianNear : this.civilianFar;
         if (!part.mesh.geometry.boundingBox) part.mesh.geometry.computeBoundingBox();
         bounds.copy(part.mesh.geometry.boundingBox!);
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, this.civilianScale, matrix);
+        vehicleMatrix(pose, this.civilianScale, matrix);
       } else {
         const view = this.kinds.get("robotaxi")!;
         if (tier === TIER_NEAR && view.source === "file") bounds.copy(view.model!.bodyBounds);
@@ -567,7 +582,7 @@ export class AgentLayer {
           if (!geometry.boundingBox) geometry.computeBoundingBox();
           bounds.copy(geometry.boundingBox!);
         }
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, matrix, pose.roll);
+        vehicleMatrix(pose, view.scale, matrix);
         const override = this.lookOverride?.get(actor.id);
         collapse(matrix, actor, override ?? visualCombat(actor), override?.height ?? visualHeight(actor));
       }
@@ -693,6 +708,8 @@ export class AgentLayer {
         p.z = b.z + _off.z;
       }
       p.y = this.supportHeight(p.x, p.y, p.z);
+      p.leanPitch = 0;
+      p.leanRoll = 0;
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -721,6 +738,7 @@ export class AgentLayer {
       const [a, b] = pairs[i]!;
       if (b.id === this.hiddenAgent) continue;
       const pose = this.poses[i]!;
+      if (b.kind === "robotaxi") this.lean(b, pose, tier, dt);
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
       const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
@@ -747,7 +765,7 @@ export class AgentLayer {
       }
       if (isCivilianTraffic(b) && this.civilianNear && this.civilianFar) {
         const anim = this.anim(b.id,pose,dt,this.civilianWheelRadius*this.civilianScale,2.7*this.civilianScale,10);
-        baseMatrix(pose.x,pose.y,pose.z,pose.heading,pose.pitch,this.civilianScale,_base);
+        vehicleMatrix(pose,this.civilianScale,_base);
         const part = tier === TIER_NEAR ? this.civilianNear : this.civilianFar;
         part.push(_base,cue,null,carAppearance(Math.floor(b.id/8)),anim.wheel,-anim.steer);
         if(tier === TIER_NEAR) { near++; this.wasNear.add(b.id); }
@@ -764,7 +782,7 @@ export class AgentLayer {
         near++;
         this.drawNear(view, b, pose, cue, dt);
       } else {
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
+        vehicleMatrix(pose, view.scale, _base);
         collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
       }
@@ -829,6 +847,7 @@ export class AgentLayer {
 
     if (this.frameNo % 120 === 0) {
       for (const [id, an] of this.anims) if (this.frameNo - an.seen > 120) this.anims.delete(id);
+      for (const [id, l] of this.leans) if (this.frameNo - l.seen > 120) this.leans.delete(id);
       for (const [id, until] of this.brakeUntil) if (until < time) this.brakeUntil.delete(id);
       for (const [id, w] of this.windows) if (w.seen < this.windowTick) this.windows.delete(id);
     }
@@ -940,6 +959,22 @@ export class AgentLayer {
   }
 
   /**
+   * Set this vehicle's drawn lean (pose.leanPitch/leanRoll) from its drawn speed and heading: the
+   * body-motion.ts spring, stepped for near and mid vehicles only. A manually driven taxi has its own
+   * suspension (pose.roll); a vehicle that was out of sight starts level.
+   */
+  private lean(b: Readonly<AgentState>, pose: AgentPose, tier: number, dt: number): void {
+    if (tier < TIER_MID || pose.roll !== undefined) return;
+    let l = this.leans.get(b.id);
+    if (!l) this.leans.set(b.id, l = new TrafficLean());
+    else if (this.frameNo - l.seen > 1) l.reset(); // a skipped frame would read its change as one frame's
+    l.seen = this.frameNo;
+    l.update(dt, pose.speed, pose.heading);
+    pose.leanPitch = l.pitch;
+    pose.leanRoll = l.roll;
+  }
+
+  /**
    * The animation state of a near agent, advanced to this frame's pose. A person (`person`) steps
    * by the distance it is drawn to move whichever way it goes (a sidestep swings its legs too),
    * with longer steps the faster it goes (strideFor), so its feet never slide.
@@ -983,9 +1018,14 @@ export class AgentLayer {
     const spec = AGENT_SPEC[b.kind];
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
-    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
+    // The body takes the lean; the wheels (their own parts) stay flat on the road under it.
+    vehicleMatrix(pose, view.scale, _base);
+    const leaning = (pose.leanPitch ?? 0) !== 0 || (pose.leanRoll ?? 0) !== 0;
+    if (leaning) baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _flat, pose.roll);
     const override = this.lookOverride?.get(b.id);
-    collapse(_base, b, override ?? visualCombat(b), override?.height ?? visualHeight(b));
+    const combat = override ?? visualCombat(b), height = override?.height ?? visualHeight(b);
+    collapse(_base, b, combat, height);
+    if (leaning) collapse(_flat, b, combat, height);
     // A seized robot's limbs and wheels stop where they are.
     const swing = cue.rust && cue.rust >= 1 ? 0 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
@@ -1007,7 +1047,8 @@ export class AgentLayer {
         case "none":
           break;
       }
-      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
+      const wheel = p.channel.type === "spin" || p.channel.type === "steer-spin";
+      p.part.push(partMatrix(wheel && leaning ? _flat : _base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
     }
   }
 
