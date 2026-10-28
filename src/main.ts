@@ -8,7 +8,10 @@
 // around the camera without blocking the loop; the far skyline is drawn beyond them.
 //
 // Files come through src/io/assets.ts: loose files from the dev server, or the packed layout
-// of a production build (pnpm build), always relative to the page.
+// of a production build (pnpm build), always relative to the page. Until the game is ready the
+// boot holds back what the first frame does not need (the skinned people: the crowd's, drawn as
+// procedural people until they load, and the player's body, as the player starts in a car; the
+// sound effects) and fetches each JSON file once for all its readers (bootAssets).
 //
 // URL parameters:
 //   ?world=dev | dev-city | sf   world directory under public/tiles/ (default dev; a production
@@ -29,7 +32,7 @@ import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import * as THREE from "three";
 import { installDebugHandle } from "./debug.ts";
 import { FramePacer } from "./frame-pacer.ts";
-import { openAssets } from "./io/assets.ts";
+import { bootAssets, openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
 import { replaceLandmarkWorld } from "./io/landmark-world.ts";
 import { Keyboard } from "./input/keyboard.ts";
@@ -79,6 +82,8 @@ import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { isCivilianTraffic } from "./sim/civilian-traffic.ts";
 import { HINT_CAR_DRIVING, HINT_SPRINT, HINT_SPRINT_TOUCH, HINT_TAXI_BOARD, HINT_TAXI_DRIVE, HINT_TAXI_DRIVING, HINT_TAXI_EXIT, HINT_TAXI_HAILED, HINT_TAXI_HEADING, HINT_TAXI_RIDING, Hud, SPRINT_HINTS, exitHint, type HudData } from "./render/hud.ts";
 import { SceneRenderer } from "./render/scene.ts";
+import { CROWD_FILES } from "./render/crowd-humans.ts";
+import { MIXAMO_DODGE_FILE, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PLAYER_DODGE_FILE } from "./render/player-body.ts";
 import { prepareStartingStreets } from "./render/startup.ts";
 import { leapDrawOffset } from "./render/human-motion.ts";
 import type { Manifest, RoadGraph } from "./render/types.ts";
@@ -172,7 +177,13 @@ async function boot(): Promise<void> {
     if (splashStatus) splashStatus.textContent = text;
   };
   // A production build (pnpm build) reads its packed layout; the dev server serves loose files.
-  const assets = await openAssets(import.meta.env.PROD);
+  // The skinned people wait for ready (bootAssets): the crowd's 12 files (18.5 MB of the 52 MB
+  // the boot fetched before, 2026-10-27), drawn as procedural people until they load, and the
+  // player's body and motions (5.5 MB), seen only once the player leaves the car every game
+  // starts in (src/sim/step.ts). None of them is in the first frame.
+  const people = new Set([...CROWD_FILES, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, MIXAMO_MOTION_FILE, MIXAMO_DODGE_FILE]);
+  const bootFiles = bootAssets(await openAssets(import.meta.env.PROD), (path) => people.has(path));
+  const assets = bootFiles.assets;
   const worldName = params.get("world") ?? assets.defaultWorld ?? "sf";
   if (assets.worlds && !assets.worlds.includes(worldName)) {
     throw new Error(`world "${worldName}" is not in this build (it has ${assets.worlds.join(", ")})`);
@@ -305,7 +316,7 @@ async function boot(): Promise<void> {
   const saveStore=new SaveStore({backends:[new IndexedDbSaveBackend(),new MemorySaveBackend()],contentHash:contentHash([JSON.stringify(MISSIONS),JSON.stringify(VENDOR),JSON.stringify(STARTUP_KITS),JSON.stringify(DEFAULT_CATALOG.sites),JSON.stringify(DEFAULT_CATALOG.activities)]),validate:validateSavedProgression});
   const autosave=new Autosave(saveStore,()=>captureProgression(curr,LOCAL_PLAYER));
   const startupForm=MISSIONS.find(mission=>mission.id==="hot-desk")?.steps.find(step=>step.type==="form");
-  const audio=createGameAudioDirector({host:container,missions:MISSIONS,weather:(s,x,z)=>weatherView(world,s,x,z)});void audio.load();
+  const audio=createGameAudioDirector({host:container,missions:MISSIONS,weather:(s,x,z)=>weatherView(world,s,x,z)});
   const restoreSave=(data:Parameters<typeof validateSavedProgression>[0]):void=>{
     const clean=validateSavedProgression(data),player=clean.player as Record<string,unknown>,wallet=clean.wallet as {ownedSiteIds:string[]};
     const site=DEFAULT_CATALOG.sites.find(site=>site.id===player.safehouseId)||DEFAULT_CATALOG.sites.find(site=>site.kind==="safehouse"&&wallet.ownedSiteIds.includes(site.id));
@@ -531,6 +542,9 @@ async function boot(): Promise<void> {
     },
     setAgentBags: (full) => view.agents.setBags(full),
   });
+  // Playable: what the boot held back loads now, behind the first frames.
+  bootFiles.ready();
+  void audio.load();
 
   let nextUiUpdate=0;
   const touchControls = matchMedia("(pointer: coarse)").matches;

@@ -1,36 +1,52 @@
 // The asset layer (src/io/assets.ts) and the web build's packer (scripts/build-web.ts): files
-// packed, gzip-compressed and base64-encoded into .txt packs come back byte for byte through
-// the index (file -> pack, offset, length), a pack is fetched once however many files it holds,
-// an encoded file over the per-file limit is written as parts that join back in index order
-// (a missing, short or reordered part fails loudly, never a truncated decode), and both layouts
+// packed and gzip-compressed into binary .gz packs (the default build), or further
+// base64-encoded into .txt packs (--text), come back byte for byte through the index (file ->
+// pack, offset, length), whether the host hands the page the .gz as it is or decodes it on the
+// way (Content-Encoding: gzip); a byte-shuffled src is unshuffled; a pack is fetched once
+// however many files it holds and however many single files pass through between; an encoded
+// file over the per-file limit is written as parts that join back in index order (a missing,
+// short or reordered part fails loudly, never a truncated decode); the boot holds back what it
+// is told to until ready and fetches each JSON file once for all its readers; and both layouts
 // load a world's sim files the same way (src/io/world-load.ts). Served from a loopback server
-// under a sub-path, as the page host does. The last block builds the real SF world with a part
-// limit low enough to split its collider pack, twice, and loads the world from the result.
+// under a sub-path, as the page host does. The last block builds the real SF world both ways
+// with a part limit low enough to split its collider pack, twice each, and loads the world
+// from the results.
 import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join, relative } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { gunzipSync } from "node:zlib";
 import {
+  BINARY_DIR,
+  BINARY_LIMITS,
   ENCODED_SUFFIX,
   HOST_LIMITS,
   PACK_MAX_BYTES,
+  binaryName,
+  binaryPartName,
   buildWeb,
   checkHostLimits,
+  compress,
   encode,
+  layoutBinary,
   layoutEncoded,
   outDirRefusal,
+  packBinary,
   packItems,
   partName,
+  splitBytes,
   splitEncoded,
   type WebIndex,
 } from "../../scripts/build-web.ts";
-import { base64ToBytes, decodeGzBase64, looseAssets, openAssets, packedAssets, type Assets } from "../../src/io/assets.ts";
+import { base64ToBytes, bootAssets, decodeGzBase64, looseAssets, openAssets, packedAssets, shuffleBytes, unshuffleBytes, type Assets } from "../../src/io/assets.ts";
 import { RUNTIME_LAYERS, loadWorldFiles } from "../../src/io/world-load.ts";
 import { ROOT, worldExists } from "../helpers.ts";
 
 const bytesOf = (n: number, seed: number): Uint8Array => Uint8Array.from({ length: n }, (_, i) => (i * 31 + seed * 7 + ((i >> 5) & 255)) & 255);
+/** Byte-for-byte equality without toEqual's element walk (slow on a megabyte, long enough for an idle socket to close). */
+const same = (a: Uint8Array, b: Uint8Array): boolean => Buffer.from(a.buffer, a.byteOffset, a.byteLength).equals(Buffer.from(b.buffer, b.byteOffset, b.byteLength));
 /** Random-looking bytes, which gzip cannot shrink: their encoding is about 4/3 their size. */
 const noisy = (n: number, seed: number): Uint8Array => {
   let x = seed * 2654435761 + 1;
@@ -42,21 +58,29 @@ const noisy = (n: number, seed: number): Uint8Array => {
   });
 };
 
-/** A loopback server for `dir`, recording each request's path and the most part files in flight at once. */
-async function serve(dir: string, opts: { partDelayMs?: number } = {}): Promise<{ origin: string; hits: string[]; maxPartsInFlight: () => number; close: () => Promise<void> }> {
+/**
+ * A loopback server for `dir`, recording each request's path and the most part files in flight
+ * at once. A .gz goes out as application/gzip, as it is (Vercel), or with `gzipEncoding` as
+ * Content-Encoding: gzip, which the client decodes on the way (vite preview's sirv does that).
+ */
+async function serve(dir: string, opts: { partDelayMs?: number; gzipEncoding?: boolean } = {}): Promise<{ origin: string; hits: string[]; maxPartsInFlight: () => number; close: () => Promise<void> }> {
   const hits: string[] = [];
   let inFlight = 0;
   let maxInFlight = 0;
   const server = createServer((req, res) => {
     const url = decodeURIComponent((req.url ?? "/").split("?")[0]!);
     hits.push(url);
-    const part = /\.part\d+\.txt$/.test(url);
+    const part = /\.part\d+(\.txt)?$/.test(url);
     if (part) maxInFlight = Math.max(maxInFlight, ++inFlight);
     const answer = (): void => {
       if (part) inFlight--;
       try {
         const body = readFileSync(join(dir, url));
-        res.writeHead(200, { "content-type": url.endsWith(".json") ? "application/json" : url.endsWith(".txt") ? "text/plain" : "application/octet-stream" });
+        const gz = url.endsWith(".gz");
+        res.writeHead(200, {
+          "content-type": url.endsWith(".json") ? "application/json" : url.endsWith(".txt") ? "text/plain" : gz && !opts.gzipEncoding ? "application/gzip" : "application/octet-stream",
+          ...(gz && opts.gzipEncoding ? { "content-encoding": "gzip" } : {}),
+        });
         res.end(body);
       } catch {
         res.writeHead(404);
@@ -66,6 +90,9 @@ async function serve(dir: string, opts: { partDelayMs?: number } = {}): Promise<
     if (part && opts.partDelayMs) setTimeout(answer, opts.partDelayMs);
     else answer();
   });
+  // Idle sockets stay open past a slow step (decoding the citywide pack on a busy machine): with
+  // Node's 5 s default the client may reuse a socket the server just closed ("fetch failed").
+  server.keepAliveTimeout = 120_000;
   await new Promise<void>((done) => server.listen(0, "127.0.0.1", done));
   const addr = server.address();
   return {
@@ -150,6 +177,54 @@ describe("an encoded file over the limit, in parts", () => {
   });
 });
 
+describe("binary packing (the default build)", () => {
+  it("gzips a pack's files with exact offsets, names it bin/<name>.<hash>.gz by its stored bytes, and splits a pack that would be too big", () => {
+    const items = [0, 1, 2, 3, 4].map((i) => ({ path: `tiles/w/t${i}.glb`, bytes: bytesOf(20_000 + i * 1000, i) }));
+    const [one, ...rest] = packBinary([{ key: "a", items }], (n) => `tiles/w/packs/tiles-${n}.pack`);
+    expect(rest).toHaveLength(0);
+    expect(one!.src).toMatch(new RegExp(`^${BINARY_DIR}/tiles/w/packs/tiles-0\\.pack\\.[0-9a-f]{12}\\.gz$`));
+    expect(one!.src).toBe(binaryName("tiles/w/packs/tiles-0.pack", one!.stored));
+    const all = new Uint8Array(gunzipSync(one!.stored));
+    for (const it of items) {
+      const e = one!.entries[it.path]!;
+      expect(e.src).toBe(one!.src);
+      expect(all.slice(e.offset, e.offset + e.length)).toEqual(it.bytes);
+    }
+    // The name follows the bytes: the same files give the same name, other files another.
+    expect(packBinary([{ key: "a", items }], (n) => `tiles/w/packs/tiles-${n}.pack`)[0]!.src).toBe(one!.src);
+    expect(packBinary([{ key: "a", items: items.slice(1) }], (n) => `tiles/w/packs/tiles-${n}.pack`)[0]!.src).not.toBe(one!.src);
+    const noise = [0, 1, 2, 3, 4].map((i) => ({ path: `n${i}`, bytes: noisy(20_000, i + 1) }));
+    const split = packBinary([{ key: "b", items: noise }], (n) => `q${n}`, 9, 45_000);
+    expect(split.length).toBeGreaterThan(1);
+    for (const p of split) expect(p.stored.byteLength).toBeLessThanOrEqual(45_000);
+    expect(new Set(split.flatMap((p) => Object.keys(p.entries)))).toEqual(new Set(noise.map((n) => n.path)));
+  });
+
+  it("cuts stored bytes over the limit into as few even parts as fit, named <src>.part<N>, joining back exactly", () => {
+    const stored = compress(noisy(30_000, 5));
+    const parts = splitBytes(stored, 12_000);
+    expect(parts.length).toBe(Math.ceil(stored.byteLength / 12_000));
+    expect(Buffer.concat(parts).equals(Buffer.from(stored))).toBe(true);
+    for (const p of parts) expect(p.byteLength).toBeLessThanOrEqual(12_000);
+    expect(splitBytes(stored, stored.byteLength)).toEqual([stored]);
+    expect(binaryPartName("bin/a.bin.0123456789ab.gz", 2)).toBe("bin/a.bin.0123456789ab.gz.part2");
+    const layout = layoutBinary("bin/a.bin.0123456789ab.gz", stored, 12_000);
+    expect(layout.files.map((f) => f.path)).toEqual(parts.map((_, n) => `bin/a.bin.0123456789ab.gz.part${n}`));
+    expect(layout.parts).toEqual(layout.files.map((f) => ({ src: f.path, bytes: f.bytes.byteLength })));
+    expect(layoutBinary("bin/x.gz", stored)).toEqual({ files: [{ path: "bin/x.gz", bytes: stored }], parts: null });
+  });
+
+  it("shuffles bytes into planes and back, any length, the tail kept", () => {
+    for (const n of [0, 1, 3, 4, 5, 4097]) {
+      const b = bytesOf(n, n);
+      const s = shuffleBytes(b, 4);
+      expect(s.byteLength).toBe(n);
+      expect(unshuffleBytes(s, 4)).toEqual(b);
+    }
+    expect(shuffleBytes(Uint8Array.from([1, 2, 3, 4, 5, 6, 7, 8, 9]), 4)).toEqual(Uint8Array.from([1, 5, 2, 6, 3, 7, 4, 8, 9]));
+  });
+});
+
 describe("assets over HTTP, from a sub-path", () => {
   let dir: string;
   let base: string;
@@ -207,7 +282,7 @@ describe("assets over HTTP, from a sub-path", () => {
     // Today's shape (version 1, no parts), and a version this loader does not know.
     put("legacy/assets.index.json", JSON.stringify({ version: 1, defaultWorld: "w", worlds: ["w"], files: { "models/m.glb": modelEntry } }));
     put(`legacy/models/m.glb${ENCODED_SUFFIX}`, encode(model));
-    put("future/assets.index.json", JSON.stringify({ version: 3, defaultWorld: "w", worlds: ["w"], files: {} }));
+    put("future/assets.index.json", JSON.stringify({ version: 4, defaultWorld: "w", worlds: ["w"], files: {} }));
     // Loose files, as the dev server serves them.
     put("loose/tiles/w/a.glb", glbA);
     site = await serve(dir, { partDelayMs: 40 });
@@ -272,7 +347,7 @@ describe("assets over HTTP, from a sub-path", () => {
   it("an index without parts (version 1, as builds wrote before parts) still loads; an unknown version is refused", async () => {
     const legacy = await openAssets(true, `${base}legacy/`);
     expect(await legacy.bytes("models/m.glb")).toEqual(model);
-    await expect(openAssets(true, `${base}future/`)).rejects.toThrow(/unsupported version 3/);
+    await expect(openAssets(true, `${base}future/`)).rejects.toThrow(/unsupported version 4/);
   });
 
   it("loose: every file at its own URL; a missing file fails with its name", async () => {
@@ -280,6 +355,168 @@ describe("assets over HTTP, from a sub-path", () => {
     expect(await a.bytes("tiles/w/a.glb")).toEqual(glbA);
     await expect(a.bytes("tiles/w/nope.glb")).rejects.toThrow(/HTTP 404/);
     await expect(a.json("tiles/w/nope.json")).rejects.toThrow(/HTTP 404/);
+  });
+});
+
+describe("binary assets over HTTP, from a sub-path", () => {
+  let dir: string;
+  const glbA = bytesOf(5000, 1);
+  const glbB = bytesOf(7000, 2);
+  const small = bytesOf(3000, 9);
+  // Over KEEP_SINGLE_MAX_BYTES (1 MB): handed to its callers, not kept.
+  const big = bytesOf(1_200_000, 4);
+  const shuffled = bytesOf(50_001, 6);
+  const PART_LIMIT = 4_000;
+  let index: WebIndex;
+
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "fogcity-binary-"));
+    const root = join(dir, "sub", "path");
+    const put = (rel: string, data: string | Uint8Array): void => {
+      mkdirSync(dirname(join(root, rel)), { recursive: true });
+      writeFileSync(join(root, rel), data);
+    };
+    const [pack] = packBinary([{ key: "0,0", items: [{ path: "tiles/w/a.glb", bytes: glbA }, { path: "tiles/w/b.glb", bytes: glbB }] }], () => "tiles/w/packs/tiles-000.pack");
+    put(pack!.src, pack!.stored);
+    const files: WebIndex["files"] = { ...pack!.entries };
+    const parts: NonNullable<WebIndex["parts"]> = {};
+    const single = (logical: string, bytes: Uint8Array, filtered = false): string => {
+      const stored = compress(filtered ? shuffleBytes(bytes, 4) : bytes);
+      const src = binaryName(logical, stored);
+      const layout = layoutBinary(src, stored, logical.includes("parted") ? PART_LIMIT : PACK_MAX_BYTES);
+      for (const f of layout.files) put(f.path, f.bytes);
+      if (layout.parts) parts[src] = layout.parts;
+      files[logical] = { src, offset: 0, length: bytes.byteLength };
+      return src;
+    };
+    for (let i = 0; i < 20; i++) single(`models/m${i}.glb`, bytesOf(3000 + i, 20 + i));
+    single("models/small.glb", small);
+    single("models/big.glb", big);
+    const colliders = single("tiles/w/world.colliders.bin", shuffled, true);
+    single("tiles/w/parted.bin", noisy(10_000, 3));
+    put("tiles/w/manifest.json", JSON.stringify({ hello: "world" }));
+    index = { version: 3, encoding: "gzip", defaultWorld: "w", worlds: ["w"], files, parts, filters: { [colliders]: "shuffle4" } };
+    put("assets.index.json", JSON.stringify(index));
+  });
+  afterAll(() => {
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  for (const gzipEncoding of [false, true]) {
+    it(`reads every file back exactly, the .gz served ${gzipEncoding ? "with Content-Encoding: gzip (decoded on the way)" : "as it is (application/gzip)"}`, async () => {
+      const site = await serve(dir, { gzipEncoding });
+      try {
+        const a = await openAssets(true, `${site.origin}/sub/path/`);
+        expect(a.mode).toBe("packed");
+        expect(await a.bytes("tiles/w/a.glb")).toEqual(glbA);
+        expect(await a.bytes("tiles/w/b.glb")).toEqual(glbB);
+        expect(await a.bytes("models/small.glb")).toEqual(small);
+        expect(same(await a.bytes("models/big.glb"), big)).toBe(true);
+        expect(same(await a.bytes("tiles/w/world.colliders.bin"), shuffled), "a shuffled src comes back unshuffled").toBe(true);
+        expect(index.parts![index.files["tiles/w/parted.bin"]!.src]!.length).toBeGreaterThan(1);
+        expect(await a.bytes("tiles/w/parted.bin")).toEqual(noisy(10_000, 3));
+        expect(await a.json("tiles/w/manifest.json")).toEqual({ hello: "world" });
+        for (const h of site.hits) expect(h.startsWith("/sub/path/"), h).toBe(true);
+      } finally {
+        await site.close();
+      }
+    });
+  }
+
+  it("keeps packs apart from single files: a pack is fetched once however many single files pass through between", async () => {
+    const site = await serve(dir);
+    try {
+      const a = await openAssets(true, `${site.origin}/sub/path/`);
+      expect(await a.bytes("tiles/w/a.glb")).toEqual(glbA);
+      for (let i = 0; i < 20; i++) await a.bytes(`models/m${i}.glb`);
+      expect(await a.bytes("tiles/w/b.glb")).toEqual(glbB);
+      expect(site.hits.filter((h) => h.includes("tiles-000"))).toHaveLength(1);
+    } finally {
+      await site.close();
+    }
+  });
+
+  it("a big single file: one fetch for the requests made while it loads, each caller its own buffer, nothing kept after", async () => {
+    const site = await serve(dir);
+    try {
+      const a = await openAssets(true, `${site.origin}/sub/path/`);
+      const [x, y, z] = await Promise.all([a.bytes("models/big.glb"), a.bytes("models/big.glb"), a.bytes("models/big.glb")]);
+      for (const b of [x, y, z]) expect(same(b, big)).toBe(true);
+      expect(new Set([x.buffer, y.buffer, z.buffer]).size, "no two callers share a buffer").toBe(3);
+      expect(site.hits.filter((h) => h.includes("big.glb"))).toHaveLength(1);
+      expect(same(await a.bytes("models/big.glb"), big)).toBe(true);
+      expect(site.hits.filter((h) => h.includes("big.glb")), "not kept: fetched again later").toHaveLength(2);
+      // A small one is kept for the next request.
+      await a.bytes("models/small.glb");
+      await a.bytes("models/small.glb");
+      expect(site.hits.filter((h) => h.includes("small.glb"))).toHaveLength(1);
+    } finally {
+      await site.close();
+    }
+  });
+});
+
+describe("the boot's files (bootAssets)", () => {
+  /** An Assets that records every request and serves JSON and bytes from memory. */
+  const fake = (): { assets: Assets; asked: string[] } => {
+    const asked: string[] = [];
+    return {
+      asked,
+      assets: {
+        mode: "packed",
+        defaultWorld: "w",
+        worlds: ["w"],
+        has: () => true,
+        async bytes(path) {
+          asked.push(path);
+          return bytesOf(10, path.length);
+        },
+        async json<T>(path: string) {
+          asked.push(path);
+          return { path } as T;
+        },
+      },
+    };
+  };
+
+  it("holds back what it is told to until ready(), and fetches the rest at once", async () => {
+    const { assets: inner, asked } = fake();
+    const boot = bootAssets(inner, (p) => p.startsWith("models/crowd/"));
+    let crowdDone = false;
+    const crowd = boot.assets.bytes("models/crowd/a.glb").then((b) => ((crowdDone = true), b));
+    await boot.assets.bytes("models/robotaxi.glb");
+    await new Promise((r) => setTimeout(r, 20));
+    expect(asked).toEqual(["models/robotaxi.glb"]);
+    expect(crowdDone).toBe(false);
+    boot.ready();
+    expect(await crowd).toEqual(bytesOf(10, "models/crowd/a.glb".length));
+    expect(asked).toEqual(["models/robotaxi.glb", "models/crowd/a.glb"]);
+    await boot.assets.bytes("models/crowd/b.glb");
+    expect(asked.at(-1), "after ready nothing waits").toBe("models/crowd/b.glb");
+  });
+
+  it("fetches a JSON file once for all its readers during the boot, each reader its own copy; after ready() the inner assets answer", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "fogcity-boot-"));
+    writeFileSync(join(dir, "layer.json"), JSON.stringify({ trees: [[1, 2, 3]] }));
+    const site = await serve(dir);
+    try {
+      const base = `${site.origin}/`;
+      const boot = bootAssets(looseAssets(base), () => false, base);
+      const [a, b] = await Promise.all([boot.assets.json<{ trees: number[][] }>("layer.json"), boot.assets.json<{ trees: number[][] }>("layer.json")]);
+      const c = await boot.assets.json<{ trees: number[][] }>("layer.json");
+      expect(site.hits).toEqual(["/layer.json"]);
+      expect(a).toEqual({ trees: [[1, 2, 3]] });
+      a.trees.push([9]);
+      expect(b).toEqual({ trees: [[1, 2, 3]] });
+      expect(c, "a later reader is untouched by an earlier one's change").toEqual({ trees: [[1, 2, 3]] });
+      await expect(boot.assets.json("missing.json")).rejects.toThrow(/HTTP 404/);
+      boot.ready();
+      await boot.assets.json("layer.json");
+      expect(site.hits.filter((h) => h === "/layer.json"), "the boot's texts are dropped at ready").toHaveLength(2);
+    } finally {
+      await site.close();
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 });
 
@@ -315,6 +552,12 @@ describe("the web build's limits", () => {
       expect(r.files).toBe(3);
       expect(r.problems).toHaveLength(2);
       expect(r.problems.join("\n")).toMatch(/tile\.glb.*not served/);
+      // A binary build's host serves any type; its per-file size is the same.
+      expect(BINARY_LIMITS.extensions).toBeNull();
+      expect(BINARY_LIMITS.maxFileBytes).toBe(HOST_LIMITS.maxFileBytes);
+      expect(checkHostLimits(dir, BINARY_LIMITS).problems).toEqual([]);
+      writeFileSync(join(dir, "huge.gz"), new Uint8Array(BINARY_LIMITS.maxFileBytes + 1));
+      expect(checkHostLimits(dir, BINARY_LIMITS).problems.join("\n")).toMatch(/huge\.gz: \d+ bytes, over/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
@@ -342,6 +585,11 @@ describe("the web build's out directory", () => {
     // An earlier build, or one that stopped half-way (no index yet): cleared.
     for (const f of ["index.html", "assets/index-abc.js", "assets/index-abc.js.map", "assets.index.json", "tiles/sf/manifest.json", "tiles/sf/packs/tiles-000.pack.gz.b64.txt", "tiles/sf/world.colliders.bin.gz.b64.part1.txt", "models/robotaxi.glb.gz.b64.txt"]) put(`build/${f}`);
     expect(outDirRefusal(join(dir, "build"), pub)).toBeNull();
+    // A binary build: bin/ of .gz files and their parts.
+    for (const f of ["index.html", "assets.index.json", "tiles/sf/manifest.json", "bin/tiles/sf/packs/tiles-000.pack.0123456789ab.gz", "bin/tiles/sf/world.colliders.bin.0123456789ab.gz.part1", "bin/models/robotaxi.glb.0123456789ab.gz"]) put(`binary/${f}`);
+    expect(outDirRefusal(join(dir, "binary"), pub)).toBeNull();
+    put("binary-stray/bin/notes.txt", "keep");
+    expect(outDirRefusal(join(dir, "binary-stray"), pub)).toMatch(/\(bin\/notes\.txt\)/);
     put("half/index.html");
     put("half/tiles/sf/world.colliders.bin.gz.b64.part0.txt");
     expect(outDirRefusal(join(dir, "half"), pub)).toBeNull();
@@ -406,7 +654,7 @@ describe("world files through the asset layer", () => {
   });
 });
 
-describe("the web build of the real SF world, its collider pack in parts", () => {
+describe("the --text web build of the real SF world, its collider pack in parts", () => {
   // Low enough to cut the committed collider pack (12.7 MB raw, 12.3 MB encoded) into 3 or more
   // parts; the hosted build uses PACK_MAX_BYTES, which splits it once the pack passes 14 MB
   // encoded (the QA world's does: tests/e2e/web-build.spec.ts, docs/testing.md).
@@ -434,7 +682,7 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
     "writes the parts at their listed sizes under the limit, fits the host, rebuilds byte for byte, and the world loads back from them",
     async () => {
       dir = mkdtempSync(join(tmpdir(), "fogcity-build-"));
-      const opts = { worlds: ["sf"], level: 1, skipVite: true, partMaxBytes: PART_LIMIT };
+      const opts = { worlds: ["sf"], level: 1, skipVite: true, partMaxBytes: PART_LIMIT, encoding: "gzip-base64" as const };
       const report = await buildWeb({ out: join(dir, "a"), ...opts });
       const index = JSON.parse(readFileSync(join(dir, "a", "assets.index.json"), "utf8")) as WebIndex;
       expect(index.version).toBe(2);
@@ -467,6 +715,13 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
       const site = await serve(dir);
       try {
         const assets = await openAssets(true, `${site.origin}/a/`);
+        const world = await loadWorldFiles(assets, "sf");
+        expect(world.colliders).toBe("pack");
+        expect(world.tiles.length).toBe(world.manifest.tiles.length);
+        expect(world.roads).not.toBeNull();
+        // One read of the pack: each part fetched once. A file this big is not kept after its read.
+        const colliderHits = site.hits.filter((h) => h.includes("world.colliders"));
+        expect(colliderHits.sort()).toEqual(colliderParts.map((p) => `/a/${p.src}`).sort());
         // Compared by hash: toEqual walks a 13 MB array element by element.
         const source = readFileSync(join(ROOT, "public", "tiles", "sf", "world.colliders.bin"));
         const joined = await assets.bytes("tiles/sf/world.colliders.bin");
@@ -476,19 +731,94 @@ describe("the web build of the real SF world, its collider pack in parts", () =>
         const motionSource = readFileSync(join(ROOT, "public", motionPath));
         expect(sha(await assets.bytes(motionPath))).toBe(sha(motionSource));
         expect(Object.keys(index.files).some(path => path.endsWith(".fbx"))).toBe(false);
-        const world = await loadWorldFiles(assets, "sf");
-        expect(world.colliders).toBe("pack");
-        expect(world.tiles.length).toBe(world.manifest.tiles.length);
-        expect(world.roads).not.toBeNull();
         const glb = Object.keys(index.files).find((f) => f.startsWith("tiles/sf/") && f.endsWith(".glb"))!;
         expect(sha(await assets.bytes(glb))).toBe(sha(readFileSync(join(ROOT, "public", glb))));
         expect(sha(await assets.bytes("models/player-car.glb"))).toBe(sha(readFileSync(join(ROOT, "public", "models", "player-car.glb"))));
-        const colliderHits = site.hits.filter((h) => h.includes("world.colliders"));
-        expect(colliderHits.sort()).toEqual(colliderParts.map((p) => `/a/${p.src}`).sort());
       } finally {
         await site.close();
       }
     },
     120_000,
+  );
+});
+
+describe("the binary web build of the real SF world (the default), its collider pack in parts", () => {
+  // The shuffled collider pack gzips to about 7.8 MB: a 3 MB limit cuts it into 3 parts.
+  const PART_LIMIT = 3_000_000;
+  let dir = "";
+  afterAll(() => {
+    if (dir) rmSync(dir, { recursive: true, force: true });
+  });
+  const sha = (b: Uint8Array): string => createHash("sha256").update(b).digest("hex");
+  const digest = (root: string): Record<string, string> => {
+    const out: Record<string, string> = {};
+    const walk = (d: string): void => {
+      for (const e of readdirSync(d, { withFileTypes: true })) {
+        const p = join(d, e.name);
+        if (e.isDirectory()) walk(p);
+        else out[relative(root, p)] = sha(readFileSync(p));
+      }
+    };
+    walk(root);
+    return out;
+  };
+
+  it.skipIf(!worldExists("sf"))(
+    "names every binary bin/<name>.<hash>.gz, shuffles the collider pack, writes its parts, rebuilds byte for byte, and the world loads back",
+    async () => {
+      dir = mkdtempSync(join(tmpdir(), "fogcity-binary-build-"));
+      const opts = { worlds: ["sf"], level: 1, skipVite: true, partMaxBytes: PART_LIMIT };
+      const report = await buildWeb({ out: join(dir, "a"), ...opts });
+      expect(report.encoding).toBe("gzip");
+      const index = JSON.parse(readFileSync(join(dir, "a", "assets.index.json"), "utf8")) as WebIndex;
+      expect(index.version).toBe(3);
+      expect(index.encoding).toBe("gzip");
+      for (const e of Object.values(index.files)) expect(e.src).toMatch(/^bin\/.+\.[0-9a-f]{12}\.gz$/);
+      const colliderSrc = index.files["tiles/sf/world.colliders.bin"]!.src;
+      expect(index.filters).toEqual({ [colliderSrc]: "shuffle4" });
+      const colliderParts = index.parts?.[colliderSrc] ?? [];
+      expect(colliderParts.length).toBeGreaterThanOrEqual(3);
+      expect(report.split).toEqual(Object.entries(index.parts!).map(([src, parts]) => ({ src, parts: parts.map((p) => p.bytes) })));
+      for (const [src, parts] of Object.entries(index.parts!)) {
+        expect(() => statSync(join(dir, "a", src)), `${src} is not written whole`).toThrow();
+        for (const [n, p] of parts.entries()) {
+          expect(p.src).toBe(binaryPartName(src, n));
+          expect(statSync(join(dir, "a", p.src)).size).toBe(p.bytes);
+          expect(p.bytes).toBeLessThanOrEqual(PART_LIMIT);
+        }
+      }
+      // A whole file's name is its stored bytes' hash.
+      const glbSrc = index.files["models/player-car.glb"]!.src;
+      expect(glbSrc).toBe(binaryName("models/player-car.glb", new Uint8Array(readFileSync(join(dir, "a", glbSrc)))));
+      // No text binaries, and nothing the text host would have to take.
+      expect(Object.keys(digest(join(dir, "a"))).some((f) => f.endsWith(ENCODED_SUFFIX) || /\.part\d+\.txt$/.test(f))).toBe(false);
+      const check = checkHostLimits(join(dir, "a"), BINARY_LIMITS);
+      expect(check.problems).toEqual([]);
+      // Deterministic: a second build is byte-identical, names, parts and index included.
+      await buildWeb({ out: join(dir, "b"), ...opts });
+      expect(digest(join(dir, "b"))).toEqual(digest(join(dir, "a")));
+      rmSync(join(dir, "b"), { recursive: true, force: true });
+
+      const site = await serve(dir);
+      try {
+        const assets = await openAssets(true, `${site.origin}/a/`);
+        const world = await loadWorldFiles(assets, "sf");
+        expect(world.colliders).toBe("pack");
+        expect(world.tiles.length).toBe(world.manifest.tiles.length);
+        expect(world.roads).not.toBeNull();
+        expect(site.hits.filter((h) => h.includes("world.colliders")).sort()).toEqual(colliderParts.map((p) => `/a/${p.src}`).sort());
+        const source = readFileSync(join(ROOT, "public", "tiles", "sf", "world.colliders.bin"));
+        const joined = await assets.bytes("tiles/sf/world.colliders.bin");
+        expect(joined.byteLength).toBe(source.byteLength);
+        expect(sha(joined)).toBe(sha(source));
+        const glb = Object.keys(index.files).find((f) => f.startsWith("tiles/sf/") && f.endsWith(".glb"))!;
+        expect(sha(await assets.bytes(glb))).toBe(sha(readFileSync(join(ROOT, "public", glb))));
+        expect(sha(await assets.bytes("models/player-car.glb"))).toBe(sha(readFileSync(join(ROOT, "public", "models", "player-car.glb"))));
+        expect(sha(await assets.bytes("models/mixamo-motion.json"))).toBe(sha(readFileSync(join(ROOT, "public", "models", "mixamo-motion.json"))));
+      } finally {
+        await site.close();
+      }
+    },
+    180_000,
   );
 });

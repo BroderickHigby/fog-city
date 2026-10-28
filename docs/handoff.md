@@ -75,7 +75,7 @@ draft PR into `integrate/wave1`). The `qa/housekit` review (next step 1) stopped
 4. Merge `feature/dodge` into `integrate/wave1`. **SIM_VERSION clash**: both the dodge and
    qa/sim use version 4; renumber the later one to 5 with an upgradeState step and re-pin replays.
 5. Republish the playable artifact https://claude.ai/artifact/9rdkPHC3vuUFnwZZrdtNhW from
-   `node scripts/build-web.ts --no-sourcemap` (≤ 64 MB / 255 files per publish; pass `null` for
+   `node scripts/build-web.ts --text --no-sourcemap` (the artifact host serves only text-like types; ≤ 64 MB / 255 files per publish; pass `null` for
    `tiles/sf/world.colliders.bin.gz.b64.txt` and any vanished pack if the collider pack is now split).
 6. Then: wave-2 tracks (combat with the fall/melt, etc.), territory expansion, wave 8 sky.
 
