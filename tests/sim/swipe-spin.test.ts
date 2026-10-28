@@ -9,7 +9,7 @@
 // rear-ended while driving took no share at all.
 import { describe, expect, it } from "vitest";
 import {
-  CAR, SIM_VERSION, boxHit, buildWorld, createInitialState, impactsOf, makeCar, makeFoot, step, upgradeState,
+  CAR, SIM_VERSION, boxHit, buildWorld, carVelocity, createInitialState, impactsOf, makeCar, makeFoot, spinKick, step, upgradeState,
   type AgentState, type CarState, type ImpactBody, type ImpactEvent, type SimInput, type SimState,
 } from "../../src/sim/index.ts";
 import { BOX_CONTACT_VERSION, boxContact } from "../../src/sim/vehicle-contacts.ts";
@@ -126,6 +126,41 @@ describe("SIM25 side-swipes spin both cars", () => {
     expect(now.after.players.a!.car.yawRate).toBeGreaterThan(0);
     expect(now.after.players.b!.car.yawRate).toBeGreaterThan(0);
     expect(old.yawA).toBeGreaterThan(5 * old.yawB);
+  });
+
+  it("offset rear-ends from 0.8 to 1.5 m all turn both cars about equally (a turn the hitter blocks is held, not lost)", () => {
+    // (Review: at 1.5 m the parked car's spin was cancelled the same tick because the hitter,
+    // still touching, blocked the turn: 2.50 vs 0.71 rad/s. Now its slide keeps the spin.)
+    for (const off of [0.8, 1, 1.2, 1.5]) {
+      const now = collide(pair({ speed: 12 }, { x: off, z: -12 }, 25));
+      expect(now.yawB, `offset ${off}`).toBeGreaterThan(1.5);
+      expect(Math.abs(now.yawA - now.yawB), `offset ${off}`).toBeLessThan(0.15 * now.yawA);
+    }
+  });
+
+  it("a driving car side-swiped takes its spin from where it was hit, not from where it drove on to", () => {
+    // (Review: the hitter met b where b stood at the start of the tick; b's share used to be
+    // levered about b's centre after its own stepCar, 0.3 m on: -2.16 rad/s instead of -1.52.)
+    for (const [ha, sa, sb, bx, bz] of [[0.25, 22, 18, 2.4, -3], [0.3, 20, 15, 2.5, -3]] as const) {
+      let s = pair({ heading: ha, speed: sa }, { x: bx, z: bz, speed: sb }, 25, true);
+      let checked = false;
+      for (let t = 0; t < 120 && !checked; t++) {
+        const before = s;
+        s = step(world, s, { a: idle, b: idle }, [], []);
+        const e = impactsOf(s)?.events.find((x) => x.tick === s.tick);
+        if (!e) continue;
+        const a0 = before.players.a!.car, a1 = s.players.a!.car, b0 = before.players.b!.car, b1 = s.players.b!.car;
+        expect(Math.hypot(b1.x - b0.x, b1.z - b0.z)).toBeGreaterThan(0.2);
+        const va0 = carVelocity(a0), va1 = carVelocity(a1);
+        const jx = -(va1.vx - va0.vx) * CAR.mass, jz = -(va1.vz - va0.vz) * CAR.mass;
+        const atHit = spinKick(CAR.mass, CAR.yawK2, e.x - b0.x, e.z - b0.z, jx, jz);
+        const drivenOn = spinKick(CAR.mass, CAR.yawK2, e.x - b1.x, e.z - b1.z, jx, jz);
+        expect(Math.abs(drivenOn - atHit)).toBeGreaterThan(0.3);
+        expect(Math.abs(b1.yawRate - b0.yawRate - atHit)).toBeLessThan(0.05);
+        checked = true;
+      }
+      expect(checked).toBe(true);
+    }
   });
 
   it("a side-swipe at 15 m/s, angled 0.15 rad into a parked car: both spin, the same way", () => {

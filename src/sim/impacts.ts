@@ -339,8 +339,9 @@ function dimsOf(a: Readonly<AgentState>): SlideDims {
  * dying away; held out of buildings, walls and `obstacles` like a car (car.ts). A body it can
  * shove takes a hit (reported in `contacts`, once per body); a person (a circle marked person,
  * already grown by PERSON_CLEAR_M) stops it dead.
+ * `holdSpin` (v25): a turn that is not taken keeps the body's spin for when it comes free.
  */
-function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[]): Slider {
+function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[], holdSpin = false): Slider {
   let heading = b.heading;
   let fx = dsin(heading);
   let fz = -dcos(heading);
@@ -352,11 +353,12 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
   let vx = vf * fx - vl * fz;
   let vz = vf * fz + vl * fx;
   heading = wrapAngle(heading + yaw * DT);
-  // (A turn that would swing the body into something is not taken.)
+  // (A turn that would swing the body into something is not taken. v25: the spin is kept, dying
+  // away as usual, so a car rear-ended off centre turns once the car that hit it falls back.)
   if (yaw !== 0 && boxBlocked(world, { x: b.x, z: b.z, heading, hl: d.hl, hw: d.hw }, b.y + ROOF_STEP_M, obstacles, b.y + d.height)
     && !boxBlocked(world, { x: b.x, z: b.z, heading: b.heading, hl: d.hl, hw: d.hw }, b.y + ROOF_STEP_M, obstacles, b.y + d.height)) {
     heading = b.heading;
-    yaw = 0;
+    if (!holdSpin) yaw = 0;
   }
   fx = dsin(heading);
   fz = -dcos(heading);
@@ -440,6 +442,8 @@ interface Work {
   /** Agents knocked this tick (they start sliding next tick: stepAgents already moved them). */
   fresh: Set<number>;
   combat: Readonly<CombatState> | undefined;
+  /** The state's SIM_VERSION. */
+  version: number;
 }
 
 function addDents(d: Readonly<Dents>, local: { f: number; r: number }, hl: number, dv: number): Dents {
@@ -511,11 +515,17 @@ function receive(w: Work, key: string, k: Readonly<CarContact>, hitter: string, 
     const p = w.players[id];
     if (!p) return 0;
     const dv = Math.sqrt(jx * jx + jz * jz) / CAR.mass;
+    // v25: a hitter's stepCar met this car where it stood at the start of the tick (k.bx, k.bz);
+    // it has driven on since, so the lever arm and the dent are taken from that same point on it.
+    const rx = k.x - (k.bx ?? p.car.x);
+    const rz = k.z - (k.bz ?? p.car.z);
+    const px = k.bx === undefined ? k.x : p.car.x + rx;
+    const pz = k.bz === undefined ? k.z : p.car.z + rz;
     if (slid || p.mode === "foot" || p.ride) {
-      const kick = spinKick(CAR.mass, CAR.yawK2, k.x - p.car.x, k.z - p.car.z, jx, jz);
+      const kick = spinKick(CAR.mass, CAR.yawK2, rx, rz, jx, jz);
       w.players = { ...w.players, [id]: { ...p, car: shoveCar(p.car, jx / CAR.mass, jz / CAR.mass, kick) } };
     }
-    damageCar(w, id, p.car, k.x, k.z, dv);
+    damageCar(w, id, p.car, px, pz, dv);
     event(w, kindOf(w, hitter, key), hitter, key, k, p.car.y, dv);
     return dv;
   }
@@ -729,7 +739,7 @@ function stepKnocked(world: World, w: Work, i: number): boolean {
   if (k.phase === "slide") {
     const reach = d.hl + d.hw + Math.sqrt(k.vx * k.vx + k.vz * k.vz) * DT + 1;
     const contacts: CarContact[] = [];
-    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts);
+    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts, w.version >= BOX_CONTACT_VERSION);
     const stopped = s.vx * s.vx + s.vz * s.vz < IMPACT.stopSpeed * IMPACT.stopSpeed && (s.yaw < 0 ? -s.yaw : s.yaw) < IMPACT.stopYaw;
     const speed = s.vx * dsin(s.heading) - s.vz * dcos(s.heading);
     // (Read back: what it hit may have changed it, and so may the dents just taken.)
@@ -910,7 +920,7 @@ function stepParked(world: World, w: Work, id: PlayerId): void {
   const key = `p:${id}`;
   const reach = CAR.halfLength + CAR.halfWidth + Math.sqrt(v.vx * v.vx + v.vz * v.vz) * DT + 1;
   const contacts: CarContact[] = [];
-  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts);
+  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts, w.version >= BOX_CONTACT_VERSION);
   const fx = dsin(s.heading);
   const fz = -dcos(s.heading);
   const car: CarState = { ...c, x: s.x, y: s.y, z: s.z, heading: s.heading, speed: s.vx * fx + s.vz * fz, lateral: s.vx * -fz + s.vz * fx, yawRate: s.yaw, vy: 0 };
@@ -949,6 +959,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     ext: prior ?? { version: 1, nextId: 1, events: [], cars: {} },
     fresh: new Set(),
     combat,
+    version: state.version,
   };
 
   // 1. The players' cars' hits: the other body takes its share. v25: a driving player's car that
@@ -1043,7 +1054,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   const neighbours:number[][]=bodies.map(()=>[]);
   for(const [i,j] of pairs){neighbours[i]!.push(j);neighbours[j]!.push(i);}
   const w:Work={tick:state.tick,players:state.players,agents:list.slice(),index:new Map(list.map((a,i)=>[a.id,i])),
-    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat};
+    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,version:state.version};
   const missed=new Map<number,{i:number;j:number;contact:HullContact}>();
   const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
   const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});

@@ -203,6 +203,13 @@ export interface CarContact {
   x: number;
   z: number;
   speed: number;
+  /**
+   * v25: the body's centre when stepCar met it box to box (the start of the tick). A driving car
+   * that takes its share later (impacts.ts receive, unmet) has moved on since: its spin and dent
+   * are taken from the point this far from that centre.
+   */
+  bx?: number;
+  bz?: number;
 }
 
 const SINCE_CONTACT_CAP = 600;
@@ -635,7 +642,7 @@ export function stepCar(
           vx = h.vx;
           vz = h.vz;
           yawRate += h.kick;
-          contacts.push(h.contact);
+          contacts.push(box ? { ...h.contact, bx: body.x, bz: body.z } : h.contact);
         }
       }
       continue;
