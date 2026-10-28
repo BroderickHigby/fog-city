@@ -338,7 +338,7 @@ function dimsOf(a: Readonly<AgentState>): SlideDims {
  * shove takes a hit (reported in `contacts`, once per body); a person (a circle marked person,
  * already grown by PERSON_CLEAR_M) stops it dead.
  */
-function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[]): Slider {
+function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[], holdOnPerson = false): Slider {
   let heading = b.heading;
   let fx = dsin(heading);
   let fz = -dcos(heading);
@@ -384,7 +384,13 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
       break;
     }
     if (res.person) {
-      // Someone's clearance: stop dead, before anyone is touched.
+      // Someone's clearance: stop dead, before anyone is touched. v24: where it was before this
+      // step. The resolved pose can be nearer them, not further: a person's push spends the push
+      // budget, then the wall settle sends the box back past where it started.
+      if (holdOnPerson) {
+        x = lastX;
+        z = lastZ;
+      }
       vx = 0;
       vz = 0;
       yaw = 0;
@@ -438,6 +444,8 @@ interface Work {
   /** Agents knocked this tick (they start sliding next tick: stepAgents already moved them). */
   fresh: Set<number>;
   combat: Readonly<CombatState> | undefined;
+  /** v24: a slide that meets someone's clearance stays where it was (slideBox holdOnPerson). */
+  holdOnPerson: boolean;
 }
 
 function addDents(d: Readonly<Dents>, local: { f: number; r: number }, hl: number, dv: number): Dents {
@@ -727,7 +735,7 @@ function stepKnocked(world: World, w: Work, i: number): boolean {
   if (k.phase === "slide") {
     const reach = d.hl + d.hw + Math.sqrt(k.vx * k.vx + k.vz * k.vz) * DT + 1;
     const contacts: CarContact[] = [];
-    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts);
+    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts, w.holdOnPerson);
     const stopped = s.vx * s.vx + s.vz * s.vz < IMPACT.stopSpeed * IMPACT.stopSpeed && (s.yaw < 0 ? -s.yaw : s.yaw) < IMPACT.stopYaw;
     const speed = s.vx * dsin(s.heading) - s.vz * dcos(s.heading);
     // (Read back: what it hit may have changed it, and so may the dents just taken.)
@@ -908,7 +916,7 @@ function stepParked(world: World, w: Work, id: PlayerId): void {
   const key = `p:${id}`;
   const reach = CAR.halfLength + CAR.halfWidth + Math.sqrt(v.vx * v.vx + v.vz * v.vz) * DT + 1;
   const contacts: CarContact[] = [];
-  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts);
+  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts, w.holdOnPerson);
   const fx = dsin(s.heading);
   const fz = -dcos(s.heading);
   const car: CarState = { ...c, x: s.x, y: s.y, z: s.z, heading: s.heading, speed: s.vx * fx + s.vz * fz, lateral: s.vx * -fz + s.vz * fx, yawRate: s.yaw, vy: 0 };
@@ -947,6 +955,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     ext: prior ?? { version: 1, nextId: 1, events: [], cars: {} },
     fresh: new Set(),
     combat,
+    holdOnPerson: state.version >= 24,
   };
 
   // 1. The players' cars' hits: the other body takes its share.
@@ -1038,7 +1047,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   const neighbours:number[][]=bodies.map(()=>[]);
   for(const [i,j] of pairs){neighbours[i]!.push(j);neighbours[j]!.push(i);}
   const w:Work={tick:state.tick,players:state.players,agents:list.slice(),index:new Map(list.map((a,i)=>[a.id,i])),
-    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat};
+    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,holdOnPerson:state.version>=24};
   const missed=new Map<number,{i:number;j:number;contact:HullContact}>();
   const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
   const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});
