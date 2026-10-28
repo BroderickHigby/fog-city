@@ -259,6 +259,8 @@ async function boot(): Promise<void> {
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
       landmarks: landmarksDoc,
+      carLights: numParam(params, "carlights") ?? undefined,
+      lampLights: numParam(params, "lamplights") ?? undefined,
       tide: { line: TIDE_PROMENADE, nearM: WEATHER.promenadeNearM, farM: WEATHER.promenadeFarM, floods: (x, z) => promenadeAt(world, x, z) },
     },
   );
