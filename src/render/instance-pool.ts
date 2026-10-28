@@ -111,6 +111,16 @@ function dirty(b: Batch, what: "matrix" | "color", from: number, to: number): vo
   }
 }
 
+/** Add [from, to) to the attribute's pending update range, keeping a single range. */
+function widen(a: THREE.BufferAttribute, from: number, to: number): void {
+  const r = a.updateRanges[0];
+  if (!r) { a.addUpdateRange(from, to - from); return; }
+  const end = Math.max(to, ...a.updateRanges.map(u => u.start + u.count));
+  r.start = Math.min(from, ...a.updateRanges.map(u => u.start));
+  r.count = end - r.start;
+  a.updateRanges.length = 1;
+}
+
 /** First capacity of a batch: room for this block and a neighbourhood like it. */
 export const POOL_MIN_CAPACITY = 1024;
 
@@ -201,15 +211,16 @@ export class InstancePool implements InstanceSink {
   }
 
   /**
-   * Upload the instance ranges changed since the last flush. Call once per frame. Ranges add up
-   * until the renderer uploads them (and clears them): a frame flushed but not rendered (a lost
-   * context) must not lose its range.
+   * Upload the instance ranges changed since the last flush. Call once per frame. A range not
+   * yet uploaded is widened, not replaced: a frame flushed but not rendered (a lost context)
+   * must not lose its range, and a backend that never clears ranges (the WebGL2 node path reads
+   * small instance arrays as uniforms) must not pile them up.
    */
   flush(): void {
     for (const b of this.batches.values()) {
       if (b.matrixTo > b.matrixFrom) {
         const a = b.mesh.instanceMatrix;
-        a.addUpdateRange(b.matrixFrom * 16, (b.matrixTo - b.matrixFrom) * 16);
+        widen(a, b.matrixFrom * 16, b.matrixTo * 16);
         a.needsUpdate = true;
         b.matrixFrom = b.matrixTo = 0;
         // Not for culling (frustumCulled is off): the renderer sorts by it, and computes it again when null.
@@ -217,7 +228,7 @@ export class InstancePool implements InstanceSink {
       }
       const c = b.mesh.instanceColor;
       if (c && b.colorTo > b.colorFrom) {
-        c.addUpdateRange(b.colorFrom * 3, (b.colorTo - b.colorFrom) * 3);
+        widen(c, b.colorFrom * 3, b.colorTo * 3);
         c.needsUpdate = true;
         b.colorFrom = b.colorTo = 0;
       }

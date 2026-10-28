@@ -43,6 +43,8 @@ const SURFACE_STEP_WORK = 48;
 const TUFT_STEP_WORK = 64;
 /** Tuft records the blade assembly visits between yields (about a millisecond on a laptop). */
 const ASSEMBLY_STEP_TUFTS = 1024;
+/** Turf floats (positions, colours, normals) the assembly copies between yields. */
+const ASSEMBLY_STEP_FLOATS = 1 << 19;
 const TUFT_STEP = .9;
 export interface GrassInfo {
   loaded: boolean; areas: number; patches: number; blades: number;
@@ -315,7 +317,8 @@ function* buildSurface(lawn: Lawn, index: MaskIndex, terrain: Terrain, out: Lawn
     for (const obstacle of obstacles) {
       let cut = 0;
       parts = parts.flatMap(p => overlaps(bounds(p), obstacle.bbox) ? (cut++, subtractGrassMask(p, obstacle.polygon)) : [p]);
-      work += cut;
+      // A cut is a unit of work; testing the pieces against an obstacle's box is a little.
+      work += cut + parts.length / 32;
       if (!parts.length) break;
       if (work >= SURFACE_STEP_WORK) { work = 0; yield; }
     }
@@ -540,8 +543,7 @@ export class GrassLayer {
       if (d > GRASS_RADIUS + SURFACE_KEEP_M) { this.cache.delete(i); this.terrains.delete(i); }
       else if (entry.tufts && d > GRASS_BLADE_RADIUS + TUFT_KEEP_M) entry.tufts = null;
     }
-    // An assembly for the old place is abandoned: the next one starts from the new selection.
-    this.assembly = null;
+    // An assembly under way finishes (it reads its own snapshot); the next one starts from the new selection.
     this.needsAssembly = true;
   }
 
@@ -550,12 +552,15 @@ export class GrassLayer {
    * a lawn or a few thousand tufts per step. A lawn that finishes meanwhile is in the next one.
    */
   private *assemble(): Generator<void> {
-    const { x, z } = this;
+    // Everything is read from the selection and cache entries as they are now: a camera move
+    // meanwhile re-selects (and may evict) without disturbing this assembly, and queues the next.
+    const { x, z } = this, selected = this.selected, entries = new Map<number, LawnCache>();
+    for (const i of selected) { const e = this.cache.get(i); if (e) entries.set(i, e); }
     // Turf: the selected lawns' triangles in order, up to the cap. Same lawns, same mesh.
     const parts: number[] = [];
     let tris = 0;
-    for (const i of this.selected) {
-      const s = this.cache.get(i)?.surface;
+    for (const i of selected) {
+      const s = entries.get(i)?.surface;
       if (!s || tris >= GRASS_SURFACE_CAP) continue;
       parts.push(i);
       tris += Math.min(s.triangles, GRASS_SURFACE_CAP - tris);
@@ -563,18 +568,18 @@ export class GrassLayer {
     const key = parts.join(",");
     if (key !== this.surfaceKey) {
       const position = new Float32Array(tris * 9), color = new Float32Array(tris * 9), normal = new Float32Array(tris * 9);
-      let at = 0, patches = 0;
+      let at = 0, patches = 0, copied = 0;
       for (const i of parts) {
-        const s = this.cache.get(i)!.surface!, n = Math.min(s.triangles * 9, position.length - at);
+        const s = entries.get(i)!.surface!, n = Math.min(s.triangles * 9, position.length - at);
         if (n <= 0) continue;
         position.set(s.position.subarray(0, n), at); color.set(s.color.subarray(0, n), at); normal.set(s.normal.subarray(0, n), at);
         at += n;
         patches++;
-        yield;
+        if ((copied += 3 * n) >= ASSEMBLY_STEP_FLOATS) { copied = 0; yield; }
       }
       this.surfaceKey = key;
       this.patches = patches;
-      this.replace(this.surface, { position, color, normal }, parts);
+      this.replace(this.surface, { position, color, normal }, parts, entries);
     }
     // Blades: each selected lawn's tufts inside the blade window, thinned with distance, up to the cap.
     const R = GRASS_BLADE_RADIUS, { position, color, root } = this.scratch;
@@ -586,9 +591,9 @@ export class GrassLayer {
       color[k] = c[0]!; color[k + 1] = c[1]!; color[k + 2] = c[2]!;
       root[vertices++] = y;
     };
-    for (const i of this.selected) {
+    for (const i of selected) {
       if (full) break;
-      const t = this.cache.get(i)?.tufts, lawn = this.lawns[i]!, b = lawn.bbox;
+      const t = entries.get(i)?.tufts, lawn = this.lawns[i]!, b = lawn.bbox;
       if (!t) continue;
       const gx0 = Math.floor(Math.max(b[0], x - R) / TUFT_STEP), gx1 = Math.floor(Math.min(b[2], x + R) / TUFT_STEP);
       const gz0 = Math.floor(Math.max(b[1], z - R) / TUFT_STEP), gz1 = Math.floor(Math.min(b[3], z + R) / TUFT_STEP);
@@ -619,11 +624,11 @@ export class GrassLayer {
     this.leaves = leaves;
     const p = position.slice(0, vertices * 3), normal = new Float32Array(vertices * 3);
     faceNormals(p, normal, vertices / 3);
-    this.replace(this.blades, { position: p, color: color.slice(0, vertices * 3), normal, root: root.slice(0, vertices) }, used);
+    this.replace(this.blades, { position: p, color: color.slice(0, vertices * 3), normal, root: root.slice(0, vertices) }, used, entries);
   }
 
   /** A new, exactly sized geometry for `mesh` (the old one is disposed), bounded by its lawns' boxes. */
-  private replace(mesh: THREE.Mesh, a: { position: Float32Array; color: Float32Array; normal: Float32Array; root?: Float32Array }, lawns: readonly number[]): void {
+  private replace(mesh: THREE.Mesh, a: { position: Float32Array; color: Float32Array; normal: Float32Array; root?: Float32Array }, lawns: readonly number[], entries: ReadonlyMap<number, LawnCache>): void {
     const g = new THREE.BufferGeometry();
     g.setAttribute("position", new THREE.BufferAttribute(a.position, 3));
     g.setAttribute("color", new THREE.BufferAttribute(a.color, 3));
@@ -632,7 +637,7 @@ export class GrassLayer {
     // Bounds from the lawns' boxes and heights, without a pass over every vertex.
     const box = new THREE.Box3(), corner = new THREE.Vector3();
     for (const i of lawns) {
-      const l = this.lawns[i]!, e = this.cache.get(i);
+      const l = this.lawns[i]!, e = entries.get(i);
       if (!e || !(e.maxY >= e.minY)) continue;
       box.expandByPoint(corner.set(l.bbox[0], e.minY - .05, l.bbox[1])).expandByPoint(corner.set(l.bbox[2], e.maxY + .15, l.bbox[3]));
     }

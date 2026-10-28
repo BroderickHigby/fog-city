@@ -55,17 +55,20 @@ describe("instance pool", () => {
     pool.dispose();
   });
 
-  it("keeps every range flushed before the renderer uploads (a frame not rendered loses none)", () => {
+  it("widens the range flushed before the renderer uploads (a frame not rendered loses none, none pile up)", () => {
     const pool = new InstancePool();
     const a = pool.add(geometry, material, [at(1), at(2)], { name: "k" })!;
     pool.flush();
     pool.add(geometry, material, [at(3)], { name: "k" });
     pool.flush();
-    expect(a.mesh.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 2 * 16 }, { start: 2 * 16, count: 16 }]);
+    expect(a.mesh.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 3 * 16 }]);
     // The sort bounds are recomputed from the live instances, not kept from the first frame.
     expect(a.mesh.boundingSphere).toBeNull();
     a.mesh.computeBoundingSphere();
     expect(a.mesh.boundingSphere!.center.x).toBeCloseTo(2, 5);
+    // A backend that never clears them: still one range after many flushes.
+    for (let k = 0; k < 50; k++) { pool.add(geometry, material, [at(10 + k)], { name: "k" }); pool.flush(); }
+    expect(a.mesh.instanceMatrix.updateRanges).toEqual([{ start: 0, count: 53 * 16 }]);
     pool.dispose();
   });
 

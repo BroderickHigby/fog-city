@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GrassLayer, GRASS_BLADE_CAP, GRASS_SURFACE_CAP, grassShapes, subtractGrassMask } from "../../src/render/grass.ts";
 import { heightOnField, pointInPolygon, type TileCollider } from "../../src/sim/world.ts";
 import type { RoadGraph } from "../../src/render/types.ts";
@@ -159,7 +159,7 @@ describe("DataSF grass", () => {
     do { slow.update(20, 5, 0); frames++; } while (!slow.settled() && frames < 1000);
     expect(slow.settled()).toBe(true);
     expect(frames).toBeGreaterThan(1);
-    // Moving again half way through an assembly starts it over from the new place.
+    // Moving again half way through an assembly: it finishes, and the next one is of the new place.
     slow.update(0, 0, 0); slow.update(0, 0, 0);
     expect(slow.settled()).toBe(false);
     slow.update(-30, 10, 0);
@@ -170,6 +170,30 @@ describe("DataSF grass", () => {
     }
     expect(slow.info()).toMatchObject({ patches: fast.info().patches, blades: fast.info().blades });
     slow.dispose(); fast.dispose();
+  });
+
+  it("keeps the blades up with a camera that keeps moving on a zero budget", () => {
+    const grass = Array.from({ length: 110 }, (_, i) => {
+      const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;
+      return { id: `lawn:${i}`, kind: "lawn", rings: [[x, z, x + 20, z, x + 20, z + 20, x, z + 20]] };
+    });
+    const l = flat(); l.setData({ grass });
+    settle(l, -100, -100);
+    // 1 m a frame (60 m/s at 60 fps): a re-selection every 20 frames, never a spare millisecond.
+    // The clock is the frames' (16.7 ms each), whatever this machine's speed.
+    let now = performance.now();
+    const clock = vi.spyOn(performance, "now").mockImplementation(() => now);
+    let shown = 0, last = mesh(l, "grass-blades").geometry;
+    for (let k = 0; k <= 280; k++) {
+      now += 1000 / 60;
+      l.update(-100 + k * .7, -100 + k * .7, 0);
+      const g = mesh(l, "grass-blades").geometry;
+      if (g !== last) { shown++; last = g; }
+    }
+    // 14 re-selections on the way: the blades follow most of them rather than stalling.
+    clock.mockRestore();
+    expect(shown).toBeGreaterThanOrEqual(7);
+    l.dispose();
   });
 
   it("draws short bent leaves in small tufts with separate leaf and triangle counts", () => {
