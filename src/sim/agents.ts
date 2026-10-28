@@ -346,6 +346,13 @@ export const MAX_AGENTS_TOTAL = 1024;
  * to Footmen. See the header (Population). Older versions keep them, bit for bit.
  */
 export const TRUNDLE_FREE_VERSION = 26;
+/**
+ * v26: two stand-offs that more Footmen made common are broken (stepAgent, Ctx.unstick). A robotaxi
+ * or civilian car whose pass has stalled behind the vehicle it was going round drops the pass and
+ * plans again; a robot on the pavement nose to nose with a vehicle steps aside as it would for a
+ * walker. v25 and older wait there until the deadlock breaker.
+ */
+export const UNSTICK_VERSION = 26;
 export const ROBOTAXI_GAP_M = 1.5;
 /** A robotaxi waiting at an all-way stop keeps its front bumper this far behind the line. */
 export const STOPLINE_M = 0.5;
@@ -1417,6 +1424,8 @@ interface Ctx {
   signals: TrafficSignalControls | undefined;
   /** v21 amber dilemma zone (committedOnAmber); v20 replays keep the hard stop. */
   amberCommit: boolean;
+  /** v26 (UNSTICK_VERSION): a stalled pass is dropped; a robot on foot steps aside for a vehicle. */
+  unstick: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
   world: World;
@@ -1721,6 +1730,12 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
       }
     }
   }
+  // v26: a pass that has eased back in behind the vehicle it was going round (aborted after its
+  // commit point, or eased in short) and stands still blocked by it would wait forever: nothing
+  // replans a robotaxi with a pass. Drop it (a step of under 0.3 m back onto its lane), so the
+  // robotaxi waits, backs up and plans again.
+  if (c.unstick && pass && a.speed < 0.05 && a.s > pass.s1 && blocker?.pass?.key === pass.target && blocker.gap < PASS_STANDOFF_M
+    && Math.abs(passLat(pass, a.s)) < 0.3) pass = undefined;
   // Behind a vehicle standing still that it may go round: wait further back, room to ease out.
   const stoodStill = spec.road && pass === undefined && blocker !== null && blocker.pass !== undefined && Math.abs(blocker.pass.speed) < PASS_STOPPED_MPS;
   const gapMin = spec.road ? (stoodStill ? PASS_STANDOFF_M : ROBOTAXI_GAP_M) : WALKER_GAP_M;
@@ -2476,10 +2491,14 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
-  // v26: ambient Trundles leave the street on the state's first step (before a new game's first
-  // frame); one diving out of a vehicle's way goes once its dodge ends. No RNG is drawn.
-  if (prev.version >= TRUNDLE_FREE_VERSION && ext.list.some((a) => a.kind === "sidewalkBot" && a.dodge === null)) {
-    ext = { ...ext, list: ext.list.filter((a) => a.kind !== "sidewalkBot" || a.dodge !== null) };
+  // v26: ambient Trundles leave the street on the state's first step (the starting street drawn
+  // while a new game loads still shows them). One diving out of a vehicle's way, or knocked flying,
+  // goes once that is over; one a v25 save left in a story (rusting, seized, in a fight, bound to a
+  // mission: protectedTrafficIds) once the story lets it go. No RNG is drawn.
+  const trundleGoes = (a: Readonly<AgentState>): boolean => a.kind === "sidewalkBot" && a.dodge === null && a.knock === undefined;
+  if (prev.version >= TRUNDLE_FREE_VERSION && ext.list.some(trundleGoes)) {
+    const keep = protectedTrafficIds(prev);
+    if (ext.list.some((a) => trundleGoes(a) && !keep.has(a.id))) ext = { ...ext, list: ext.list.filter((a) => !trundleGoes(a) || keep.has(a.id)) };
   }
 
   // Seized robotaxis stand where they stopped: others may go round them.
@@ -2622,7 +2641,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { signals, amberCommit, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
+  const ctx: Ctx = { signals, amberCommit, unstick: prev.version >= UNSTICK_VERSION, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);

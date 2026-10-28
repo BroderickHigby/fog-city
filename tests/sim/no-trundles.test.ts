@@ -58,6 +58,25 @@ describe("v26: no ambient Trundles", () => {
     expect(count(s, "errandRobot")).toBe(robots);
   }, LONG_RUN_MS);
 
+  it("a Trundle a v25 save left knocked flying stays until it is back on its wheels, then goes", () => {
+    // (Review: the removal used to take it mid-tumble, and with it any story it was part of.)
+    const world = gridCity();
+    const initial = createInitialState(world, 7, ["p1"], spawn);
+    const id = agentsOf(initial).find((a) => a.kind === "sidewalkBot")!.id;
+    const knocked: SimState = { ...initial, ext: { ...initial.ext, agents: { ...initial.ext.agents!, list: initial.ext.agents!.list.map((a) =>
+      a.id === id ? { ...a, knock: { phase: "slide" as const, vx: 1.5, vz: 0, yaw: 0, t: 0, age: 0, fall: 1.2, down: 60 } } : a) } } };
+    let s = step(world, knocked, {});
+    expect(count(s, "sidewalkBot")).toBe(1);
+    let left = -1;
+    for (let t = 0; t < 1200; t++) {
+      const was = agentsOf(s).find((a) => a.id === id);
+      if (!was) { left = t; break; }
+      s = step(world, s, {});
+    }
+    expect(left).toBeGreaterThan(0);
+    expect(count(s, "sidewalkBot")).toBe(0);
+  }, LONG_RUN_MS);
+
   it("upgrades a v25 save by restamping only", () => {
     const old = { ...createInitialState(gridCity(), 7, ["p1"], spawn), version: TRUNDLE_FREE_VERSION - 1 };
     const before = canonicalJson(old);

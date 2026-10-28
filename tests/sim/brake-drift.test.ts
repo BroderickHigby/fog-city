@@ -189,7 +189,8 @@ describe("SIM24 brake-steer rotation and handbrake drift", () => {
     const base = createInitialState(dev, 5, ["p"], spawn);
     const onFoot: SimState = { ...base, players: { p: { ...base.players.p!, mode: "foot", foot: makeFoot(spawn.x + 6, 0, spawn.z, 0) } } };
     expect(onFoot.ext.agents!.list.length).toBeGreaterThan(0);
-    let now = onFoot, old: SimState = { ...onFoot, version: 23 };
+    // (At BRAKE_DRIFT_VERSION: later versions change the street itself, e.g. v26 takes the Trundles off it.)
+    let now: SimState = { ...onFoot, version: BRAKE_DRIFT_VERSION }, old: SimState = { ...onFoot, version: 23 };
     for (let t = 0; t < 120; t++) { now = step(dev, now, { p: idle }, [], []); old = step(dev, old, { p: idle }, [], []); }
     expect(now.ext.agents).toEqual(old.ext.agents);
   }, 60_000);
