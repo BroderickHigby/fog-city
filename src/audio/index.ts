@@ -263,7 +263,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const taxiCar = player?.ride?.manual ? occupiedAgent?.manualCar ?? null : null;
       const previousTaxi = prevTaxiId === player?.ride?.agentId ? prevTaxiCar : null;
       if (player && !frame.paused) {
-        // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
+        // Riding a robotaxi, the taxi's engine is heard; the player's own car is parked elsewhere.
         const ride = player.ride ?? null;
         const params=taxiCar ? engineParams(taxiCar,previousTaxi,dtS) : ride ? rideEngineParams(ride.speed,prevTaxiId===ride.agentId?prevRideSpeed:null,dtS) : inCar ? engineParams(player.car,prevCar,dtS) : null;
         if(params?.recording){

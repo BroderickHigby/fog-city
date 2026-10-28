@@ -181,7 +181,7 @@ export class GameAudio {
       }
     }
     this.engineOn = params !== null;
-    const frame = params?.recording ?? (params ? {identity:"legacy-car",profile:"light-ice" as const,speedMps:Math.max(0,(params.whineHz-110)/21),grounded:params.roarGain>0,lateralMps:0,grip:1,dtS:0} : null);
+    const frame = params?.recording ?? (params ? {identity:"legacy-car",profile:"light-ice" as const,speedMps:Math.max(0,(params.roarCutoff-220)/30),grounded:params.roarGain>0,lateralMps:0,grip:1,dtS:0} : null);
     this.vehicle?.set(frame);
   }
 
