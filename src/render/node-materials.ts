@@ -428,18 +428,23 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
   m.roughnessNode = mix(mix(dryRoughness, ROUGHNESS_WET, max(film.mul(ROUGHNESS_FILM_SHARE), damp.mul(ROUGHNESS_DAMP_SHARE))), ROUGHNESS_POOL, puddle);
   // Water's Fresnel weights only the reflection pass (road-water.ts waterReflection): pools mirror the
   // street at grazing angles and only darken seen from above. The lit surface stays dielectric, so
-  // lamps and headlights still light wet asphalt, with or without the pass. Concrete and markings
-  // never mirror. The geometry normal keeps hills right.
+  // lamps and headlights still light wet asphalt, with or without the pass. Concrete mirrors only in
+  // rain (the sheen wets asphalt alone), lane markings never. The geometry normal keeps hills right.
   const cosView = clamp(abs(dot(normalize(cameraPosition.sub(positionWorld)), normalWorldGeometry)), 0, 1);
   const waterFresnel = pow(float(1).sub(cosView), 5).mul(.98).add(.02);
   const reflect = clamp(waterFresnel.mul(REFLECT_GAIN), 0, REFLECT_MAX).mul(max(puddle, film.mul(REFLECT_FILM)))
-    .mul(asphaltMask).mul(float(1).sub(marking));
+    .mul(float(1).sub(marking));
   m.metalnessNode = float(0);
   // Only while the scene pass's MRT is bound: with a render target and no scene MRT (the no-post
   // path draws through one), three would use a material MRT alone and drop the road's colour.
   const waterMrt = mrt({ metalRough: vec2(reflectionWeight(reflect.mul(smoothstep(REFLECT_CUTOFF[0], REFLECT_CUTOFF[1], reflect))), surfaceRoughness) });
   const setup = m.setup.bind(m);
-  m.setup = (builder: NodeBuilder) => { m.mrtNode = builder.renderer.getMRT()?.has("metalRough") ? waterMrt : null; return setup(builder); };
+  // Cleared after the build: three keys its program cache on mrtNode, so leaving it set would key the
+  // next context's first build on whichever context built last.
+  m.setup = (builder: NodeBuilder) => {
+    m.mrtNode = builder.renderer.getMRT()?.has("metalRough") ? waterMrt : null;
+    try { return setup(builder); } finally { m.mrtNode = null; }
+  };
   const height = noise2(p.mul(8.5)).sub(.5).mul(.0032).mul(float(1).sub(smoothstep(.025, .08, pixel)));
   m.normalNode = bumpNormal(mix(paving.height.mul(neutral), height, asphaltMask).mul(float(1).sub(puddle)));
   return m;

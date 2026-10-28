@@ -17,7 +17,10 @@ export function fragmentShader(material: THREE.Material, geometry: THREE.BufferG
   const renderer = new THREE.WebGPURenderer({ canvas: canvas as unknown as HTMLCanvasElement, forceWebGL: lang === "glsl" }) as THREE.WebGPURenderer & { hasFeature: () => boolean };
   renderer.hasFeature = () => false;
   if (target !== undefined) {
-    renderer.setRenderTarget(new THREE.RenderTarget(1, 1, { count: target ? 3 : 1 }));
+    const renderTarget = new THREE.RenderTarget(1, 1, { count: target ? 3 : 1 });
+    // The scene pass's attachments, by name: an MRT writes only outputs whose target texture it finds.
+    if (target) ["output", "normal", "metalRough"].forEach((name, i) => { renderTarget.textures[i]!.name = name; });
+    renderer.setRenderTarget(renderTarget);
     renderer.setMRT(target as never);
   }
   const mesh = new THREE.Mesh(geometry, material), scene = new THREE.Scene(), camera = new THREE.PerspectiveCamera();
@@ -60,4 +63,18 @@ export function isUniformCondition(condition: string): boolean {
     .replace(/\b(max|min|clamp|abs|f32|float|vec[234]<f32>|vec[234])\s*(?=\()/g, "")
     .replace(/\b\d+(\.\d+)?(e[-+]?\d+)?\b/g, "");
   return !/[A-Za-z_]/.test(rest);
+}
+
+/**
+ * The expression written to MRT attachment `index` (WGSL `output.mN = ...`, GLSL `mN = ...`), with the
+ * shader's intermediate variables it reads expanded in place, so a test can check what reaches it.
+ */
+export function mrtOutputExpression(source: string, index: number): string {
+  const assignment = source.match(new RegExp(`(?:output\\.)?\\bm${index} = ([^;]+);`));
+  if (!assignment) return "";
+  const definitions = new Map<string, string>();
+  for (const m of source.matchAll(/\b(nodeVar\d+) = ([^;]+);/g)) if (!definitions.has(m[1]!)) definitions.set(m[1]!, m[2]!);
+  let text = assignment[1]!;
+  for (let i = 0; i < 12 && /\bnodeVar\d+\b/.test(text); i++) text = text.replace(/\bnodeVar\d+\b/g, v => `(${definitions.get(v) ?? v})`);
+  return text;
 }

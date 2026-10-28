@@ -6,7 +6,7 @@ import * as THREE from "three/webgpu";
 import { describe, expect, it } from "vitest";
 import { mrt, normalView, output } from "three/tsl";
 import { prepareGpuScene, sceneMetalRough, setGpuMaterialsEnabled } from "../../src/render/node-materials.ts";
-import { DERIVATIVE, fragmentShader, ifBlocks, isUniformCondition } from "./node-shader.ts";
+import { DERIVATIVE, fragmentShader, ifBlocks, isUniformCondition, mrtOutputExpression } from "./node-shader.ts";
 
 function cityMaterial(name: string): [THREE.Material, THREE.BufferGeometry] {
   setGpuMaterialsEnabled(true);
@@ -34,19 +34,32 @@ describe.each(["wgsl", "glsl"] as const)("wet road shaders in %s", lang => {
   });
 });
 
-describe("the wet road's reflection weight", () => {
-  type WithMrt = { mrtNode: { outputNodes: Record<string, unknown> } | null };
-  it("goes to the scene pass's metalRough output when the scene MRT is bound", () => {
+describe.each(["wgsl", "glsl"] as const)("the wet road's reflection weight in %s", lang => {
+  const sceneMrt = () => mrt({ output, normal: normalView, metalRough: sceneMetalRough() });
+  it("reaches the scene pass's metalRough attachment: Fresnel weight, cutoff, distance fade and roughness gate", () => {
     const [material, geometry] = cityMaterial("fc:road");
-    fragmentShader(material, geometry, "wgsl", mrt({ output, normal: normalView, metalRough: sceneMetalRough() }));
-    expect(Object.keys((material as unknown as WithMrt).mrtNode!.outputNodes)).toEqual(["metalRough"]);
+    const source = fragmentShader(material, geometry, lang, sceneMrt()), metalRough = mrtOutputExpression(source, 2);
+    expect(metalRough).toMatch(/smoothstep\( 0\.04, 0\.1,/);
+    expect(metalRough).toMatch(/smoothstep\( 360\.0, 180\.0,/);
+    // The roughness gate is emitted as a branch around the weight.
+    expect(source).toMatch(/Roughness < 0\.75/);
+    expect(metalRough).toMatch(/pow\(/);
+    // And it is cleared after the build, so the material's cache key does not depend on the last context.
+    expect((material as unknown as { mrtNode: unknown }).mrtNode).toBeNull();
   });
-  it("adds no MRT of its own without one, so a plain render target still gets the road's colour", () => {
+  it("leaves other surfaces on their metalness", () => {
+    const [material, geometry] = cityMaterial("fc:ground");
+    const metalRough = mrtOutputExpression(fragmentShader(material, geometry, lang, sceneMrt()), 2);
+    expect(metalRough).toMatch(/Metalness/);
+    expect(metalRough).not.toMatch(/smoothstep\( 0\.04, 0\.1,/);
+  });
+  it("adds no output of its own on a plain render target or the canvas, so the road keeps its colour", () => {
     // three uses a material's MRT alone when a render target is bound with no scene MRT, which drew no road.
     for (const target of [null, undefined]) {
       const [material, geometry] = cityMaterial("fc:road");
-      fragmentShader(material, geometry, "glsl", target);
-      expect((material as unknown as WithMrt).mrtNode).toBeNull();
+      const source = fragmentShader(material, geometry, lang, target);
+      expect(source).not.toMatch(/smoothstep\( 0\.04, 0\.1,/);
+      expect(source).not.toMatch(/\bm[12]\b/);
     }
   });
 });
