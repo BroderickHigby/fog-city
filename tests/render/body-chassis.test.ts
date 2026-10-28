@@ -137,6 +137,42 @@ describe("the car body on its own pivot", () => {
     }
   });
 
+  it("copyCarFrame carries the tilt on both models: its frame puts every body point where the body is drawn", async () => {
+    for (const [name, view] of await views()) {
+      const car = carOf(view, "p1", pose({ speed: 30 }, { x: 40, y: 2, z: -60, heading: 1.1, pitch: .05, roll: -.03 }));
+      view.update(1 / 60);
+      car.updateWorldMatrix(true, true);
+      const body: THREE.Mesh[] = [];
+      car.traverse((n) => {
+        const m = n as THREE.Mesh;
+        if (!m.isMesh) return;
+        for (let up: THREE.Object3D | null = m; up; up = up.parent) if (typeof up.userData.wheel === "string") return;
+        body.push(m);
+      });
+      expect(body.length, name).toBeGreaterThan(0);
+      const probe = (m: THREE.Mesh): { local: THREE.Vector3; world: THREE.Vector3 } => {
+        m.geometry.computeBoundingBox();
+        const centre = m.geometry.boundingBox!.getCenter(new THREE.Vector3()), world = centre.clone().applyMatrix4(m.matrixWorld);
+        return { local: car.worldToLocal(world.clone()), world };
+      };
+      const rest = body.map(probe);
+      const frame = new THREE.Matrix4(), bounds = new THREE.Box3();
+      view.copyCarFrame("p1", frame, bounds);
+      expect(frame.equals(car.matrixWorld), name).toBe(true);
+      for (let i = 0; i < 90; i++) { const v = 30 - 11 * i / 60; view.setCar("p1", pose({ speed: v, yawRate: .3 * Math.sin(i / 9) }, { x: 40, y: 2, z: -60, heading: 1.1, pitch: .05, roll: -.03 })); view.update(1 / 60); }
+      car.updateWorldMatrix(true, true);
+      expect(view.copyCarFrame("p1", frame, bounds), name).toBe(true);
+      expect(frame.equals(car.matrixWorld), name).toBe(false);
+      let moved = 0;
+      body.forEach((m, i) => {
+        const now = probe(m).world;
+        expect(rest[i]!.local.clone().applyMatrix4(frame).distanceTo(now), `${name}: ${m.name}`).toBeLessThan(1e-9);
+        moved = Math.max(moved, now.distanceTo(rest[i]!.world));
+      });
+      expect(moved, name).toBeGreaterThan(.02);
+    }
+  });
+
   it("a respawn starts the body level", async () => {
     for (const [name, view] of await views()) {
       carOf(view, "p1", pose({ speed: 20 }));

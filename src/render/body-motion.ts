@@ -48,11 +48,17 @@ export class SpringStepper {
 /** One spring axis: position and velocity. */
 export interface Axis { x: number; v: number }
 
-/** Move `axis` toward `target` by one exact step. */
+/**
+ * Move `axis` toward `target` by one exact step. A non-finite target is level (0); an axis that
+ * ever goes non-finite is put back at rest rather than carrying NaN into every later frame.
+ */
 export function advanceAxis(axis: Axis, target: number, co: SpringCoeffs): void {
-  const e = axis.x - target;
-  axis.x = target + co.a11 * e + co.a12 * axis.v;
-  axis.v = co.a21 * e + co.a22 * axis.v;
+  const goal = finite(target) ? target : 0;
+  const e = axis.x - goal;
+  const x = goal + co.a11 * e + co.a12 * axis.v;
+  const v = co.a21 * e + co.a22 * axis.v;
+  if (finite(x) && finite(v)) { axis.x = x; axis.v = v; }
+  else axis.x = axis.v = 0;
 }
 
 /** Slop's chassis springs: pitch and roll (stiffness 68, damping 11.2), heave (85, 12). */
@@ -121,7 +127,9 @@ export const CAR_BODY: BodyTune = {
   feltSpeed: 1.5,
 };
 
-const clamp = (v: number, lo: number, hi: number): number => (v < lo ? lo : v > hi ? hi : v);
+/** Clamp to [lo, hi]; NaN (which compares false both ways) becomes 0 so one bad number never sticks in a spring. */
+const clamp = (v: number, lo: number, hi: number): number => (v !== v ? 0 : v < lo ? lo : v > hi ? hi : v);
+const finite = Number.isFinite;
 
 /** The three springs of one body, plus the kicks that set them off. */
 export class BodySpring {
@@ -134,9 +142,12 @@ export class BodySpring {
     this.tune = tune;
   }
 
-  /** Advance by `dt` seconds toward the pitch and roll the accelerations (m/s^2, car frame) ask for. */
+  /**
+   * Advance by `dt` seconds toward the pitch and roll the accelerations (m/s^2, car frame) ask for.
+   * A dt that is not a positive finite number skips the step; a non-finite acceleration asks for level.
+   */
   step(dt: number, aLong: number, aLat: number): void {
-    if (!(dt > 0)) return;
+    if (!(dt > 0) || !finite(dt)) return;
     const t = this.tune;
     const tilt = TILT_SPRING.coeffs(dt), bob = HEAVE_SPRING.coeffs(dt);
     advanceAxis(this.pitch, clamp(aLong * t.pitchPerAccel, -t.pitchMax, t.pitchMax), tilt);
@@ -149,26 +160,27 @@ export class BodySpring {
 
   /** Add to the spring velocities: rad/s for pitch and roll, m/s for heave. */
   kick(pitchVel: number, rollVel: number, heaveVel: number): void {
-    this.pitch.v = clamp(this.pitch.v + pitchVel, -2.2, 2.2);
-    this.roll.v = clamp(this.roll.v + rollVel, -2.2, 2.2);
-    this.heave.v = clamp(this.heave.v + heaveVel, -2.4, 2.4);
+    this.pitch.v = clamp(this.pitch.v + (finite(pitchVel) ? pitchVel : 0), -2.2, 2.2);
+    this.roll.v = clamp(this.roll.v + (finite(rollVel) ? rollVel : 0), -2.2, 2.2);
+    this.heave.v = clamp(this.heave.v + (finite(heaveVel) ? heaveVel : 0), -2.4, 2.4);
   }
 
   /** Wheels touch down after a fall of `speed` m/s: the body settles on its springs. */
   land(speed: number): void {
     const t = this.tune;
-    if (speed < t.feltSpeed) return;
+    if (!(speed >= t.feltSpeed)) return; // (also a NaN)
     this.kick(-Math.min(0.25, speed * t.landPitch), 0, -Math.min(t.landHeaveMax, speed * t.landHeave));
   }
 
   /**
    * A hit at `speed` m/s closing. (fwd, right) is the unit direction the car was travelling in its
-   * own frame; the jolt pushes against it: a frontal hit dives the nose, a side-on hit rolls the
-   * body away from the wall, and any hit bounces the body up.
+   * own frame; the jolt pushes against it: a frontal hit dives the nose, a side-on hit tips the roof
+   * toward the wall (the wall stops the car's foot, the body's top carries on; roll + = right side
+   * down, so a hit on the right gives roll > 0), and any hit bounces the body up.
    */
   hit(speed: number, fwd: number, right: number, weight = 1): void {
     const t = this.tune;
-    if (speed < t.feltSpeed) return;
+    if (!(speed >= t.feltSpeed)) return; // (also a NaN)
     const s = Math.min(t.hitSpeedMax, speed) * weight;
     this.kick(-fwd * s * t.hitPitch, right * s * t.hitRoll, Math.min(t.hitHeaveMax, s * t.hitHeave));
   }
@@ -199,17 +211,18 @@ export function minHeave(pitch: number, roll: number, hl: number, hw: number, cl
   return lowestDrop(pitch, roll, hl, hw) - (clearance - margin);
 }
 
-/** The acceleration filter's state: the last sample and the smoothed result. */
+/** The acceleration filter's state: the last good sample and the smoothed result. */
 export interface AccelState {
   has: boolean;
   speed: number;
   lateral: number;
+  yaw: number;
   aLong: number;
   aLat: number;
 }
 
 export function newAccel(): AccelState {
-  return { has: false, speed: 0, lateral: 0, aLong: 0, aLat: 0 };
+  return { has: false, speed: 0, lateral: 0, yaw: 0, aLong: 0, aLat: 0 };
 }
 
 let gainDt = -1, gainTau = -1, gainK = 0;
@@ -221,22 +234,35 @@ function accelGain(dt: number, tau: number): number {
 
 /**
  * Longitudinal and lateral acceleration from two successive frames' (interpolated) speed and
- * sideways speed, plus the centripetal term speed * yawRate: what the tyres actually pushed with
- * (body-frame a = dv/dt + omega x v). Low-passed with the tune's time constant, capped, and
- * independent of the frame rate: a tick step or a jittery dt averages out.
+ * sideways speed, and the yaw rate: what the tyres actually pushed with. In the car's own frame,
+ * which turns at yawRate (rad/s, + = clockwise), the velocity (speed, lateral) changes at
+ *   aLong = d(speed)/dt - yawRate * lateral
+ *   aLat  = d(lateral)/dt + yawRate * speed
+ * (a = dv/dt + omega x v). Low-passed with the tune's time constant, capped, and independent of the
+ * frame rate: a tick step or a jittery dt averages out, and the estimate reads the same at 30 or 480 fps.
+ *
+ * A dt that is not a positive finite number skips the frame. A non-finite input holds its last good
+ * value (the very first sample waits for a good speed and sideways speed), so one bad number from the
+ * sim costs a frame of nothing instead of a body stuck on NaN.
  */
 export function updateAccel(s: AccelState, dt: number, speed: number, lateral: number, yawRate: number, tune: BodyTune): void {
-  if (!s.has || !(dt > 0)) {
+  if (!(dt > 0) || !finite(dt)) return;
+  if (!s.has) {
+    if (!finite(speed) || !finite(lateral)) return;
     s.has = true;
     s.speed = speed;
     s.lateral = lateral;
+    s.yaw = finite(yawRate) ? yawRate : 0;
     return;
   }
-  const d = Math.max(dt, 1 / 240);
-  const rawLong = (speed - s.speed) / d;
-  const rawLat = (lateral - s.lateral) / d + speed * yawRate;
+  if (!finite(speed)) speed = s.speed;
+  if (!finite(lateral)) lateral = s.lateral;
+  if (!finite(yawRate)) yawRate = s.yaw;
+  const rawLong = (speed - s.speed) / dt - yawRate * lateral;
+  const rawLat = (lateral - s.lateral) / dt + yawRate * speed;
   s.speed = speed;
   s.lateral = lateral;
+  s.yaw = yawRate;
   const k = accelGain(dt, tune.accelTau);
   s.aLong += (clamp(rawLong, -tune.accelCap, tune.accelCap) - s.aLong) * k;
   s.aLat += (clamp(rawLat, -tune.accelCap, tune.accelCap) - s.aLat) * k;
@@ -244,6 +270,23 @@ export function updateAccel(s: AccelState, dt: number, speed: number, lateral: n
 
 /** What the driver reads from the sim each frame: continuous values interpolated, counters from the newest tick. */
 export type BodyFeel = Pick<CarState, "speed" | "lateral" | "yawRate" | "grounded" | "hits" | "personBumps" | "impactSpeed" | "landingSpeed">;
+
+/**
+ * The inputs for one frame from the sim's two ticks the frame is drawn between: speed, sideways speed
+ * and yaw rate interpolated by `alpha` (0 = tick `a`, 1 = tick `b`), the event counters and the
+ * grounded flag from the newer tick `b`. Writes `out` and returns it; reads `a` and `b` only.
+ */
+export function bodyFeel(a: Readonly<BodyFeel>, b: Readonly<BodyFeel>, alpha: number, out: BodyFeel): BodyFeel {
+  out.speed = a.speed + (b.speed - a.speed) * alpha;
+  out.lateral = a.lateral + (b.lateral - a.lateral) * alpha;
+  out.yawRate = a.yawRate + (b.yawRate - a.yawRate) * alpha;
+  out.grounded = b.grounded;
+  out.hits = b.hits;
+  out.personBumps = b.personBumps;
+  out.impactSpeed = b.impactSpeed;
+  out.landingSpeed = b.landingSpeed;
+  return out;
+}
 
 /**
  * One car's body motion: accelerations from successive frames, kicks from the sim's own event
@@ -271,21 +314,27 @@ export class CarBodyMotion {
   }
 
   update(dt: number, feel: BodyFeel): void {
-    if (!(dt > 0)) return;
+    if (!(dt > 0) || !finite(dt)) return;
     const tune = this.spring.tune;
+    // A non-finite counter or landing speed is not an event: the last good one stands.
+    const hits = finite(feel.hits) ? feel.hits : this.hits;
+    const personBumps = finite(feel.personBumps) ? feel.personBumps : this.personBumps;
+    const landingSpeed = finite(feel.landingSpeed) ? feel.landingSpeed : this.landingSpeed;
     if (this.seen) {
       // The direction it was travelling (its own frame) before this frame, for the jolt.
       const vf = this.accel.speed, vr = this.accel.lateral, vm = Math.hypot(vf, vr);
       const fwd = vm > 0.5 ? vf / vm : 0, right = vm > 0.5 ? vr / vm : 0;
-      if (feel.hits > this.hits) this.spring.hit(feel.impactSpeed, fwd, right);
-      else if (feel.personBumps > this.personBumps) this.spring.hit(feel.impactSpeed, fwd, right, 0.35);
-      if ((feel.grounded && !this.grounded) || feel.landingSpeed !== this.landingSpeed) this.spring.land(feel.landingSpeed);
+      if (hits > this.hits) this.spring.hit(feel.impactSpeed, fwd, right);
+      else if (personBumps > this.personBumps) this.spring.hit(feel.impactSpeed, fwd, right, 0.35);
+      // Touchdown: the wheels came back (grounded flipped), or a landing short enough to fall between
+      // two frames (it was over before a frame saw it airborne) left a new landing speed.
+      if ((feel.grounded && !this.grounded) || landingSpeed !== this.landingSpeed) this.spring.land(landingSpeed);
     }
     this.seen = true;
     this.grounded = feel.grounded;
-    this.hits = feel.hits;
-    this.personBumps = feel.personBumps;
-    this.landingSpeed = feel.landingSpeed;
+    this.hits = hits;
+    this.personBumps = personBumps;
+    this.landingSpeed = landingSpeed;
     updateAccel(this.accel, dt, feel.speed, feel.lateral, feel.yawRate, tune);
     // In the air no tyre pushes: the body floats where it was.
     this.spring.step(dt, feel.grounded ? this.accel.aLong : 0, feel.grounded ? this.accel.aLat : 0);

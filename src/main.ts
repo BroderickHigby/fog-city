@@ -73,6 +73,7 @@ import { bindRunwaySender, clearRunwayRun, quitRunwayRun, startRunwayRun } from 
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
+import { bodyFeel } from "./render/body-motion.ts";
 import { NO_FLY_INPUT, type CameraMode, type CameraTarget, type FlyInput } from "./render/cameras.ts";
 import { clockStartMinute, gameMinuteOfDay } from "./render/clock.ts";
 import { isCivilianTraffic } from "./sim/civilian-traffic.ts";
@@ -258,6 +259,8 @@ async function boot(): Promise<void> {
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
       landmarks: landmarksDoc,
+      carLights: numParam(params, "carlights") ?? undefined,
+      lampLights: numParam(params, "lamplights") ?? undefined,
       tide: { line: TIDE_PROMENADE, nearM: WEATHER.promenadeNearM, farM: WEATHER.promenadeFarM, floods: (x, z) => promenadeAt(world, x, z) },
     },
   );
@@ -651,15 +654,7 @@ async function boot(): Promise<void> {
       c.steer = lerp(a.steer, b.steer, alpha);
       c.speed = lerp(a.speed, b.speed, alpha);
       // The body spring's inputs (render/body-motion.ts): rates interpolated, events from the newest tick.
-      const feel = c.feel!;
-      feel.speed = c.speed;
-      feel.lateral = lerp(a.lateral, b.lateral, alpha);
-      feel.yawRate = lerp(a.yawRate, b.yawRate, alpha);
-      feel.grounded = b.grounded;
-      feel.hits = b.hits;
-      feel.personBumps = b.personBumps;
-      feel.impactSpeed = b.impactSpeed;
-      feel.landingSpeed = b.landingSpeed;
+      bodyFeel(a, b, alpha, c.feel!);
       view.setCar(id, c);
       const onFoot = pc.mode === "foot" && pc.foot !== null;
       if (onFoot) {
