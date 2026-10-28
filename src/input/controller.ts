@@ -1,5 +1,6 @@
 import { Action, type SimInput } from "../sim/contract.ts";
 import type { Keyboard } from "./keyboard.ts";
+import { radialDeadZone } from "./stick.ts";
 
 export type VirtualAction = keyof typeof Action | "brake";
 export interface PadLike { readonly connected: boolean; readonly axes: readonly number[]; readonly buttons: readonly { readonly pressed: boolean; readonly value: number }[] }
@@ -8,7 +9,6 @@ const CONTINUOUS = new Set<VirtualAction>(["fire", "scan", "watch", "altFire", "
 const PAD_ACTIONS: Readonly<Record<number, VirtualAction>> = { 0:"enterExit", 1:"cone", 2:"gadget", 3:"interact", 4:"watch", 5:"altFire", 7:"fire", 10:"horn", 11:"scan", 12:"gear", 13:"streak" };
 const neutral = (): SimInput => ({ throttle:0, steer:0, brake:0, actions:0 });
 function axis(v:number):number { return Number.isFinite(v) ? Math.max(-1,Math.min(1,v)) : 0; }
-function deadzone(v:number):number { return Math.abs(v)<.16 ? 0 : Math.sign(v)*(Math.abs(axis(v))-.16)/.84; }
 function strongest(a:number,b:number):number { return Math.abs(a)>=Math.abs(b)?a:b; }
 
 /** Combines input devices into one recorded sim sample. Modal blocking releases all devices. */
@@ -45,7 +45,8 @@ export class InputController {
     const pad=this.gamepads().find(p=>p?.connected);
     const now=new Set<number>();
     if(pad){
-      steer=strongest(steer,deadzone(pad.axes[0]??0));throttle=strongest(throttle,-deadzone(pad.axes[1]??0));
+      const drive=radialDeadZone(axis(pad.axes[0]??0),axis(pad.axes[1]??0));
+      steer=strongest(steer,drive.x);throttle=strongest(throttle,-drive.y);
       brake=Math.max(brake,Math.max(0,axis(pad.buttons[6]?.value??0)));
       for(const [index,action] of Object.entries(PAD_ACTIONS))if(pad.buttons[Number(index)]?.pressed){
         now.add(Number(index));if(action!=="brake"&&(CONTINUOUS.has(action)||!this.previousPad.has(Number(index))))actions|=Action[action];
