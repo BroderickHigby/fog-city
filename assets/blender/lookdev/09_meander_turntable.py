@@ -1,9 +1,10 @@
 """Look-dev 09: the Meander robotaxi -> assets/blender/lookdev/09-meander-turntable.png
 
 Left to right: the kerb side from the front three-quarter (sliding door shut), the street
-side broadside (no door, the solid panel and slim window: the asymmetry), and the kerb side
-from the rear three-quarter with the door popped out by its popM and slid back by its slideM
-extras. Lights lit as at dusk so the teal status line in the roof band shows.
+side broadside (no door, two windows either side of a white post: the sides differ), and the
+kerb side from the rear three-quarter with the door popped out by its popM and slid back by
+its slideM extras. The pod is the same both ways round, so the light bars say which end is
+the front. Lights lit as at dusk so the teal status line in the roof band shows.
 """
 
 import os
