@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, advanceAxis, bodyFeel, lowestDrop, minHeave, newAccel, updateAccel,
+  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, LEAN_DROP_MAX, TRAFFIC_BODY, TrafficLean, advanceAxis, bodyFeel, lowestDrop, minHeave, newAccel,
+  updateAccel,
   type BodyFeel,
 } from "../../src/render/body-motion.ts";
 
@@ -346,6 +347,107 @@ describe("never into the road", () => {
         }
       }
     }
+  });
+});
+
+describe("ambient traffic's lean", () => {
+  const frames = (l: TrafficLean, n: number, speed: (k: number) => number, heading: (k: number) => number, dt = 1 / 60): void => {
+    for (let k = 0; k < n; k++) l.update(dt, speed(k * dt), heading(k * dt));
+  };
+
+  it("is lighter than the player's car, and the spring overshoots its capped target by no more than a few per cent", () => {
+    expect(TRAFFIC_BODY.pitchMax).toBeLessThan(CAR_BODY.pitchMax);
+    expect(TRAFFIC_BODY.rollMax).toBeLessThan(CAR_BODY.rollMax);
+    const l = new TrafficLean();
+    frames(l, 240, (t) => 30 * t, (t) => 4 * t);
+    expect(Math.abs(l.spring.pitch.x)).toBeLessThanOrEqual(TRAFFIC_BODY.pitchMax * 1.1);
+    expect(Math.abs(l.spring.roll.x)).toBeLessThanOrEqual(TRAFFIC_BODY.rollMax * 1.1);
+  });
+
+  it("squats, dives and leans out of a turn from the drawn speed and heading alone", () => {
+    const up = new TrafficLean(), down = new TrafficLean(), right = new TrafficLean(), level = new TrafficLean();
+    frames(up, 90, (t) => 3 * t, () => 0);
+    frames(down, 90, (t) => 20 - 6 * t, () => 0);
+    frames(right, 90, () => 14, (t) => 0.5 * t); // heading + = clockwise = turning right
+    frames(level, 90, () => 14, () => 1.2);
+    expect(up.spring.pitch.x).toBeGreaterThan(0.012);
+    expect(down.spring.pitch.x).toBeLessThan(-0.02);
+    expect(right.spring.roll.x).toBeLessThan(-0.03); // left side down
+    expect(level.spring.pitch.x).toBe(0);
+    expect(level.spring.roll.x).toBe(0);
+  });
+
+  it("is the same lean at 30, 60 and 144 fps", () => {
+    const at = (fps: number): [number, number] => {
+      const l = new TrafficLean();
+      const dt = 1 / fps;
+      for (let t = 0; t < 2 - 1e-9; t += dt) l.update(dt, Math.min(12, 4 * t), 0.35 * t);
+      return [l.spring.pitch.x, l.spring.roll.x];
+    };
+    const ref = at(60);
+    for (const fps of [30, 144]) {
+      const [p, r] = at(fps);
+      expect(p).toBeCloseTo(ref[0], 2);
+      expect(r).toBeCloseTo(ref[1], 2);
+    }
+  });
+
+  it("turns across the compass seam without a lurch, and ignores a respawn's heading jump", () => {
+    const l = new TrafficLean(), ref = new TrafficLean();
+    // A steady right turn through north: 6.1 -> 0.1 rad.
+    frames(l, 60, () => 12, (t) => (6.0 + 0.5 * t) % (Math.PI * 2));
+    frames(ref, 60, () => 12, (t) => 1.0 + 0.5 * t);
+    expect(l.spring.roll.x).toBeCloseTo(ref.spring.roll.x, 9);
+    const jump = new TrafficLean();
+    frames(jump, 30, () => 10, () => 0);
+    jump.update(1 / 60, 10, 3); // a 3 rad jump in a frame: capped, never a full-roll spike
+    expect(Math.abs(jump.spring.roll.x)).toBeLessThanOrEqual(TRAFFIC_BODY.rollMax);
+  });
+
+  it("starts level after a reset and when dt is zero", () => {
+    const l = new TrafficLean();
+    frames(l, 60, (t) => 6 * t, () => 0);
+    expect(l.spring.pitch.x).not.toBe(0);
+    l.reset();
+    expect(l.spring.pitch.x).toBe(0);
+    l.update(0, 5, 1);
+    expect(l.spring.pitch.x).toBe(0);
+  });
+
+  it("at the caps an axle of a whole-tilted vehicle dips or floats by less than 5 cm", () => {
+    expect(1.35 * Math.sin(TRAFFIC_BODY.pitchMax)).toBeLessThan(0.05); // CAR.axle from the centre
+    expect(0.8 * Math.sin(TRAFFIC_BODY.rollMax)).toBeLessThan(0.05); // CAR.track
+  });
+
+  it("braking hard through a turn, pitch and roll together still move a wheel no more than LEAN_DROP_MAX", () => {
+    const l = new TrafficLean();
+    let worst = 0, scaled = false;
+    for (let k = 0; k < 240; k++) {
+      const t = k / 60;
+      l.update(1 / 60, Math.max(0, 25 - 9 * t), 0.6 * t); // full brake while turning right
+      worst = Math.max(worst, lowestDrop(l.pitch, l.roll, 1.35, 0.8));
+      if (Math.abs(l.pitch) < Math.abs(l.spring.pitch.x) - 1e-12) scaled = true;
+    }
+    expect(scaled).toBe(true); // the unscaled spring would have gone past it
+    expect(worst).toBeLessThanOrEqual(LEAN_DROP_MAX + 1e-12);
+    // One axis alone within the caps is drawn as the spring has it.
+    const up = new TrafficLean();
+    for (let k = 0; k < 90; k++) up.update(1 / 60, 3 * k / 60, 0);
+    expect(up.pitch).toBe(up.spring.pitch.x);
+  });
+
+  it("a NaN heading costs a frame of turning, never a roll stuck on a straight road", () => {
+    const l = new TrafficLean();
+    for (let k = 0; k < 60; k++) l.update(1 / 60, 14, 0.5 * k / 60); // turning right
+    expect(l.roll).toBeLessThan(-0.02);
+    l.update(1 / 60, 14, NaN);
+    for (let k = 0; k < 180; k++) l.update(1 / 60, 14, 1.2); // then straight
+    expect(Math.abs(l.roll)).toBeLessThan(1e-4);
+    const first = new TrafficLean();
+    first.update(1 / 60, 14, NaN); // a NaN very first heading
+    for (let k = 0; k < 60; k++) first.update(1 / 60, 14, 0.5 * k / 60);
+    expect(first.roll).toBeLessThan(-0.02);
+    expect(Number.isFinite(first.pitch) && Number.isFinite(first.roll)).toBe(true);
   });
 });
 
