@@ -95,6 +95,26 @@ describe("SIM24 brake-steer rotation and handbrake drift", () => {
     if (Math.abs(released.speed) > REFERENCE_DRIVE.handbrakeMinSpeed) expect(again.yawRate).toBeGreaterThan(0.3);
   });
 
+  it("a flickering handbrake (pad trigger near half) kicks no harder than a steady pull", () => {
+    const steady = trace(at20(), 60, handbrake);
+    let c = at20();
+    const flicker: CarState[] = [];
+    for (let t = 0; t < 60; t++) flicker.push(c = drive(c, t % 2 ? { ...handbrake, brake: 0 } : handbrake, 24));
+    const peak = (cs: CarState[]): number => Math.max(...cs.map((x) => Math.abs(x.yawRate)));
+    expect(peak(flicker)).toBeLessThanOrEqual(peak(steady) + 1e-9);
+    // The kick needs grip fully back: one off tick after a pull is not enough to fire it again.
+    let kicks = 0;
+    for (let t = 1; t < flicker.length; t++) if (Math.abs(flicker[t]!.yawRate) - Math.abs(flicker[t - 1]!.yawRate) > 0.3) kicks++;
+    expect(kicks).toBeLessThanOrEqual(1);
+  });
+
+  it("in reverse the kick turns the way the car yaws for that steer", () => {
+    const back: CarState = { ...makeCar(0, 0, 0), speed: -10.4 };
+    const held = trace(back, 30, { ...idle, brake: 0.4, steer: 1 }, 24).at(-1)!;
+    const kicked = drive(back, handbrake, 24);
+    expect(Math.sign(kicked.yawRate)).toBe(Math.sign(held.yawRate));
+  });
+
   it("is a controllable slide: release and drive on and the tyres bite; counter-steer swings it back", () => {
     const slid = trace(at20(), 30, handbrake).at(-1)!;
     expect(slipDeg(slid)).toBeLessThan(-8);

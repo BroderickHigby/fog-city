@@ -40,6 +40,12 @@ export interface AgentPose {
   /** The manually driven taxi's suspension and front-wheel angle. */
   roll?: number;
   steer?: number;
+  /**
+   * Render-only body lean (body-motion.ts TrafficLean): rad added to pitch and roll when a vehicle
+   * is drawn. Set each frame by the agent layer; absent or 0 for anything that does not lean.
+   */
+  leanPitch?: number;
+  leanRoll?: number;
 }
 
 type AgentPoseSource = Readonly<Pick<AgentState, "x" | "y" | "z" | "heading" | "pitch" | "speed"> & { manualCar?: Readonly<CarState> }>;
