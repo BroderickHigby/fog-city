@@ -39,7 +39,7 @@ import { VisualQuality, presentationLook, type PresentationLook } from "./qualit
 import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
-import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool } from "./night-light-pools.ts";
+import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
@@ -83,7 +83,8 @@ export interface RenderOptions {
   tide?: TideStrip;
   /**
    * WebGPU only: size of the car headlight pool (?carlights=; 0 turns it off) and of the street
-   * lamp pool (?lamplights=; 0 keeps the 8-lamp rig of the other backends). See night-light-pools.ts.
+   * lamp pool (?lamplights=; 0 keeps the 8-lamp rig of the other backends). Whole numbers from 0
+   * to MAX_POOL_SIZE; anything else is clamped. See night-light-pools.ts.
    */
   carLights?: number;
   lampLights?: number;
@@ -484,10 +485,10 @@ export class SceneRenderer {
       // Only WebGPU has clustered lighting (gpu-engine.ts), where more point lights are cheap; the
       // WebGL node backend and the legacy renderer evaluate every light for every pixel and keep 8.
       const clustered = gpu.backend === "webgpu" && this.tier !== "low";
-      const lamps = clustered ? Math.max(0, Math.floor(opts.lampLights ?? LAMP_LIGHT_POOL)) : 0;
+      const lamps = clustered ? poolSize(opts.lampLights, LAMP_LIGHT_POOL) : 0;
       if (lamps > 0) { this.lampPool = new LampLightPool(lamps); this.scene.add(this.lampPool.group); }
       else { this.streetLights = new StreetLightRig(); this.scene.add(this.streetLights.group); }
-      const cars = clustered ? Math.max(0, Math.floor(opts.carLights ?? CAR_LIGHT_POOL)) : 0;
+      const cars = clustered ? poolSize(opts.carLights, CAR_LIGHT_POOL) : 0;
       if (cars > 0) { this.carLights = new CarLightPool(cars); this.scene.add(this.carLights.group); }
     }
     this.weather = new WeatherLayer(opts.tide ?? null, world.ground);
@@ -899,7 +900,7 @@ export class SceneRenderer {
       this.viewer.fx = h > 1e-6 ? this.camDir.x / h : 0;
       this.viewer.fz = h > 1e-6 ? this.camDir.z / h : -1;
       this.agents.update(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer, dtSeconds, this.time);
-      if (this.carLights) this.carLights.update(cam.x, cam.z, this.viewer.fx, this.viewer.fz, this.carPoses, this.agents.vehiclePoses(this.carPoses));
+      if (this.carLights) this.carLights.update(cam.x, cam.z, this.viewer.fx, this.viewer.fz, this.carPoses, this.agents.vehiclePoses(this.carPoses, local?.target.robotaxiId ?? null));
     }
     this.fitNearPlane();
     this.sky.follow(this.camera);

@@ -9,12 +9,14 @@ import {
   CAR_LIGHT_PARAMS,
   CarLightPool,
   LampLightPool,
+  MAX_POOL_SIZE,
   NearestPicker,
   VEHICLE_STRIDE,
   assignSlots,
   beamFor,
   effectiveDistance,
   lampId,
+  poolSize,
   smoothFade,
 } from "../../src/render/night-light-pools.ts";
 
@@ -155,18 +157,40 @@ describe("CarLightPool", () => {
     pool.dispose();
   });
 
-  it("lights the nearest cars at night, at most the pool's size, nearest first", () => {
+  it("lights exactly the nearest cars at night, at most the pool's size, nearest first", () => {
     const pool = new CarLightPool(POOL);
     pool.setNight(1);
-    const v = cars(Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, x: 3, z: -10 * (i + 1) })));
-    pool.update(0, 0, 0, -1, v, 12);
-    expect(pool.lit).toBeGreaterThan(0);
-    expect(pool.lit).toBeLessThanOrEqual(POOL);
-    const lit = pool.lights.filter(l => l.intensity > 0);
-    // Cars face north (heading 0): each light sits ahead of its car, so its z is less than the car's.
-    const zs = lit.map(l => l.position.z).sort((a, b) => b - a);
-    expect(zs[0]!).toBeLessThan(-10);
-    expect(Math.max(...lit.map(l => l.position.z))).toBeGreaterThan(-60);
+    // 12 cars in a line ahead of the camera (it looks north), 10 m apart, listed farthest first.
+    const line = Array.from({ length: 12 }, (_, i) => ({ id: 100 + i, x: 3, z: -10 * (i + 1) })).reverse();
+    pool.update(0, 0, 0, -1, cars(line), 12);
+    expect(pool.lit).toBe(POOL);
+    // The four nearest (ids 100 to 103) hold the four lights; every other car holds none.
+    for (let id = 100; id < 100 + POOL; id++) expect(pool.slotFor(id), `car ${id}`).toBeGreaterThanOrEqual(0);
+    for (let id = 100 + POOL; id < 112; id++) expect(pool.slotFor(id), `car ${id}`).toBe(-1);
+    // And each of those lights sits ahead of its own car (cars face north, so its z is below the car's).
+    for (let id = 100; id < 100 + POOL; id++) {
+      const light = pool.lights[pool.slotFor(id)]!;
+      const carZ = -10 * (id - 99);
+      expect(light.position.z, `car ${id}`).toBeLessThan(carZ - 2.5);
+      expect(light.position.z, `car ${id}`).toBeGreaterThan(carZ - 2.5 - CAR_LIGHT_PARAMS.aheadM - 1e-6);
+    }
+    pool.dispose();
+  });
+
+  it("parks the light of a car that vanishes: intensity 0 and below the ground", () => {
+    const pool = new CarLightPool(POOL);
+    pool.setNight(1);
+    pool.update(0, 0, 0, -1, cars([{ id: 1, x: 0, z: -10 }, { id: 2, x: 0, z: -30 }]), 2);
+    expect(pool.lit).toBe(2);
+    const slot = pool.slotFor(2);
+    expect(pool.lights[slot]!.intensity).toBeGreaterThan(0);
+    // Car 2 is gone (despawned, or out of range): its light is idle and parked, still at night.
+    pool.update(0, 0, 0, -1, cars([{ id: 1, x: 0, z: -10 }]), 1);
+    expect(pool.lit).toBe(1);
+    expect(pool.slotFor(2)).toBe(-1);
+    expect(pool.lights[slot]!.intensity).toBe(0);
+    expect(pool.lights[slot]!.position.y).toBeLessThan(-100);
+    expect(pool.lights.filter(l => l.intensity === 0 && l.position.y < -100).length).toBe(POOL - 1);
     pool.dispose();
   });
 
@@ -268,6 +292,20 @@ describe("LampLightPool", () => {
     pool.dispose();
   });
 
+  it("parks the light of a lamp that leaves the pool: intensity 0 and below the ground", () => {
+    const pool = new LampLightPool(POOL);
+    pool.setNight(1);
+    pool.update(0, 0, 1, [heads([[0, -10], [0, -20]])], 0, -1);
+    expect(pool.lit).toBe(2);
+    const slot = pool.lights.findIndex(l => l.position.z === -20);
+    // The camera drives off: the far lamp is now out of range, and its light is idle and parked.
+    pool.update(0, -10 - pool.params.rangeM + 6, 1, [heads([[0, -10]])], 0, -1);
+    expect(pool.lit).toBe(0);
+    expect(pool.lights[slot]!.intensity).toBe(0);
+    expect(pool.lights[slot]!.position.y).toBeLessThan(-100);
+    pool.dispose();
+  });
+
   it("follows the camera across tiles and ignores lamps out of range", () => {
     const pool = new LampLightPool(POOL);
     pool.setNight(1);
@@ -340,6 +378,21 @@ describe("AgentLayer.vehiclePoses (what feeds the car pool)", () => {
     } finally { layer.dispose(); }
   });
 
+  it("leaves out the agent it is told to skip, in any camera mode (the player's own taxi)", () => {
+    const layer = new AgentLayer(registry());
+    try {
+      layer.update(state(0, 1), state(4, 2), 0.5, { x: 0, z: 0, fx: 0, fz: -1 }, 1 / 60, 0);
+      const out = new Float32Array(8 * VEHICLE_STRIDE);
+      expect(layer.vehiclePoses(out)).toBe(2);
+      expect(layer.vehiclePoses(out, 1)).toBe(1);
+      expect(out[4]).toBe(4);
+      expect(layer.vehiclePoses(out, 4)).toBe(1);
+      expect(out[4]).toBe(1);
+      expect(layer.vehiclePoses(out, null)).toBe(2);
+      expect(layer.vehiclePoses(out, 999)).toBe(2);
+    } finally { layer.dispose(); }
+  });
+
   it("leaves out the hidden agent, stops at the buffer's size, and is empty after dispose", () => {
     const layer = new AgentLayer(registry());
     layer.update(state(0, 1), state(4, 2), 0.5, { x: 0, z: 0, fx: 0, fz: -1 }, 1 / 60, 0);
@@ -351,5 +404,32 @@ describe("AgentLayer.vehiclePoses (what feeds the car pool)", () => {
     expect(layer.vehiclePoses(out)).toBe(1); // the buffer holds one
     layer.dispose();
     expect(layer.vehiclePoses(out)).toBe(0);
+  });
+});
+
+describe("poolSize (?carlights= and ?lamplights=)", () => {
+  it("keeps whole numbers from 0 to the most, and floors the rest", () => {
+    expect(poolSize(0, 24)).toBe(0);
+    expect(poolSize(1, 24)).toBe(1);
+    expect(poolSize(7.9, 24)).toBe(7);
+    expect(poolSize(MAX_POOL_SIZE, 24)).toBe(MAX_POOL_SIZE);
+  });
+
+  it("clamps a value that is too big or negative, so a URL cannot allocate a huge pool", () => {
+    expect(poolSize(1e9, 24)).toBe(MAX_POOL_SIZE);
+    expect(poolSize(Infinity, 24)).toBe(MAX_POOL_SIZE);
+    expect(poolSize(MAX_POOL_SIZE + 1, 24)).toBe(MAX_POOL_SIZE);
+    expect(poolSize(-5, 24)).toBe(0);
+    expect(poolSize(-Infinity, 24)).toBe(0);
+  });
+
+  it("uses the default when the value is missing or not a number", () => {
+    expect(poolSize(undefined, 24)).toBe(24);
+    expect(poolSize(null, 24)).toBe(24);
+    expect(poolSize(NaN, 24)).toBe(24);
+  });
+
+  it("leaves room in ClusteredLighting's 256 point lights for two full pools", () => {
+    expect(2 * MAX_POOL_SIZE).toBeLessThanOrEqual(256 - 8);
   });
 });

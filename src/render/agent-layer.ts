@@ -524,15 +524,16 @@ export class AgentLayer {
   /**
    * After update(): the road vehicles drawn this frame, packed x, y, z, compass heading, id (5
    * floats each), up to out.length / 5 of them; returns how many. Render-only: the night light
-   * pool (night-light-pools.ts) puts a headlight ahead of each of the nearest.
+   * pool (night-light-pools.ts) puts a headlight ahead of each of the nearest. `skipId` leaves one
+   * agent out whatever the camera mode (the robotaxi the player rides keeps its own headlight).
    */
-  vehiclePoses(out: Float32Array): number {
+  vehiclePoses(out: Float32Array, skipId: number | null = null): number {
     if (this.disposed) return 0;
     const cap = Math.floor(out.length / 5);
     let n = 0;
     for (let i = 0; i < this.pairs.length && n < cap; i++) {
       const actor = this.pairs[i]![1];
-      if (!AGENT_SPEC[actor.kind].road || actor.id === this.hiddenAgent || this.tiers[i] === TIER_HIDDEN) continue;
+      if (!AGENT_SPEC[actor.kind].road || actor.id === this.hiddenAgent || actor.id === skipId || this.tiers[i] === TIER_HIDDEN) continue;
       const pose = this.poses[i]!;
       const o = n++ * 5;
       out[o] = pose.x; out[o + 1] = pose.y; out[o + 2] = pose.z; out[o + 3] = pose.heading; out[o + 4] = actor.id;

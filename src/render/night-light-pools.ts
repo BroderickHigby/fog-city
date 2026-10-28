@@ -16,6 +16,7 @@
 // the scene's light count. By day every light sits at intensity 0 and parked.
 // The selection is pure (tests/render/night-light-pools.test.ts); the classes only move lights.
 import * as THREE from "three";
+import { ROBOTAXI_BODY } from "../sim/agents.ts";
 import { STREET_LIGHT_COLOR, STREET_LIGHT_NIGHT_INTENSITY, STREET_LIGHT_REACH_M, STREET_LIGHT_RANGE_M } from "./street-lights.ts";
 
 /**
@@ -29,6 +30,19 @@ import { STREET_LIGHT_COLOR, STREET_LIGHT_NIGHT_INTENSITY, STREET_LIGHT_REACH_M,
  */
 export const CAR_LIGHT_POOL = 24;
 export const LAMP_LIGHT_POOL = 24;
+
+/**
+ * Most lights a pool may hold. ?carlights= and ?lamplights= are clamped to this: a huge value
+ * would allocate a huge pool, and ClusteredLighting (gpu-engine.ts) holds 256 point lights in
+ * all, silently dropping the rest, so two full pools (192) must leave room for the others.
+ */
+export const MAX_POOL_SIZE = 96;
+
+/** A pool size from a URL value: whole, 0 to MAX_POOL_SIZE; `fallback` when it is missing or not a number. */
+export function poolSize(value: number | undefined | null, fallback: number): number {
+  if (value === undefined || value === null || Number.isNaN(value)) return fallback;
+  return Math.max(0, Math.min(MAX_POOL_SIZE, Math.floor(value)));
+}
 
 /** Where an idle light waits: far below any ground, so no cluster takes it. */
 const PARK_Y = -1000;
@@ -203,8 +217,8 @@ export const CAR_LIGHT_PARAMS: Readonly<CarLightParams> = Object.freeze({
   limit: Infinity,
 });
 
-/** The robotaxi body (ROBOTAXI_BODY.halfLength in sim/agents.ts, 2.5 m): the nose is this far from the origin. */
-const NOSE_M = 2.5;
+/** The robotaxi body is centred on the agent's origin: its nose is this far ahead of it. */
+const NOSE_M = ROBOTAXI_BODY.halfLength;
 /** A car this far ahead (nose to tail) and within this lateral distance is "the car in front". */
 const LANE_HALF_WIDTH_M = 2.1;
 const COLOR_HEAD = 0xfff1d8;
@@ -212,7 +226,7 @@ const COLOR_HEAD = 0xfff1d8;
 export class CarLightPool {
   readonly group = new THREE.Group();
   readonly lights: THREE.PointLight[] = [];
-  /** Tunable in the page while looking (debug handle); not read from the sim. */
+  /** Tunable in the page while looking: with ?debug=1, `__fogcityView.carLights.params` (src/main.ts exposes the view). Not read from the sim. */
   readonly params: CarLightParams = { ...CAR_LIGHT_PARAMS };
   private night = 0;
   private parked = false;
@@ -247,14 +261,14 @@ export class CarLightPool {
     this.night = Math.max(0, Math.min(1, night));
   }
 
-  /** Lights on this frame (for tests and the debug handle). */
+  /** Lights on this frame (for tests, and renderInfo().carLightsLit). */
   get lit(): number {
     let n = 0;
     for (const l of this.lights) if (l.intensity > 0) n++;
     return n;
   }
 
-  /** The light driven by car `id` right now, or -1 (for tests and the debug handle). */
+  /** The light driven by car `id` right now, or -1 (for tests, and renderInfo().streetLightsLit). */
   slotFor(id: number): number {
     return this.slotIds.indexOf(id);
   }
@@ -358,7 +372,7 @@ export const LAMP_LIGHT_PARAMS: Readonly<LampLightParams> = Object.freeze({
 export class LampLightPool {
   readonly group = new THREE.Group();
   readonly lights: THREE.PointLight[] = [];
-  /** Tunable in the page while looking (debug handle); not read from the sim. */
+  /** Tunable in the page while looking: with ?debug=1, `__fogcityView.lampPool.params`. Not read from the sim. */
   readonly params: LampLightParams = { ...LAMP_LIGHT_PARAMS };
   private night = 0;
   private parked = false;
