@@ -61,7 +61,7 @@ sound with its files, length, loop flag and use; the UI-Audio track can load fro
   with different seeds per variant.
 - **The car's live sound** (`src/audio/vehicle-synth.ts`) has no file at all. It is synthesised
   in Web Audio each frame from the car's state:
-  - a four-cylinder engine: RPM from speed through five gears (850 rpm idle, 5800 rpm redline, a drop on each upshift); firing pulses (two per crank turn) and a half-order through a soft clip and a low-pass that opens with RPM and throttle, a body sine, a half-order lope for an uneven idle and a little exhaust breath under throttle;
+  - a four-cylinder engine: RPM from speed through five gears (850 rpm idle, 5800 rpm redline, a drop on each upshift). The gearbox remembers its gear (`EngineClock` in `src/audio/vehicle-sound.ts`): a shift needs a margin, so a speed hovering at a shift point does not hunt; each gear is held at least 0.65 s; an upshift cuts the power for about 0.16 s; the throttle rises faster (0.14 s) than it falls (0.32 s). Firing pulses (two per crank turn) and a half-order through a soft clip and a low-pass that opens with RPM and throttle, a body sine, a half-order lope for an uneven idle and a little exhaust breath under throttle;
   - road roar: looped noise through a low-pass that opens with speed, silent in the air;
   - tyre squeal: noise through a narrow 1.9 kHz band-pass, driven by lateral slip, lost grip or hard braking at speed.
 - **moat-jingle**: four FM-bell notes, **A4 D5 E5 B4** (onsets 0, 0.17, 0.34, 0.56 s), the
