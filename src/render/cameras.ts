@@ -61,7 +61,12 @@ const SLOPE_FOLLOW_DOWN = 1.0;
 const LOOK_SLOPE_FOLLOW = 0.6;
 
 // The car's chase arm, after mrdoob's Slop New York (MIT): a low arm that drifts back as the car speeds up and closes in as it slows.
-/** The car's arm at rest: metres back and up (Slop js/controllers.js:585-586: 6.9 and 2.12). */
+/**
+ * The car's arm at rest: metres back and up. Back is Slop's 6.9 (js/controllers.js:585). Up is 2.2,
+ * not Slop's 2.12 (:586): Fog City's car roof is 1.5 m (CAR_BODY.top) and the body clamp holds the
+ * camera 0.6 m (BODY_CLEAR_M) above it, 2.1 m, so 2.2 sits just over that line at rest instead of
+ * on it.
+ */
 export const CHASE_BACK_M = 6.9;
 export const CHASE_UP_M = 2.2;
 /** The arm grows by this fraction per m/s of eased speed, up to the cap (Slop js/cameras.js:192). */
@@ -75,6 +80,15 @@ export const CHASE_SPEED_EASE = 3;
 export const CHASE_SPEED_CAP = 60;
 /** The car chase camera follows its target at this rate, 1/s (Slop js/cameras.js:346). */
 export const CHASE_FOLLOW_RATE = 8.5;
+/** The look point's follow rate on foot and while the player drags the orbit, 1/s: quicker than the car's own. */
+const LOOK_FOLLOW_RATE = 12;
+/**
+ * The hill pitch the arm and the look point follow is the car's pitch eased at this rate, 1/s. The
+ * sim's pitch is a two-point slope over 2.7 m of road, so a kerb or a patch of rough ground is a
+ * short spike in it; the longer the arm, the more a spike moves the camera. A hill is slow, so it
+ * is followed. The roof clamp reads the car's real pitch.
+ */
+export const CHASE_PITCH_EASE = 6;
 /** Where a car's chase camera looks: this far ahead (Slop js/cameras.js:203-207), and this high, metres. */
 export const CHASE_LOOK_AHEAD_M = 5.2;
 const CHASE_LOOK_HEIGHT_M = 1.4;
@@ -112,6 +126,8 @@ export class CameraRig {
   private orbitIdle = Infinity;
   /** The speed the car's chase arm follows: the target's speed, eased (render only). */
   private easedSpeed = 0;
+  /** The car's pitch, eased (render only): what the arm and the look point follow on a hill. */
+  private easedPitch = 0;
   readonly fly = { x: 0, y: 30, z: 0, yaw: 0, pitch: -0.2, speed: 45 };
 
   constructor(camera: THREE.PerspectiveCamera, ground: GroundFn, occluded: (x: number, y: number, z: number) => boolean = () => false) {
@@ -223,7 +239,16 @@ export class CameraRig {
       return;
     }
     // Chase.
-    const speed = Math.abs(t.speed);
+    // A non-finite speed or pitch must not reach the easing below, where it would never wash out.
+    const rawSpeed = Math.abs(t.speed);
+    const speed = Number.isFinite(rawSpeed) ? rawSpeed : this.init ? this.easedSpeed : 0;
+    const rawPitch = t.pitch ?? 0;
+    const pitch = Number.isFinite(rawPitch) ? rawPitch : this.init ? this.easedPitch : 0;
+    // A jump of more than 40 m (a teleport, a respawn) re-seeds the whole framing, the arm and the
+    // eased speed and pitch included, the way a mode switch does. This comes before any easing.
+    const sameBody = this.targetOnFoot === t.onFoot && this.targetTaxi === t.robotaxiId;
+    const dxT = t.x - this.targetX, dzT = t.z - this.targetZ;
+    if (this.init && sameBody && dxT * dxT + dzT * dzT > 40 * 40) this.init = false;
     // The orbit swings back behind a moving target once the player stops steering the camera.
     this.orbitIdle += dt;
     if (this.orbitIdle > ORBIT_RETURN_DELAY_S && speed > ORBIT_RETURN_SPEED) {
@@ -238,6 +263,7 @@ export class CameraRig {
     // The car's arm follows an eased speed, not the raw one: it drifts back as the car speeds up and
     // closes in as it slows, the same over a fast or a slow display (exp, not a per-frame factor).
     this.easedSpeed = this.init ? this.easedSpeed + (speed - this.easedSpeed) * (1 - Math.exp(-dt * CHASE_SPEED_EASE)) : speed;
+    this.easedPitch = this.init ? this.easedPitch + (pitch - this.easedPitch) * (1 - Math.exp(-dt * CHASE_PITCH_EASE)) : pitch;
     const carArm = carChaseArm(this.easedSpeed);
     const dist0 = t.onFoot ? 4.4 : carArm.back;
     const height0 = t.onFoot ? 2.0 : carArm.up;
@@ -246,7 +272,7 @@ export class CameraRig {
     const elevation = Math.atan2(height0, dist0) + this.orbitPitch;
     const dist = arm * Math.cos(elevation);
     // Follow the hill: the ground behind a climbing car is lower, behind a descending one higher.
-    const slope = t.onFoot ? 0 : Math.tan(Math.max(-0.6, Math.min(0.6, t.pitch ?? 0))) * Math.cos(this.orbitYaw);
+    const slope = t.onFoot ? 0 : Math.tan(Math.max(-0.6, Math.min(0.6, this.easedPitch))) * Math.cos(this.orbitYaw);
     const height = arm * Math.sin(elevation) - dist * slope * (slope > 0 ? SLOPE_FOLLOW_UP : SLOPE_FOLLOW_DOWN);
     _desired.set(t.x - ox * dist, t.y + height, t.z - oz * dist);
     // Pull in towards the target when the arm would end inside a building, but never into the
@@ -273,13 +299,9 @@ export class CameraRig {
     // Slop New York's entity-relative follow: carry horizontal target travel before
     // easing the framing. World-space lerp adds a speed/frame-time-dependent trail.
     // Keep height in world space so SF curbs, hills and jumps still ease and clamp.
-    if (this.init && this.targetOnFoot === t.onFoot && this.targetTaxi === t.robotaxiId) {
-      const dx = t.x - this.targetX, dz = t.z - this.targetZ;
-      if (dx * dx + dz * dz > 40 * 40) this.init = false;
-      else {
-        this.pos.x += dx; this.pos.z += dz;
-        this.lookAt.x += dx; this.lookAt.z += dz;
-      }
+    if (this.init && sameBody) {
+      this.pos.x += dxT; this.pos.z += dzT;
+      this.lookAt.x += dxT; this.lookAt.z += dzT;
     }
     this.targetX = t.x; this.targetZ = t.z;
     this.targetOnFoot = t.onFoot; this.targetTaxi = t.robotaxiId;
@@ -290,7 +312,7 @@ export class CameraRig {
     } else {
       // Follow the player's own orbit input closely; otherwise trail smoothly.
       this.pos.lerp(_desired, 1 - Math.exp(-dt * (this.orbitIdle < 0.25 ? 14 : t.onFoot ? 5.5 : CHASE_FOLLOW_RATE)));
-      this.lookAt.lerp(_look, 1 - Math.exp(-dt * (t.onFoot ? 12 : CHASE_FOLLOW_RATE)));
+      this.lookAt.lerp(_look, 1 - Math.exp(-dt * (t.onFoot || this.orbitIdle < 0.25 ? LOOK_FOLLOW_RATE : CHASE_FOLLOW_RATE)));
     }
     const minY = this.ground(this.pos.x, this.pos.z) + 1.0;
     if (this.pos.y < minY) this.pos.y = minY;
@@ -300,7 +322,7 @@ export class CameraRig {
       const rx = this.pos.x - t.x, rz = this.pos.z - t.z;
       const along = rx * hx + rz * hz, across = rx * -hz + rz * hx;
       // On a hill the roof line tilts with the car: behind a descending car it rises towards the tail.
-      const tilt = Math.tan(Math.max(-0.6, Math.min(0.6, t.pitch ?? 0)));
+      const tilt = Math.tan(Math.max(-0.6, Math.min(0.6, pitch)));
       const roof = t.y + CAR_BODY.top + BODY_CLEAR_M + Math.max(0, along * tilt);
       if (Math.abs(along) < CAR_BODY.hl + BODY_CLEAR_M && Math.abs(across) < CAR_BODY.hw + BODY_CLEAR_M && this.pos.y < roof) this.pos.y = roof;
     }

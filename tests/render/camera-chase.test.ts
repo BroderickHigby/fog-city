@@ -7,6 +7,7 @@ import {
   CHASE_BACK_M,
   CHASE_FOLLOW_RATE,
   CHASE_LOOK_AHEAD_M,
+  CHASE_PITCH_EASE,
   CHASE_SPEED_EASE,
   CHASE_UP_M,
   CameraRig,
@@ -17,8 +18,8 @@ import {
 
 const rig = (ground: (x: number, z: number) => number = () => 0, occluded?: (x: number, y: number, z: number) => boolean): CameraRig =>
   new CameraRig(new THREE.PerspectiveCamera(62, 1.6, 0.5, 1000), ground, occluded);
-/** The car's arm as the old camera drew it (src/render/cameras.ts before this change). */
-const oldArm = (v: number): { back: number; up: number } => ({ back: 8.2 + Math.min(v, 30) * 0.09, up: 3.1 + Math.min(v, 30) * 0.02 });
+/** The rig's private follow state, for step-response tests (the camera's own pose is public). */
+const inner = (r: CameraRig): { pos: THREE.Vector3; lookAt: THREE.Vector3 } => r as unknown as { pos: THREE.Vector3; lookAt: THREE.Vector3 };
 
 describe("car chase arm", () => {
   it("is Slop's low arm at rest", () => {
@@ -29,16 +30,16 @@ describe("car chase arm", () => {
     expect(a.up).toBeLessThan(2.5);
   });
 
-  it("is lower than the old camera at every speed, and comes back further with speed", () => {
+  it("stays low at every speed (height does not rise) and comes back further with speed", () => {
     let prev = -Infinity;
     for (const v of [0, 5, 10, 15, 20, 25, 30, 40, 54, 62]) {
       const a = carChaseArm(v);
-      expect(a.up, `up at ${v} m/s`).toBeLessThan(oldArm(v).up);
+      expect(a.up, `up at ${v} m/s`).toBe(CHASE_UP_M);
       expect(a.back, `back at ${v} m/s`).toBeGreaterThan(prev);
       prev = a.back;
     }
-    // Stronger pull-back than before: from rest to 30 m/s the arm grows by more than the old 2.7 m.
-    expect(carChaseArm(30).back - carChaseArm(0).back).toBeGreaterThan(oldArm(30).back - oldArm(0).back);
+    // A strong pull-back: the arm is about 1.7 times as long at 30 m/s as at rest (the old camera: 1.3).
+    expect(carChaseArm(30).back / carChaseArm(0).back).toBeGreaterThan(1.6);
   });
 
   it("stretches by 1% per m/s up to 25%, then adds 0.1 m back per m/s", () => {
@@ -124,6 +125,86 @@ describe("chase camera follows an eased speed", () => {
     expect(lookY).toBeGreaterThan(1.2);
     expect(lookY).toBeLessThan(1.7);
     expect(Math.abs(p.x)).toBeLessThan(1e-9);
+  });
+
+  it("a teleport re-seeds the arm at once, the way a mode switch does (no slow close-in from the old speed)", () => {
+    const r = rig();
+    const t = car(54);
+    for (let i = 0; i < 180; i++) { t.z -= t.speed / 60; r.update(1 / 60, t, NO_FLY_INPUT); }
+    expect(behind(r, t)).toBeCloseTo(carChaseArm(54).back, 3);
+    // 500 m away, stopped.
+    t.x += 500; t.speed = 0;
+    r.update(1 / 60, t, NO_FLY_INPUT);
+    expect(behind(r, t)).toBeCloseTo(carChaseArm(0).back, 6);
+    expect(r.camera.position.x).toBeCloseTo(t.x, 6);
+  });
+
+  it("a teleport re-seeds the eased hill pitch too", () => {
+    const r = rig(() => 0);
+    const t: CameraTarget = { x: 0, y: 50, z: 0, heading: 0, speed: 0, onFoot: false, pitch: 0.3 };
+    for (let i = 0; i < 120; i++) r.update(1 / 60, t, NO_FLY_INPUT);
+    t.x += 500; t.pitch = -0.3;
+    r.update(1 / 60, t, NO_FLY_INPUT);
+    // Straight to the descent's framing: the whole slope followed (see the hill tests), not eased from the climb.
+    expect(r.camera.position.y).toBeCloseTo(50 + CHASE_UP_M + CHASE_BACK_M * Math.tan(0.3), 6);
+  });
+
+  it("a non-finite speed or pitch frame leaves no permanent NaN camera", () => {
+    const finite = (r: CameraRig): boolean => [r.camera.position.x, r.camera.position.y, r.camera.position.z].every(Number.isFinite);
+    const r = rig();
+    const t: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 20, onFoot: false, pitch: 0 };
+    r.update(1 / 60, t, NO_FLY_INPUT);
+    for (const bad of [Infinity, -Infinity, NaN]) {
+      t.speed = bad; t.pitch = bad;
+      r.update(1 / 60, t, NO_FLY_INPUT);
+      expect(finite(r), `after ${bad}`).toBe(true);
+    }
+    t.speed = 20; t.pitch = 0;
+    for (let i = 0; i < 300; i++) { t.z -= t.speed / 60; r.update(1 / 60, t, NO_FLY_INPUT); }
+    expect(finite(r)).toBe(true);
+    expect(behind(r, t)).toBeCloseTo(carChaseArm(20).back, 3);
+  });
+
+  it("a bad speed on foot, then getting into a car, leaves no NaN either", () => {
+    const r = rig();
+    const t: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: NaN, onFoot: true };
+    for (let i = 0; i < 10; i++) r.update(1 / 60, t, NO_FLY_INPUT);
+    t.onFoot = false; t.speed = 12;
+    for (let i = 0; i < 300; i++) { t.z -= t.speed / 60; r.update(1 / 60, t, NO_FLY_INPUT); }
+    expect([r.camera.position.x, r.camera.position.y, r.camera.position.z].every(Number.isFinite)).toBe(true);
+    expect(behind(r, t)).toBeCloseTo(carChaseArm(12).back, 3);
+  });
+
+  describe("follow rates (step response: the heading turns a quarter turn, one 0.1 s frame)", () => {
+    const settled = (onFoot: boolean): { r: CameraRig; t: CameraTarget } => {
+      const r = rig();
+      const t: CameraTarget = { x: 0, y: 0, z: 0, heading: 0, speed: 0, onFoot };
+      for (let i = 0; i < 180; i++) r.update(1 / 60, t, NO_FLY_INPUT);
+      return { r, t };
+    };
+    const turn = (r: CameraRig, t: CameraTarget): void => { t.heading = Math.PI / 2; r.update(0.1, t, NO_FLY_INPUT); };
+
+    it("the car camera follows at 8.5/s and looks at 8.5/s", () => {
+      const { r, t } = settled(false);
+      turn(r, t);
+      expect(r.camera.position.x).toBeCloseTo(-CHASE_BACK_M * (1 - Math.exp(-0.1 * CHASE_FOLLOW_RATE)), 4);
+      expect(inner(r).lookAt.x).toBeCloseTo(CHASE_LOOK_AHEAD_M * (1 - Math.exp(-0.1 * CHASE_FOLLOW_RATE)), 4);
+    });
+
+    it("on foot it is as it was: follow 5.5/s, look 12/s", () => {
+      const { r, t } = settled(true);
+      turn(r, t);
+      expect(r.camera.position.x).toBeCloseTo(-4.4 * (1 - Math.exp(-0.1 * 5.5)), 4);
+      expect(inner(r).lookAt.x).toBeCloseTo(5 * (1 - Math.exp(-0.1 * 12)), 4);
+    });
+
+    it("while the player drags the orbit the car camera follows at 14/s and looks at 12/s", () => {
+      const { r, t } = settled(false);
+      r.orbit(0, 1e-9); // a drag in progress (orbitIdle = 0), with no visible pitch
+      turn(r, t);
+      expect(r.camera.position.x).toBeCloseTo(-CHASE_BACK_M * (1 - Math.exp(-0.1 * 14)), 3);
+      expect(inner(r).lookAt.x).toBeCloseTo(CHASE_LOOK_AHEAD_M * (1 - Math.exp(-0.1 * 12)), 3);
+    });
   });
 
   it("leaves the on-foot chase as it was (4.4 m back, 2.0 up, no speed pull-back)", () => {
@@ -230,6 +311,85 @@ describe("chase camera on SF's steepest streets", () => {
     }
     expect(worstGround).toBeGreaterThanOrEqual(0.95);
     expect(worstBody).toBeGreaterThanOrEqual(0.5 - 1e-9);
+  });
+
+  /** Camera height above a car at y = 50 that has stood still on a constant pitch (flat ground far below: no clamp acts). */
+  const settledHeight = (pitch: number): number => {
+    const r = rig(() => 0);
+    const t: CameraTarget = { x: 0, y: 50, z: 0, heading: 0, speed: 0, onFoot: false, pitch };
+    for (let i = 0; i < 240; i++) r.update(1 / 60, t, NO_FLY_INPUT);
+    return r.camera.position.y - 50;
+  };
+
+  it("on a descent the arm follows the whole slope: the camera rises by the full rise of the road behind the car", () => {
+    expect(settledHeight(0)).toBeCloseTo(CHASE_UP_M, 3);
+    expect(settledHeight(-0.3)).toBeCloseTo(CHASE_UP_M + CHASE_BACK_M * Math.tan(0.3), 2);
+  });
+
+  it("on a climb the arm keeps 60% of the slope: the camera drops by 60% of the fall of the road behind the car", () => {
+    expect(settledHeight(0.3)).toBeCloseTo(CHASE_UP_M - 0.6 * CHASE_BACK_M * Math.tan(0.3), 2);
+  });
+
+  it("the hill pitch is eased: a short pitch spike (a kerb) moves the arm less than half what it would, and a hill is still followed", () => {
+    for (const [speed, bound] of [[30, 0.4], [54, 0.45]] as const) {
+      const r = rig(() => 0);
+      const t: CameraTarget = { x: 0, y: 50, z: 0, heading: 0, speed, onFoot: false, pitch: 0 };
+      for (let i = 0; i < 180; i++) { t.z -= speed / 60; r.update(1 / 60, t, NO_FLY_INPUT); }
+      const base = r.camera.position.y;
+      let worst = 0;
+      // A 0.1 rad nose-down spike for 0.1 s, then level again.
+      for (let i = 0; i < 60; i++) {
+        t.pitch = i < 6 ? -0.1 : 0;
+        t.z -= speed / 60;
+        r.update(1 / 60, t, NO_FLY_INPUT);
+        worst = Math.max(worst, Math.abs(r.camera.position.y - base));
+      }
+      // Unfiltered this moves the camera 0.67 m at 30 m/s and 0.81 m at 54 m/s.
+      expect(worst, `spike at ${speed} m/s`).toBeLessThan(bound);
+    }
+    expect(CHASE_PITCH_EASE).toBe(6);
+  });
+
+  it("re-seeds the eased pitch when the camera mode changes", () => {
+    const r = rig(() => 0);
+    const t: CameraTarget = { x: 0, y: 50, z: 0, heading: 0, speed: 0, onFoot: false, pitch: -0.3 };
+    for (let i = 0; i < 120; i++) r.update(1 / 60, t, NO_FLY_INPUT);
+    r.setMode("first-person");
+    r.update(1 / 60, t, NO_FLY_INPUT);
+    r.setMode("chase");
+    t.pitch = 0;
+    r.update(1 / 60, t, NO_FLY_INPUT);
+    expect(r.camera.position.y - 50).toBeCloseTo(CHASE_UP_M, 6);
+  });
+
+  describe("the roof clamp follows the car's pitch", () => {
+    // The car stands at (0, 50, 0) facing -z. The camera is put 2.5 m behind it (inside the body's footprint
+    // grown by the clearance) at a given height, then the rig runs one frame that is too short to move it.
+    const clampedHeight = (pitch: number, heightAboveCar: number, behind = 2.5): number => {
+      const r = rig(() => 0);
+      const t: CameraTarget = { x: 0, y: 50, z: 0, heading: 0, speed: 0, onFoot: false, pitch };
+      r.update(1 / 60, t, NO_FLY_INPUT);
+      inner(r).pos.set(0, 50 + heightAboveCar, behind);
+      r.update(1e-6, t, NO_FLY_INPUT);
+      return r.camera.position.y - 50;
+    };
+
+    it("behind a nose-down car the roof line rises towards the tail, and the camera is lifted over it", () => {
+      // Flat roof 1.5 + 0.6 clearance = 2.1 m. Nose down 0.4 rad, 2.5 m behind: 2.1 + 2.5 tan(0.4) = 3.157 m.
+      const lifted = clampedHeight(-0.4, 2.5);
+      expect(lifted).toBeGreaterThan(3.1);
+      expect(lifted).toBeLessThan(3.2);
+    });
+
+    it("never lowers the roof line: a nose-up car keeps the flat roof (2.1 m)", () => {
+      const lifted = clampedHeight(0.4, 1.8);
+      expect(lifted).toBeGreaterThan(2.09);
+      expect(lifted).toBeLessThan(2.2);
+    });
+
+    it("leaves a camera that is clear of the body's footprint where it is", () => {
+      expect(clampedHeight(-0.4, 1.8, 3.4)).toBeCloseTo(1.8, 3);
+    });
   });
 
   it("looks up the road on a climb and down it on a descent, compared with the flat", () => {
