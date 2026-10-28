@@ -43,6 +43,8 @@ export interface RunwayNoteView { readonly id:number; readonly kind:"pickup"|"ch
 export interface RunwayView {
   readonly phase:"idle"|"running"|"over";
   readonly canStart:boolean;
+  /** An online match is on (set by the game, not the sim): runs open after it. */
+  readonly inMatch?:boolean;
   readonly runwayS:number;
   readonly raised:number;
   readonly hype:number;

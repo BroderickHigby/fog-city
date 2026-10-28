@@ -250,6 +250,7 @@
     "ui.runway.quit": "End run",
     "ui.runway.resume": "Keep driving",
     "ui.runway.needCar": "Get in a car to start.",
+    "ui.runway.inMatch": "Runway Run opens after the match.",
     "ui.runway.running": "A run is on.",
     "ui.runway.hud.runway": "Runway",
     "ui.runway.hud.raised": "Raised",
@@ -272,7 +273,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "codex-compass-map-2026-10-26",
-    "contentHash": "fnv1a32:760d1cad",
+    "contentHash": "fnv1a32:8580a0dd",
     "reviewedBy": [],
     "review": "Added Runway Run labels, toasts and results copy (single-player mode, 2026-10-27); existing copy retained. Pending independent review."
   }

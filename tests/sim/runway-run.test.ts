@@ -271,6 +271,11 @@ describe("hype, down rounds and scandals", () => {
     expect(run(tick(hit(carrying(), 1, 9, "p:p", "a:4", "car-robot"))).downRounds).toBe(0);
     expect(run(tick(hit(begin(), 1, 9))).downRounds).toBe(0);
   });
+  it("a hit on the parked car while the player is on foot is not a down round", () => {
+    const s = carrying();
+    const parked = { ...s, players: { p: { ...s.players.p!, mode: "foot" as const } } } as SimState;
+    expect(run(tick(hit(parked, 1, 9, "a:9", "p:p"))).downRounds).toBe(0);
+  });
   it("counts one crash once, and a crash 1 s later again", () => {
     let s = tick(hit(carrying(), 1, 6));
     s = tick(s, 5);

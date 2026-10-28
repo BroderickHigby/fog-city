@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { createInitialState, step } from "../../src/sim/index.ts";
 import { RUNWAY_START_EVENT, createRunwaySystem } from "../../src/sim/runway-run/index.ts";
-import { bindRunwaySender, clearRunwayRun, formatRaised, formatRunway, quitRunwayRun, runwayView, startRunwayRun } from "../../src/ui/runway.ts";
+import { arrowTransform, bindRunwaySender, clearRunwayRun, formatRaised, formatRunway, quitRunwayRun, runwayView, startRunwayRun } from "../../src/ui/runway.ts";
 import { gridCity } from "../sim/fixtures.ts";
 
 describe("Runway Run formats", () => {
@@ -31,6 +31,14 @@ describe("runwayView", () => {
     expect(v.investor?.name).toBeTruthy();
     expect(v.targetM).toBeGreaterThan(0);
     expect(Math.abs(v.targetTurn!)).toBeLessThanOrEqual(Math.PI);
+  });
+});
+
+describe("the HUD arrow", () => {
+  it("points its right-facing glyph up for a target dead ahead, right for one on the right", () => {
+    expect(arrowTransform(0)).toBe(`rotate(${-Math.PI / 2}rad)`);
+    expect(arrowTransform(Math.PI / 2)).toBe("rotate(0rad)");
+    expect(arrowTransform(-Math.PI / 2)).toBe(`rotate(${-Math.PI}rad)`);
   });
 });
 

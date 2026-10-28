@@ -38,6 +38,9 @@ export function runwayView(state:Readonly<SimState>,playerId:string):RunwayView 
   return {...base,investor:{name:investor.name,firm:investor.firm},target:{x:run.target.x,z:run.target.z},targetM:Math.round(Math.sqrt(dx*dx+dz*dz)),targetTurn:turn};
 }
 
+/** The HUD arrow's CSS turn. Its glyph (➤) points right, and turn 0 means dead ahead, so it turns a quarter back. */
+export function arrowTransform(turn:number):string {return `rotate(${turn-Math.PI/2}rad)`;}
+
 // The one way into Runway Run. The game (main.ts) binds the function that queues a recorded sim
 // event; the pause-panel button, the I key's Start button, the debug hook and any later entry (a
 // phone tile) all call startRunwayRun(), so there is one path and one recorded event.

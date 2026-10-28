@@ -102,7 +102,7 @@ export function uiProjection(state:SimState,playerId:string,roads:RoadGraph|null
     waterLitres:combat?.water??(loadout?capacity(loadout):8),capacityLitres:loadout?capacity(loadout):8,salt:combat?.salt??false,
     ...(mission&&step?{objective:{id:`${mission.id}:${step.id}`,title:mission.title,detail,remainingTicks:progress?.deadlineTick?Math.max(0,progress.deadlineTick-state.tick):undefined}}:{}),
     ...(interaction?{interaction}:{}),...(combat?.scan?{scan:combat.scan}:{}),
-    map:{nodes:roads?.nodes??[],edges,blips,waypoint:runway.target??waypoint??target,radius:170,...(geography?{geography}:{})},
+    map:{nodes:roads?.nodes??[],edges,blips,waypoint:waypoint??target??runway.target,radius:170,...(geography?{geography}:{})},
     vendorSiteId:vendorSite?.id,
     vendor:VENDOR.items.filter(item=>item.wave<=wave).map(item=>({id:item.id,title:item.name,description:item.blurb,priceCents:item.priceCents,owned:owned.has(item.id),available:!!vendorSite?.vendorItems?.includes(item.id)&&(!item.requires||owned.has(item.requires)),reason:item.requires&&!owned.has(item.requires)?uiText("ui.vendor.requires",{item:item.requires}):undefined})),
     phoneApps:["map","botBounty","botCheck","bank","settings"],

@@ -154,6 +154,8 @@ function stepRun(world: World, state: Readonly<SimState>, id: PlayerId, before: 
   for (const e of impactsOf(state)?.events ?? []) {
     if (e.id <= run.impactSeen) continue;
     run.impactSeen = e.id;
+    // A parked car hit while the player is on foot is not their crash.
+    if (!isDriving(p)) continue;
     if (!run.carrying || e.kind === "car-robot" || e.kind === "taxi-robot" || !(mine.has(e.a) || mine.has(e.b))) continue;
     if (e.dv <= RUNWAY_RULES.downRoundDv || tick - run.lastDownTick < RUNWAY_RULES.downRoundGapTicks) continue;
     run.downRounds++;

@@ -3,7 +3,7 @@ import { InputController, availableGamepads } from "../input/controller.ts";
 import { Keyboard, isTextEntry } from "../input/keyboard.ts";
 import { MenuGamepad } from "../input/menu-gamepad.ts";
 import { bounded, formatMoney } from "./copy.ts";
-import { formatRaised, formatRunway } from "./runway.ts";
+import { arrowTransform, formatRaised, formatRunway } from "./runway.ts";
 import { createFreeTextBox, type FreeTextControl } from "./free-text.ts";
 import { drawMap, releaseMapCache } from "./minimap.ts";
 import { formatCompass } from "./compass.ts";
@@ -138,7 +138,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       card.append(node("p","fc-runway-stage",run.stage),node("p",undefined,copy("ui.runway.result.shutdown")),row(copy("ui.runway.result.raised"),formatRaised(run.raised)),row(copy("ui.runway.result.closed"),String(run.closed)),row(copy("ui.runway.result.best"),formatRaised(run.best)),row(copy("ui.runway.result.stage"),run.stage));
       const again=button(copy("ui.runway.again"),()=>{callbacks.runway?.("start");setModal(undefined);});again.disabled=!run.canStart;again.className="fc-runway-primary";
       const back=button(copy("ui.runway.back"),()=>{callbacks.runway?.("clear");setModal(undefined);});
-      const actions=node("div","fc-runway-actions");actions.append(again,back);card.append(actions);if(!run.canStart)card.append(node("p","fc-runway-note",copy("ui.runway.needCar")));
+      const actions=node("div","fc-runway-actions");actions.append(again,back);card.append(actions);if(!run.canStart)card.append(node("p","fc-runway-note",copy(run.inMatch?"ui.runway.inMatch":"ui.runway.needCar")));
     }else if(phase==="running"&&run){
       card.append(node("p",undefined,copy("ui.runway.running")),row(copy("ui.runway.hud.runway"),formatRunway(run.runwayS)),row(copy("ui.runway.hud.raised"),formatRaised(run.raised)),row(copy("ui.runway.hud.hype"),`×${run.hype.toFixed(1)}`));
       const keep=button(copy("ui.runway.resume"),()=>setModal(undefined));keep.className="fc-runway-primary";
@@ -147,7 +147,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     }else{
       card.append(node("p",undefined,copy("ui.runway.intro")),node("p",undefined,copy("ui.runway.tips")));
       const go=button(copy("ui.runway.start"),()=>{callbacks.runway?.("start");setModal(undefined);});go.disabled=!run?.canStart;go.className="fc-runway-primary";
-      card.append(go);if(!run?.canStart)card.append(node("p","fc-runway-note",copy("ui.runway.needCar")));
+      card.append(go);if(!run?.canStart)card.append(node("p","fc-runway-note",copy(run?.inMatch?"ui.runway.inMatch":"ui.runway.needCar")));
     }
     dialog.append(card);
   }
@@ -166,7 +166,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
       runwayRaised.textContent=formatRaised(run.raised);runwayHype.textContent=`×${run.hype.toFixed(1)}`;
       const who={name:run.investor?.name??"",firm:run.investor?.firm??""};
       runwayGoal.textContent=copy(run.carrying?"ui.runway.hud.demo":"ui.runway.hud.pickup",who);runwayMetres.textContent=copy("ui.runway.hud.distance",{metres:run.targetM??0});runwayFirm.textContent=who.firm;
-      runwayArrow.style.transform=`rotate(${run.targetTurn??0}rad)`;
+      runwayArrow.style.transform=arrowTransform(run.targetTurn??0);
     }
     // A new run counts its notes from 1 again; the first look at a run never replays old ones.
     if(phase==="running"&&runPhase!=="running")lastRunNote=0;

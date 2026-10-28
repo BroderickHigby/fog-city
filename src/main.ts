@@ -327,10 +327,14 @@ async function boot(): Promise<void> {
   }});
   /** Runway Run starts, ends and clears only as recorded events (src/sim/runway-run/system.ts), so a replay reproduces a run. */
   const sendRunway=(kind:string):void=>{
+    // The city does not step during an online match, so a queued event would start a run after it.
+    if(multiplayer.inMatch())return;
     const event:SimEvent={tick:curr.tick+1,kind,playerId:LOCAL_PLAYER};
     queuedEvents.push(event);recordedCommands.push(event);
   };
   bindRunwaySender(sendRunway);
+  /** A match's view: no Runway Run entry (the card says it opens after the match). */
+  const uiProjectionInMatch=(shown:SimState,id:string)=>{const v=uiProjection(shown,id,null,undefined,GAME_WAVE,undefined);return v.runway?{...v,runway:{...v.runway,canStart:false,inMatch:true}}:v;};
   /** A rider's destination enters the sim as a recorded event (src/sim/ride.ts). */
   const sendRideDestination=():void=>{
     if(!waypoint||!curr.players[LOCAL_PLAYER]?.ride||curr.players[LOCAL_PLAYER]?.ride?.manual)return;
@@ -763,7 +767,7 @@ async function boot(): Promise<void> {
     const progress=gameplaySnapshot({state:curr}),mission=progress.missions.players[LOCAL_PLAYER];
     if(!inOnlineMatch)autosave.observe(curr.tick,JSON.stringify([mission?.completedIds??[],progress.activities.players[LOCAL_PLAYER]?.completedIds??[]]));
     if(!inOnlineMatch&&mission?.status==="complete"){const next=nextCampaignMission(mission.completedIds,GAME_WAVE);if(next&&next.id!==requestedMission){requestedMission=next.id;send({kind:"mission-start",targetId:next.id});}}
-    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjection(shown,me_,null,undefined,GAME_WAVE,undefined),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER),mapGeography);const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
+    if(now>=nextUiUpdate){nextUiUpdate=now+100;const uiView=match?{...uiProjectionInMatch(shown,me_),cashCents:uiProjection(curr,LOCAL_PLAYER,roads,undefined,GAME_WAVE,undefined,mapGeography).cashCents,objective:undefined}:uiProjection(curr,LOCAL_PLAYER,roads,waypoint,GAME_WAVE,missionParkingDestination(world,curr,LOCAL_PLAYER),mapGeography);const pace=pacer.stats();gameUI.update({...uiView,performance:{fps:info.fps,drawCalls:info.drawCalls,triangles:info.triangles,simMs:inOnlineMatch?undefined:pace.tickMs,backend:info.backend,shadowCascades:info.shadowCascades}});if(slowBadge){slowBadge.hidden=inOnlineMatch||!pace.slow;slowBadge.textContent=`running slow · ${Math.round(pace.speed*100)}% speed · ${pace.tickMs.toFixed(1)} ms/tick`;}}
     requestAnimationFrame(frame);
   };
   requestAnimationFrame(frame);
