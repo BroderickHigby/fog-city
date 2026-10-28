@@ -37,11 +37,11 @@ function run(start: Gearbox, seconds: number, speed: (t: number) => number, aske
 }
 
 /** The times the gear changed, with the direction (+1 up, -1 down). */
-function shifts(frames: Frame[], from: number): { t: number; dir: number }[] {
-  const out: { t: number; dir: number }[] = [];
+function shifts(frames: Frame[], from: number): { t: number; dir: number; step: number }[] {
+  const out: { t: number; dir: number; step: number }[] = [];
   let g = from;
   for (const f of frames) {
-    if (f.gear !== g) { out.push({ t: f.t, dir: Math.sign(f.gear - g) }); g = f.gear; }
+    if (f.gear !== g) { out.push({ t: f.t, dir: Math.sign(f.gear - g), step: Math.abs(f.gear - g) }); g = f.gear; }
   }
   return out;
 }
@@ -127,7 +127,10 @@ describe("minimum hold", () => {
     const s = shifts(frames, frames[0]!.gear);
     expect(Math.min(...frames.map((f) => f.rpm))).toBeGreaterThanOrEqual(IDLE_RPM);
     expect(s.length).toBeGreaterThan(20); // the drive does shift: the test is not vacuous
-    for (let i = 1; i < s.length; i++) expect(s[i]!.t - s[i - 1]!.t, `shift ${i}`).toBeGreaterThanOrEqual(HOLD_S - 1e-9);
+    // A one-gear shift always waits out the hold; only a jump of two or more gears (a crash-sized
+    // change of speed, which this rough drive can make) may cut it short.
+    for (let i = 1; i < s.length; i++) if (s[i]!.step === 1) expect(s[i]!.t - s[i - 1]!.t, `shift ${i}`).toBeGreaterThanOrEqual(HOLD_S - 1e-9);
+    expect(s.filter((x) => x.step === 1).length).toBeGreaterThan(20);
   });
 
   it("makes a kick-down right after an upshift wait out the hold, then take it", () => {
@@ -158,7 +161,32 @@ describe("minimum hold", () => {
   it("a held low gear tops out at the redline rather than screaming past it", () => {
     const box: Gearbox = { gear: 0, holdS: 0.5, dipS: 0, throttle: 1 };
     expect(gearboxRpm(box, 25)).toBe(REDLINE_RPM);
-    expect(stepGearbox(box, 25, 1, DT).gear).toBe(0); // still held
+    // One gear up waits out the hold; a speed that needs two or more goes there at once (below).
+    const oneUp = speedAt(1, 3000);
+    expect(stepGearbox({ ...box, holdS: 0.5 }, oneUp, 1, DT).gear).toBe(pickGear(oneUp, 1) >= 2 ? pickGear(oneUp, 1) : 0);
+  });
+});
+
+describe("a crash or a jump in speed", () => {
+  it("goes straight to the right gear instead of lugging one shift per hold after a hard stop", () => {
+    let box = settleGearbox(30, 1);
+    box = stepGearbox(box, 30, 1, DT);
+    box = { ...box, holdS: HOLD_S };
+    const after = stepGearbox(box, 6, 1, DT);
+    expect(after.gear).toBe(pickGear(6, after.throttle));
+    expect(gearboxRpm(after, 6)).toBeGreaterThanOrEqual(1400);
+  });
+  it("goes straight up when a jump in speed would hold a low gear on the limiter", () => {
+    const box = { ...settleGearbox(3, 1), holdS: HOLD_S };
+    const after = stepGearbox(box, 30, 1, DT);
+    expect(after.gear).toBe(pickGear(30, after.throttle));
+    expect(after.dipS).toBe(0);
+  });
+  it("shrugs off a non-finite frame and recovers on the next one", () => {
+    const box = stepGearbox(settleGearbox(12, 0.5), NaN, NaN, NaN);
+    expect(Number.isFinite(box.throttle)).toBe(true);
+    const next = stepGearbox({ ...box, throttle: NaN }, 12, 0.5, DT);
+    expect(Number.isFinite(next.throttle)).toBe(true);
   });
 });
 

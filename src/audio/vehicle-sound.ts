@@ -60,6 +60,13 @@ export const THROTTLE_FALL_S = 0.32;
 export const DOWNSHIFT_BAND = 0.82;
 /** An engine below this rpm is lugging and drops a gear (once the band allows it). */
 export const LUG_RPM = 1900;
+/**
+ * Under this, or at the redline, with the right gear two or more away, the hold gives way: a crash
+ * or a teleport changes the road speed by more than a gear at once, and the box goes straight to
+ * the gear the stateless pick says instead of lugging (or screaming) through one shift per hold.
+ * A one-gear step always waits out the hold.
+ */
+export const RESCUE_RPM = 1400;
 /** Kick-down: pulling hard (throttle above KICKDOWN_THROTTLE) in a gear under this share of the shift point drops a gear. */
 export const KICKDOWN_THROTTLE = 0.65;
 export const KICKDOWN_BAND = 0.55;
@@ -117,14 +124,21 @@ export function settleGearbox(speedMps: number, throttle: number): Gearbox {
  * - An upshift also cuts the power for UPSHIFT_DIP_S.
  */
 export function stepGearbox(box: Gearbox, speedMps: number, throttleAsked: number, dtS: number): Gearbox {
-  const v = Math.abs(speedMps);
-  const dt = Math.max(0, dtS);
-  const asked = clamp01(throttleAsked);
-  const throttle = box.throttle + (asked - box.throttle) * (1 - Math.exp(-dt / (asked > box.throttle ? THROTTLE_RISE_S : THROTTLE_FALL_S)));
+  // A non-finite frame (never sent today: the director clamps dt) must not stick in the box.
+  const v = Number.isFinite(speedMps) ? Math.abs(speedMps) : 0;
+  const dt = Number.isFinite(dtS) ? Math.max(0, dtS) : 0;
+  const asked = Number.isFinite(throttleAsked) ? clamp01(throttleAsked) : 0;
+  const prev = Number.isFinite(box.throttle) ? box.throttle : asked;
+  const throttle = prev + (asked - prev) * (1 - Math.exp(-dt / (asked > prev ? THROTTLE_RISE_S : THROTTLE_FALL_S)));
   let { gear } = box;
   let holdS = Math.max(0, box.holdS - dt);
   let dipS = Math.max(0, box.dipS - dt);
   if (v < LAUNCH_MPS) return { gear: 0, holdS: 0, dipS: 0, throttle };
+  const now = gearRpm(gear, v);
+  if (holdS > 0 && (now < RESCUE_RPM || now >= REDLINE_RPM)) {
+    const target = pickGear(v, throttle);
+    if (Math.abs(target - gear) >= 2) return { gear: target, holdS: GEAR_HOLD_S, dipS: 0, throttle };
+  }
   if (holdS === 0) {
     const shift = shiftRpm(throttle);
     const rpm = gearRpm(gear, v);
