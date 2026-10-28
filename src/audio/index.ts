@@ -18,7 +18,7 @@ import { RobotChirpClock, robotWhirrs, type SoundingActor } from "./robot-sound.
 import { AmbientEventClock, CROWD_M, TRAFFIC_M, ambienceLevels, districtAt, type AmbienceLevels } from "./ambience.ts";
 import { InnerVoice } from "./inner-voice.ts";
 import { ImpactSoundTracker, type ImpactsLike } from "./impact-sound.ts";
-import { FootstepClock, carOneShots, doorOneShots, engineParams, rideEngineParams } from "./vehicle-sound.ts";
+import { EngineClock, FootstepClock, carOneShots, doorOneShots, type EngineReading } from "./vehicle-sound.ts";
 import type { CarState } from "../sim/contract.ts";
 import { mountAudioSettings } from "../ui/audio-settings.ts";
 import { mountSubtitles, type MountedSubtitles } from "../ui/subtitles.ts";
@@ -64,6 +64,8 @@ export interface AudioDebugInfo {
   musicSwitches: number;
   /** The car's live engine sound is running. */
   engine: boolean;
+  /** The engine's gear (1 is first), rpm, smoothed throttle and upshift cut now (null with no engine heard). */
+  engineReading: EngineReading | null;
   /** Robots whose servos are audible now. */
   robotVoices: number;
   /** The ambience layer levels now (null before the first sample). */
@@ -153,6 +155,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
   let prevMode: string | undefined;
   let lastFrameMs: number | null = null;
   const footsteps = new FootstepClock();
+  const engine = new EngineClock();
   const impacts = new ImpactSoundTracker();
   const chirps = new RobotChirpClock();
   const ambientEvents = new AmbientEventClock();
@@ -247,7 +250,8 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       if (player && !frame.paused) {
         // Riding a robotaxi, the taxi's engine is heard; the player's own car is parked elsewhere.
         const ride = player.ride ?? null;
-        mixer.setEngine(taxiCar ? engineParams(taxiCar, previousTaxi, dtS) : ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
+        // The engine remembers its gear between frames (a new owner starts a fresh gearbox).
+        mixer.setEngine(taxiCar ? engine.car(`taxi:${ride!.agentId}`, taxiCar, previousTaxi, dtS) : ride ? engine.ride(`ride:${ride.agentId}`, ride.speed, prevRideSpeed, dtS) : inCar ? engine.car("car", player.car, prevCar, dtS) : engine.stop());
         // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's
         // own body is the ridden taxi while riding. When it is in one, the car's generic hit
         // one-shot stands down (landings still play).
@@ -261,6 +265,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         const step = footsteps.update(onFoot ? player.foot : null, dtS);
         if (step) mixer.play({ sound: `step-${step.variant}`, gain: step.gain, pan: 0, rate: 0.94 + 0.03 * step.variant });
       } else {
+        // Paused (or no player): silent, and the gearbox keeps its gear for when the game resumes.
         mixer.setEngine(null);
         mixer.setHydrant(null);
       }
@@ -388,6 +393,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       lastScanTick = null;
       lastFrameMs = null;
       footsteps.reset();
+      engine.stop();
       impacts.reset();
       cues.reset(state?.ext.combat);
       lastFightEvent = state?.ext.combat?.events.reduce((m, e) => Math.max(m, e.id), 0) ?? 0;
@@ -418,6 +424,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
         engine: m.engine,
+        engineReading: m.engine ? engine.reading() : null,
         robotVoices: m.robotVoices,
         ambience: m.ambience,
         effectsLoaded: m.effectsLoaded,
