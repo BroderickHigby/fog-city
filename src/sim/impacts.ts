@@ -1212,7 +1212,9 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
       {x:contact.x,z:contact.z,r:0,person:false},contact.nx,contact.nz,CAR.bodyRestitution);
     if(!hit)continue;
     // v26: a creeping touch between two vehicles nobody drives is a lean, not a hit (TOUCH_CONTACT_MPS).
-    if(state.version>=TRUNDLE_FREE_VERSION&&a.player===null&&b.player===null&&hit.contact.speed<TOUCH_CONTACT_MPS)continue;
+    // A taxi a player has taken (manualCar) is driven, though its body carries no player id.
+    const driven=(body:SolidVehicle):boolean=>body.player!==null||(body.agent!==null&&!!w.agents[w.index.get(body.agent)!]?.manualCar);
+    if(state.version>=TRUNDLE_FREE_VERSION&&!driven(a)&&!driven(b)&&hit.contact.speed<TOUCH_CONTACT_MPS)continue;
     // receive understands knock velocity. Runtime physical controls also carry lateral speed.
     for(const body of [a,b])if(body.agent!==null){const index=w.index.get(body.agent)!,actor=w.agents[index]!;
       if(actor.vehicle&&!actor.manualCar&&!actor.knock){const v=carVelocity(actor.vehicle);w.agents[index]={...actor,knock:{phase:"slide",...v,yaw:actor.vehicle.yawRate,t:0,age:0}};}}

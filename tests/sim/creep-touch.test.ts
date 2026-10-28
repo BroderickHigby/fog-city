@@ -13,15 +13,17 @@ const taxi = (id: number, x: number, z: number, heading = 0): AgentState => ({ i
   edge: "old", dir: 1, lane: 0, s: 12, next: "next", ndir: 1, nlane: 0, conn: null, node: "", resume: 0, lat: 0, wait: 0, dwell: 0, ghost: 0, mode: "go", rng: 7, dodge: null });
 
 /** A service vehicle (a runtime bus-like body, halfLength 2.2) at `speed` m/s nose-first into a stopped robotaxi, one tick. */
-function touch(version: number, speed: number): { result: SimState; before: SimState } {
+function touch(version: number, speed: number, manual = false): { result: SimState; before: SimState } {
   const initial = createInitialState(world, 3, ["a"], { x: 100, z: 100, heading: 0 });
   const base: SimState = { ...initial, version, players: { a: { ...initial.players.a!, car: makeCar(200, 200, 0) } } };
   // heading 0 drives towards -z. The robotaxi (default 2.5 x 1.0 box) stands just short of touching.
-  const a: AgentState = { ...taxi(10, 0, 0), halfLength: 2.2, halfWidth: 0.95, speed, vehicle: { ...makeCar(0, 0, 0), speed } };
-  const b = taxi(20, 0, -(2.2 + 2.5 + 0.0005));
+  const a: AgentState = manual
+    ? { ...taxi(10, 0, 0), speed, manualCar: { ...makeCar(0, 0, 0), speed } }
+    : { ...taxi(10, 0, 0), halfLength: 2.2, halfWidth: 0.95, speed, vehicle: { ...makeCar(0, 0, 0), speed } };
+  const b = taxi(20, 0, -((manual ? 2.5 : 2.2) + 2.5 + 0.0005));
   const dz = -speed / 60;
   const before: SimState = { ...base, ext: { ...base.ext, agents: { nextId: 21, list: [a, b] } } };
-  const after: SimState = { ...before, tick: 1, ext: { ...before.ext, agents: { nextId: 21, list: [{ ...a, z: dz, vehicle: { ...a.vehicle!, z: dz } }, b] } } };
+  const after: SimState = { ...before, tick: 1, ext: { ...before.ext, agents: { nextId: 21, list: [manual ? { ...a, z: dz, manualCar: { ...a.manualCar!, z: dz } } : { ...a, z: dz, vehicle: { ...a.vehicle!, z: dz } }, b] } } };
   return { result: resolveVehicleContacts(world, before, after), before };
 }
 const actors = (s: SimState) => s.ext.agents!.list;
@@ -53,6 +55,11 @@ describe("v26: a creeping touch between two vehicles nobody drives is a lean, no
     const { result } = touch(TRUNDLE_FREE_VERSION, 2);
     const [bus] = actors(result);
     expect(bus!.knock).toBeDefined();
+    expect((impactsOf(result)?.events ?? []).length).toBe(1);
+  });
+
+  it("v26: a taxi a player has taken is driven, so even a creeping touch with it records a hit", () => {
+    const { result } = touch(TRUNDLE_FREE_VERSION, 0.1, true);
     expect((impactsOf(result)?.events ?? []).length).toBe(1);
   });
 });
