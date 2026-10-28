@@ -36,11 +36,33 @@
         font: 500 16px/1.5 system-ui, sans-serif; white-space: normal; text-align: center; pointer-events: auto;
       }
       #hud.loading-screen button { padding: 10px 18px; border-radius: 8px; border: 1px solid #a5d4bd; background: #20372b; color: #fff; font: inherit; cursor: pointer; }
+      /* Loading screen: the cover art and the Fog City 5.5 mark, over the plain status card until the city is ready. */
+      #splash { position: fixed; inset: 0; z-index: 101; overflow: hidden; background: #14112b; transition: opacity .6s ease; }
+      #splash.gone { opacity: 0; pointer-events: none; }
+      #splash .art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 62% 50%; }
+      #splash::before { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(90deg, #14112bd9 0%, #14112b80 32%, #14112b00 55%); }
+      #splash .logo { position: absolute; z-index: 2; left: 4vw; top: 50%; width: min(clamp(220px, 34vw, 560px), 62vh); height: auto; transform: translateY(-58%); filter: drop-shadow(0 6px 18px #0009); }
+      #splash .line { position: absolute; z-index: 2; left: 4vw; bottom: 5vh; margin: 0; display: flex; align-items: center; gap: 12px; color: #f6f1ff; font: 700 13px/1.2 "Avenir Next", "Trebuchet MS", system-ui, sans-serif; letter-spacing: .14em; text-transform: uppercase; text-shadow: 0 1px 3px #000c; }
+      #splash .line::before { content: ""; width: 28px; height: 4px; border-radius: 2px; background: linear-gradient(90deg, #ffd166, #f0468f); animation: splash-pulse 1.2s ease-in-out infinite alternate; }
+      @keyframes splash-pulse { from { opacity: .35; transform: scaleX(.6); } to { opacity: 1; transform: scaleX(1); } }
+      @media (max-aspect-ratio: 1/1) {
+        /* Portrait: the art sits in the lower part, small enough to keep both faces; the mark takes the sky above. */
+        #splash .art { inset: auto 0 0 0; height: 64%; object-position: 72% 100%; -webkit-mask-image: linear-gradient(180deg, transparent, #000 16%); mask-image: linear-gradient(180deg, transparent, #000 16%); }
+        #splash::before { display: none; }
+        #splash .logo { left: 50%; top: 3vh; width: min(78vw, 420px); transform: translateX(-50%); }
+        #splash .line { left: 16px; right: 16px; justify-content: center; }
+      }
+      @media (prefers-reduced-motion: reduce) { #splash, #splash .line::before { transition: none; animation: none; } }
     </style>
   </head>
   <body>
     <div id="game" aria-busy="true"></div>
     <div id="hud" class="loading-screen" role="status">loading…</div>
+    <div id="splash" aria-hidden="true">
+      <img class="art" src="/src/ui/loading/loading-art.webp" alt="" width="1536" height="864" decoding="async" fetchpriority="high" />
+      <img class="logo" src="/src/ui/loading/logo.svg" alt="" width="700" height="640" />
+      <p class="line" id="splash-status">loading…</p>
+    </div>
     <div id="compass" aria-hidden="true"><div class="needle"></div><div class="strip"></div><div class="label"></div></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

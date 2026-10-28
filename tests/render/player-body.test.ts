@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Actors, MAX_PLAYERS_DRAWN } from "../../src/render/actors.ts";
 import { NightLights } from "../../src/render/lights.ts";
 import { ModelRegistry } from "../../src/render/model-registry.ts";
-import { HAIR_ALPHA_CUT, MIXAMO_DODGE_FILE, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw, motionFor } from "../../src/render/player-body.ts";
+import { HAIR_ALPHA_CUT, HAIR_ENV_INTENSITY, HAIR_ROUGHNESS, MIXAMO_DODGE_FILE, MIXAMO_MOTION_FILE, PLAYER_BODY_FILE, PLAYER_DODGE_FILE, PlayerBodies, TURN_SNAP_RAD, bodyRenderCost, easeYaw, motionFor } from "../../src/render/player-body.ts";
 import type { DodgeState } from "../../src/sim/contract.ts";
 
 const bytes = new Uint8Array(readFileSync(new URL(`../../public/${PLAYER_BODY_FILE}`, import.meta.url)));
@@ -247,7 +247,7 @@ describe("generic online player avatar", () => {
     expect(draw(-1.5, 1 / 60).rotation.y).toBe(1.5);
   });
 
-  it("cuts the hair cards out at an alpha threshold instead of blending them", async () => {
+  it("cuts the hair cards out at an alpha threshold instead of blending them, front side only and matte", async () => {
     const humans = await PlayerBodies.load(async () => bytes, true);
     disposables.push(humans);
     humans.begin();
@@ -264,6 +264,10 @@ describe("generic online player avatar", () => {
       expect(m.transparent).toBe(false);
       expect(m.depthWrite).toBe(true);
       expect(m.alphaTest).toBe(HAIR_ALPHA_CUT);
+      expect(m.side).toBe(THREE.FrontSide);
+      expect(m.shadowSide).toBe(THREE.DoubleSide);
+      expect((m as THREE.MeshStandardMaterial).roughness).toBe(HAIR_ROUGHNESS);
+      expect((m as THREE.MeshStandardMaterial).envMapIntensity).toBe(HAIR_ENV_INTENSITY);
     }
   });
 

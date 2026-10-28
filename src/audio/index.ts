@@ -245,7 +245,7 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       const taxiCar = player?.ride?.manual ? agentsOf(state).find(a => a.id === player.ride!.agentId)?.manualCar ?? null : null;
       const previousTaxi = prevTaxiId === player?.ride?.agentId ? prevTaxiCar : null;
       if (player && !frame.paused) {
-        // Riding a robotaxi, the taxi's motor is heard; the player's own car is parked elsewhere.
+        // Riding a robotaxi, the taxi's engine is heard; the player's own car is parked elsewhere.
         const ride = player.ride ?? null;
         mixer.setEngine(taxiCar ? engineParams(taxiCar, previousTaxi, dtS) : ride ? rideEngineParams(ride.speed, prevRideSpeed, dtS) : inCar ? engineParams(player.car, prevCar, dtS) : null);
         // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's

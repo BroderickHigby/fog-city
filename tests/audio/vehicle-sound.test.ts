@@ -2,7 +2,7 @@
 // slip and hard braking, impacts and landings scale with their speed, doors play on getting in
 // and out, and footsteps keep a pace-appropriate cadence.
 import { describe, expect, it } from "vitest";
-import { FootstepClock, IDLE_WHINE_HZ, STEP_INTERVAL_S, RIDE_CABIN, carOneShots, doorOneShots, engineParams, pace, rideEngineParams } from "../../src/audio/vehicle-sound.ts";
+import { CRUISE_SHIFT_RPM, FootstepClock, GEAR_TOP_MPS, IDLE_RPM, REDLINE_RPM, STEP_INTERVAL_S, RIDE_CABIN, carOneShots, doorOneShots, engineParams, engineRpm, pace, rideEngineParams } from "../../src/audio/vehicle-sound.ts";
 import type { CarState, FootState } from "../../src/sim/contract.ts";
 
 const car = (o: Partial<CarState> = {}): CarState => ({
@@ -12,36 +12,59 @@ const car = (o: Partial<CarState> = {}): CarState => ({
 const foot = (o: Partial<FootState> = {}): FootState => ({ x: 0, y: 0, z: 0, heading: 0, speed: 0, sprint: false, vy: 0, grounded: true, dodge: null, ...o }) as FootState;
 
 describe("engine and road", () => {
-  it("idles with a faint hum, and the whine rises in pitch and level with speed", () => {
+  it("idles at idle RPM, revs up within a gear, and drops on each upshift", () => {
     const idle = engineParams(car(), car(), 1 / 60);
-    expect(idle.whineHz).toBe(IDLE_WHINE_HZ);
-    expect(idle.whineGain).toBeGreaterThan(0);
+    expect(idle.firingHz).toBe((IDLE_RPM / 60) * 2); // four cylinders: two firings per turn
+    expect(idle.engineGain).toBeGreaterThan(0);
     expect(idle.roarGain).toBe(0);
+    for (let v = 0; v <= 40; v += 0.25) {
+      expect(engineRpm(v)).toBeGreaterThanOrEqual(IDLE_RPM);
+      expect(engineRpm(v)).toBeLessThanOrEqual(REDLINE_RPM);
+    }
+    expect(engineRpm(6)).toBeGreaterThan(engineRpm(3));
+    // Pulling hard revs each gear to the redline before the upshift; cruising shifts early.
+    for (const top of GEAR_TOP_MPS.slice(0, -1)) {
+      expect(engineRpm(top)).toBeCloseTo(REDLINE_RPM, 6);
+      expect(engineRpm(top + 0.1)).toBeLessThan(engineRpm(top) * 0.8);
+    }
+    expect(engineRpm(30, 0)).toBeLessThanOrEqual(CRUISE_SHIFT_RPM);
+    expect(engineRpm(30, 0)).toBeGreaterThan(2500);
+    expect(engineRpm(12, 0)).toBeLessThan(engineRpm(12, 1));
+    // Road noise rises and brightens with speed.
     let last = idle;
     for (const speed of [5, 10, 20, 30]) {
       const p = engineParams(car({ speed }), car({ speed }), 1 / 60);
-      expect(p.whineHz).toBeGreaterThan(last.whineHz);
-      expect(p.whineGain).toBeGreaterThan(last.whineGain);
       expect(p.roarGain).toBeGreaterThan(last.roarGain);
       expect(p.roarCutoff).toBeGreaterThan(last.roarCutoff);
       last = p;
     }
     // Reversing sounds like driving forward at the same speed.
-    expect(engineParams(car({ speed: -8 }), car({ speed: -8 }), 1 / 60).whineHz).toBe(engineParams(car({ speed: 8 }), car({ speed: 8 }), 1 / 60).whineHz);
+    expect(engineParams(car({ speed: -8 }), car({ speed: -8 }), 1 / 60).firingHz).toBe(engineParams(car({ speed: 8 }), car({ speed: 8 }), 1 / 60).firingHz);
+  });
+
+  it("stays quiet: engine, road and squeal never pass their set ceilings", () => {
+    for (let v = 0; v <= 40; v += 0.5)
+      for (const prev of [v, v - 0.2, v + 0.3]) {
+        const p = engineParams(car({ speed: v, lateral: 6, grip: 0 }), car({ speed: prev }), 1 / 60);
+        expect(p.engineGain).toBeLessThanOrEqual(0.135 + 1e-9);
+        expect(p.roarGain).toBeLessThanOrEqual(0.08 + 1e-9);
+        expect(p.squealGain).toBeLessThanOrEqual(0.25 + 1e-9);
+      }
   });
 
   it("strains under acceleration and goes quiet on the road in the air", () => {
     const cruise = engineParams(car({ speed: 10 }), car({ speed: 10 }), 1 / 60);
     const push = engineParams(car({ speed: 10.1 }), car({ speed: 10 }), 1 / 60); // 6 m/s²
-    expect(push.whineGain).toBeGreaterThan(cruise.whineGain);
+    expect(push.engineGain).toBeGreaterThan(cruise.engineGain);
+    expect(push.throttle).toBeGreaterThan(cruise.throttle);
     expect(engineParams(car({ speed: 20, grounded: false }), car({ speed: 20 }), 1 / 60).roarGain).toBe(0);
   });
 
   it("squeals on a slide, on lost grip and on hard braking at speed, never parked or airborne", () => {
     expect(engineParams(car({ speed: 15 }), car({ speed: 15 }), 1 / 60).squealGain).toBe(0);
-    expect(engineParams(car({ speed: 15, lateral: 4 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.2);
-    expect(engineParams(car({ speed: 15, grip: 0.3 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.2);
-    expect(engineParams(car({ speed: 14.75 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.2); // -15 m/s²
+    expect(engineParams(car({ speed: 15, lateral: 4 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.15);
+    expect(engineParams(car({ speed: 15, grip: 0.3 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.15);
+    expect(engineParams(car({ speed: 14.75 }), car({ speed: 15 }), 1 / 60).squealGain).toBeGreaterThan(0.15); // -15 m/s²
     expect(engineParams(car({ speed: 1, lateral: 4 }), car({ speed: 1 }), 1 / 60).squealGain).toBe(0);
     expect(engineParams(car({ speed: 15, lateral: 4, grounded: false }), car({ speed: 15 }), 1 / 60).squealGain).toBe(0);
   });
@@ -102,14 +125,14 @@ describe("footsteps", () => {
 });
 
 describe("riding a robotaxi", () => {
-  it("hears the taxi's motor from the back seat: softer than driving, rising with speed, never a squeal", () => {
+  it("hears the taxi's engine from the back seat: softer than driving, rising with speed, never a squeal", () => {
     const slow = rideEngineParams(4, 4, 1 / 60), fast = rideEngineParams(20, 20, 1 / 60);
-    expect(fast.whineHz).toBeGreaterThan(slow.whineHz);
+    expect(fast.firingHz).toBeGreaterThan(slow.firingHz);
     expect(fast.roarGain).toBeGreaterThan(slow.roarGain);
     const driving = engineParams(car({ speed: 20 }), car({ speed: 20 }), 1 / 60);
-    expect(fast.whineGain).toBeCloseTo(driving.whineGain * RIDE_CABIN, 9);
+    expect(fast.engineGain).toBeCloseTo(driving.engineGain * RIDE_CABIN, 9);
     expect(fast.roarGain).toBeCloseTo(driving.roarGain * RIDE_CABIN, 9);
     expect(rideEngineParams(20, 26, 1 / 60).squealGain).toBe(0);
-    expect(rideEngineParams(0, null, 0).whineHz).toBe(IDLE_WHINE_HZ);
+    expect(rideEngineParams(0, null, 0).firingHz).toBe((IDLE_RPM / 60) * 2);
   });
 });
