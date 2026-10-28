@@ -1,5 +1,8 @@
 // Standalone calls preserve the v18 handling below. The game explicitly selects v19 city-road
 // controls from reference-driving.ts; collision bodies, static safety and SF ground remain shared.
+// v24 adds brake-steer rotation and the handbrake drift there (reference-driving.ts): the v18
+// tail kick returns for the handbrake, capped by the tyres' grip. Every caller that passes a
+// version (the player's car, a driven taxi or stolen car) gets it; ambient traffic never runs here.
 // Car handling: deterministic, pure, plain-JSON state (CarState in contract.ts).
 //
 // v15 dynamics (the owner: "drive faster", "more realistic"): a modern EV, 0-100 km/h in about
@@ -399,7 +402,7 @@ export function stepCar(
   if(handlingVersion>=19&&onGround) {
     const gravityF=(-G*g0.slopeF)/Math.sqrt(1+g0.slopeF*g0.slopeF);
     const gravityR=(-G*g0.slopeR)/Math.sqrt(1+g0.slopeR*g0.slopeR);
-    reference=stepReferenceDriving(c,input,mu,f0x*gravityF-f0z*gravityR,f0z*gravityF+f0x*gravityR);
+    reference=stepReferenceDriving(c,input,mu,f0x*gravityF-f0z*gravityR,f0z*gravityF+f0x*gravityR,handlingVersion);
     ({speed,lateral,yawRate,steer,grip,heading}=reference);
     fx=dsin(heading);fz=-dcos(heading);rx=-fz;rz=fx;
   } else {
