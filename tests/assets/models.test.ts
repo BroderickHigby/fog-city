@@ -187,44 +187,84 @@ describe.each<VehicleSpec>([
 });
 
 describe("robotaxi (the Meander)", () => {
-  // design.md, The robots: "Long, low, asymmetric hatch with a sensor band wrapped along the
-  // roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod."
-  it("is long and low, with no roof dome, corner pods or anything standing on the roof", async () => {
+  // design.md, The robots (owner, 2026-10-27: "make the robotaxis look more like bigger Zoox or
+  // something"): a tall, two-ended carriage pod of its own, the same both ways round, short
+  // overhangs, big glass and a light bar across each end; the Meander's sensor band and teal
+  // status line, one sliding kerb-side door, no badge. Nothing on the roof: sensor housings on
+  // the roof corners are the best-known real pod's signature (tests/assets/trade-dress.json).
+  it("is a tall, boxy pod inside the sim's 5.0 x 2.0 m robotaxi box, its wheels at the corners", async () => {
     const { doc } = await loadModel("robotaxi.glb");
     const all = box(allPositions(doc));
     const body = box(nodePositions(node(doc, "body")));
+    // src/sim/agents.ts ROBOTAXI_BODY: half length 2.5, half width 1.0. The drawn body fits inside it.
     expect(body.size[2]).toBeGreaterThan(4.7);
-    expect(all.max[1]).toBeLessThan(1.6); // the old crossover stood 2.12 m to the top of its dome
-    expect(body.size[2] / all.max[1]).toBeGreaterThan(3.0);
-    const names = sceneNodes(doc).map((n) => n.getName());
-    expect(names).not.toContain("sensor_dome");
-    // nothing stands on the roof: over its middle the highest point is the roof itself
-    const roof = allPositions(doc).filter((p) => Math.abs(p[0]) < 0.4 && p[2] > -0.4 && p[2] < 1.4);
-    expect(box(roof).max[1]).toBeLessThan(1.56);
+    expect(all.size[2]).toBeLessThanOrEqual(5.0);
+    expect(all.size[0]).toBeLessThanOrEqual(2.0);
+    expect(Math.abs(all.center[2])).toBeLessThan(0.02);
+    // taller than the old 1.53 m hatch: about 1.95 m to the roof
+    expect(all.max[1]).toBeGreaterThan(1.9);
+    expect(all.max[1]).toBeLessThan(2.0);
+    expect(body.size[2] / all.max[1]).toBeLessThan(2.7);
+    // short overhangs: each axle within 0.8 m of its end of the body
+    for (const name of ["wheel_FL", "wheel_RR"]) expect(body.size[2] / 2 - Math.abs(worldOrigin(node(doc, name))[2])).toBeLessThan(0.8);
+    expect(sceneNodes(doc).map((n) => n.getName())).not.toContain("sensor_dome");
+  });
+
+  it("is the same both ways round: the body's outline and glass mirror front to back", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const body = nodePositions(node(doc, "body"));
+    for (const y of [0.31, 0.68, 0.92, 1.4, 1.76]) {
+      const at = body.filter((p) => Math.abs(p[1] - y) < 0.02);
+      const b = box(at);
+      expect(Math.abs(b.min[2] + b.max[2]), `ends at ${y} m`).toBeLessThan(0.03);
+    }
+    const glass = box(materialPositions(doc, "glass"));
+    expect(Math.abs(glass.min[2] + glass.max[2])).toBeLessThan(0.05);
+    // big glass: from below 1 m to the band, all the way round
+    expect(glass.min[1]).toBeLessThan(1.0);
+    expect(glass.max[1]).toBeGreaterThan(1.7);
+    expect(glass.size[0]).toBeGreaterThan(1.7);
+  });
+
+  it("has a light bar across each end: white at the front (-Z), red at the back, at the same height", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const head = box(materialPositions(doc, "light_headlight"));
+    const tail = box(materialPositions(doc, "light_taillight"));
+    expect(head.size[0]).toBeGreaterThan(1.3);
+    expect(tail.size[0]).toBeGreaterThan(1.3);
+    expect(head.max[2]).toBeLessThan(-1.95); // across the end, wrapping a little round the corners
+    expect(tail.min[2]).toBeGreaterThan(1.95);
+    expect(Math.abs(head.center[1] - tail.center[1])).toBeLessThan(0.01);
+  });
+
+  it("has nothing standing on the roof: no dome and no sensor housings on its corners", async () => {
+    const { doc } = await loadModel("robotaxi.glb");
+    const all = allPositions(doc);
+    // the highest point is the low crown in the middle of the roof
+    expect(box(all).max[1]).toBeLessThan(1.96);
+    // and the roof's corners sit at its edge, below the crown
+    const corners = all.filter((p) => Math.abs(p[0]) > 0.7 && Math.abs(p[2]) > 1.9);
+    expect(box(corners).max[1]).toBeLessThan(1.92);
   });
 
   it("wraps its sensors in one band round the roof edge, with the status light in it", async () => {
     const { doc } = await loadModel("robotaxi.glb");
-    const lens = materialPositions(doc, "sensor_lens").filter((p) => p[1] > 1.2);
-    const b = box(lens);
-    // all the way round: both sides, the windscreen header and the hatch's top edge
-    expect(b.min[0]).toBeLessThan(-0.7);
-    expect(b.max[0]).toBeGreaterThan(0.7);
-    expect(b.size[2]).toBeGreaterThan(2.0);
-    // and it stays at the roof edge: a band, not a raised crown
-    expect(b.max[1]).toBeLessThan(1.56);
-    expect(b.min[1]).toBeGreaterThan(1.3);
-    const status = box(materialPositions(doc, "light_status"));
-    expect(status.min[1]).toBeGreaterThan(1.3);
-    expect(status.size[0]).toBeGreaterThan(1.4);
-    expect(status.size[2]).toBeGreaterThan(2.0);
+    const band = box(materialPositions(doc, "sensor_lens").filter((p) => p[1] > 1.7 && p[1] < 1.9));
+    // all the way round: both sides and both ends
+    expect(band.min[0]).toBeLessThan(-0.8);
+    expect(band.max[0]).toBeGreaterThan(0.8);
+    expect(band.size[2]).toBeGreaterThan(4.6);
+    const status = box(materialPositions(doc, "light_status").filter((p) => p[1] < 1.9));
+    expect(status.min[1]).toBeGreaterThan(1.7);
+    expect(status.size[0]).toBeGreaterThan(1.6);
+    expect(status.size[2]).toBeGreaterThan(4.6);
     // the spray target sits on the band's front, on the centre line
     const t = node(doc, "sensor_band");
     expect(t.getExtras().sprayTarget).toBe(true);
     const o = worldOrigin(t);
     expect(Math.abs(o[0])).toBeLessThan(0.01);
-    expect(o[1]).toBeGreaterThan(1.4);
-    expect(Math.abs(o[2] - b.min[2])).toBeLessThan(0.1);
+    expect(o[1]).toBeGreaterThan(1.7);
+    expect(Math.abs(o[2] - band.min[2])).toBeLessThan(0.1);
   });
 
   it("has one sliding door, on the kerb side (+X), that slides back along +Z", async () => {
@@ -241,7 +281,7 @@ describe("robotaxi (the Meander)", () => {
     expect(d.min[0]).toBeGreaterThan(0.75); // entirely on the right
     expect(d.size[2]).toBeGreaterThan(1.1); // a wide opening
     expect(d.min[1]).toBeLessThan(0.4);
-    expect(d.max[1]).toBeGreaterThan(1.2);
+    expect(d.max[1]).toBeGreaterThan(1.6);
     const body = box(nodePositions(node(doc, "body")));
     // slid open it stays alongside the body, behind where it was
     expect(d.max[2] + (ex.slideM as number)).toBeLessThan(body.max[2]);
@@ -253,16 +293,16 @@ describe("robotaxi (the Meander)", () => {
     expect(node(doc, "robotaxi").getExtras().kerbSide).toBe("right");
   });
 
-  it("is asymmetric: a window band on the kerb side, a solid panel on the street side", async () => {
+  it("is different side to side: the door's window on the kerb side, a white post between two windows on the street side", async () => {
     const { doc } = await loadModel("robotaxi.glb");
     const paint = materialTriangles(doc, "paint_white");
-    // is there white paint on this side at window height (1.12 m), at this point along the cabin?
+    // is there white paint on this side at window height (1.3 m), at this point along the body?
     const painted = (side: number, z: number) =>
-      paint.some((t) => t.every((p) => p[0] * side > 0.6) && Math.min(...t.map((p) => p[1])) < 1.12 && Math.max(...t.map((p) => p[1])) > 1.12 &&
+      paint.some((t) => t.every((p) => p[0] * side > 0.6) && Math.min(...t.map((p) => p[1])) < 1.3 && Math.max(...t.map((p) => p[1])) > 1.3 &&
         Math.min(...t.map((p) => p[2])) <= z && Math.max(...t.map((p) => p[2])) >= z);
-    const along = [-0.3, 0.0, 0.3, 0.6, 0.9, 1.2, 1.5];
-    expect(along.filter((z) => painted(-1, z))).toEqual(along); // street side: a solid panel
-    expect(along.filter((z) => painted(1, z))).toEqual([]); // kerb side: window all along
+    expect(painted(-1, 0)).toBe(true); // street side: the white post with the windows either side
+    expect([-1.2, -0.8, 0.8, 1.2].filter((z) => painted(-1, z))).toEqual([]);
+    expect([-0.6, -0.3, 0, 0.3, 0.6].filter((z) => painted(1, z))).toEqual([]); // kerb side: the door's window
   });
 });
 
