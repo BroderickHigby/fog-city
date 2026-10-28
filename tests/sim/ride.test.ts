@@ -169,7 +169,7 @@ describe("robotaxi rides", () => {
       expect(upgradeState(riding)).toEqual({ ...riding, version: SIM_VERSION });
       expect(canonicalJson(riding)).toBe(ridingBefore);
     }
-    expect(SIM_VERSION).toBe(23);
+    expect(SIM_VERSION).toBe(25);
     const old = { ...createInitialState(world, 5, ["p"], { x: 150, z: 0, heading: 0 }), version: 11 };
     const before = canonicalJson(old);
     expect(upgradeState(old)).toEqual({ ...old, version: SIM_VERSION });

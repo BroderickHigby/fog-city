@@ -83,7 +83,17 @@
 // v23: people get out of a player's car's way only when it is about to reach them (dodge.ts
 // REACT_S, REACT_LAG_S): not when it will pass them by or is still far off. No field changes:
 // the save upgrade only restamps; v22-and-earlier replays keep the old early dive.
-export const SIM_VERSION = 23;
+// v24: brake + steer rotates the player's car with a sliding tail (reference-driving.ts: braking
+// against travel cuts lateral grip, the yaw keeps full grip, as Slop New York does), and the
+// handbrake (brake + steer above 9 m/s) brakes the rear wheels only and kicks the tail out as it
+// engages. No field changes: the save upgrade only restamps; v23-and-earlier replays keep v19
+// handling exactly. Ambient and robotaxi driving are unchanged.
+// v25: a car that hits another car or a robotaxi meets it box to box (vehicle-contacts.ts
+// boxContact, from Slop New York: the face normal and a contact point clipped to the touching
+// faces) with Slop's contact friction 0.35 (car.ts boxHit), so a side-swipe or an offset hit
+// spins both cars from the same point.
+// No field changes: the save upgrade only restamps; v24-and-earlier replays keep the circle contact.
+export const SIM_VERSION = 25;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

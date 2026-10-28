@@ -43,6 +43,37 @@ export interface LightingPreset {
   cloudGlow?: number;
   /** Dusk can raise city lights gradually without switching the simulation clock. */
   nightFactor?: number;
+  /**
+   * The GPU engine's Preetham sky (three's SkyMesh): haze (turbidity), Rayleigh and Mie scattering,
+   * Mie anisotropy and the exposure that brings its radiance into scene range; `skyNightColor` is
+   * the flat sky it fades to as `nightFactor` rises. Per time of day as in Slop New York's
+   * lighting.js presets, so the blend keys in daylight.ts move the haze, not only the sun.
+   * Presets that omit them get the engine's old fixed values (skyHaze): the golden-hour scattering
+   * and exposure, and the old flat night sky 0x101723.
+   */
+  skyTurbidity?: number;
+  skyRayleigh?: number;
+  skyMie?: number;
+  skyMieG?: number;
+  skyExposure?: number;
+  skyNightColor?: number;
+  /**
+   * How wet the roads look by time of day, 0 (bone dry) to 1: dry at noon, slick at night. A look
+   * only: the node materials read it (road-water.ts), the sim never does (its own roadWetness(state)
+   * in src/sim/fog is the real wetness, which traction reads); with rain, the wetter of the two
+   * applies. It follows sun elevation like the other fields, so a low winter noon stays faintly
+   * damp. Slop New York's roadWetness (lighting.js:41, 66, 91, 116).
+   */
+  roadSheen?: number;
+}
+
+/** Sky settings the GPU engine reads: a preset's own, else the engine's old fixed values. */
+export interface SkyHaze { turbidity: number; rayleigh: number; mie: number; mieG: number; exposure: number; nightColor: number }
+export function skyHaze(p: LightingPreset): SkyHaze {
+  return {
+    turbidity: p.skyTurbidity ?? 8, rayleigh: p.skyRayleigh ?? 2.8, mie: p.skyMie ?? 0.008, mieG: p.skyMieG ?? 0.88,
+    exposure: p.skyExposure ?? 0.148, nightColor: p.skyNightColor ?? 0x101723,
+  };
 }
 
 /** Warm afternoon light across the Bay, with a directional key and restrained fill. */
@@ -73,6 +104,15 @@ export const GOLDEN: LightingPreset = {
   cloudCoverage: 0.35,
   cloudOpacity: 0.68,
   nightFactor: 0,
+  // Slop New York's golden hour (lighting.js:44-47, 94-97 midday, 69-72 twilight, 119-122 midnight).
+  skyTurbidity: 8,
+  skyRayleigh: 2.8,
+  skyMie: 0.008,
+  skyMieG: 0.88,
+  skyExposure: 0.148,
+  // The flat sky it fades to as the night factor rises: a dusk indigo until the real night key.
+  skyNightColor: 0x1c2748,
+  roadSheen: 0.28,
 };
 
 /** Backwards-compatible default: a clear SF afternoon, rather than an almost-set sun. */
@@ -99,6 +139,12 @@ export const NOON: LightingPreset = {
   cloudCoverage: 0.25,
   cloudOpacity: 0.62,
   exposure: 1.0,
+  skyTurbidity: 6.5,
+  skyRayleigh: 2.4,
+  skyMie: 0.006,
+  skyMieG: 0.86,
+  skyExposure: 0.142,
+  roadSheen: 0.08,
 };
 
 export const TWILIGHT: LightingPreset = {
@@ -128,6 +174,12 @@ export const TWILIGHT: LightingPreset = {
   cloudLight: 0.45,
   cloudGlow: 0.012,
   nightFactor: 0.45,
+  skyTurbidity: 9.5,
+  skyRayleigh: 3.4,
+  skyMie: 0.01,
+  skyMieG: 0.9,
+  skyExposure: 0.115,
+  roadSheen: 0.55,
 };
 
 export const NIGHT: LightingPreset = {
@@ -158,6 +210,13 @@ export const NIGHT: LightingPreset = {
   cloudLight: 0.035,
   cloudGlow: 0.03,
   nightFactor: 1,
+  skyTurbidity: 4,
+  skyRayleigh: 1.5,
+  skyMie: 0.004,
+  skyMieG: 0.8,
+  skyExposure: 0.022,
+  skyNightColor: 0x101723,
+  roadSheen: 0.62,
 };
 
 export const LIGHTING_PRESETS = Object.freeze({ golden: GOLDEN, noon: NOON, twilight: TWILIGHT, night: NIGHT });
