@@ -339,8 +339,11 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
  * Vertex-cluster cell for each kind's mid-range proxy, metres. The wave-2 Trundle has twice the
  * wave-1 bot's detail; 0.12 m cells left it 302 triangles (budget 200), 0.2 m leaves 176. At the
  * mid tier's 60 m the 0.56 m bot is about six pixels tall, so the coarser cell does not show.
+ * The Meander pod (2026-10-28) is taller than the hatch it replaced and its light triangles are
+ * kept whole: 0.2 m cells left it 1406 triangles (budget 1200), 0.25 m leaves 1078, fewer than
+ * the hatch's 1116; at 60 m a 0.25 m cell is about two pixels.
  */
-export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.2 };
+export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.25, errandRobot: 0.16, sidewalkBot: 0.2 };
 /** Peak limb swing, radians, for a walking errand robot. */
 const ROBOT_SWING = 0.38;
 
@@ -1110,8 +1113,9 @@ function taper(w: number, h: number, d: number, kx: number, kz: number, x: numbe
 /**
  * The far proxy of a kind (also its stand-in while the model loads, or if it never does):
  * boxes in the model's proportions and colours, lights included. Faces -z, origin on the ground.
- * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, 4.98 x 1.92 x
- * 1.53 m with its sensors in one dark roof band round a teal status line and no dome; the
+ * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, a two-ended
+ * pod 4.96 x 1.92 m and 1.95 m to the roof, its sensors in one dark roof band round a teal
+ * status line and a low pod on each roof corner, no dome; the
  * Footman, 1.95 m to the ring on its lantern head; the Trundle, a 0.56 m bread bin with a sage
  * roll-top lid and no flag.
  */
@@ -1125,17 +1129,21 @@ export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferG
     const tail = surf(0x8a1010, 0.3, 0, 2, 0xff2a1a);
     const status = surf(0x2fd6c1, 0.3, 0, 3, 0x2fffe0);
     const parts = [
-      // Long side on z (the car faces -z): 1.9 m across, 4.95 m nose to tail, low and flat-roofed.
-      box(1.9, 0.62, 4.95, 0, 0.6, 0, white),
-      // Long raked windscreen and fastback: a glass greenhouse set back from the short nose.
-      taper(1.8, 0.52, 4.0, 0.88, 0.82, 0, 1.17, 0.3, glass),
-      // The sensor band round the roof edge, with the teal status line in it.
-      box(1.6, 0.1, 3.3, 0, 1.48, 0.3, band),
-      box(1.64, 0.04, 2.2, 0, 1.46, 0.55, status),
-      box(1.2, 0.04, 0.04, 0, 0.585, -2.47, head),
-      box(1.52, 0.04, 0.04, 0, 0.9, 2.47, tail),
+      // Long side on z (the car faces -z): a tall two-ended pod, 1.92 m across, 4.96 m end to end.
+      box(1.92, 0.64, 4.96, 0, 0.56, 0, white),
+      // Big glass from the belt to the band, the sides leaning in a little.
+      taper(1.9, 0.84, 4.94, 0.93, 0.97, 0, 1.32, 0, glass),
+      // The sensor band round the roof edge, with the teal status line in it, and the white roof.
+      box(1.76, 0.11, 4.78, 0, 1.815, 0, band),
+      box(1.78, 0.03, 4.8, 0, 1.818, 0, status),
+      box(1.68, 0.08, 4.7, 0, 1.91, 0, white),
+      // A light bar across each end: the same housing both ways round.
+      box(1.4, 0.07, 0.04, 0, 0.83, -2.47, head),
+      box(1.4, 0.07, 0.04, 0, 0.83, 2.47, tail),
     ];
-    for (const [x, z] of [[-0.81, -1.52], [0.81, -1.52], [-0.81, 1.52], [0.81, 1.52]] as const) parts.push(box(0.22, 0.72, 0.72, x, 0.36, z, dark));
+    for (const [x, z] of [[-0.8, -1.7], [0.8, -1.7], [-0.8, 1.7], [0.8, 1.7]] as const) parts.push(box(0.25, 0.76, 0.76, x, 0.38, z, dark));
+    // A low white sensor pod on each roof corner.
+    for (const [x, z] of [[-0.68, -2.2], [0.68, -2.2], [-0.68, 2.2], [0.68, 2.2]] as const) parts.push(box(0.26, 0.15, 0.26, x, 1.95, z, white));
     return mergePacked(parts);
   }
   if (kind === "errandRobot") {

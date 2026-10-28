@@ -69,7 +69,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `ferry-building.glb` | 31,886 (100k) | 204.9 x 59.5 m, tower 75.4 m | `ferry_building` > `building`, `tower`, `tower_outline_lights`, `clock_hour_N/E/S/W`, `clock_minute_N/E/S/W`; `light_tower_outline`, `light_clock_face` |
 | `r-evolution.glb` | 32,216 (40k) | 14.3 m on a 7.2 m plinth | `r_evolution` > `frame` (rods), `shell` (`steel_mesh`, MASK), `glow` (`light_sculpture_glow`, MASK), `plinth` |
 | `player-car.glb` | 2,992 (8k) | 4.33 x 2.04 x 1.50 m | `player_car` > `body`, `wheel_FL/FR/RL/RR`; `paint` (recolourable), `light_headlight`, `light_taillight` |
-| `robotaxi.glb` (Meander) | 5,252 (10k) | 4.98 x 1.95 x 2.02 m (1.95 m to the roof) | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
+| `robotaxi.glb` (Meander) | 5,136 (10k) | 4.98 x 1.95 x 2.02 m (1.95 m to the roof) | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
 | `errand-robot.glb` (Porter) | 4,948 (6k) | 1.95 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
 | `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
 | `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
@@ -129,9 +129,9 @@ rotation is the identity); close in reverse. The body under it is `cabin_dark`, 
 opening reads as the dark cabin. `sensor_band` (no mesh, extras `sprayTarget: true`) marks
 the front of the band on the centre line: aim there when a mission says to water a rogue
 robotaxi's sensors. The sim's robotaxi is still 1.6 m tall (`ROBOTAXI_BODY.height`), so the
-top 0.35 m of the drawn pod is above its water and collision box. Built with Blender 5.2.2 LTS
-(the only Blender on the build machine on 2026-10-27; the script needs nothing newer than
-4.5). Wheels as for the other cars (`radius: 0.38`).
+top 0.35 m of the drawn pod (0.42 m to the tops of its corner pods) is above its water and
+collision box. Built with Blender 4.5.9 LTS (a 5.2 build writes the same geometry byte for
+byte; only the generator string differs). Wheels as for the other cars (`radius: 0.38`).
 
 **Porter (`errand-robot.glb`).** Bramblecot Home's errand humanoid, remodelled in wave 2 to
 the robot table: tall and slim (1.95 m to the carrying ring on its head), an opaque glazed
@@ -647,7 +647,7 @@ Wave 2, for the art sign-off (1800 x 640, 48 samples + denoise, a neutral studio
 | `06-trundle-turntable.png` | the Trundle front, three-quarter, side, back, with its lid rolled open; then the melt sequence and `heap-trundle.glb` |
 | `07-moat-van-turntable.png` | the van front three-quarter, side, rear three-quarter with the barn doors open |
 | `08-prop-lineup.png` | repair kiosk, the player wearing the water blaster, vendor cart, wheelchair; hydrant, drinking fountain, cone, the three heaps, two pigeons (standing, pecking), the leashed dog |
-| `09-meander-turntable.png` | the Meander robotaxi: the kerb side from the front three-quarter, the street side broadside (the asymmetry), the kerb side from the rear three-quarter with the sliding door open |
+| `09-meander-turntable.png` | the Meander pod: the kerb side from the front three-quarter, the street side broadside (two windows and a white post, no door), the kerb side from the rear three-quarter with the sliding door open (re-rendered 2026-10-28 for the pod) |
 | `humanoid-variants.png` | the 8 adult variants and the 2 child looks in suggested outfits, decoded from the VAT as the crowd shader decodes them |
 | `humanoid-turntable.png` | the crowd's founder variant from four sides (VAT), and `player.glb` (founder-default) wearing the blaster, front and back |
 | `player-founder-turntable.png` | `player.glb` in founder-default as the game loads it (default morph weights: bomber and smile on) at rest: front, three-quarter, side, back |

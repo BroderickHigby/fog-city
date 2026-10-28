@@ -13,7 +13,7 @@ the corners; the street side has no door (two windows either side of a white pos
 charging flap); no logo, badge, text or livery.
 
 4.96 m long, 1.92 m wide (inside the sim's 5.0 x 2.0 m robotaxi box, src/sim/agents.ts
-ROBOTAXI_BODY), 1.93 m to the roof and 2.03 m to the top of the pods; 3.50 m wheelbase.
+ROBOTAXI_BODY), 1.95 m to the roof and 2.02 m to the top of the pods; 3.40 m wheelbase.
 
 Nodes: robotaxi (root, origin on the ground at the body centre; extras fcActor, kerbSide)
   body
@@ -257,10 +257,12 @@ def main() -> None:
         y = sign * (HL + 0.004)
         mb.box(-0.16, y - 0.012 * sign, 0.48, 0.16, y + 0.004 * sign, 0.56, lens)
 
-    # --- the teal status line round the sensor band, proud of it
+    # --- the teal status line round the sensor band, proud of it. One segment per flat side:
+    # the renderer's distance copies keep every light triangle (agent-packing.ts simplifyPacked)
+    flat = ("kerb", "street")
+    outline = [i for i in range(n) if not (region(*loop[i]) in flat and region(*loop[i - 1]) == region(*loop[i]) == region(*loop[(i + 1) % n]))]
     zl = (Z_LINE0, Z_LINE1)
-    for i in range(n):
-        j = (i + 1) % n
+    for i, j in zip(outline, outline[1:] + outline[:1]):
         def pt(c, z):
             x, y, nx, ny = loop[c]
             t = (z - Z_BAND) / (Z_BAND_TOP - Z_BAND)

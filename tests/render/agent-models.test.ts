@@ -91,12 +91,12 @@ describe("agent models, packed", () => {
 
   it("pivots wheels at their hubs and turns the rear axle as one", () => {
     const m = packed.robotaxi!;
-    expect(part(m, "wheelFL").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([-0.81, 0.36, -1.52]);
-    expect(part(m, "wheelFR").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0.81, 0.36, -1.52]);
-    expect(part(m, "axleRear").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0, 0.36, 1.52]);
+    expect(part(m, "wheelFL").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([-0.8, 0.38, -1.7]);
+    expect(part(m, "wheelFR").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0.8, 0.38, -1.7]);
+    expect(part(m, "axleRear").pivot.toArray().map((v) => +v.toFixed(2))).toEqual([0, 0.38, 1.7]);
     expect(part(m, "wheelFL").channel.type).toBe("steer-spin");
-    expect(m.wheelRadius).toBe(0.36);
-    expect(m.wheelbase).toBeCloseTo(3.05, 2);
+    expect(m.wheelRadius).toBe(0.38);
+    expect(m.wheelbase).toBeCloseTo(3.4, 2);
     // A wheel's geometry is centred on its pivot (spins in place).
     const bb = new THREE.Box3().setFromBufferAttribute(part(m, "wheelFL").geometry!.getAttribute("position") as THREE.BufferAttribute);
     expect(Math.abs((bb.min.y + bb.max.y) / 2)).toBeLessThan(0.01);
@@ -113,8 +113,10 @@ describe("agent models, packed", () => {
     // Shut: it lies inside the car's length, between the axles.
     expect(bb.min.z).toBeGreaterThan(part(m, "wheelFL").pivot.z);
     expect(bb.max.z).toBeLessThan(part(m, "axleRear").pivot.z);
-    // No part sits above the roof band: the wave-1 dome is gone.
-    for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(1.54);
+    // The door stops under the sensor band; nothing but the low corner pods stands on the 1.95 m
+    // roof (the wave-1 dome rose to 2.12 m).
+    expect(bb.max.y).toBeLessThan(1.77);
+    for (const p of m.parts) expect(boundsOf(p.geometry!).translate(p.pivot).max.y, p.name).toBeLessThan(2.05);
   });
 
   it("keeps the lights as packed channels: head, tail and status on the robotaxi body", () => {
