@@ -11,12 +11,14 @@
 //
 // Every cell's instanced furniture, signs, storefront parts and palms go into one shared
 // instance pool (instance-pool.ts): one draw per kind for the whole layer, whose shaders are
-// built once, instead of ~20 new InstancedMeshes (each its own shader build) per cell.
+// built once, instead of ~20 new InstancedMeshes (each its own shader build) per cell. The pool
+// culls per cell block to the view set with setView() (and to where its shadows can reach), so
+// a pooled draw holds only what is in view, as the per-cell meshes' frustum culling did.
 
 import * as THREE from "three";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import type { SharedMaterials } from "./materials.ts";
-import { InstancePool, type InstanceBlock } from "./instance-pool.ts";
+import { InstancePool, poolView, type InstanceBlock, type PoolView } from "./instance-pool.ts";
 import { geometryFromMeshData } from "./props.ts";
 import { FurnitureCell, type SignalRecord, type StopSignRecord } from "./street-furniture.ts";
 import { addPalms, foliagePlacements, type TreePlacement, type TreeRecord } from "./street-trees.ts";
@@ -132,6 +134,7 @@ export class StreetDetailLayer {
   private queue: Cell[] = [];
   private treeQueue: Cell[] = [];
   private treeClasses: string[] = [];
+  private view: PoolView | null = null;
 
   constructor(opts: StreetDetailOptions) {
     this.opts = opts;
@@ -213,6 +216,15 @@ export class StreetDetailLayer {
     this.lastX = Number.NaN;
   }
 
+  /**
+   * Cull the pooled draws to this camera from the next update() on (null: draw everything).
+   * `sunDir` points toward the sun; give it when the instances cast shadows, so a block out of
+   * view whose shadow falls in view is still drawn.
+   */
+  setView(camera: THREE.Camera | null, sunDir: THREE.Vector3 | null = null): void {
+    this.view = camera ? poolView(camera, sunDir, this.view ?? undefined) : null;
+  }
+
   /** Build the cells near (x, z) under a time budget; drop the far ones; light the signals for `tick`. */
   update(x: number, z: number, tick = 0, budgetMs = STREET_DETAIL_BUDGET_MS): void {
     const start = performance.now();
@@ -236,7 +248,7 @@ export class StreetDetailLayer {
     for (let k = 0; this.treeQueue.length && (k === 0 || performance.now() - start < budgetMs); k++) this.placeTrees(this.treeQueue.shift()!);
     this.grass.update(x, z, Math.max(0, budgetMs - (performance.now() - start)));
     for (const cell of this.builtCells) cell.built?.furniture?.update(tick);
-    this.pool.flush();
+    this.pool.flush(this.view);
   }
 
   /** The loaded cells within `radius` of (x, z) that pass `keep`, nearest first. */

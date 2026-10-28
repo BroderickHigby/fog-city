@@ -918,6 +918,7 @@ export class SceneRenderer {
     this.lampPool?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads(), this.viewer.fx, this.viewer.fz);
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
+    this.streetDetail.setView(this.camera, this.shadows ? this.sunDir : null);
     this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
     this.landmarks.update(minuteOfDay);
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);

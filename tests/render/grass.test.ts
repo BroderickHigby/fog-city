@@ -145,6 +145,20 @@ describe("DataSF grass", () => {
     moved.dispose(); fresh.dispose(); one.dispose();
   });
 
+  it("drops its per-lawn cache on new data, so a lawn at the same index is built from the new shape", () => {
+    const l = flat(); l.setData(doc()); settle(l);
+    expect(l.info().cachedLawns).toBeGreaterThan(0);
+    // Same lawn index, a different (smaller, moved) shape.
+    const next = doc([[2, 2, 12, 2, 12, 12, 2, 12]]);
+    l.setData(next);
+    expect(l.info().cachedLawns).toBe(0);
+    settle(l);
+    const fresh = flat(); fresh.setData(next); settle(fresh);
+    for (const name of ["grass-surface", "grass-blades"]) expect(Array.from(mesh(l, name).geometry.getAttribute("position").array), name).toEqual(Array.from(mesh(fresh, name).geometry.getAttribute("position").array));
+    expect(area(mesh(l, "grass-surface").geometry)).toBeCloseTo(100, 0);
+    l.dispose(); fresh.dispose();
+  });
+
   it("spreads the assembly over frames under a zero budget and still ends with the same meshes", () => {
     const grass = Array.from({ length: 110 }, (_, i) => {
       const x = (i % 11) * 22 - 110, z = Math.floor(i / 11) * 22 - 100;

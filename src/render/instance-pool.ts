@@ -7,9 +7,22 @@
 // gives each owner a block of instances in it: a cell that streams in only writes instance
 // data, and the shaders are built once per kind for the whole session.
 //
-// Blocks are packed in order. Releasing one shifts the later blocks down (a typed-array copy
-// of at most a few hundred kilobytes), so a block's offset can change; owners read it through
-// the block. Only the changed instance range is uploaded, once per flush().
+// Blocks are packed in order in a CPU copy. Releasing one shifts the later blocks down (a
+// typed-array copy of at most a few hundred kilobytes), so a block's offset can change; owners
+// read it through the block.
+//
+// Culling: a pooled mesh spans the whole neighbourhood, so three's per-object frustum test would
+// never cull it. flush(view) culls per block instead (a block is one cell's instances of one
+// kind, with its own bounding sphere): only the blocks in view, or whose shadow can reach the
+// view, are copied, in order, to the front of the mesh's instance arrays, and mesh.count draws
+// just those. The copy is rewritten from the first block that changed, so a frame whose drawn
+// set did not change uploads nothing. The mesh's bounding sphere is the union of its drawn
+// blocks, so three's own test (main and shadow cameras) works on it too.
+//
+// Capacity is at least POOL_MIN_CAPACITY: three's node renderer reads an instance array of at
+// most maxUniformBufferBindingSize bytes (64 KiB by default: 1024 matrices) as a uniform buffer
+// and uploads ALL of it for every draw of every pass, every frame. A bigger array is a vertex
+// buffer, uploaded only when it changed and only the changed range.
 
 import * as THREE from "three";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
@@ -82,26 +95,43 @@ interface Batch {
   capacity: number;
   used: number;
   blocks: PooledBlock[];
-  /** Instance ranges [from, to) to upload at the next flush; to <= from when clean. */
+  /** Every block's instances, packed in block order (CPU only); the mesh draws a copy of the visible ones. */
+  matrices: Float32Array;
+  colors: Float32Array | null;
+  /** The blocks the mesh's arrays hold now, in order, and how many instances that is. */
+  drawn: PooledBlock[];
+  drawnCount: number;
+  /** Instance ranges [from, to) of the mesh's arrays to upload at the next flush; to <= from when clean. */
   matrixFrom: number; matrixTo: number;
   colorFrom: number; colorTo: number;
 }
 
 class PooledBlock implements InstanceBlock {
-  readonly batch: Batch;
+  batch: Batch | null;
   readonly count: number;
+  /** Where its instances start in the batch's packed CPU copy; -1 once released. */
   offset: number;
-  constructor(batch: Batch, offset: number, count: number) { this.batch = batch; this.offset = offset; this.count = count; }
-  get mesh(): THREE.InstancedMesh { return this.batch.mesh; }
+  /** Where they start in the mesh's arrays; -1 when not drawn. */
+  drawOffset = -1;
+  /** Colours set since the last flush. */
+  colorDirty = false;
+  /** Bounds of its instances (each instance's transformed geometry bounding sphere). */
+  readonly sphere = new THREE.Sphere();
+  /** Height of the bounds, for how far their shadow can reach. */
+  height = 0;
+  private readonly mesh0: THREE.InstancedMesh;
+  constructor(batch: Batch, offset: number, count: number) { this.batch = batch; this.offset = offset; this.count = count; this.mesh0 = batch.mesh; }
+  get mesh(): THREE.InstancedMesh { return this.batch?.mesh ?? this.mesh0; }
   setColorAt(index: number, color: THREE.Color): void {
-    const colors = this.batch.mesh.instanceColor;
+    const colors = this.batch?.colors;
     if (!colors || index < 0 || index >= this.count) return;
-    color.toArray(colors.array, (this.offset + index) * 3);
+    color.toArray(colors, (this.offset + index) * 3);
   }
-  commitColors(): void { dirty(this.batch, "color", this.offset, this.offset + this.count); }
+  commitColors(): void { if (this.batch?.colors) this.colorDirty = true; }
 }
 
 function dirty(b: Batch, what: "matrix" | "color", from: number, to: number): void {
+  if (to <= from) return;
   if (what === "matrix") {
     b.matrixFrom = b.matrixTo > b.matrixFrom ? Math.min(b.matrixFrom, from) : from;
     b.matrixTo = Math.max(b.matrixTo, to);
@@ -121,8 +151,64 @@ function widen(a: THREE.BufferAttribute, from: number, to: number): void {
   a.updateRanges.length = 1;
 }
 
-/** First capacity of a batch: room for this block and a neighbourhood like it. */
-export const POOL_MIN_CAPACITY = 1024;
+const _m = new THREE.Matrix4(), _p = new THREE.Vector3(), _min = new THREE.Vector3(), _max = new THREE.Vector3(), _s = new THREE.Sphere();
+
+/** The block's bounds: every instance's transformed geometry bounding sphere, boxed. */
+function blockBounds(block: PooledBlock, geometry: THREE.BufferGeometry, matrices: Float32Array): void {
+  if (!geometry.boundingSphere) geometry.computeBoundingSphere();
+  const g = geometry.boundingSphere!;
+  _min.set(Infinity, Infinity, Infinity); _max.set(-Infinity, -Infinity, -Infinity);
+  for (let k = 0; k < block.count; k++) {
+    _m.fromArray(matrices, (block.offset + k) * 16);
+    _p.copy(g.center).applyMatrix4(_m);
+    const r = g.radius * _m.getMaxScaleOnAxis();
+    _min.set(Math.min(_min.x, _p.x - r), Math.min(_min.y, _p.y - r), Math.min(_min.z, _p.z - r));
+    _max.set(Math.max(_max.x, _p.x + r), Math.max(_max.y, _p.y + r), Math.max(_max.z, _p.z + r));
+  }
+  block.sphere.center.addVectors(_min, _max).multiplyScalar(0.5);
+  block.sphere.radius = _min.distanceTo(_max) / 2;
+  block.height = _max.y - _min.y;
+}
+
+/**
+ * What the next frame draws: the camera's frustum, and the direction toward the sun (or null
+ * without shadows). A block is drawn when it, or the ground its shadow can reach, is in view.
+ */
+export interface PoolView {
+  frustum: THREE.Frustum;
+  sunDir: THREE.Vector3 | null;
+}
+
+/** The farthest a block's shadow is followed along the ground, metres. */
+export const POOL_SHADOW_REACH_M = 150;
+
+/** A view for `camera` now (its matrices updated first). `out` is reused when given. */
+export function poolView(camera: THREE.Camera, sunDir: THREE.Vector3 | null, out?: PoolView): PoolView {
+  camera.updateMatrixWorld();
+  _m.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+  const view = out ?? { frustum: new THREE.Frustum(), sunDir: null };
+  view.frustum.setFromProjectionMatrix(_m, camera.coordinateSystem, (camera as { reversedDepth?: boolean }).reversedDepth);
+  view.sunDir = sunDir;
+  return view;
+}
+
+function inView(block: PooledBlock, view: PoolView, shadows: boolean): boolean {
+  if (view.frustum.intersectsSphere(block.sphere)) return true;
+  const sun = view.sunDir;
+  if (!shadows || !sun || sun.y <= 0.02) return false;
+  // Its shadow falls away from the sun, at most height / sun.y along it: test the sphere
+  // around that whole stretch.
+  const reach = Math.min(POOL_SHADOW_REACH_M, block.height / sun.y);
+  _s.center.copy(block.sphere.center).addScaledVector(sun, -reach / 2);
+  _s.radius = block.sphere.radius + reach / 2;
+  return view.frustum.intersectsSphere(_s);
+}
+
+/**
+ * First capacity of a batch. Above 1024 matrices (64 KiB, the default uniform-buffer limit) so
+ * the node renderer keeps the instances in a vertex buffer, uploaded only when they change.
+ */
+export const POOL_MIN_CAPACITY = 2048;
 
 export class InstancePool implements InstanceSink {
   readonly group = new THREE.Group();
@@ -149,60 +235,52 @@ export class InstancePool implements InstanceSink {
     let b = this.batches.get(key);
     if (!b) {
       const capacity = Math.max(POOL_MIN_CAPACITY, THREE.MathUtils.ceilPowerOfTwo(n));
-      b = { key, geometry, material, opts, mesh: makeMesh(geometry, material, capacity, opts), capacity, used: 0, blocks: [], matrixFrom: 0, matrixTo: 0, colorFrom: 0, colorTo: 0 };
-      b.mesh.count = 0;
-      b.mesh.visible = false;
-      // One draw spans the whole neighbourhood: per-batch bounds would almost never cull it.
-      b.mesh.frustumCulled = false;
+      const mesh = makeMesh(geometry, material, capacity, opts);
+      b = { key, geometry, material, opts, mesh, capacity, used: 0, blocks: [],
+        matrices: new Float32Array(capacity * 16), colors: opts.colors ? new Float32Array(capacity * 3) : null,
+        drawn: [], drawnCount: 0, matrixFrom: 0, matrixTo: 0, colorFrom: 0, colorTo: 0 };
+      initMesh(mesh);
       this.batches.set(key, b);
-      this.group.add(b.mesh);
+      this.group.add(mesh);
     } else if (b.used + n > b.capacity) this.grow(b, b.used + n);
     const block = new PooledBlock(b, b.used, n);
-    const array = b.mesh.instanceMatrix.array as Float32Array;
-    for (let k = 0; k < n; k++) matrices[k]!.toArray(array, (b.used + k) * 16);
+    for (let k = 0; k < n; k++) matrices[k]!.toArray(b.matrices, (b.used + k) * 16);
+    b.colors?.fill(0, b.used * 3, (b.used + n) * 3);
+    blockBounds(block, geometry, b.matrices);
     b.blocks.push(block);
-    dirty(b, "matrix", b.used, b.used + n);
-    if (b.mesh.instanceColor) {
-      (b.mesh.instanceColor.array as Float32Array).fill(0, b.used * 3, (b.used + n) * 3);
-      dirty(b, "color", b.used, b.used + n);
-    }
     b.used += n;
-    b.mesh.count = b.used;
-    b.mesh.visible = true;
     return block;
   }
 
   release(block: InstanceBlock): void {
-    if (!(block instanceof PooledBlock)) return;
+    if (!(block instanceof PooledBlock) || !block.batch) return;
     const b = block.batch, at = b.blocks.indexOf(block);
+    block.batch = null;
     if (at < 0) return;
     b.blocks.splice(at, 1);
     const from = block.offset, n = block.count, end = b.used;
-    const matrices = b.mesh.instanceMatrix.array as Float32Array;
-    matrices.copyWithin(from * 16, (from + n) * 16, end * 16);
-    const colors = b.mesh.instanceColor?.array as Float32Array | undefined;
-    colors?.copyWithin(from * 3, (from + n) * 3, end * 3);
+    b.matrices.copyWithin(from * 16, (from + n) * 16, end * 16);
+    b.colors?.copyWithin(from * 3, (from + n) * 3, end * 3);
     for (let k = at; k < b.blocks.length; k++) b.blocks[k]!.offset -= n;
     b.used -= n;
-    b.mesh.count = b.used;
-    b.mesh.visible = b.used > 0;
-    if (b.used > from) {
-      dirty(b, "matrix", from, b.used);
-      if (colors) dirty(b, "color", from, b.used);
-    }
+    block.offset = -1;
+    block.drawOffset = -1;
   }
 
   /** A bigger mesh for a batch that is full; the shaders are built again once for it. */
   private grow(b: Batch, need: number): void {
     const capacity = Math.max(b.capacity * 2, THREE.MathUtils.ceilPowerOfTwo(need));
     const old = b.mesh, mesh = makeMesh(b.geometry, b.material, capacity, b.opts);
-    (mesh.instanceMatrix.array as Float32Array).set((old.instanceMatrix.array as Float32Array).subarray(0, b.used * 16));
-    if (old.instanceColor && mesh.instanceColor) (mesh.instanceColor.array as Float32Array).set((old.instanceColor.array as Float32Array).subarray(0, b.used * 3));
-    mesh.count = b.used;
-    mesh.frustumCulled = false;
+    const matrices = new Float32Array(capacity * 16);
+    matrices.set(b.matrices.subarray(0, b.used * 16));
+    b.matrices = matrices;
+    if (b.colors) { const colors = new Float32Array(capacity * 3); colors.set(b.colors.subarray(0, b.used * 3)); b.colors = colors; }
+    initMesh(mesh);
     b.mesh = mesh;
     b.capacity = capacity;
-    // The new buffers upload whole on first use.
+    // The new mesh's arrays are rewritten whole at the next flush (and upload whole on first use).
+    for (const block of b.drawn) block.drawOffset = -1;
+    b.drawn = []; b.drawnCount = 0;
     b.matrixFrom = b.matrixTo = b.colorFrom = b.colorTo = 0;
     this.group.remove(old);
     disposeRenderObjects(old);
@@ -211,20 +289,55 @@ export class InstancePool implements InstanceSink {
   }
 
   /**
-   * Upload the instance ranges changed since the last flush. Call once per frame. A range not
-   * yet uploaded is widened, not replaced: a frame flushed but not rendered (a lost context)
-   * must not lose its range, and a backend that never clears ranges (the WebGL2 node path reads
-   * small instance arrays as uniforms) must not pile them up.
+   * Cull and upload; call once per frame, before rendering. Without a view every block is drawn.
+   * Only the changed instance range is uploaded. A range not yet uploaded is widened, not
+   * replaced: a frame flushed but not rendered (a lost context) must not lose its range, and a
+   * backend that never clears ranges must not pile them up.
    */
-  flush(): void {
+  flush(view?: PoolView | null): void {
     for (const b of this.batches.values()) {
+      const shadows = b.mesh.castShadow;
+      // The first block whose drawn place changes: everything from it on is rewritten.
+      let k = 0, at = 0;
+      const blocks = b.blocks, drawn = b.drawn;
+      let i = 0;
+      for (; i < blocks.length; i++) {
+        const block = blocks[i]!;
+        if (view && !inView(block, view, shadows)) continue;
+        if (drawn[k] !== block || block.drawOffset !== at) break;
+        if (block.colorDirty && b.colors) {
+          b.mesh.instanceColor!.array.set(b.colors.subarray(block.offset * 3, (block.offset + block.count) * 3), at * 3);
+          dirty(b, "color", at, at + block.count);
+        }
+        block.colorDirty = false;
+        at += block.count; k++;
+      }
+      if (i < blocks.length || k < drawn.length) {
+        const start = at;
+        for (let d = k; d < drawn.length; d++) if (drawn[d]!.drawOffset >= start) drawn[d]!.drawOffset = -1;
+        drawn.length = k;
+        const mats = b.mesh.instanceMatrix.array as Float32Array, cols = b.mesh.instanceColor?.array as Float32Array | undefined;
+        for (; i < blocks.length; i++) {
+          const block = blocks[i]!;
+          if (view && !inView(block, view, shadows)) { block.drawOffset = -1; continue; }
+          mats.set(b.matrices.subarray(block.offset * 16, (block.offset + block.count) * 16), at * 16);
+          if (cols && b.colors) cols.set(b.colors.subarray(block.offset * 3, (block.offset + block.count) * 3), at * 3);
+          block.drawOffset = at; block.colorDirty = false;
+          drawn.push(block);
+          at += block.count;
+        }
+        dirty(b, "matrix", start, at);
+        if (cols) dirty(b, "color", start, at);
+        b.drawnCount = at;
+        b.mesh.count = at;
+        b.mesh.visible = at > 0;
+        drawnBounds(b);
+      }
       if (b.matrixTo > b.matrixFrom) {
         const a = b.mesh.instanceMatrix;
         widen(a, b.matrixFrom * 16, b.matrixTo * 16);
         a.needsUpdate = true;
         b.matrixFrom = b.matrixTo = 0;
-        // Not for culling (frustumCulled is off): the renderer sorts by it, and computes it again when null.
-        b.mesh.boundingSphere = null;
       }
       const c = b.mesh.instanceColor;
       if (c && b.colorTo > b.colorFrom) {
@@ -235,15 +348,32 @@ export class InstancePool implements InstanceSink {
     }
   }
 
-  info(): { meshes: number; instances: number; capacity: number; grown: number } {
-    let instances = 0, capacity = 0;
-    for (const b of this.batches.values()) { instances += b.used; capacity += b.capacity; }
-    return { meshes: this.batches.size, instances, capacity, grown: this.grown };
+  info(): { meshes: number; instances: number; capacity: number; grown: number; drawn: number } {
+    let instances = 0, capacity = 0, drawn = 0;
+    for (const b of this.batches.values()) { instances += b.used; capacity += b.capacity; drawn += b.drawnCount; }
+    return { meshes: this.batches.size, instances, capacity, grown: this.grown, drawn };
   }
 
   dispose(): void {
-    for (const b of this.batches.values()) { b.mesh.removeFromParent(); disposeRenderObjects(b.mesh); }
+    for (const b of this.batches.values()) {
+      for (const block of b.blocks) { block.batch = null; block.offset = block.drawOffset = -1; }
+      b.mesh.removeFromParent(); disposeRenderObjects(b.mesh);
+    }
     this.batches.clear();
     this.group.removeFromParent();
   }
+}
+
+function initMesh(mesh: THREE.InstancedMesh): void {
+  mesh.count = 0;
+  mesh.visible = false;
+  mesh.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 0);
+}
+
+/** The mesh's bounds: the union of the blocks it draws (three's own frustum test uses it). */
+function drawnBounds(b: Batch): void {
+  const s = b.mesh.boundingSphere ?? (b.mesh.boundingSphere = new THREE.Sphere());
+  s.makeEmpty();
+  for (const block of b.drawn) s.union(block.sphere);
+  if (s.isEmpty()) s.set(s.center.set(0, 0, 0), 0);
 }
