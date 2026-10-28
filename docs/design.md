@@ -1333,6 +1333,10 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   Footmen are bigger and faster than Trundles, so they met turning robotaxis on crosswalks more often, and that
   exposed a stand-off v26 also fixes (`UNSTICK_VERSION`): a walker that turned round mid-crossing used to aim at
   the far kerb's sidewalk and loop back into the robotaxi; it now walks back to the kerb it came from.
+  The new mix also moved where the ferry bus enters, and on The Embarcadero it met a robotaxi nose to nose. Before
+  v26 every touch knocked a runtime vehicle, however slow, so the creeping bus was knocked, sat honking, crept back and
+  was knocked again, and no deadlock breaker fired. From v26 two vehicles nobody drives that touch closing slower than
+  0.3 m/s (`impacts.ts` `TOUCH_CONTACT_MPS`) only lean on each other, so the bus's own blocked-then-reverse breaker can act.
 - 2026-10-27 · **The Meander becomes a tall two-ended pod** (owner: "make the robotaxis look more like bigger Zoox
   or something"). The long, low, asymmetric hatch becomes a carriage pod of its own in the genre of today's
   bidirectional robotaxis: the same both ways round, 4.96 x 1.92 m (inside the sim's unchanged 5.0 x 2.0 m robotaxi
