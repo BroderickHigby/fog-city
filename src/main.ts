@@ -162,8 +162,11 @@ async function boot(): Promise<void> {
   const tStart = 0;
   const params = new URLSearchParams(location.search);
   const loading = document.getElementById("hud");
+  // The cover-art loading screen (index.html) mirrors the status line and fades out once the city is ready.
+  const splash = document.getElementById("splash"), splashStatus = document.getElementById("splash-status");
   const status = (text: string): void => {
     if (loading) loading.textContent = text;
+    if (splashStatus) splashStatus.textContent = text;
   };
   // A production build (pnpm build) reads its packed layout; the dev server serves loose files.
   const assets = await openAssets(import.meta.env.PROD);
@@ -448,6 +451,7 @@ async function boot(): Promise<void> {
   container.setAttribute("aria-busy", "false");
   loading?.classList.remove("loading-screen");
   loading?.removeAttribute("role");
+  if (splash) { splash.classList.add("gone"); setTimeout(() => splash.remove(), 700); }
   if (resumingAfterReset) setSessionValue(RESUME_KEY, null);
   if (legacyHud) legacyHud.hidden = !diagnostics;
   keyboard.setBlocked(false);
@@ -750,6 +754,8 @@ async function boot(): Promise<void> {
 }
 
 boot().catch((err: unknown) => {
+  // A failed boot shows its message and Retry on the plain card, not behind the cover art.
+  document.getElementById("splash")?.remove();
   const hud = document.getElementById("hud");
   if (hud) {
     hud.hidden = false;
