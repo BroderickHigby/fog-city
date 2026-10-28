@@ -17,7 +17,7 @@ describe("combined controls",()=>{
     controls.setAction("interact",false);expect(controls.sample().actions&Action.interact).toBe(0);
   });
   it("blocks and releases every device while typing",()=>{
-    const pad:PadLike={connected:true,axes:[1,-1],buttons:Array.from({length:12},()=>({pressed:true,value:1}))};
+    const pad:PadLike={connected:true,axes:[0,-1],buttons:Array.from({length:12},()=>({pressed:true,value:1}))};
     let pads:readonly(PadLike|null)[]=[pad];const controls=new InputController(undefined,()=>pads);controls.setStick(1,-1);controls.setAction("fire",true);controls.setBlocked(true);
     expect(controls.sample()).toEqual({throttle:0,steer:0,brake:0,actions:0});
     controls.setAction("fire",true);controls.setBlocked(false);expect(controls.sample().throttle).toBe(0);
