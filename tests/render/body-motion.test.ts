@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, advanceAxis, lowestDrop, minHeave, newAccel, updateAccel,
+  BodySpring, CAR_BODY, CarBodyMotion, HEAVE_SPRING, SpringStepper, TILT_SPRING, advanceAxis, bodyFeel, lowestDrop, minHeave, newAccel, updateAccel,
   type BodyFeel,
 } from "../../src/render/body-motion.ts";
 
@@ -113,7 +113,7 @@ describe("what the body does", () => {
     expect(none.heave.v).toBe(0);
   });
 
-  it("jolts against the hit: a frontal hit dives the nose and bounces the body up, a side hit rolls it away", () => {
+  it("jolts against the hit: a frontal hit dives the nose and bounces the body up, a side hit tips the roof toward the wall", () => {
     const front = new BodySpring();
     front.hit(12, 1, 0);
     expect(front.pitch.v).toBeLessThan(0);
@@ -124,7 +124,10 @@ describe("what the body does", () => {
     expect(rear.pitch.v).toBeGreaterThan(0);
     const sideRight = new BodySpring();
     sideRight.hit(8, 0, 1); // sliding into a wall on its right
-    expect(sideRight.roll.v).toBeGreaterThan(0);
+    expect(sideRight.roll.v).toBeGreaterThan(0); // roll + = right side down: the roof goes toward the wall
+    const sideLeft = new BodySpring();
+    sideLeft.hit(8, 0, -1);
+    expect(sideLeft.roll.v).toBeLessThan(0);
     const light = new BodySpring();
     light.hit(12, 1, 0, 0.35);
     expect(Math.abs(light.pitch.v)).toBeLessThan(Math.abs(front.pitch.v));
@@ -142,7 +145,41 @@ describe("the acceleration it reads", () => {
       for (let t = 0; t <= 1.5 + 1e-9; t += dt) updateAccel(s, dt, 4 * t, 0, 0, CAR_BODY);
       return s.aLong;
     };
-    for (const fps of [30, 60, 144]) expect(at(fps)).toBeCloseTo(4, 2);
+    for (const fps of [30, 60, 144, 240, 480, 1000]) expect(at(fps), `${fps} fps`).toBeCloseTo(4, 2);
+  });
+
+  it("reads the sideways acceleration with the right sign: a growing rightward sideways speed is a push to the right", () => {
+    for (const fps of [60, 480]) {
+      const s = newAccel(), dt = 1 / fps;
+      for (let t = 0; t <= 1.5 + 1e-9; t += dt) updateAccel(s, dt, 10, 5 * t, 0, CAR_BODY); // 5 m/s^2 toward the right
+      expect(s.aLat, `${fps} fps`).toBeCloseTo(5, 2);
+      expect(s.aLong, `${fps} fps`).toBeCloseTo(0, 6);
+    }
+    const left = newAccel();
+    for (let t = 0; t <= 1.5 + 1e-9; t += 1 / 60) updateAccel(left, 1 / 60, 10, -5 * t, 0, CAR_BODY);
+    expect(left.aLat).toBeCloseTo(-5, 2);
+  });
+
+  it("keeps the frame's own turning: sliding sideways while yawing takes -yawRate * lateral off the forward acceleration and adds yawRate * speed to the lateral", () => {
+    const s = newAccel();
+    for (let i = 0; i < 240; i++) updateAccel(s, 1 / 60, 20, 3, 0.5, CAR_BODY); // constant velocity in a turning frame
+    expect(s.aLong).toBeCloseTo(-0.5 * 3, 6);
+    expect(s.aLat).toBeCloseTo(0.5 * 20, 6); // 10, within the 12 cap
+  });
+
+  it("an input that is not a number holds its last good value, and a bad dt skips the frame", () => {
+    const s = newAccel();
+    updateAccel(s, 1 / 60, NaN, 0, 0, CAR_BODY); // the first sample waits for a good one
+    expect(s.has).toBe(false);
+    for (let i = 0; i < 120; i++) updateAccel(s, 1 / 60, 4 * i / 60, 0, 0, CAR_BODY);
+    const good = s.aLong;
+    expect(good).toBeCloseTo(4, 1);
+    updateAccel(s, 1 / 60, NaN, NaN, NaN, CAR_BODY);
+    updateAccel(s, 1 / 60, Infinity, -Infinity, NaN, CAR_BODY);
+    for (const dt of [NaN, Infinity, -1, 0]) updateAccel(s, dt, 1e9, 1e9, 1e9, CAR_BODY);
+    expect(Number.isFinite(s.aLong) && Number.isFinite(s.aLat) && Number.isFinite(s.speed)).toBe(true);
+    for (let i = 120; i < 240; i++) updateAccel(s, 1 / 60, 4 * i / 60, 0, 0, CAR_BODY);
+    expect(s.aLong).toBeCloseTo(4, 1); // recovered, not stuck on NaN
   });
 
   it("adds the centripetal term: a right turn at speed pushes the car to the right", () => {
@@ -158,6 +195,62 @@ describe("the acceleration it reads", () => {
     expect(s.aLong).toBe(0);
     updateAccel(s, 1 / 60, 0, 0, 0, CAR_BODY); // 30 m/s gone in a tick
     expect(Math.abs(s.aLong)).toBeLessThanOrEqual(CAR_BODY.accelCap);
+  });
+});
+
+describe("bad numbers never stick in the body", () => {
+  const finiteBody = (b: BodySpring): boolean => [b.pitch.x, b.pitch.v, b.roll.x, b.roll.v, b.heave.x, b.heave.v].every(Number.isFinite);
+
+  it("an Infinity or NaN dt skips the step, and a NaN or Infinity acceleration asks for level", () => {
+    const b = new BodySpring();
+    for (let i = 0; i < 60; i++) b.step(1 / 60, 6, 6);
+    const before = [b.pitch.x, b.roll.x, b.heave.x];
+    for (const dt of [Infinity, -Infinity, NaN, -1, 0]) b.step(dt, 6, 6);
+    expect([b.pitch.x, b.roll.x, b.heave.x]).toEqual(before);
+    for (let i = 0; i < 600; i++) b.step(1 / 60, NaN, -Infinity);
+    expect(finiteBody(b)).toBe(true);
+    expect(Math.abs(b.pitch.x)).toBeLessThan(1e-6); // NaN asks for level
+    expect(b.roll.x).toBeGreaterThan(0.05); // -Infinity is a hard left-down lean, capped, not NaN
+  });
+
+  it("a spring that is somehow non-finite is put back at rest instead of carrying NaN forever", () => {
+    const a = { x: NaN, v: 1 };
+    advanceAxis(a, 0.05, TILT_SPRING.coeffs(1 / 60));
+    expect(a).toEqual({ x: 0, v: 0 });
+    const b = { x: 0.01, v: 0 };
+    advanceAxis(b, NaN, TILT_SPRING.coeffs(1 / 60));
+    expect(Number.isFinite(b.x) && Number.isFinite(b.v)).toBe(true);
+  });
+
+  it("kicks, hits and landings ignore non-finite numbers", () => {
+    const b = new BodySpring();
+    b.kick(NaN, Infinity, NaN);
+    b.hit(NaN, 1, 0);
+    b.land(NaN);
+    b.hit(10, NaN, NaN);
+    expect(finiteBody(b)).toBe(true);
+    b.step(1 / 60, 0, 0);
+    expect(finiteBody(b)).toBe(true);
+  });
+
+  it("one NaN speed among good frames costs a frame, not the car: the body recovers and still jolts", () => {
+    const m = new CarBodyMotion();
+    for (let i = 0; i < 120; i++) m.update(1 / 60, feel({ speed: 4 * i / 60 }));
+    m.update(1 / 60, feel({ speed: NaN, lateral: NaN, yawRate: NaN, hits: NaN, impactSpeed: NaN, landingSpeed: NaN, personBumps: NaN }));
+    expect(finiteBody(m.spring)).toBe(true);
+    for (let i = 121; i < 300; i++) m.update(1 / 60, feel({ speed: 4 * i / 60 }));
+    expect(finiteBody(m.spring)).toBe(true);
+    expect(m.spring.pitch.x).toBeCloseTo(CAR_BODY.pitchPerAccel * 4, 3); // back to the throttle's lean
+    m.update(1 / 60, feel({ speed: 20, hits: 1, impactSpeed: 10 })); // a hit after the bad frame still counts
+    expect(m.spring.pitch.v).toBeLessThan(-0.3);
+  });
+
+  it("an Infinity dt never reaches the body", () => {
+    const m = new CarBodyMotion();
+    for (let i = 0; i < 30; i++) m.update(1 / 60, feel({ speed: 10 }));
+    m.update(Infinity, feel({ speed: 10 }));
+    m.update(NaN, feel({ speed: 10 }));
+    expect(finiteBody(m.spring)).toBe(true);
   });
 });
 
@@ -206,6 +299,16 @@ describe("a car driven by the sim's fields", () => {
     expect(person.spring.pitch.v).toBeLessThan(0);
   });
 
+  it("settles on a landing that fell between two frames: a new landing speed with no grounded flip", () => {
+    const m = new CarBodyMotion();
+    drive(m, feel({ speed: 15, landingSpeed: 0 }), 10);
+    m.update(1 / 60, feel({ speed: 15, landingSpeed: 6 })); // grounded the whole time the frames saw
+    expect(m.spring.heave.v).toBeLessThan(-0.8);
+    const v = m.spring.heave.v;
+    m.update(1 / 60, feel({ speed: 15, landingSpeed: 6 })); // the same landing is not a second one
+    expect(m.spring.heave.v).toBeGreaterThan(v);
+  });
+
   it("starts level after a respawn", () => {
     const m = new CarBodyMotion();
     m.spring.kick(1, 1, 1);
@@ -243,5 +346,26 @@ describe("never into the road", () => {
         }
       }
     }
+  });
+});
+
+describe("bodyFeel: the sim's two ticks to one frame's inputs", () => {
+  const a: BodyFeel = { speed: 10, lateral: -2, yawRate: 0.2, grounded: false, hits: 3, personBumps: 0, impactSpeed: 5, landingSpeed: 1 };
+  const b: BodyFeel = { speed: 20, lateral: 2, yawRate: 0.6, grounded: true, hits: 4, personBumps: 1, impactSpeed: 9, landingSpeed: 7 };
+
+  it("interpolates speed, sideways speed and yaw rate, and takes the events from the newer tick", () => {
+    const out = bodyFeel(a, b, 0.25, { ...level });
+    expect(out.speed).toBeCloseTo(12.5, 12);
+    expect(out.lateral).toBeCloseTo(-1, 12);
+    expect(out.yawRate).toBeCloseTo(0.3, 12);
+    expect([out.grounded, out.hits, out.personBumps, out.impactSpeed, out.landingSpeed]).toEqual([true, 4, 1, 9, 7]);
+    expect(bodyFeel(a, b, 0, { ...level }).speed).toBe(10);
+    expect(bodyFeel(a, b, 1, { ...level }).speed).toBe(20);
+  });
+
+  it("returns and fills the object it is given and never writes its inputs", () => {
+    const out = { ...level }, fa = Object.freeze({ ...a }), fb = Object.freeze({ ...b });
+    expect(bodyFeel(fa, fb, 0.5, out)).toBe(out);
+    expect(out.speed).toBe(15);
   });
 });

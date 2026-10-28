@@ -262,6 +262,8 @@ export interface Chassis {
   shown: number;
 }
 
+const _parentInverse = new THREE.Matrix4();
+
 /** How close to the road the body's lowest point may come, metres. */
 const CHASSIS_MARGIN = 0.03;
 
@@ -389,6 +391,15 @@ export class Actors {
     if (this.disposed || !v?.placed || !v.car.visible || this.hidden === id && this.hiddenPart === "car") return false;
     v.car.updateWorldMatrix(true, false);
     matrix.copy(v.car.matrixWorld); bounds.copy(v.carBounds);
+    // What damage sticks to is the body, which the chassis spring tilts and bobs: carry that too.
+    // A point b of the car's frame goes root -> the pivot's parent -> the pivot's own transform and
+    // back, so the frame is pivot.world * parent.world^-1 * root.world (exactly the root's at rest).
+    const pivot = v.chassis?.pivot;
+    if (pivot && (pivot.position.x !== 0 || pivot.position.y !== 0 || pivot.position.z !== 0
+      || pivot.quaternion.x !== 0 || pivot.quaternion.y !== 0 || pivot.quaternion.z !== 0)) {
+      pivot.updateWorldMatrix(true, false);
+      matrix.premultiply(_parentInverse.copy(pivot.parent!.matrixWorld).invert()).premultiply(pivot.matrixWorld);
+    }
     return !bounds.isEmpty();
   }
 
