@@ -1,6 +1,6 @@
 import { toLocal } from "../../geo/project.ts";
 import { COIT_GUIDE_LINES, COIT_LABEL_IDS } from "../../content/coit-guide.ts";
-import { clamp, dcos, dsin, PI } from "../dmath.ts";
+import { clamp, dcos, dsin, PI, sq } from "../dmath.ts";
 import type { GameplayCommand, GameplayBody } from "../gameplay-contract.ts";
 import { sortedIds, type SimState } from "../contract.ts";
 import type { World } from "../world.ts";
@@ -80,7 +80,7 @@ export function advanceCoitViewer(previous: CoitViewerSession | undefined, conte
   emit: (kind: string, targetId: string, amount?: number, detail?: string) => void): { viewer: CoitViewerSession | undefined; completed: boolean } {
   let viewer = cloneCoitViewer(previous);
   let availableCash = context?.cashCents ?? 0;
-  const near = body.mode === "foot" && Math.abs(body.speed) < .3 && Math.hypot(body.x - COIT_VIEWER.x, body.z - COIT_VIEWER.z) <= COIT_VIEWER.radius && context?.usable === true;
+  const near = body.mode === "foot" && Math.abs(body.speed) < .3 && Math.sqrt(sq(body.x - COIT_VIEWER.x) + sq(body.z - COIT_VIEWER.z)) <= COIT_VIEWER.radius && context?.usable === true;
   if (viewer && !viewer.closed && tick >= viewer.untilTick) {
     viewer.closed = true;
     const completed = near && !viewer.settled && viewer.taggedIds.length > 0 && viewer.flaggedIds.length > 0;
@@ -110,7 +110,7 @@ export function advanceCoitViewer(previous: CoitViewerSession | undefined, conte
         viewer.guide.flagged = true; viewer.flaggedIds.push(viewer.guide.id); viewer.feedback = `You're absolutely right! That is the ${viewer.guide.actualLabel}.`;
         emit("coit.hallucinationFlagged", viewer.guide.id, 1, viewer.guide.actualLabel);
       }
-      if (command.choiceId === "skip" && viewer.guide) { viewer.guide.skipped = true; viewer.feedback = "Guide audio skipped. The caption and five-second flag window remain."; emit("coit.guideSkipped", viewer.guide.id); }
+      if (command.choiceId === "skip" && viewer.guide) { viewer.guide.skipped = true; viewer.feedback = "Guide audio skipped. The caption stays, and you still have five seconds to flag."; emit("coit.guideSkipped", viewer.guide.id); }
     }
   }
   if (!viewer) return { viewer, completed: false };

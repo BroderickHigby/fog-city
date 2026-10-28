@@ -13,6 +13,6 @@ export function activityAvailable(activity: Pick<ActivityDefinition, "wave" | "k
     || activity.kind === "washBoards" && activity.objective?.event === "board.washed"
     || activity.kind === "interview" && activity.objective?.event === "demo.robotPresented"
     || activity.kind === "parking" && activity.objective?.event === "parking.legalStop"
-    || activity.kind === "faction" && (activity.objective?.event === "faction.pauser-completed" || activity.objective?.event === "faction.accelerator-completed")
+    || activity.kind === "faction" && (activity.objective?.event === "faction.pauserCompleted" || activity.objective?.event === "faction.acceleratorCompleted")
     || activity.kind === "recon" && (activity.objective?.event === "recon.signalFound" || activity.objective?.event === "recon.viewerCompleted");
 }

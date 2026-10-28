@@ -10,6 +10,11 @@ export const PI = 3.141592653589793;
 export const TAU = 6.283185307179586;
 export const HALF_PI = 1.5707963267948966;
 
+/** v squared. Use this, not `v ** 2` (which compiles to Math.pow). */
+export function sq(v: number): number {
+  return v * v;
+}
+
 /** Wrap an angle to [-PI, PI). */
 export function wrapAngle(a: number): number {
   return a - TAU * Math.floor((a + PI) / TAU);

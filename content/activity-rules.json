@@ -250,9 +250,9 @@
         },
         {
           "id": "coast",
-          "label": "Crissy Field",
-          "lat": 37.8058,
-          "lon": -122.4556,
+          "label": "Crissy Field at Mason Street",
+          "lat": 37.804088,
+          "lon": -122.455146,
           "radiusM": 12
         },
         {
@@ -347,8 +347,8 @@
         {
           "id": "photo",
           "label": "Alamo Square view",
-          "lat": 37.7763,
-          "lon": -122.4328,
+          "lat": 37.776254,
+          "lon": -122.43287,
           "radiusM": 10
         }
       ]
@@ -412,21 +412,21 @@
           "id": "start",
           "label": "Vermont St upper approach",
           "lat": 37.7584,
-          "lon": -122.4031,
+          "lon": -122.403055,
           "radiusM": 12
         },
         {
           "id": "curves",
           "label": "Vermont St curved block",
-          "lat": 37.7575,
-          "lon": -122.4031,
+          "lat": 37.757489,
+          "lon": -122.403167,
           "radiusM": 12
         },
         {
           "id": "finish",
           "label": "Vermont St lower approach",
-          "lat": 37.7568,
-          "lon": -122.4032,
+          "lat": 37.75695,
+          "lon": -122.403122,
           "radiusM": 12
         }
       ]
@@ -450,7 +450,7 @@
         {
           "id": "view",
           "label": "Bernal Hill lookout",
-          "lat": 37.7431,
+          "lat": 37.742595,
           "lon": -122.4141,
           "radiusM": 15
         }
@@ -539,7 +539,7 @@
       "kind": "faction",
       "wave": 4,
       "objective": {
-        "event": "faction.pauser-completed",
+        "event": "faction.pauserCompleted",
         "count": 1
       },
       "timeLimitS": 240,
@@ -560,9 +560,9 @@
         },
         {
           "id": "delivery",
-          "label": "R-Evolution binder delivery",
-          "lat": 37.7934,
-          "lon": -122.3948,
+          "label": "Embarcadero Plaza binder delivery",
+          "lat": 37.793317,
+          "lon": -122.394843,
           "radiusM": 12
         }
       ]
@@ -572,7 +572,7 @@
       "kind": "faction",
       "wave": 4,
       "objective": {
-        "event": "faction.accelerator-completed",
+        "event": "faction.acceleratorCompleted",
         "count": 1
       },
       "timeLimitS": 300,
@@ -586,8 +586,8 @@
         {
           "id": "pickup",
           "label": "Pier 70 loading point",
-          "lat": 37.7608,
-          "lon": -122.385,
+          "lat": 37.760783,
+          "lon": -122.38496,
           "radiusM": 12
         },
         {
@@ -860,7 +860,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "lane/content/wave4-2026-10-23",
-    "contentHash": "fnv1a32:1993e441",
+    "contentHash": "fnv1a32:b4ebf8de",
     "reviewedBy": [],
     "review": "Consolidated mission recovery; pending independent review."
   },

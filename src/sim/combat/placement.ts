@@ -6,7 +6,7 @@ import { carBox } from "../car.ts";
 import { AGENT_SPEC,ROBOTAXI_BODY,agentsOf } from "../agents.ts";
 import { circleHitsWall,onWater } from "../boundary.ts";
 import { boxDistance } from "../dodge.ts";
-import { clamp,dcos,dsin } from "../dmath.ts";
+import { clamp,dcos,dsin,sq } from "../dmath.ts";
 import { areaKey,projectOnPath } from "../roads.ts";
 import { circleBlockedBand,circleTouchesPolygon,meshGroundHeight,meshGroundRange,cellKey,type Heightfield,type World } from "../world.ts";
 import type { CombatActor,CombatContext,CombatInput,CombatPlayer,Vec3 } from "../combat-contract.ts";
@@ -75,7 +75,7 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
     const terrain=meshGroundRange(world,b.minX,b.minZ,b.maxX,b.maxZ);
     if(!Number.isFinite(terrain.min)||!Number.isFinite(terrain.max)||terrain.max-terrain.min>COMBAT_PLACEMENT.maxRelief)return false;
     if(circleBlockedBand(world,point.x,point.z,r,y+.01,y+2.5)||circleHitsWall(world.walls,point.x,point.z,r)||!roadClear(world,point.x,point.z,r))return false;
-    if(circles.some(body=>(body.x-point.x)**2+(body.z-point.z)**2<=(body.radius+r+COMBAT_PLACEMENT.bodyGap)**2))return false;
+    if(circles.some(body=>sq(body.x-point.x)+sq(body.z-point.z)<=sq(body.radius+r+COMBAT_PLACEMENT.bodyGap)))return false;
     return !hulls.some(box=>boxDistance(point.x,point.z,box.x,box.z,dsin(box.heading),-dcos(box.heading),box.hl,box.hw)<=r+COMBAT_PLACEMENT.bodyGap);
   };
   const safeLots:(Vec3&{id:string;radius:number})[]=[];
@@ -85,7 +85,7 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
     for(const id of sortedIds(state.players)){
       const pose=poses.get(id)!,candidates:{x:number;z:number;key:string;d:number}[]=[],grid=COMBAT_PLACEMENT.gridM,range=COMBAT_PLACEMENT.lotRange;
       for(let ix=Math.ceil((pose.x-range)/grid);ix<=Math.floor((pose.x+range)/grid);ix++)for(let iz=Math.ceil((pose.z-range)/grid);iz<=Math.floor((pose.z+range)/grid);iz++){
-        const x=ix*grid,z=iz*grid,d=(x-pose.x)**2+(z-pose.z)**2;if(d<=range*range)candidates.push({x,z,key:`lot:${ix}:${iz}`,d});
+        const x=ix*grid,z=iz*grid,d=sq(x-pose.x)+sq(z-pose.z);if(d<=range*range)candidates.push({x,z,key:`lot:${ix}:${iz}`,d});
       }
       candidates.sort((a,b)=>a.d-b.d||(a.key<b.key?-1:a.key>b.key?1:0));let found=0;
       for(const candidate of candidates){const point={x:candidate.x,y:meshGroundHeight(world,candidate.x,candidate.z),z:candidate.z};if(!allowed(point,COMBAT_PLACEMENT.lotRadius))continue;unique.set(candidate.key,{...point,id:candidate.key,radius:COMBAT_PLACEMENT.lotRadius});if(++found>=COMBAT_PLACEMENT.maxLotsPerPlayer)break;}
@@ -94,8 +94,8 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
   }
   return {safeLots,devicePlacementAllowed:allowed,deviceEffectAllowed:(point,clearance)=>{
     if(!finite(point)||!Number.isFinite(clearance)||clearance<0||clearance>20)return false;
-    const hull=hulls.find(body=>(body.x-point.x)**2+(body.z-point.z)**2<.01),radius=hull?Math.max(clearance,hull.hl+hull.hw):clearance;
-    return !protectedRings.some(ring=>circleTouchesPolygon(point.x,point.z,radius*radius,ring))&&!effectCircles.some(body=>(body.x-point.x)**2+(body.z-point.z)**2<=(body.radius+radius+COMBAT_PLACEMENT.bodyGap)**2);
+    const hull=hulls.find(body=>sq(body.x-point.x)+sq(body.z-point.z)<.01),radius=hull?Math.max(clearance,hull.hl+hull.hw):clearance;
+    return !protectedRings.some(ring=>circleTouchesPolygon(point.x,point.z,radius*radius,ring))&&!effectCircles.some(body=>sq(body.x-point.x)+sq(body.z-point.z)<=sq(body.radius+radius+COMBAT_PLACEMENT.bodyGap));
   },aimPlacement:(player:Readonly<CombatPlayer>,input:Readonly<CombatInput>,range:number)=>{
     const pose=poses.get(player.id);if(state.version<24||!pose||!Number.isFinite(range)||range<.1||range>200)return null;
     const yaw=Number.isFinite(input.aimYaw)?input.aimYaw!:pose.heading,pitch=clamp(Number.isFinite(input.aimPitch)?input.aimPitch!:0,-1.2,1.2),fx=dsin(yaw),fz=-dcos(yaw),slope=dsin(pitch)/dcos(pitch);

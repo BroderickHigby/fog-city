@@ -73,6 +73,11 @@
             "type": "integer",
             "minimum": 1
           },
+          "maxSpeedMps": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Optional speed cap (m/s): going faster fails the run, e.g. the Pauser binder's 12 mph."
+          },
           "reward": {
             "type": "object",
             "additionalProperties": false,

@@ -172,7 +172,7 @@ export function stepProgression(previous: ProgressionState, ctx: GameplayContext
     .filter((grant) => Number.isSafeInteger(grant.id) && grant.id > 0
       && Number.isSafeInteger(grant.tick) && grant.tick >= 0 && grant.tick <= tick
       && ctx.bodies.some((body) => body.id === grant.playerId)
-      && (grant.kind === "faction.pauser-completed" || grant.kind === "faction.accelerator-completed"))
+      && (grant.kind === "faction.pauserCompleted" || grant.kind === "faction.acceleratorCompleted"))
     .map((grant) => ({
       id: `activities:${grant.id}`, sequence: grant.id, source: "world" as const,
       tick, playerId: grant.playerId, kind: grant.kind,

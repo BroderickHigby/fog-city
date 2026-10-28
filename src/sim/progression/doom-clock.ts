@@ -86,10 +86,10 @@ export function stepDoomClock(previous: DoomClockState, ctx: GameplayContext, ti
   for (const fact of facts(ctx, tick, state.factCursors)) {
     if (fact.source !== "world") continue;
     if (fact.kind === "world.agi-trigger") reachBoundary(state, "agi", tick, state.lastDay, fact.playerId, events);
-    if (fact.kind !== "faction.pauser-completed" && fact.kind !== "faction.accelerator-completed") continue;
+    if (fact.kind !== "faction.pauserCompleted" && fact.kind !== "faction.acceleratorCompleted") continue;
     const own = state.factions[fact.playerId] ?? { pauser: 0, accelerator: 0 };
     state.factions[fact.playerId] = own;
-    const delta = fact.kind === "faction.pauser-completed" ? 3 : -3;
+    const delta = fact.kind === "faction.pauserCompleted" ? 3 : -3;
     if (delta > 0) own.pauser++; else own.accelerator++;
     state.months += delta;
     events.push({ kind: "faction.changed", playerId: fact.playerId, amount: delta });

@@ -107,7 +107,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    const objectiveComplete=(own.objectiveCount??0)>=(activity?.objective?.count??1);
    if(activity&&objectiveComplete&&routeComplete&&elapsed>=60&&!own.ruleFailed&&elapsed<=60*(activity.timeLimitS??600)&&(activity.id!==PLAIN_WORDS_ID||plainWordsComplete(own.plainWords))&&(activity.id!==RECON_ID||reconComplete(own.recon))){delete own.plainWords;delete own.parking;delete own.recon;
     event(state,"activity.cash",body.id,activity.id,Math.max(0,activity.rewardCents??0));event(state,"activity.xp",body.id,activity.id,Math.max(0,activity.rewardXp??100));event(state,"activity.finished",body.id,activity.id);
-    if(measuredFaction&&(faction==="faction.pauser-completed"||faction==="faction.accelerator-completed"))event(state,faction,body.id,activity.id);
+    if(measuredFaction&&(faction==="faction.pauserCompleted"||faction==="faction.acceleratorCompleted"))event(state,faction,body.id,activity.id);
     if(!own.completedIds.includes(activity.id))own.completedIds.push(activity.id);own.cooldowns![activity.id]=tick+60*(activity.cooldownS??60);own.activeActivityId="";own.nextDirectorTick=tick+IDLE_MIN;
    }else if(!activity||own.ruleFailed||elapsed>60*(activity.timeLimitS??600)||backingFinished){event(state,"activity.failed",body.id,own.activeActivityId);own.activeActivityId="";delete own.plainWords;delete own.parking;delete own.recon;}
   }

@@ -69,7 +69,7 @@ import { agentActorId } from "./identity.ts";
 import { activeWorldTick } from "./pause-timers.ts";
 import { coitFidelityAnchors } from "./activities/coit-viewer.ts";
 import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
-import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
+import { clamp, datan, datan2, dcos, dsin, sq } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
 import { rideRouteNext } from "./ride-route.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
@@ -586,13 +586,13 @@ function minDist2(bodies: readonly Body[], x: number, z: number): number {
 /** Remote observation is an interest area belonging to a real player, never a body. */
 export interface PopulationInterest extends Body { owner: number; radiusM: number }
 function inInterest(interests: readonly PopulationInterest[], x: number, z: number, extra = 0): boolean {
-  return interests.some(anchor => (anchor.x - x) ** 2 + (anchor.z - z) ** 2 <= (anchor.radiusM + extra) ** 2);
+  return interests.some(anchor => sq(anchor.x - x) + sq(anchor.z - z) <= sq(anchor.radiusM + extra));
 }
 function populationOwner(bodies: readonly Body[], interests: readonly PopulationInterest[], x: number, z: number): number {
-  let owner = nearestBody(bodies, x, z), distance = (bodies[owner]!.x - x) ** 2 + (bodies[owner]!.z - z) ** 2;
+  let owner = nearestBody(bodies, x, z), distance = sq(bodies[owner]!.x - x) + sq(bodies[owner]!.z - z);
   for (const anchor of interests) {
-    const d = (anchor.x - x) ** 2 + (anchor.z - z) ** 2;
-    if (anchor.owner >= 0 && anchor.owner < bodies.length && d <= (anchor.radiusM + AREA_HALF_DIAG) ** 2 && d < distance) {
+    const d = sq(anchor.x - x) + sq(anchor.z - z);
+    if (anchor.owner >= 0 && anchor.owner < bodies.length && d <= sq(anchor.radiusM + AREA_HALF_DIAG) && d < distance) {
       owner = anchor.owner; distance = d;
     }
   }
@@ -1239,7 +1239,7 @@ function junctionSweeps(path: Path, body: Readonly<VehicleHull>, world?: World):
   let last: VehicleHull | null = path.xs.length && Math.abs(path.xs[0]! - body.x) + Math.abs(path.zs[0]! - body.z) < 1e-6 ? { ...body } : null;
   for (let i = 0; i + 1 < path.xs.length; i++) {
     const x = path.xs[i]!, z = path.zs[i]!, nx = path.xs[i + 1]!, nz = path.zs[i + 1]!;
-    if ((nx - x) ** 2 + (nz - z) ** 2 < 1e-16) continue;
+    if (sq(nx - x) + sq(nz - z) < 1e-16) continue;
     const heading = datan2(nx - x, -(nz - z));
     const before = { ...body, x, z, heading, y: world ? meshGroundHeight(world, x, z) : body.y };
     const after = { ...body, x: nx, z: nz, heading, y: world ? meshGroundHeight(world, nx, nz) : body.y };

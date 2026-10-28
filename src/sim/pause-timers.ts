@@ -89,7 +89,7 @@ export function holdPausedWorldTimers(previous:Readonly<SimState>):SimState {
         ...(own.plainWords?{plainWords:{...own.plainWords,nextRebrandTick:holdLiveDeadline(own.plainWords.nextRebrandTick,at),boards:own.plainWords.boards.map(board=>({...board,sprayedUntil:holdLiveDeadline(board.sprayedUntil,at)}))}}:{})};
     }
   }
-  if(ext.fog)ext.fog={...ext.fog,windows:ext.fog.windows.map(window=>({...window,untilTick:holdLiveDeadline(window.untilTick,at)}))};
+  if(ext.fog)ext.fog={...ext.fog,windows:ext.fog.windows.map(fogWindow=>({...fogWindow,untilTick:holdLiveDeadline(fogWindow.untilTick,at)}))};
   // ext.clock.elapsedTicks is retained, freezing calendar/weather/departures; a core-only
   // state without that extension gets its previous implicit clock made explicit once.
   if(!ext.clock)ext.clock={version:1,elapsedTicks:at};

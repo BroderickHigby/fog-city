@@ -25,7 +25,9 @@ describe("playable activity catalog", () => {
   it("offers only the wave-three routes with physical completion in the runtime", () => {
     expect(DEFAULT_CATALOG.activities.filter(value => value.wave === 3).map(value => value.id).sort())
       .toEqual(["embarcadero-sprint", "hill-delivery", "office-hours", "plain-words", "search-and-park"]);
-    expect(DEFAULT_CATALOG.activities.some(value => ["coit-recon", "ramen-house"].includes(value.id))).toBe(false);
+    expect(DEFAULT_CATALOG.activities.some(value => value.id === "ramen-house")).toBe(false);
+    // Coit Recon has its measured producer now (coit-viewer.ts emits recon.viewerCompleted).
+    expect(DEFAULT_CATALOG.activities.some(value => value.id === "coit-recon")).toBe(true);
     expect(DEFAULT_CATALOG.activities.some(value => value.id === "soma-delivery")).toBe(true);
   });
 

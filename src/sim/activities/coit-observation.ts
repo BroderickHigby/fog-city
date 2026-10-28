@@ -2,7 +2,7 @@ import landmarkData from "../../../content/landmarks.json" with { type: "json" }
 import { toLatLon, toLocal } from "../../geo/project.ts";
 import { protectedAreaAt } from "../../content/places.ts";
 import { agentsRuntimeOf } from "../agents/runtime.ts";
-import { datan2, PI, wrapAngle } from "../dmath.ts";
+import { datan2, PI, sq, wrapAngle } from "../dmath.ts";
 import { sortedIds, type SimState } from "../contract.ts";
 import type { SimSystemContext } from "../system-contract.ts";
 import { groundHeight, nearbyBuildings, type BuildingCollider, type World } from "../world.ts";
@@ -40,7 +40,7 @@ function blockedByBuilding(a: Point3, b: Point3, building: BuildingCollider): bo
 
 /** Elevated 3D sight: low roofs do not block a ray above them; tall roofs and hills do. */
 export function coitLineOfSight(world: World, a: Point3, b: Point3, ignoreIds: readonly string[] = []): boolean {
-  const distance = Math.hypot(b.x - a.x, b.z - a.z);
+  const distance = Math.sqrt(sq(b.x - a.x) + sq(b.z - a.z));
   if (!Number.isFinite(distance) || distance > COIT_VIEW.maxRangeM + 150) return false;
   const buildings = new Map<string, BuildingCollider>(), steps = Math.max(1, Math.ceil(distance / 40));
   for (let index = 0; index <= steps; index++) {
@@ -63,7 +63,7 @@ export function coitLandmarks(world: World): CoitLandmark[] {
   });
 }
 function angleError(origin: Point3, target: Point3, yaw: number, pitch: number): number {
-  const distance = Math.hypot(target.x - origin.x, target.z - origin.z);
+  const distance = Math.sqrt(sq(target.x - origin.x) + sq(target.z - origin.z));
   return Math.max(Math.abs(wrapAngle(datan2(target.x - origin.x, -(target.z - origin.z)) - yaw)), Math.abs(datan2(target.y - origin.y, distance) - pitch));
 }
 export function coitPlayerContext(state: Readonly<SimState>, world: World, playerId: string, aim?: { aimYaw?: number; aimPitch?: number }): CoitPlayerContext {
@@ -79,7 +79,7 @@ export function coitPlayerContext(state: Readonly<SimState>, world: World, playe
     if (actor.retired || actor.fidelity !== "full" || !ROBOT_MODELS.has(actor.model) || actor.protected || actor.child || actor.mobilityAid ||
         actor.model === "robotaxi" && occupied.has(actor.numericId) || (state.ext.combat?.targets[id]?.phase ?? "active") !== "active") continue;
     const position = { x: actor.x, y: actor.y + actor.height * .6, z: actor.z };
-    if (Math.hypot(actor.x - pose.aim.x, actor.z - pose.aim.z) > COIT_VIEW.anchorRadiusM || angleError(pose, position, angles.yaw, angles.pitch) > COIT_VIEW.fovRadians / 2) continue;
+    if (Math.sqrt(sq(actor.x - pose.aim.x) + sq(actor.z - pose.aim.z)) > COIT_VIEW.anchorRadiusM || angleError(pose, position, angles.yaw, angles.pitch) > COIT_VIEW.fovRadians / 2) continue;
     const point = toLatLon(actor.x, actor.z);
     if (protectedAreaAt([point.lat, point.lon]) || !coitLineOfSight(world, pose, position)) continue;
     const attack = state.ext.combat?.attacks.find(attack => attack.attackerId === id && attack.startTick <= state.tick && state.tick < Math.max(attack.resolveTick, attack.endTick));

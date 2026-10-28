@@ -69,7 +69,7 @@ describe("SIM24 authored progression",()=>{
   const natural=stepDoomClock(before,ctx({gameDay:1}),1);expect(natural.state.resets).toBe(1);expect(natural.state.pausedUntil).toBe(181);
  });
  it("applies measured faction boundaries and winter modifiers once",()=>{
-  const clock={...createDoomClock(),months:47,lastDay:0},fact={id:"activities:1",source:"world" as const,sequence:1,tick:1,playerId:"p",kind:"faction.pauser-completed"};
+  const clock={...createDoomClock(),months:47,lastDay:0},fact={id:"activities:1",source:"world" as const,sequence:1,tick:1,playerId:"p",kind:"faction.pauserCompleted"};
   const one=stepDoomClock(clock,ctx({facts:[fact]}),1);expect(one.state.winters).toBe(1);expect(one.state.months).toBe(24);expect(doomEffects(one.state,0,2).robotSpeedMultiplier).toBe(.9);
   const two=stepDoomClock(one.state,ctx({facts:[{...fact,tick:2}]}),2);expect(two.state.factions.p!.pauser).toBe(1);
  });
@@ -90,10 +90,10 @@ it("derives faction completion from accepted route, stopped final Interact and n
  const body={...start,id:"p",mode:"foot" as const,speed:0},context=ctx({bodies:[body],commands:[{kind:"activity-start",sequence:1,playerId:"p",targetId:activity.id}],activities:[activity],directorCards:[]});
  let state=stepActivities(createActivities(),context,1,createMissions(),7,24);
  expect(state.players.p!.activeActivityId).toBe(activity.id);
- state=stepActivities(state,{...context,commands:[],facts:[{id:"world:1",source:"world",sequence:1,tick:61,kind:"faction.pauser-completed",playerId:"p",actorId:activity.id}]},61,createMissions(),7,24);
+ state=stepActivities(state,{...context,commands:[],facts:[{id:"world:1",source:"world",sequence:1,tick:61,kind:"faction.pauserCompleted",playerId:"p",actorId:activity.id}]},61,createMissions(),7,24);
  expect(state.events.some(e=>e.kind==="activity.cash")).toBe(false);expect(state.players.p!.objectiveCount).toBe(0);
  state=stepActivities(state,{...context,commands:[],facts:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},62,createMissions(),7,24);
- expect(state.events.filter(e=>e.kind==="faction.pauser-completed")).toHaveLength(1);expect(state.events.filter(e=>e.kind==="activity.cash")).toHaveLength(1);
+ expect(state.events.filter(e=>e.kind==="faction.pauserCompleted")).toHaveLength(1);expect(state.events.filter(e=>e.kind==="activity.cash")).toHaveLength(1);
  state=stepActivities(state,{...context,commands:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},63,createMissions(),7,24);expect(state.events.some(e=>e.kind==="activity.cash")).toBe(false);
  let fast=stepActivities(createActivities(),context,1,createMissions(),7,24);fast=stepActivities(fast,{...context,commands:[],bodies:[{...body,speed:6}]},2,createMissions(),7,24);expect(fast.events.some(e=>e.kind==="activity.failed")).toBe(true);
 });
