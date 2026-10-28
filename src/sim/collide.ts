@@ -42,6 +42,11 @@ export interface ImpactBody {
    * wall that spins the car); at this speed or more it breaks and only its mass counts.
    */
   breakSpeed?: number;
+  /**
+   * v25: a car's or a road agent's box (compass heading, half length, half width): a car meets it
+   * box to box (vehicle-contacts.ts boxContact, car.ts boxHit). Absent: a round body (a robot, a prop).
+   */
+  box?: { heading: number; hl: number; hw: number };
 }
 
 /** An oriented rectangle: centre, compass heading, half length (along heading) and half width. */

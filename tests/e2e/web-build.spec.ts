@@ -1,15 +1,16 @@
-// The static web build (pnpm build, scripts/build-web.ts) works as the page host will serve it:
-// built into a sub-directory and opened from a sub-path (/fog/city/), with only the extensions
-// the host accepts, the world read from gzip + base64 packs through assets.index.json and no
-// per-tile collider JSON, it boots SF by default, drives, streams tiles and draws the skyline.
-// A file too big for one host file (the collider pack, once over 14 MB encoded) is served as
-// parts: each is fetched once and the world still boots from them.
+// The static web build (pnpm build, scripts/build-web.ts) works as its host will serve it: built
+// into a sub-directory and opened from a sub-path (/fog/city/), the world read through
+// assets.index.json from binary gzip packs (bin/<name>.<hash>.gz, served as application/gzip
+// with no Content-Encoding, as Vercel does) and no per-tile collider JSON, it boots SF by
+// default, asks for the skinned people only once it is ready, drives, streams tiles and draws
+// the skyline.
 //
-// The committed world's collider pack fits one file under the real 14 MB margin, so a second
-// build with a lowered part size (SPLIT_PART_BYTES) proves the split path in the browser on
-// every run: its parts join back to the raw pack, the page boots and drives on them, fetching
-// each part once and never the whole file, and a part the host lacks stops the boot with an
-// error that names the part by the number in its file's name.
+// The --text build, for a host that serves only text-like types, is the second build: gzip +
+// base64 .txt packs, and a lowered part size (SPLIT_PART_BYTES) so a file too big for one host
+// file (the collider pack, once over 14 MB encoded) is served as parts on every run: its parts
+// join back to the raw pack, the page boots and drives on them, fetching each part once and
+// never the whole file, and a part the host lacks stops the boot with an error that names the
+// part by the number in its file's name.
 //
 // Each build runs once for its describe (about 15 s), into test-results/web-build/, served by a
 // loopback server inside the test process that records every request. WEB_BUILD_PUBLIC=<dir>
@@ -21,7 +22,7 @@ import { createServer, type Server } from "node:http";
 import { join, resolve, sep } from "node:path";
 import { gunzipSync } from "node:zlib";
 import { expect, test, type Browser, type Page } from "@playwright/test";
-import { HOST_LIMITS, PACK_MAX_BYTES, buildWeb, checkHostLimits, partName, type BuildReport, type IndexPart, type WebIndex } from "../../scripts/build-web.ts";
+import { BINARY_LIMITS, HOST_LIMITS, PACK_MAX_BYTES, buildWeb, checkHostLimits, partName, type BuildReport, type IndexPart, type WebIndex } from "../../scripts/build-web.ts";
 import { ROOT } from "../helpers.ts";
 import { FAST_VIEWPORT, THROTTLE, frames, gate, newSharedPage, optionalAbsent, type FogWindow } from "./fixtures.ts";
 import { decodePng, imageStats, looksDrawn } from "./png.ts";
@@ -45,6 +46,7 @@ const TYPES: Record<string, string> = {
   ".json": "application/json",
   ".map": "application/json",
   ".txt": "text/plain; charset=utf-8",
+  ".gz": "application/gzip",
 };
 
 interface Hosted {
@@ -56,8 +58,11 @@ interface Hosted {
   refused: Set<string>;
 }
 
-/** Serve `site` on loopback as the page host would: its allowed extensions only, nothing outside it. */
-async function host(site: string): Promise<Hosted> {
+/**
+ * Serve `site` on loopback as its host would: nothing outside it, and for a text build
+ * (`textOnly`) the text host's allowed extensions only.
+ */
+async function host(site: string, textOnly: boolean): Promise<Hosted> {
   const requests: Hosted["requests"] = [];
   const refused = new Set<string>();
   const server = createServer((req, res) => {
@@ -66,7 +71,7 @@ async function host(site: string): Promise<Hosted> {
     const ext = file.slice(file.lastIndexOf("."));
     let status = 200;
     try {
-      if (refused.has(path) || !file.startsWith(site + sep) || !(HOST_LIMITS.extensions as readonly string[]).includes(ext) || !statSync(file).isFile()) throw new Error("refused");
+      if (refused.has(path) || !file.startsWith(site + sep) || (textOnly && !(HOST_LIMITS.extensions as readonly string[]).includes(ext)) || !statSync(file).isFile()) throw new Error("refused");
       res.writeHead(200, { "content-type": TYPES[ext] ?? "application/octet-stream" });
       res.end(readFileSync(file));
     } catch {
@@ -123,7 +128,7 @@ async function hostedPage(browser: Browser, use: Parameters<typeof newSharedPage
   return page;
 }
 
-test.describe("static web build, served from a sub-path", () => {
+test.describe("static web build (binary), served from a sub-path", () => {
   test.skip(optionalAbsent("sf", SF), ABSENT);
   test.describe.configure({ mode: "serial" });
 
@@ -136,7 +141,7 @@ test.describe("static web build, served from a sub-path", () => {
     gate("sf", SF, ABSENT);
     info.setTimeout(600_000);
     report = await buildWeb({ out: join(SITE, ...SUB.split("/").filter(Boolean)), worlds: ["sf"], level: 6, skipVite: false, publicDir: PUBLIC });
-    site = await host(SITE);
+    site = await host(SITE, false);
     page = await hostedPage(browser, info.project.use, problems);
   });
   test.afterAll(async () => {
@@ -144,14 +149,12 @@ test.describe("static web build, served from a sub-path", () => {
     if (site) await new Promise<void>((done) => site!.server.close(() => done()));
   });
 
-  test("the build fits the host: allowed extensions only, file count, total and per-file size, no loose binaries", async () => {
+  test("the build fits the host: file count, total and per-file size, binaries only as content-named .gz", async () => {
     const dist = join(SITE, ...SUB.split("/").filter(Boolean));
-    const check = checkHostLimits(dist);
+    const check = checkHostLimits(dist, BINARY_LIMITS);
     expect(check.problems).toEqual([]);
     expect(readFileSync(join(dist, "third-party-notices.txt"), "utf8")).toContain("Copyright (c) 2020 Microsoft");
-    expect(check.files).toBeLessThanOrEqual(HOST_LIMITS.maxFiles);
-    expect(check.totalBytes).toBeLessThanOrEqual(HOST_LIMITS.maxTotalBytes);
-    expect(check.largest.bytes).toBeLessThanOrEqual(HOST_LIMITS.maxFileBytes);
+    expect(check.largest.bytes).toBeLessThanOrEqual(BINARY_LIMITS.maxFileBytes);
     expect(report.packs, "tile and far-cell packs").toBeGreaterThan(5);
     const index = JSON.parse(readFileSync(join(dist, "assets.index.json"), "utf8")) as WebIndex;
     expect(index.defaultWorld).toBe("sf");
@@ -160,12 +163,14 @@ test.describe("static web build, served from a sub-path", () => {
     expect(index.files["textures/surfaces/asphalt_albedo.webp"]).toBeDefined();
     expect(index.files["textures/surfaces/concrete_normal.webp"]).toBeDefined();
     expect(Object.keys(index.files).some((f) => f.endsWith(".collider.json")), "per-tile colliders in the index").toBe(false);
-    expect(index.files[COLLIDERS]?.src).toMatch(/\.gz\.b64\.txt$/);
+    expect(index.version).toBe(3);
+    expect(index.encoding).toBe("gzip");
+    for (const e of Object.values(index.files)) expect(e.src).toMatch(/^bin\/.+\.[0-9a-f]{12}\.gz$/);
+    expect(index.filters?.[index.files[COLLIDERS]!.src], "the collider pack is byte-shuffled").toBe("shuffle4");
     // Files in parts: the index lists each part at its size on disk, every one under the build's
-    // margin; the report names the same; a split index says version 2, an unsplit one 1.
+    // margin; the report names the same.
     const parts = index.parts ?? {};
     expect(report.split).toEqual(Object.entries(parts).map(([src, list]) => ({ src, parts: list.map((p) => p.bytes) })));
-    expect(index.version).toBe(report.split.length > 0 ? 2 : 1);
     for (const list of Object.values(parts)) {
       expect(list.length).toBeGreaterThan(1);
       for (const p of list) {
@@ -206,8 +211,15 @@ test.describe("static web build, served from a sub-path", () => {
     // Relative URLs only: nothing asked for outside the sub-path, nothing the host would refuse.
     expect(requests.filter((r) => !r.path.startsWith(SUB)).map((r) => r.path), "requests outside the sub-path").toEqual([]);
     expect(requests.filter((r) => r.status !== 200).map((r) => `${r.status} ${r.path}`), "failed requests").toEqual([]);
-    expect(requests.filter((r) => /\.(glb|bin)$|\.collider\.json$/.test(r.path)).map((r) => r.path), "raw binaries or collider JSON").toEqual([]);
+    expect(requests.filter((r) => /\.(glb|bin)$|\.collider\.json$|\.b64(\.part\d+)?\.txt$/.test(r.path)).map((r) => r.path), "raw or base64 binaries, or collider JSON").toEqual([]);
     expect(requests.some((r) => r.path.endsWith("assets.index.json"))).toBe(true);
+    // The skinned people (the crowd and the player's body) are asked for only once the game is ready.
+    const people = await page.evaluate(() => {
+      const ready = (window as unknown as FogWindow).__fogcity!.simInfo!().boot!.readyMs;
+      return performance.getEntriesByType("resource").filter((e) => /\/models\/(crowd\/|generic-player\.glb)/.test(e.name)).map((e) => ({ name: e.name, beforeReady: e.startTime < ready }));
+    });
+    expect(people.length, "the skinned people were fetched").toBeGreaterThan(1);
+    expect(people.filter((p) => p.beforeReady).map((p) => p.name), "skinned people asked for before ready").toEqual([]);
     // The collider pack, whole or in parts: each of its files fetched exactly once, and nothing else of it.
     const index = JSON.parse(readFileSync(join(SITE, ...SUB.split("/").filter(Boolean), "assets.index.json"), "utf8")) as WebIndex;
     const src = index.files[COLLIDERS]!.src;
@@ -266,7 +278,7 @@ test.describe("static web build, served from a sub-path", () => {
   });
 });
 
-test.describe("static web build with the collider pack in parts, served from a sub-path", () => {
+test.describe("static --text web build with the collider pack in parts, served from a sub-path", () => {
   test.skip(optionalAbsent("sf", SF), ABSENT);
   test.describe.configure({ mode: "serial" });
 
@@ -280,8 +292,8 @@ test.describe("static web build with the collider pack in parts, served from a s
   test.beforeAll(async ({ browser }, info) => {
     gate("sf", SF, ABSENT);
     info.setTimeout(600_000);
-    report = await buildWeb({ out: dist, worlds: ["sf"], level: 6, skipVite: false, publicDir: PUBLIC, partMaxBytes: SPLIT_PART_BYTES });
-    site = await host(SPLIT_SITE);
+    report = await buildWeb({ out: dist, worlds: ["sf"], level: 6, skipVite: false, publicDir: PUBLIC, partMaxBytes: SPLIT_PART_BYTES, encoding: "gzip-base64" });
+    site = await host(SPLIT_SITE, true);
     page = await hostedPage(browser, info.project.use, problems);
   });
   test.afterAll(async () => {
@@ -289,11 +301,15 @@ test.describe("static web build with the collider pack in parts, served from a s
     if (site) await new Promise<void>((done) => site!.server.close(() => done()));
   });
 
-  test("the collider pack is written in parts under the lowered size, and they join back to the raw pack", async () => {
+  test("the build fits the text host; the collider pack is written in parts under the lowered size, and they join back to the raw pack", async () => {
     const check = checkHostLimits(dist);
     expect(check.problems).toEqual([]);
+    expect(check.files).toBeLessThanOrEqual(HOST_LIMITS.maxFiles);
+    expect(check.totalBytes).toBeLessThanOrEqual(HOST_LIMITS.maxTotalBytes);
+    expect(check.largest.bytes).toBeLessThanOrEqual(HOST_LIMITS.maxFileBytes);
     const index = JSON.parse(readFileSync(join(dist, "assets.index.json"), "utf8")) as WebIndex;
     expect(index.version, "an index with parts").toBe(2);
+    expect(Object.values(index.files).every((e) => e.src.endsWith(".gz.b64.txt")), "every binary as base64 text").toBe(true);
     const src = index.files[COLLIDERS]!.src;
     parts = index.parts?.[src] ?? [];
     expect(parts.length, `${src} in parts of at most ${SPLIT_PART_BYTES} bytes`).toBeGreaterThan(1);

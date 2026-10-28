@@ -4,7 +4,7 @@
 import * as THREE from "three";
 import { WebGPURenderer, RenderPipeline, PMREMGenerator, MeshBasicNodeMaterial, MeshPhysicalNodeMaterial, BlendMode, MaterialBlending, type RenderTarget, type Node } from "three/webgpu";
 import { Fn, uniform, float, vec2, vec3, vec4, dot, mix, min, max, pow, smoothstep, length, screenUV, screenSize,
-  pass, mrt, output, normalView, roughness, metalness, positionView, positionWorld, cameraPosition,
+  pass, mrt, output, normalView, positionWorld, cameraPosition,
   normalize, exp, abs, select, fog, pmremTexture, sin, cos, transformNormalToView } from "three/tsl";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { ssr } from "three/addons/tsl/display/SSRNode.js";
@@ -13,6 +13,7 @@ import { SunLight } from "three/addons/lights/SunLight.js";
 import { SunLightNode } from "three/addons/lights/SunLightNode.js";
 import { ClusteredLighting } from "three/addons/lighting/ClusteredLighting.js";
 import { skyHaze, sunDirection, type LightingPreset } from "./sky.ts";
+import { gpuMaterialUniforms, sceneMetalRough } from "./node-materials.ts";
 import { presentationLook, type PresentationLook } from "./quality.ts";
 import { RendererWarmup, compileForTarget, type WarmupStats } from "./renderer-warmup.ts";
 
@@ -217,8 +218,8 @@ export class GpuEngine {
 
   private createPipeline(scene: THREE.Scene, camera: THREE.Camera): void {
     const scenePass = createGpuScenePass(scene, camera, this.backend); this.scenePass = scenePass;
-    const reflectionFade = smoothstep(360, 180, positionView.z.negate());
-    const sceneMrt = mrt({ output, normal: normalView, metalRough: vec2(roughness.lessThan(.75).select(metalness.mul(reflectionFade), 0), roughness) });
+    // A material may write its own metalRough (the wet road's reflection weight, node-materials.ts).
+    const sceneMrt = mrt({ output, normal: normalView, metalRough: sceneMetalRough() });
     sceneMrt.setBlendMode("normal", new BlendMode(MaterialBlending));
     sceneMrt.setBlendMode("metalRough", new BlendMode(MaterialBlending));
     scenePass.setMRT(sceneMrt);
@@ -266,6 +267,8 @@ export class GpuEngine {
     const direction = sunDirection(preset); this.sky.sunPosition.value.copy(direction); this.sun.position.copy(direction);
     this.sun.color.setHex(preset.sunColor); this.sun.intensity = preset.sunIntensity;
     this.sun.updateMatrixWorld();
+    // The road's time-of-day sheen (render only: the sim's rain wetness is a separate uniform).
+    gpuMaterialUniforms.sheen.value = preset.roadSheen ?? 0;
     this.waterLight.value = preset.water;
     this.waterColor.value.setHex(preset.name === "night" ? 0x0b202a : 0x183a42);
     this.fogDensity.value = preset.fog.density;
