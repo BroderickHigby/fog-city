@@ -16,6 +16,10 @@ import { interleaveAttributes } from "three/addons/utils/BufferGeometryUtils.js"
 import { fcUniforms } from "./materials.ts";
 import { WINDOW_PROFILES } from "./building-window-profile.ts";
 import {
+  DAMP_ALBEDO, DAMP_BELOW, DAMP_WETNESS, FILM_ALBEDO, FILM_WETNESS, PAINT_FILM_ALBEDO, PAINT_POOL_ALBEDO, PAINT_ROUGHNESS, POOL_ALBEDO, POOL_EDGE, POOL_WETNESS, PUDDLE_FINE_FADE, PUDDLE_MID_FADE,
+  PUDDLE_SCALES, WATER_LEVEL_DRY, WATER_LEVEL_WET, WATER_RISE_FROM, WATER_RISE_SPAN,
+} from "./road-water.ts";
+import {
   CLUSTER_CORE_HI, CLUSTER_CORE_LO, CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_PIXELS, CLUSTER_SWITCHY, CLUSTER_SWITCH_RATE,
   WINDOW_LOD_END, WINDOW_LOD_START,
 } from "./window-clusters.ts";
@@ -30,6 +34,8 @@ export function setGpuMaterialsEnabled(value: boolean): void { enabled = value; 
 export function isGpuMaterialsEnabled(): boolean { return enabled; }
 export const gpuMaterialUniforms = {
   time: uniform(0), night: uniform(0), wet: uniform(0), cameraGround: uniform(0),
+  /** The lighting preset's road sheen by time of day (road-water.ts). Render only; rain is `wet`. */
+  sheen: uniform(0),
 };
 export function updateGpuMaterialTime(seconds: number, cameraGround = 0): void {
   gpuMaterialUniforms.time.value = Number.isFinite(seconds) ? seconds : 0;
@@ -335,6 +341,33 @@ function pavingSurface(p: V2, source: V3): { color: V3; height: F; roughness: F 
   return { color: albedo, height, roughness: mix(float(.92).sub(panel.mul(.055)), .48, damp) };
 }
 
+/**
+ * Three-scale standing-water field at a world position (road-water.ts PUDDLE_SCALES): water collects
+ * in its highest values. The middle and fine scales settle to their mean over a large pixel footprint,
+ * so far roads do not shimmer. Slop New York roadPuddleField, js/tsl-materials.js:1580-1587 (MIT).
+ */
+const puddleField = Fn(([p, pixel]: [V2, F]) => {
+  const octave = (i: number, fade: readonly [number, number] | null): F => {
+    const s = PUDDLE_SCALES[i]!;
+    const n = noise2(vec2(p.x.mul(s.freq[0]).add(s.offset[0]), p.y.mul(s.freq[1]).add(s.offset[1])));
+    return (fade ? mix(float(.5), n, float(1).sub(smoothstep(fade[0], fade[1], pixel))) : n).mul(s.weight);
+  };
+  return octave(0, null).add(octave(1, PUDDLE_MID_FADE)).add(octave(2, PUDDLE_FINE_FADE));
+});
+
+/**
+ * x damp stains, y standing water, z the wet film (Slop roadWetMasks, js/tsl-materials.js:1596-1609).
+ * Rising wetness sinks the water line, so pools appear, grow and merge. Edges widen by the field's
+ * change over a pixel (fwidth, taken outside any branch), so a pool is filtered rather than aliased.
+ */
+const waterMasks = Fn(([field, wetness]: [F, F]) => {
+  const aa = max(fwidth(field), .0001);
+  const level = mix(WATER_LEVEL_DRY, WATER_LEVEL_WET, clamp(wetness.sub(WATER_RISE_FROM).div(WATER_RISE_SPAN), 0, 1));
+  const damp = smoothstep(level.sub(DAMP_BELOW[0]).sub(aa), level.sub(DAMP_BELOW[1]).add(aa), field).mul(smoothstep(DAMP_WETNESS[0], DAMP_WETNESS[1], wetness));
+  const puddle = smoothstep(level.sub(aa.mul(.5)), level.add(POOL_EDGE).add(aa), field).mul(smoothstep(POOL_WETNESS[0], POOL_WETNESS[1], wetness));
+  return vec3(damp, puddle, smoothstep(FILM_WETNESS[0], FILM_WETNESS[1], wetness));
+});
+
 function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean): CityNodeMaterial {
   const m = common(source); m.vertexColors = false;
   const p = positionWorld.xz, pixel = length(fwidth(p)), dist = length(positionWorld.sub(cameraPosition));
@@ -358,13 +391,31 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
   // Keep colored lane paint and very bright markings outside the concrete palette.
   const neutral = float(1).sub(smoothstep(.2, .4, chroma)).mul(float(1).sub(smoothstep(.55, .72, maximum)));
   const concrete = mix(vcol, paving.color, neutral);
-  const wet = clamp(gpuMaterialUniforms.wet, 0, 1), puddle = smoothstep(.58, .77, noise2(p.mul(.13))).mul(wet);
-  m.colorNode = mix(concrete, asphalt.mul(mix(1, .62, max(wet.mul(.5), puddle))), asphaltMask);
-  m.roughnessNode = mix(mix(.82, paving.roughness, neutral.mul(float(1).sub(asphaltMask))), mix(.38, .12, puddle), wet);
-  m.metalnessNode = puddle.mul(.5);
+  // Water: rain wets the whole surface, the time-of-day sheen only the asphalt (concrete drains).
+  const wetness = max(clamp(gpuMaterialUniforms.wet, 0, 1), clamp(gpuMaterialUniforms.sheen, 0, 1).mul(asphaltMask));
+  const water = waterMasks(puddleField(p, pixel), wetness), damp = water.x, puddle = water.y, film = water.z;
+  const wetDark = mix(mix(float(1), DAMP_ALBEDO, damp), POOL_ALBEDO, puddle).mul(mix(1, FILM_ALBEDO, film));
+  m.colorNode = mix(concrete, asphalt.mul(wetDark), asphaltMask);
+  const dryRoughness = mix(.82, paving.roughness, neutral.mul(float(1).sub(asphaltMask)));
+  m.roughnessNode = mix(mix(dryRoughness, .38, max(film.mul(.9), damp.mul(.8))), .1, puddle);
+  // Water's Fresnel rides on metalness (road-water.ts), so the reflection pass mirrors the street in
+  // pools at grazing angles while seen from above they only darken. The geometry normal keeps hills right.
+  const cosView = clamp(abs(dot(normalize(cameraPosition.sub(positionWorld)), normalWorldGeometry)), 0, 1);
+  const waterFresnel = pow(float(1).sub(cosView), 5).mul(.98).add(.02);
+  m.metalnessNode = clamp(waterFresnel.mul(1.6), 0, .85).mul(max(puddle, film.mul(.6)));
   const height = noise2(p.mul(8.5)).sub(.5).mul(.0032).mul(float(1).sub(smoothstep(.025, .08, pixel)));
   m.normalNode = bumpNormal(mix(paving.height.mul(neutral), height, asphaltMask).mul(float(1).sub(puddle)));
   return m;
+}
+
+/** Lane markings share the asphalt's pools and film: they darken and turn glossy in water (Slop js/tsl-materials.js:1755-1758). */
+function roadPaintMaterial(source: THREE.Material): CityNodeMaterial {
+  const paint = common(source), p = positionWorld.xz;
+  const wetness = max(clamp(gpuMaterialUniforms.wet, 0, 1), clamp(gpuMaterialUniforms.sheen, 0, 1));
+  const water = waterMasks(puddleField(p, length(fwidth(p))), wetness), puddle = water.y, film = water.z;
+  paint.colorNode = vec3(mix(float(1), PAINT_POOL_ALBEDO, puddle).mul(mix(1, PAINT_FILM_ALBEDO, film)));
+  paint.roughnessNode = mix(mix(PAINT_ROUGHNESS.dry, PAINT_ROUGHNESS.film, film), PAINT_ROUGHNESS.pool, puddle);
+  return paint;
 }
 
 function groundMaterial(source: THREE.Material): CityNodeMaterial {
@@ -541,10 +592,7 @@ export function prepareGpuScene(root: THREE.Object3D, _options: GpuSceneOptions 
       let target: THREE.Material;
       if (kind === "building") target = buildingMaterial(source);
       else if (kind === "road") target = roadMaterial(source, /-uv$/.test(name) && geo.hasAttribute("uv"), /^fc:freeway/.test(name));
-      else if (kind === "road-paint") {
-        const paint = common(source); paint.roughnessNode = mix(.62, .2, gpuMaterialUniforms.wet);
-        paint.colorNode = vec3(mix(1, .78, gpuMaterialUniforms.wet)); target = paint;
-      }
+      else if (kind === "road-paint") target = roadPaintMaterial(source);
       else if (kind === "ground") target = groundMaterial(source);
       else if (kind === "foliage-leaf" || name === "sf-tree-leaves") target = foliageMaterial(source, true);
       else if (kind === "foliage-bark" || name === "sf-tree-bark") target = foliageMaterial(source, false);

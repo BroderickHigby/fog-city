@@ -13,6 +13,7 @@ import { SunLight } from "three/addons/lights/SunLight.js";
 import { SunLightNode } from "three/addons/lights/SunLightNode.js";
 import { ClusteredLighting } from "three/addons/lighting/ClusteredLighting.js";
 import { skyHaze, sunDirection, type LightingPreset } from "./sky.ts";
+import { gpuMaterialUniforms } from "./node-materials.ts";
 import { presentationLook, type PresentationLook } from "./quality.ts";
 import { RendererWarmup, compileForTarget, type WarmupStats } from "./renderer-warmup.ts";
 
@@ -266,6 +267,8 @@ export class GpuEngine {
     const direction = sunDirection(preset); this.sky.sunPosition.value.copy(direction); this.sun.position.copy(direction);
     this.sun.color.setHex(preset.sunColor); this.sun.intensity = preset.sunIntensity;
     this.sun.updateMatrixWorld();
+    // The road's time-of-day sheen (render only: the sim's rain wetness is a separate uniform).
+    gpuMaterialUniforms.sheen.value = preset.roadSheen ?? 0;
     this.waterLight.value = preset.water;
     this.waterColor.value.setHex(preset.name === "night" ? 0x0b202a : 0x183a42);
     this.fogDensity.value = preset.fog.density;

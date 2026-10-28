@@ -56,6 +56,13 @@ export interface LightingPreset {
   skyMieG?: number;
   skyExposure?: number;
   skyNightColor?: number;
+  /**
+   * How wet the roads look by time of day, 0 (bone dry) to 1: dry at noon, slick at night. A look
+   * only: the node materials read it (road-water.ts), the sim never does (its own roadWetness(state)
+   * in src/sim/fog is the real wetness, which traction reads), and rain adds to it. Slop New York's
+   * roadWetness (lighting.js:41, 66, 91, 116).
+   */
+  roadSheen?: number;
 }
 
 /** Sky settings the GPU engine reads: a preset's own, else the golden-hour defaults. */
@@ -103,6 +110,7 @@ export const GOLDEN: LightingPreset = {
   skyExposure: 0.148,
   // The flat sky it fades to as the night factor rises: a dusk indigo until the real night key.
   skyNightColor: 0x1c2748,
+  roadSheen: 0.28,
 };
 
 /** Backwards-compatible default: a clear SF afternoon, rather than an almost-set sun. */
@@ -134,6 +142,7 @@ export const NOON: LightingPreset = {
   skyMie: 0.006,
   skyMieG: 0.86,
   skyExposure: 0.142,
+  roadSheen: 0.08,
 };
 
 export const TWILIGHT: LightingPreset = {
@@ -168,6 +177,7 @@ export const TWILIGHT: LightingPreset = {
   skyMie: 0.01,
   skyMieG: 0.9,
   skyExposure: 0.115,
+  roadSheen: 0.55,
 };
 
 export const NIGHT: LightingPreset = {
@@ -204,6 +214,7 @@ export const NIGHT: LightingPreset = {
   skyMieG: 0.8,
   skyExposure: 0.022,
   skyNightColor: 0x101723,
+  roadSheen: 0.62,
 };
 
 export const LIGHTING_PRESETS = Object.freeze({ golden: GOLDEN, noon: NOON, twilight: TWILIGHT, night: NIGHT });
