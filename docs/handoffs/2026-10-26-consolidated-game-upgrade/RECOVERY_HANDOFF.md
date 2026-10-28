@@ -11,6 +11,46 @@ remote. This branch saves that work and merges current `main` into it.
   them in favour of the other when the work lands.
 - The original worktree is unchanged: the snapshot was written through a temporary index.
 
+## Update, 28 October (cloud coordinator session)
+
+Commits on top of `0e48de15`:
+
+| SHA | What |
+| --- | --- |
+| `14a2d195` | Merge `origin/main` at `4b3167d6` (#119 cover art, #120 Runway Run, #121 stick dead zones, #122 engine gears). Nine conflicts, both sides kept. Runway Run needs no state change; its version pin follows the branch to 24. main's `EngineClock` gearbox now drives the engine params, with the recovered recording tags kept. |
+| `ff758076` | The recovered sim and content now pass their contracts: `sq()` (new in `dmath.ts`) and `Math.sqrt` replace `**` and `Math.hypot`; faction events are `faction.pauserCompleted` / `faction.acceleratorCompleted`; `maxSpeedMps` is in the schema; the Pauser label names Embarcadero Plaza (legal checklist); eight checkpoints moved onto open, reachable ground (Crissy Field to Mason Street, 190 m; the Bernal viewer 56 m; the rest 4-18 m); Coit Recon is offered (`coit-viewer.ts` produces `recon.viewerCompleted`). |
+| `ec21b6ed` | Impacts, v24: a knocked slide that meets someone's clearance stays where it was. This was the city-life contact. A bus nudged from behind slid 0.44 m toward a waiting walker, because `resolveBox`'s person push spent the push budget and the wall settle then overshot. |
+
+Full unit run (`ff758076`): 4,726 pass, 11 fail. 6 composed goldens (re-record at v24 once the
+behaviour is accepted), plus `wave2-interface`, `perf-budget` and two `junction-deadlock-sf`
+cases, all inherited as listed below. The 11th is `ram-soak` "flat out, no brakes": 274 m of
+the 300 m floor, with no contacts, failures or jumps. On main the car glances off robotaxi #77 at
+tick ~470 and drives 513 m. Here #77 reaches that point about 30 ticks later (v24 junction
+hulls), the hit is head-on, and the car pushes the knocked robotaxi to rest until the soak
+driver reverses. That is physically plausible, but the gate stands: it is not loosened.
+
+Browser (SwiftShader):
+- `city-life` passes (it failed before `ec21b6ed`).
+- `demo-day` fails, "the update pusher never began its channel". Planned in Node from the page's
+  own initial state, the same code completes from one boot's state and fails from another. The
+  pusher starts an update the tick the scene is staged, and whether it is cancelled before it
+  converts the guest depends on boot timing. The driver's assumption needs a fix: it should wait
+  for the channel only if the guest is still unconverted, or the stage should not admit an
+  update before the player arrives. **Current main (`4b3167d6`) fails the same way** in the same
+  browser run (7.8 min, same error), so the merge does not cause this. It broke on main after
+  `fcf590b7`, or it was always sensitive to boot timing.
+- `sf-world` "buildings near the Ferry Building are on screen" fails on "tiles settled", alone
+  and in a batch, and **fails identically on current main**, so the merge does not cause it. The
+  rest of the file stops there, so the "asset models" case named in the table below was not
+  reached this time.
+
+Other open points:
+- The robotaxi that goes round the abandoned car (`city-life`) only offsets 0.24 m and then waits,
+  honking. The test passes, but the owner asked for traffic that actually drives round stopped
+  cars.
+- The engine audio decision below still stands. The recordings play; main's #111/#122 synth is
+  computed but not heard.
+
 ## Commits
 
 | SHA | What |
