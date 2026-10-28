@@ -29,12 +29,12 @@ const brakeSteer: SimInput = { ...idle, throttle: -1, steer: 1 };
 const handbrake: SimInput = { ...idle, brake: 1, steer: 1 };
 
 describe("SIM24 brake-steer rotation and handbrake drift", () => {
-  it("is the current version, and a v23 save upgrades by restamping only", () => {
-    expect(SIM_VERSION).toBe(24);
+  it("v24 is in the chain, and a v23 save upgrades by restamping only", () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(24);
     expect(BRAKE_DRIFT_VERSION).toBe(24);
     const old = { ...createInitialState(world, 3, ["p"], { x: 0, z: 0, heading: 0 }), version: 23 };
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: 24 });
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);
   });
@@ -144,7 +144,7 @@ describe("SIM24 brake-steer rotation and handbrake drift", () => {
     const moving: SimState = { ...base, players: { p: { ...base.players.p!, car: { ...base.players.p!.car, speed: 20 } } } };
     let now = moving, old: SimState = { ...moving, version: 23 };
     for (let t = 0; t < 30; t++) { now = step(world, now, { p: handbrake }, [], []); old = step(world, old, { p: handbrake }, [], []); }
-    expect(now.version).toBe(24);
+    expect(now.version).toBe(SIM_VERSION);
     expect(old.version).toBe(23);
     expect(deg(now.players.p!.car.heading)).toBeGreaterThan(10);
     expect(deg(old.players.p!.car.heading)).toBeLessThan(2);

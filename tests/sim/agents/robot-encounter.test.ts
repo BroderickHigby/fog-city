@@ -158,7 +158,7 @@ describe("rogue encounters, v17", () => {
     expect(hashState(run(true))).toBe(hashState(state));
     const old = { ...state, version: 16, ext: { ...state.ext, future: { keep: [1, true] } } };
     const before = canonicalJson(old), upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(24);
+    expect(SIM_VERSION).toBe(25);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);

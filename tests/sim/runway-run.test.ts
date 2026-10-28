@@ -61,7 +61,7 @@ describe("Runway Run is inert unless a run was started", () => {
     for (let i = 0; i < 100; i++) s = step(world, s, IDLE, [], systems);
     expect("runway" in s.ext).toBe(false);
     expect(s.version).toBe(SIM_VERSION);
-    expect(SIM_VERSION).toBe(24);
+    expect(SIM_VERSION).toBe(25);
   });
   it("ignores a start from a player who is not at the wheel", () => {
     const s = fresh();

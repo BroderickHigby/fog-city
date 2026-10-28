@@ -51,7 +51,7 @@
 
 import { DT, sortedIds, type CarState, type PlayerId, type SimState } from "./contract.ts";
 import { approach, clamp, datan2, dcos, dsin, wrapAngle } from "./dmath.ts";
-import { CAR, bodyAfter, bodyHit, carCircles, spinKick, type CarContact } from "./car.ts";
+import { CAR, bodyAfter, bodyHit, boxHit, carCircles, spinKick, type CarContact } from "./car.ts";
 import { boxBlocked, boxCrossedWall, resolveBox, type Circle, type ImpactBody } from "./collide.ts";
 import { FOOT } from "./foot.ts";
 import { AGENTS_EXT_KEY, AGENT_SPEC, ROBOTAXI_BODY, SPAWN_MIN_PLAYER_M, agentCircles, rejoinAt, type AgentState, type AgentsExt } from "./agents.ts";
@@ -61,7 +61,7 @@ import { segmentCrossesWall } from "./boundary.ts";
 import type { CombatState } from "./combat-contract.ts";
 import { propIndex, propsNear, type PropKind } from "./props.ts";
 import { ROOF_STEP_M, circleBlocked, meshGroundHeight, type World } from "./world.ts";
-import { VEHICLE_SKIN, hullAt, hullBandsMeet, hullContact, sweepHulls, vehiclePairs, type VehicleHull, type VehicleMotion, type HullContact } from "./vehicle-contacts.ts";
+import { BOX_CONTACT_VERSION, VEHICLE_SKIN, boxContact, hullAt, hullBandsMeet, hullContact, sweepHulls, vehiclePairs, type VehicleHull, type VehicleMotion, type HullContact } from "./vehicle-contacts.ts";
 
 export const IMPACTS_EXT_KEY = "impacts";
 
@@ -266,7 +266,7 @@ export function agentVelocity(a: Readonly<AgentState>): { vx: number; vz: number
 /** A player's car as a body others shove. */
 export function carImpactBody(id: PlayerId, c: Readonly<CarState>): ImpactBody {
   const v = carVelocity(c);
-  return { key: `p:${id}`, mass: CAR.mass, x: c.x, z: c.z, vx: v.vx, vz: v.vz };
+  return { key: `p:${id}`, mass: CAR.mass, x: c.x, z: c.z, vx: v.vx, vz: v.vz, box: { heading: c.heading, hl: CAR.halfLength, hw: CAR.halfWidth } };
 }
 
 /** A robot (not a person, animal or robotaxi). */
@@ -292,7 +292,10 @@ export function robotKnockable(a: Readonly<AgentState>, combat: Readonly<CombatS
  */
 export function agentImpactBody(a: Readonly<AgentState>, combat?: Readonly<CombatState>): ImpactBody | null {
   const v = agentVelocity(a);
-  if (AGENT_SPEC[a.kind].road) return { key: `a:${a.id}`, mass: IMPACT.taxiMass, x: a.x, z: a.z, vx: v.vx, vz: v.vz };
+  if (AGENT_SPEC[a.kind].road) {
+    const d = dimsOf(a);
+    return { key: `a:${a.id}`, mass: IMPACT.taxiMass, x: a.x, z: a.z, vx: v.vx, vz: v.vz, box: { heading: a.heading, hl: d.hl, hw: d.hw } };
+  }
   if (isRobot(a) && robotKnockable(a, combat)) return { key: `a:${a.id}`, mass: robotMass(a), x: a.x, z: a.z, vx: v.vx, vz: v.vz };
   return null;
 }
@@ -948,11 +951,14 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     combat,
   };
 
-  // 1. The players' cars' hits: the other body takes its share.
+  // 1. The players' cars' hits: the other body takes its share. v25: a driving player's car that
+  // did not meet the hitter in its own stepCar this tick (it moved on, or the hitter came from
+  // behind or beside it) takes its share here, so a side-swipe turns both cars.
+  const unmet = (key: string, hitter: string): boolean => state.version >= BOX_CONTACT_VERSION && key.startsWith("p:") && !(contacts.get(key.slice(2)) ?? []).some((c) => c.key === hitter);
   for (const id of sortedIds(state.players)) {
     for (const k of contacts.get(id) ?? []) {
       if (k.key.startsWith("prop:")) hitProp(world, w, k, `p:${id}`, w.players[id]!.car.y);
-      else receive(w, k.key, k, `p:${id}`, false);
+      else receive(w, k.key, k, `p:${id}`, unmet(k.key, `p:${id}`));
       damageCar(w, id, w.players[id]!.car, k.x, k.z, Math.sqrt(k.j * k.j + k.jt * k.jt) / CAR.mass);
     }
   }
@@ -963,7 +969,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     for(const hit of agentContacts.get(id)??[]) {
       const a=w.agents[index]!;
       if(hit.key.startsWith("prop:")) hitProp(world,w,hit,`a:${id}`,a.y);
-      else receive(w,hit.key,hit,`a:${id}`,false);
+      else receive(w,hit.key,hit,`a:${id}`,unmet(hit.key,`a:${id}`));
       const dv=Math.sqrt(hit.j*hit.j+hit.jt*hit.jt)/CAR.mass;
       const current=w.agents[index]!;
       w.agents[index]={...current,dents:addDents(current.dents??{front:0,rear:0,left:0,right:0},localOf(a.x,a.z,a.heading,hit.x,hit.z),a.halfLength??ROBOTAXI_BODY.halfLength,dv)};
@@ -1170,7 +1176,13 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
     if(contact.gap>VEHICLE_SKIN+.0001)continue;
     if(w.ext.events.some(e=>e.tick===state.tick&&(e.a===a.key&&e.b===b.key||e.a===b.key&&e.b===a.key)))continue;
     const av=velocity(a),bv=velocity(b),ad=a.player!==null?CAR_DIMS:dimsOf(w.agents[w.index.get(a.agent!)!]!),bd=b.player!==null?CAR_DIMS:dimsOf(w.agents[w.index.get(b.agent!)!]!);
-    const hit=bodyHit({mass:ad.mass,k2:ad.k2,x:a.pose.x,z:a.pose.z,...av},
+    // v25: the two boxes (grown by the contact skin, so the touching pair overlaps) give the
+    // clipped contact point and face normal (car.ts boxHit).
+    const grown=VEHICLE_SKIN*2;
+    const box=state.version>=BOX_CONTACT_VERSION?boxContact({x:a.pose.x,z:a.pose.z,heading:a.pose.heading,hl:a.pose.hl+grown,hw:a.pose.hw+grown},{x:b.pose.x,z:b.pose.z,heading:b.pose.heading,hl:b.pose.hl+grown,hw:b.pose.hw+grown}):null;
+    const hit=box?boxHit({mass:ad.mass,k2:ad.k2,x:a.pose.x,z:a.pose.z,...av},
+      {key:b.key,mass:bd.mass,x:b.pose.x,z:b.pose.z,...bv},box,CAR.bodyRestitution,CAR.boxFriction)
+      :bodyHit({mass:ad.mass,k2:ad.k2,x:a.pose.x,z:a.pose.z,...av},
       {key:b.key,mass:bd.mass,x:b.pose.x,z:b.pose.z,...bv},
       {x:contact.x,z:contact.z,r:0,person:false},contact.nx,contact.nz,CAR.bodyRestitution);
     if(!hit)continue;

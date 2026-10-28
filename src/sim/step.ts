@@ -169,6 +169,7 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v21 -> v22: F on foot steals a stopped civilian car (steal-car.ts); no field rewrite.
  *  - v22 -> v23: people dodge a player's car only when it is about to reach them (dodge.ts REACT_S); no field rewrite.
  *  - v23 -> v24: brake-steer rotation and the handbrake drift (reference-driving.ts); no field rewrite.
+ *  - v24 -> v25: box-to-box car contacts that spin both cars (vehicle-contacts.ts boxContact); no field rewrite.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -192,6 +193,7 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 21) return upgradeState({ ...s, version: 22 });
   if (s.version === 22) return upgradeState({ ...s, version: 23 });
   if (s.version === 23) return upgradeState({ ...s, version: 24 });
+  if (s.version === 24) return upgradeState({ ...s, version: 25 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 
