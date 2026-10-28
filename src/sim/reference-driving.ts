@@ -1,6 +1,19 @@
 // Handling adapted from Slop New York controllers.js at be65d0ab61b24718b6da8886b7d7bed2d68ac178
 // (MIT; full notice retained in assets/imports/slop-new-york/LICENSE.md). Fog City's fixed-tick,
 // compass frame, wet streets, hill gravity and explicit handbrake remain authoritative.
+//
+// v24 (brake-steer and handbrake drift; v19 to v23 keep the path below exactly):
+//  - Braking against travel (the brake, or throttle against the motion) cuts the tyres' LATERAL
+//    grip by up to brakeSlide (to 30%) while the YAW keeps the tyres' full grip (Slop's
+//    steeringGrip, controllers.js updateCar), faded out below brakeFadeSpeed. So brake + steer
+//    turns the body while the tail slides; releasing the brake gives the grip back at once.
+//    Throttle against travel (S while rolling forward) reproduces the original controller's own
+//    trajectory (tests/golden/reference-braking-819a0ad.json).
+//  - The handbrake (the brake over half, steering over 0.3, above handbrakeMinSpeed: the same
+//    rule as v14-v23) locks the rear wheels: it slows the car at handbrakeDecel instead of the
+//    ABS foot brake, the rear's `grip` drops as before, and as it engages (grip still whole at
+//    the tick's start) the tail steps out: the yaw rate jumps toward the most yaw the tyres
+//    allow on the steering side, by at most handbrakeKick (the v14-v18 kick, now capped by grip).
 import { DT, type CarState, type SimInput } from "./contract.ts";
 import { clamp, dcos, dsin, datan, dtan, wrapAngle } from "./dmath.ts";
 
@@ -10,7 +23,20 @@ export const REFERENCE_DRIVE = Object.freeze({
   rolling: .18, drag: .0012, coast: .6, brake: 9,
   wheelbase: 2.76, grip: 9.5, cornering: 10.5, steerLock: .6,
   handbrakeMinSpeed: 9, handbrakeDrop: 4, gripRecover: 1.3,
+  /** v24: share of lateral grip that full braking against travel takes away (Slop: 0.7). */
+  brakeSlide: .7,
+  /** v24: braking's slide fades in over the first this many m/s (Slop: 5). */
+  brakeFadeSpeed: 5,
+  /** v24: the handbrake's deceleration, m/s^2 (rear wheels only; the foot brake is `brake`). */
+  handbrakeDecel: 4,
+  /** v24: the most the yaw rate jumps as the handbrake engages, rad/s (car.ts CAR.handbrakeKick). */
+  handbrakeKick: .9,
 });
+/** First SIM_VERSION with brake-steer rotation and the handbrake drift. */
+export const BRAKE_DRIFT_VERSION = 24;
+/** The handbrake is engaging (its kick fires) while the grip at the tick's start is at least this (dodge.ts assumes it). */
+/** v24: the kick fires only once grip has fully recovered, so a flickering handbrake cannot re-kick. */
+const HANDBRAKE_ENGAGED = 1;
 const H = DT / 2;
 // 1-exp(-rate/120), recorded constants: no host-dependent transcendental in the sim.
 const STEER_RESPONSE = .07995558537067671;
@@ -36,16 +62,23 @@ export function referenceDriveSpeed(speed: number, throttle: number, brake: numb
   return (throttle < 0 ? -1 : 1) * Math.min(Math.max(limit, coast), coast + Math.abs(throttle) * acceleration * dt);
 }
 
-/** Pure planar control, independent of rendering and world geometry; gravity is a world vector. */
-export function stepReferenceDriving(c: Readonly<CarState>, input: Readonly<SimInput>, traction = 1, gravityX = 0, gravityZ = 0): ReferenceDrivingResult {
+/**
+ * Pure planar control, independent of rendering and world geometry; gravity is a world vector.
+ * `version`: the SIM_VERSION whose handling to use (19 to 23: the v19 port; 24 on: brake-steer).
+ */
+export function stepReferenceDriving(c: Readonly<CarState>, input: Readonly<SimInput>, traction = 1, gravityX = 0, gravityZ = 0, version = 19): ReferenceDrivingResult {
   let heading=c.heading,speed=c.speed,lateral=c.lateral,yawRate=c.yawRate,steer=c.steer,grip=c.grip,dx=0,dz=0;
-  const mu=clamp(traction,0,1),tireLimit=REFERENCE_DRIVE.grip*mu;
+  const mu=clamp(traction,0,1),tireLimit=REFERENCE_DRIVE.grip*mu,drift=version>=BRAKE_DRIFT_VERSION;
   for(let i=0;i<2;i++) {
     const fx=dsin(heading),fz=-dcos(heading),rx=-fz,rz=fx;
     const handbrake=input.brake>.5&&Math.abs(input.steer)>.3&&Math.abs(speed)>REFERENCE_DRIVE.handbrakeMinSpeed;
+    // v24: the handbrake engages this tick (once per pull: grip must be fully back before it can kick again).
+    const kick=drift&&i===0&&handbrake&&c.grip>=HANDBRAKE_ENGAGED;
     grip=handbrake?Math.max(0,grip-REFERENCE_DRIVE.handbrakeDrop*H):Math.min(1,grip+REFERENCE_DRIVE.gripRecover*H);
     const forward=speed,sideways=lateral;
-    let next=referenceDriveSpeed(forward,input.throttle,input.brake,H);
+    // v24: the handbrake brakes the rear wheels only (handbrakeDecel), not at the foot brake's rate.
+    const pedal=drift&&handbrake?input.brake*REFERENCE_DRIVE.handbrakeDecel/REFERENCE_DRIVE.brake:input.brake;
+    let next=referenceDriveSpeed(forward,input.throttle,pedal,H);
     // Only tire force spends cornering grip. Aero and slope gravity are external forces.
     let tireAcceleration=(next-forward)/H+REFERENCE_DRIVE.drag*forward*Math.abs(forward);
     if(Math.abs(tireAcceleration)>tireLimit) {
@@ -53,13 +86,26 @@ export function stepReferenceDriving(c: Readonly<CarState>, input: Readonly<SimI
       next=forward+(tireAcceleration-REFERENCE_DRIVE.drag*forward*Math.abs(forward))*H;
     }
     const available=Math.sqrt(Math.max(0,tireLimit*tireLimit-tireAcceleration*tireAcceleration));
-    const lateralGrip=available*(.55+.45*grip);
+    let lateralGrip=available*(.55+.45*grip),steeringGrip=lateralGrip;
+    if(drift) {
+      // v24 (Slop's handbrake/steeringGrip): braking against travel, faded in from a crawl, slides
+      // the tyres sideways while the steering keeps all of the tyres' grip.
+      const against=Math.max(input.brake,forward*input.throttle<0?Math.abs(input.throttle):0)*Math.min(1,Math.abs(forward)/REFERENCE_DRIVE.brakeFadeSpeed);
+      steeringGrip=available+(tireLimit-available)*against;
+      lateralGrip*=1-REFERENCE_DRIVE.brakeSlide*against;
+    }
     const turn=REFERENCE_DRIVE.wheelbase*REFERENCE_DRIVE.cornering;
     const lock=datan(turn/Math.max(next*next,turn/dtan(REFERENCE_DRIVE.steerLock)));
     steer+=(input.steer*lock-steer)*STEER_RESPONSE;
-    const yawLimit=lateralGrip/Math.max(2,Math.abs(next));
+    const yawLimit=steeringGrip/Math.max(2,Math.abs(next));
     const targetYaw=clamp(next*dtan(steer)/REFERENCE_DRIVE.wheelbase,-yawLimit,yawLimit);
-    const yawStep=lateralGrip*.65*H;
+    if(kick) {
+      // v24: the tail steps out toward the steering, to the most yaw the tyres allow (never past it).
+      // In reverse the yaw for a steer is the other way round, so the kick follows the yaw, not the stick.
+      const side=(input.steer<0?-1:1)*(next<0?-1:1),gap=side*yawLimit-yawRate;
+      if(gap*side>0)yawRate+=side*Math.min(gap*side,REFERENCE_DRIVE.handbrakeKick);
+    }
+    const yawStep=steeringGrip*.65*H;
     yawRate+=clamp((targetYaw-yawRate)*YAW_RESPONSE,-yawStep,yawStep);
     heading=wrapAngle(heading+yawRate*H);
     const nfx=dsin(heading),nfz=-dcos(heading),nrx=-nfz,nrz=nfx;
