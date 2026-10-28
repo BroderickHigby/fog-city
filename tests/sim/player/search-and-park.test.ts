@@ -28,10 +28,10 @@ function context(at: { x: number; z: number }, patch: Partial<GameplayContext> =
 }
 function drive(rule: "free" | "no-parking", facts: GameplayFact[] = [], moving = false): ActivitiesState & { seen: string[] } {
   const seen: string[] = [];
-  let state = stepActivities(createActivities(), context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: activity.id }] }), 1, createMissions(), 7, 21);
+  let state = stepActivities(createActivities(), context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: activity.id }] }), 1, createMissions(), 7, 24);
   for (let tick = 2; tick < 200; tick++) {
     const pressed = tick === 190 ? Action.interact : 0;
-    state = stepActivities(state, context(street, { missionParking: parking(rule, moving), actions: { p: pressed }, facts: tick === 3 ? facts : [] }), tick, createMissions(), 7, 21);
+    state = stepActivities(state, context(street, { missionParking: parking(rule, moving), actions: { p: pressed }, facts: tick === 3 ? facts : [] }), tick, createMissions(), 7, 24);
     seen.push(...state.events.map(value => value.kind));
   }
   return { ...state, seen };

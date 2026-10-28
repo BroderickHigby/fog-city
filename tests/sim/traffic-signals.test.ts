@@ -275,6 +275,6 @@ describe("v21 amber dilemma zone", () => {
     for (let i = 0; i < 6; i++) current = advance(world, current);
     const a = current.ext.agents!.list[0]!;
     expect(a.conn).toBeNull(); expect(a.edge).toBe("e0"); expect(a.speed).toBe(0);
-    expect(upgradeState(current).version).toBe(23);
+    expect(upgradeState(current).version).toBe(SIM_VERSION);
   });
 });

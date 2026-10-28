@@ -21,7 +21,7 @@ export function applyValidatedMatchCarry(instance:SimState,source:MatchCarrySour
     if(!isGameplayId(id)||!isGameplayId(sourceId)||!instance.players[id]||!city.players[sourceId]||used.has(sourceId))throw new Error("Match carry requires unique current city seats");
     used.add(sourceId);
     const old=city.ext.progression?.players[sourceId]??createProgressionPlayer(),wallet=city.ext.economy?.players[sourceId];
-    const xp=amount(old.xp),rank=rankForXp(xp,21),owned=(wallet?.ownedItemIds??[]).filter(value=>isGameplayId(value)&&(value==="trunk-tank"||value==="roof-cannon"||normalizeLoadoutChoice(value)?.kind==="nozzle")).slice(0,64);
+    const xp=amount(old.xp),rank=rankForXp(xp,24),owned=(wallet?.ownedItemIds??[]).filter(value=>isGameplayId(value)&&(value==="trunk-tank"||value==="roof-cannon"||normalizeLoadoutChoice(value)?.kind==="nozzle")).slice(0,64);
     const nozzle=normalizeLoadoutChoice(old.nozzle),gadget=normalizeLoadoutChoice(old.gadget),gear=normalizeLoadoutChoice(old.gear);
     const canOwnNozzle=nozzle?.kind==="nozzle"&&(!nozzle.requiresOwnership||owned.some(id=>{const choice=normalizeLoadoutChoice(id);return choice?.kind==="nozzle"&&choice.value===nozzle.value;}));
     const perks=[...new Set(old.perks.flatMap(id=>{const choice=normalizeLoadoutChoice(id);return choice?.kind==="perk"?[choice.value]:[];}))].slice(0,loadoutSlots("perkSlots",rank,4));

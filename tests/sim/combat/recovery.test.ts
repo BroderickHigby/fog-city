@@ -1,4 +1,4 @@
-/** SIM21 physical combat and once-only authority regressions. */
+/** SIM24 physical combat and once-only authority regressions. */
 import { describe,expect,it } from "vitest";
 import { createCombatState,stepCombat } from "../../../src/sim/combat/system.ts";
 import { launchBalloon,stepDevices } from "../../../src/sim/combat/devices.ts";
@@ -14,7 +14,7 @@ const context=(patch:Partial<CombatContext>={}):CombatContext=>({simVersion:24,w
 const roundtrip=<T>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
 function hitProjectile(state:CombatState):Projectile {return {id:999,kind:"flower",ownerId:"p",x:0,y:1,z:-6,vx:0,vy:0,vz:-12,bornTick:state.tick,distance:6,range:20,volume:0,salt:false,vehicle:false,rustRate:0};}
 
-describe("SIM21 selected combat recovery",()=>{
+describe("SIM24 selected combat recovery",()=>{
   it("launches a visible slow flower and scores only its later actual rival contact",()=>{
     const ctx=context();let state=createCombatState(7,ctx);
     state=stepCombat(state,ctx,{p:{altFire:true,aimPitch:.1}});

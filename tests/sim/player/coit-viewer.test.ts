@@ -165,12 +165,12 @@ describe("Coit paid viewer", () => {
       checkpoints, objective: definition.objective, timeLimitS: definition.timeLimitS, rewardCents: definition.reward.cashCents, rewardXp: definition.reward.xp, repeatable: true, cooldownS: definition.cooldownS };
     const missions = createMissions(), context: GameplayContext = { ...DEFAULT_CATALOG, activities: [activity], wave: 4, bodies: [{ ...body, ...checkpoints[0]!, id: "p" }],
       actors: [], observations: [], facts: [], commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: "coit-recon" }], day: 1, month: 1, coit: { players: { p: observed } } };
-    let state = stepActivities(createActivities(), context, 1, missions, 7, 21);
+    let state = stepActivities(createActivities(), context, 1, missions, 7, 24);
     const events: GameplayEvent[] = [];
     context.bodies = [body]; context.commands = [];
     for (let tick = 2; tick <= 1804; tick++) {
       context.commands = tick === 3 ? [command("open", 2)] : tick === 63 ? [command("tag", 3)] : tick === 184 ? [command("flag", 4)] : [];
-      state = stepActivities(state, context, tick, missions, 7, 21); events.push(...state.events);
+      state = stepActivities(state, context, tick, missions, 7, 24); events.push(...state.events);
     }
     expect(events.filter(event => event.kind === "activity.cash").map(event => event.amount)).toEqual([-25, definition.reward.cashCents]);
     expect(events.filter(event => event.kind === "activity.xp").map(event => event.amount)).toEqual([definition.reward.xp]);

@@ -35,11 +35,11 @@ describe("playable activity catalog", () => {
 
   it("refuses an activity kind without a producer and releases a saved one with no payout", () => {
     const activity = { ...authored("embarcadero-sprint"), id: "made-up", kind: "unknownKind" }, ctx = context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: activity.id }] });
-    const state = stepActivities(createActivities(), ctx, 1, createMissions(), 7, 21);
+    const state = stepActivities(createActivities(), ctx, 1, createMissions(), 7, 24);
     expect(state.players.p!.activeActivityId).toBe("");
     expect(state.events).toEqual([]);
     state.players.p!.activeActivityId = activity.id;
-    const restored = stepActivities(state, { ...ctx, commands: [] }, 2, createMissions(), 7, 21);
+    const restored = stepActivities(state, { ...ctx, commands: [] }, 2, createMissions(), 7, 24);
     expect(restored.players.p!.activeActivityId).toBe("");
     expect(restored.events.map(value => value.kind)).toEqual(["activity.failed"]);
   });
@@ -47,22 +47,22 @@ describe("playable activity catalog", () => {
   it.each(["embarcadero-sprint", "hill-delivery"])("finishes %s only after ordered accepted checkpoints", id => {
     const activity = DEFAULT_CATALOG.activities.find(value => value.id === id)!;
     let ctx = context(activity, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: id }] });
-    let state = stepActivities(createActivities(), ctx, 1, createMissions(), 7, 21);
+    let state = stepActivities(createActivities(), ctx, 1, createMissions(), 7, 24);
     expect(state.players.p!.activeActivityId).toBe(id);
     const final = activity.checkpoints!.at(-1)!;
     ctx = { ...ctx, commands: [{ playerId: "p", sequence: 2, kind: "activity-complete", targetId: id }], bodies: [{ ...ctx.bodies[0]!, x: final.x, y: final.y, z: final.z }] };
-    state = stepActivities(state, ctx, 61, createMissions(), 7, 21);
+    state = stepActivities(state, ctx, 61, createMissions(), 7, 24);
     expect(state.events.some(value => value.kind === "activity.finished")).toBe(false);
     for (const [index, point] of activity.checkpoints!.entries()) {
       ctx = { ...ctx, commands: [], actions: {}, bodies: [{ ...ctx.bodies[0]!, x: point.x, y: point.y, z: point.z }] };
-      state = stepActivities(state, ctx, 62 + index, createMissions(), 7, 21);
+      state = stepActivities(state, ctx, 62 + index, createMissions(), 7, 24);
     }
     if (activity.kind === "delivery") {
       expect(state.events.some(value => value.kind === "activity.finished")).toBe(false);
-      state = stepActivities(state, { ...ctx, actions: { p: Action.interact } }, 70, createMissions(), 7, 21);
+      state = stepActivities(state, { ...ctx, actions: { p: Action.interact } }, 70, createMissions(), 7, 24);
     }
     expect(state.events.map(value => value.kind)).toEqual(["activity.cash", "activity.xp", "activity.finished"]);
     expect(state.players.p!.completedIds).toEqual([id]);
-    expect(stepActivities(state, ctx, 71, createMissions(), 7, 21).events).toEqual([]);
+    expect(stepActivities(state, ctx, 71, createMissions(), 7, 24).events).toEqual([]);
   });
 });

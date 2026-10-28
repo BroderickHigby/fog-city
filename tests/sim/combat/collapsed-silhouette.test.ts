@@ -23,7 +23,7 @@ function context(phase:TargetCombat["phase"],heightScale:number,version=24,actor
 }
 function shot(y:number):Projectile{return {id:1,kind:"water",ownerId:"owner",x:0,y,z:0,vx:600,vy:PROJECTILE_GRAVITY/120,vz:0,distance:0,range:30,bornTick:0,volume:.08,salt:false,vehicle:false,rustRate:1};}
 
-describe("collapsed robot projectile silhouettes, SIM21",()=>{
+describe("collapsed robot projectile silhouettes, SIM24",()=>{
  it("lets a stream above the visible heap reach the object behind it, while low water still hits the solid heap",()=>{
   const ctx=context("heap",.3);
   expect(advanceProjectile(shot(1),ctx).hit?.id).toBe("behind");
@@ -37,7 +37,7 @@ describe("collapsed robot projectile silhouettes, SIM21",()=>{
  it("removes collected robot bodies but never shrinks protected interception geometry",()=>{
   expect(advanceProjectile(shot(.25),context("cleared",0)).hit?.id).toBe("behind");
   for(const actor of [{...heap,protected:true},{...heap,kind:"person" as const,child:true},{...heap,kind:"animal" as const}]){
-   expect(advanceProjectile(shot(1),context("heap",.3,21,actor)).hit?.id).toBe("heap");
+   expect(advanceProjectile(shot(1),context("heap",.3,24,actor)).hit?.id).toBe("heap");
   }
  });
  it("preserves the standing cylinder for earlier recorded versions",()=>{

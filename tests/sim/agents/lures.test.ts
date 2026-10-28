@@ -10,7 +10,7 @@ import {initialTarget} from "../../../src/sim/combat/shared.ts";
 import type {CombatContext} from "../../../src/sim/combat/types.ts";
 const world=buildWorld([]);
 function fixture(patch:Partial<RuntimeSpawn>={}){const state=createInitialState(world,7,["p"],{x:100,z:100,heading:0}),spawn={id:"bad",numericId:10,model:"footman" as const,firmware:"bad" as const,x:30,y:0,z:0,heading:0,radius:.4,height:1.8,...patch};state.ext.robots=createAgentsRuntime(state,{spawns:[spawn]});state.ext.combat=createCombatState(7,contextFromState(world,state));state.ext.combat.gadgets=[{id:1,kind:"parrots",ownerId:"p",x:0,y:0,z:0,untilTick:1200,targetId:"",radius:40,progress:0,boost:"salt"}];return {state,actor:state.ext.robots.actors.bad!};}
-describe("SIM21 live gadget lure movement",()=>{
+describe("SIM24 live gadget lure movement",()=>{
  it("plans a bounded ordinary step toward a15m stand-off without changing accepted source pose",()=>{
   const {state,actor}=fixture(),before=JSON.stringify(state),planned=planAgentRuntime(world,{...state,tick:1},{}),proposal=planned.proposals.find(p=>p.id==="bad")!;
   expect(proposal.x).toBeLessThan(actor.x);expect(actor.x-proposal.x).toBeLessThanOrEqual(1.6/60+1e-8);expect(proposal.x).toBeGreaterThan(15+actor.radius);expect(JSON.stringify(state)).toBe(before);

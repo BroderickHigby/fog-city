@@ -16,7 +16,7 @@ function run(ctx:CombatContext,aimYaw=0){let combat=createCombatState(7,ctx),sta
  }
  return {state,combat,contacts};
 }
-describe("SIM21 physical flower match authority",()=>{
+describe("SIM24 physical flower match authority",()=>{
  it("scores one later swept rival contact with lasting hair and a timed distraction",()=>{
   const result=run(context());expect(result.state.players.a!.score).toBe(25);expect(result.state.players.b!.flowers).toBe(1);expect(result.state.players.b!.distractedUntil).toBeGreaterThan(60);expect(result.contacts.some(e=>e.kind==="pvp.flower-hit")).toBe(true);
  });

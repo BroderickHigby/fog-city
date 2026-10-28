@@ -89,7 +89,7 @@ describe("truthful guarded reverse velocity", () => {
     const world = emptyWorld(), base = createInitialState(world, 3, ["p1"], { x: 100, z: 100, heading: 0 });
     const pose: VehicleHull = { key: "a:10", x: 0, y: 0, z: 0, heading: 0, hl: 2.5, hw: 1, height: 1.6 };
     const reversing = { ...taxi(10, pose), s: 12, speed: -.8 }, rear = { ...taxi(20, { ...pose, key: "a:20", z: rearZ }), speed: 0 };
-    const before: SimState = { ...base, version: 21, ext: { ...base.ext, agents: { nextId: 21, list: [reversing, rear] } } };
+    const before: SimState = { ...base, version: 24, ext: { ...base.ext, agents: { nextId: 21, list: [reversing, rear] } } };
     const velocity = agentVelocity(reversing);
     expect(velocity.vx).toBeCloseTo(0, 12); expect(velocity.vz).toBeCloseTo(.8, 10);
     const attempted = { ...reversing, z: reversing.z + velocity.vz / 60, s: reversing.s - .8 / 60 };
