@@ -49,6 +49,13 @@
 //    MAX_AGENTS_TOTAL, so a second player across town gets their own traffic instead of
 //    whatever the first player's areas left over. The whole city's road graph is loaded, but
 //    only the areas around players are ever populated or stepped.
+//  - v24 (owner, 2026-10-27: "remove the little vacuum robots for now"): Trundles (sidewalkBot)
+//    are no longer part of the street. The initial fill is unchanged (older replays restamp the
+//    state createInitialState makes, so it must not change), but the first step of a v24 state
+//    takes every ambient Trundle off the street (one mid-dodge waits for its dodge to end), and
+//    population passes give each area's Trundle budget to Footmen (errandRobot), one for one,
+//    with the Trundles' hour and district shaping. Missions and the Ambient Director still stage
+//    their own named Trundles (runtime actors, src/sim/agents/incidents.ts, mission-actors.ts).
 //
 // Level of detail (documented rule)
 //  - An agent within NEAR_RANGE_M of a player steps every tick. Farther agents step only on
@@ -66,7 +73,7 @@
 
 import { isCivilianTraffic, CIVILIAN_PASS_INTERVAL_TICKS } from "./civilian-traffic.ts";
 import { agentActorId } from "./identity.ts";
-import { DT, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
+import { DT, SIM_VERSION, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
 import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
 import { rideRouteNext } from "./ride-route.ts";
@@ -334,6 +341,11 @@ export const TRIM_PER_POP = 4;
 export const MAX_AGENTS = 512;
 /** The most ambient agents in a state, however many players. */
 export const MAX_AGENTS_TOTAL = 1024;
+/**
+ * v24: the first SIM_VERSION with no ambient Trundles (sidewalkBot); their population budget goes
+ * to Footmen. See the header (Population). Older versions keep them, bit for bit.
+ */
+export const TRUNDLE_FREE_VERSION = 24;
 export const ROBOTAXI_GAP_M = 1.5;
 /** A robotaxi waiting at an all-way stop keeps its front bumper this far behind the line. */
 export const STOPLINE_M = 0.5;
@@ -2199,6 +2211,7 @@ export function populate(
   initial: boolean,
   cars: readonly CarSpot[] = [],
   scales: PopulationScales = [],
+  version: number = SIM_VERSION,
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
@@ -2227,10 +2240,19 @@ export function populate(
   }
   // Each area is scaled by its owner's density (the nearest player's).
   const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[nearestBody(bodies, ar.cx, ar.cz)]?.[kind] ?? 1;
+  // v24: no ambient Trundles; Footmen take each area's Trundle budget, one for one, with its hour
+  // and district shaping. Never in the initial fill (see the header, Population).
+  const trundleFree = !initial && version >= TRUNDLE_FREE_VERSION;
+  const areaWant = (ar: AreaRoads, kind: AgentKind): number => {
+    if (!trundleFree) return budget(seed, ar, kind, scaleOf(ar, kind));
+    if (kind === "sidewalkBot") return 0;
+    const own = budget(seed, ar, kind, scaleOf(ar, kind));
+    return kind === "errandRobot" ? own + budget(seed, ar, "sidewalkBot", scaleOf(ar, "sidewalkBot")) : own;
+  };
   const room = new Map<AgentKind, number>();
   for (const kind of AGENT_KINDS) {
     let sum = 0;
-    for (const { ar } of active) sum += budget(seed, ar, kind, scaleOf(ar, kind));
+    for (const { ar } of active) sum += areaWant(ar, kind);
     room.set(kind, sum - (totals.get(kind) ?? 0));
   }
   // City-life densities (game composition): a kind over its scaled budget (fewer people than the
@@ -2259,7 +2281,7 @@ export function populate(
   for (const { ar } of active) {
     const owner = nearestBody(bodies, ar.cx, ar.cz);
     for (const kind of AGENT_KINDS) {
-      const want = budget(seed, ar, kind, scaleOf(ar, kind));
+      const want = areaWant(ar, kind);
       const have = counts.get(`${ar.key}|${kind}`) ?? 0;
       let add = Math.min(Math.max(0, want - have), Math.max(0, room.get(kind)!));
       if (!initial) add = Math.min(add, SPAWN_PER_POP);
@@ -2454,6 +2476,11 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   }
   const bodies = playerBodies(prev);
   if (bodies.length === 0) return { ext, rng: prev.rng };
+  // v24: ambient Trundles leave the street on the state's first step (before a new game's first
+  // frame); one diving out of a vehicle's way goes once its dodge ends. No RNG is drawn.
+  if (prev.version >= TRUNDLE_FREE_VERSION && ext.list.some((a) => a.kind === "sidewalkBot" && a.dodge === null)) {
+    ext = { ...ext, list: ext.list.filter((a) => a.kind !== "sidewalkBot" || a.dodge !== null) };
+  }
 
   // Seized robotaxis stand where they stopped: others may go round them.
   const passable = new Set<number>();
@@ -2619,7 +2646,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // only unclaimed rows refills the same slots every population tick. They must
     // also obey the same distance cull: restoring every claimed body afterwards
     // leaves a trail of frozen pedestrians as the player travels across the city.
-    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev));
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev), prev.version);
     out = p.ext;
     rng = p.rng;
   }

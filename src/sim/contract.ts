@@ -83,7 +83,12 @@
 // v23: people get out of a player's car's way only when it is about to reach them (dodge.ts
 // REACT_S, REACT_LAG_S): not when it will pass them by or is still far off. No field changes:
 // the save upgrade only restamps; v22-and-earlier replays keep the old early dive.
-export const SIM_VERSION = 23;
+// v24 (owner, 2026-10-27): no ambient Trundles (sidewalk bots). The first step of a v24 state takes
+// them off the street and Footmen take their population budget (agents.ts TRUNDLE_FREE_VERSION);
+// missions and director incidents still stage named Trundles. No field changes: the save upgrade
+// only restamps; createInitialState is unchanged and v23-and-earlier replays keep every Trundle.
+// (Provisional number: the brake-drift branch also claims 24; renumber at merge.)
+export const SIM_VERSION = 24;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

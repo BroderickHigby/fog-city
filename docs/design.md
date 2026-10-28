@@ -1322,3 +1322,11 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
   (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
   crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.
+- 2026-10-27 · **No ambient Trundles, for now** (owner: "We can probably remove the little vacuum robots for
+  now"). From SIM_VERSION 24 the Trundle (`sidewalkBot`, `public/models/sidewalk-bot.glb`) is no longer part of
+  the street population: a v24 state's first step takes the ambient ones off the street and Footmen take their
+  population budget one for one, keeping the Trundles' hour and district shaping (night still brings more
+  delivery robots out), so the street holds as many robots and bodies as before. Missions and director incidents
+  (which the bounty board posts) that name a Trundle still stage one, because their text and tells are written for
+  it, so a Trundle now appears only when a story calls for it. The model, its content and every code path stay for older
+  saves and replays, which keep their Trundles bit for bit (`src/sim/agents.ts` `TRUNDLE_FREE_VERSION`).
