@@ -16,7 +16,7 @@ import { interleaveAttributes } from "three/addons/utils/BufferGeometryUtils.js"
 import { fcUniforms } from "./materials.ts";
 import { WINDOW_PROFILES } from "./building-window-profile.ts";
 import {
-  CLUSTER_CORE_HI, CLUSTER_CORE_LO, CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_PIXELS, CLUSTER_SWITCHY, CLUSTER_SWITCH_RATE,
+  CLUSTER_CORE_HI, CLUSTER_CORE_LO, CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_PIXELS, CLUSTER_SIZE_SALT, CLUSTER_SWITCHY, CLUSTER_SWITCH_RATE,
   WINDOW_LOD_END, WINDOW_LOD_START,
 } from "./window-clusters.ts";
 
@@ -117,7 +117,8 @@ const windowLod = (footprint: V2): F => smoothstep(WINDOW_LOD_START, WINDOW_LOD_
  * `time` lets a share of clusters switch on and off slowly, as lights do, never with the camera.
  */
 const windowCluster = Fn(([grid, fw, size, probability, seed, time]: [V2, V2, F, F, F, F]) => {
-  const p = grid.div(size), width = fw.div(size), id = floor(p);
+  // The cluster id is salted with its size, so the next octave re-rolls instead of repeating this one zoomed.
+  const p = grid.div(size), width = fw.div(size), id = floor(p).add(size.mul(CLUSTER_SIZE_SALT));
   const roll = hash2(id.add(vec2(seed, 73.1))), pick = hash2(id.add(vec2(seed.mul(1.7), 41.3)));
   const phase = hash2(id.add(vec2(19.7, seed.mul(2.3))));
   const stable = step(float(1).sub(probability), roll);
@@ -293,10 +294,12 @@ function buildingMaterial(source: THREE.Material): CityNodeMaterial {
   // the branch; by day, and wherever windows still resolve, the branch skips the cluster work.
   const roomGrid = vec2(fuv.x.div(bayW), fuv.y.div(story)), roomFw = max(fwidth(roomGrid), .0001), lod = windowLod(roomFw);
   const distant = Fn(() => {
+    // Declared before the branch: WGSL rejects derivatives in non-uniform control flow (lod is per pixel).
+    const footprint = roomFw.toVar(), clustered = lod.toVar();
     const light = vec3(0).toVar();
-    If(lod.greaterThan(0).and(gpuMaterialUniforms.night.greaterThan(0)), () => {
+    If(clustered.greaterThan(0).and(gpuMaterialUniforms.night.greaterThan(0)), () => {
       // A drape's mean coverage (.29) still dims what the glass shows.
-      light.assign(distantWindowLight(roomGrid, roomFw, float(.32), seed.mul(97), gpuMaterialUniforms.time).mul(mix(1, .2, .29)));
+      light.assign(distantWindowLight(roomGrid, footprint, float(.32), seed.mul(97), gpuMaterialUniforms.time).mul(mix(1, .2, .29)));
     });
     return light;
   })();

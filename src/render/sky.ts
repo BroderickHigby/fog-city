@@ -48,7 +48,8 @@ export interface LightingPreset {
    * Mie anisotropy and the exposure that brings its radiance into scene range; `skyNightColor` is
    * the flat sky it fades to as `nightFactor` rises. Per time of day as in Slop New York's
    * lighting.js presets, so the blend keys in daylight.ts move the haze, not only the sun.
-   * Presets that omit them get the golden-hour values (skyHaze).
+   * Presets that omit them get the engine's old fixed values (skyHaze): the golden-hour scattering
+   * and exposure, and the old flat night sky 0x101723.
    */
   skyTurbidity?: number;
   skyRayleigh?: number;
@@ -58,7 +59,7 @@ export interface LightingPreset {
   skyNightColor?: number;
 }
 
-/** Sky settings the GPU engine reads: a preset's own, else the golden-hour defaults. */
+/** Sky settings the GPU engine reads: a preset's own, else the engine's old fixed values. */
 export interface SkyHaze { turbidity: number; rayleigh: number; mie: number; mieG: number; exposure: number; nightColor: number }
 export function skyHaze(p: LightingPreset): SkyHaze {
   return {

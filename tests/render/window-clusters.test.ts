@@ -5,14 +5,31 @@
 // The shader graph itself is checked on a GPU (QA screenshots in the pull request), not here.
 import { describe, expect, it } from "vitest";
 import {
-  CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_SWITCH_RATE, boxPulse, clusterLevel, clusterLight, switchLevel, windowLod,
+  CLUSTER_GAIN, CLUSTER_MIN_SCALE, CLUSTER_SWITCH_RATE, boxPulse, clusterLevel, clusterLight, clusterRoll, switchLevel, windowLod,
   type ClusterHash,
 } from "../../src/render/window-clusters.ts";
 
-const hash: ClusterHash = (ix, iy, size) => {
-  const s = Math.sin(ix * 127.1 + iy * 311.7 + size * 17.3 + 73.1) * 43758.5453;
-  return s - Math.floor(s);
-};
+// The shader's own roll (salted by cluster size), for a facade with seed 0.
+const hash: ClusterHash = (ix, iy, size) => clusterRoll(ix, iy, size, 0);
+
+describe("clusterRoll", () => {
+  it("gives each cluster size its own pattern, so a cross-fade re-rolls rather than zooming", () => {
+    // Same cell index at size 2 and 4: independent rolls agree on lit/dark about p^2 + (1-p)^2 of the time.
+    const p = 0.32;
+    let same = 0, n = 0;
+    for (let ix = -40; ix < 40; ix++) for (let iy = -40; iy < 40; iy++) {
+      same += (clusterRoll(ix, iy, 2, 0) >= 1 - p) === (clusterRoll(ix, iy, 4, 0) >= 1 - p) ? 1 : 0; n++;
+    }
+    expect(same / n).toBeGreaterThan(p * p + (1 - p) * (1 - p) - 0.05);
+    expect(same / n).toBeLessThan(p * p + (1 - p) * (1 - p) + 0.05);
+  });
+
+  it("is uniform on [0, 1)", () => {
+    const bins = new Array(10).fill(0);
+    for (let ix = 0; ix < 100; ix++) for (let iy = 0; iy < 100; iy++) bins[Math.floor(clusterRoll(ix, iy, 8, 3.7) * 10)]++;
+    for (const count of bins) { expect(count).toBeGreaterThan(850); expect(count).toBeLessThan(1150); }
+  });
+});
 
 describe("boxPulse", () => {
   it("is exact on the interior and converges to the duty cycle over a wide footprint", () => {
