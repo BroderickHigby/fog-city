@@ -1,4 +1,3 @@
-import type { DrivingFrame } from "./vehicle-recordings.ts";
 // What the player's car and feet should sound like this frame, from the sim state the renderer
 // draws. Pure and read-only: the procedural synth (vehicle-synth.ts) and the one-shots follow it.
 //
@@ -14,8 +13,6 @@ import type { DrivingFrame } from "./vehicle-recordings.ts";
 import type { CarState, FootState } from "../sim/contract.ts";
 
 export interface EngineParams {
-  /** Recorded-driving state. The synth fields remain for compatible pure-model callers only. */
-  recording?: DrivingFrame;
   /** Firing pulses per second (two per crank turn on a four-cylinder), Hz. */
   firingHz: number;
   engineGain: number;
@@ -203,7 +200,7 @@ export function engineParams(car: CarState, prev: CarState | null, dtS: number, 
   const gripLoss = clamp01((0.85 - car.grip) / 0.6);
   const braking = speed > 7 && accel < -7 ? clamp01((-accel - 7) / 6) : 0;
   const squealGain = car.grounded && speed > 3 ? 0.25 * Math.max(slip, gripLoss, braking) : 0;
-  return { recording: {identity:"occupied-car",profile:"light-ice",speedMps:car.speed,grounded:car.grounded,lateralMps:car.lateral,grip:car.grip,dtS:prev ? dtS : 0}, ...layers(speed, gears ?? settleGearbox(speed, throttleOfAccel(accel)), car.grounded, 1), squealGain };
+  return { ...layers(speed, gears ?? settleGearbox(speed, throttleOfAccel(accel)), car.grounded, 1), squealGain };
 }
 
 /** Riding in the back of a robotaxi: its engine and road, softer from the rear seat; it never squeals. */
@@ -211,7 +208,7 @@ export const RIDE_CABIN = 0.6;
 
 export function rideEngineParams(speed: number, prevSpeed: number | null, dtS: number, gears?: Gearbox): EngineParams {
   const v = Math.abs(speed);
-  return { recording: {identity:"occupied-ride",profile:"road-only",speedMps:speed,grounded:true,lateralMps:0,grip:1,dtS:prevSpeed!==null?dtS:0,cabin:true}, ...layers(v, gears ?? settleGearbox(v, throttleOfAccel(accelOf(speed, prevSpeed, dtS))), true, RIDE_CABIN), squealGain: 0 };
+  return { ...layers(v, gears ?? settleGearbox(v, throttleOfAccel(accelOf(speed, prevSpeed, dtS))), true, RIDE_CABIN), squealGain: 0 };
 }
 
 /** What the engine shows now, for the debug panel and tests. */

@@ -73,12 +73,11 @@ Report Auto adaptation and safety fallbacks without erasing a manual selection.
 
 ## Sounds and narration
 
-Use `src/audio/vehicle-recordings.ts` and the actual recording manifest for
-layered driving audio, routed through the effects bus. Preserve user-gesture
-unlock, independent volume/mute, pause, visibility, car/profile changes and
-resource cleanup. Keep loop boundaries, pitch range, decoded-memory and source
-hashes explicit. Signal analysis and file existence do not replace listening to
-idle, acceleration, coasting, braking, stops and vehicle changes.
+Driving audio is the procedural synth (`src/audio/vehicle-synth.ts`, driven by
+`src/audio/vehicle-sound.ts` and its gearbox), routed through the effects bus.
+Preserve user-gesture unlock, independent volume/mute, pause, visibility,
+car/profile changes and resource cleanup. Signal analysis does not replace
+listening to idle, acceleration, coasting, braking, stops and vehicle changes.
 
 Opening narration uses `src/audio/opening.ts` and the existing priority queue,
 voice bus, subtitles and ducking. The original stock-voice generation adapter and

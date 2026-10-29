@@ -1,6 +1,4 @@
 import coitManifest from "../../public/audio/coit/manifest.json" with { type:"json" };
-import { vehicleModelForActor } from "../render/vehicle-models.ts";
-import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 // The game's audio, as one object main.ts drives: effects, contextual music, mission voices with
 // subtitles, preferences and the settings panel. Everything here is presentation: it reads the
 // sim state after each step and never feeds anything back, so slow, failed or muted audio
@@ -73,7 +71,6 @@ export interface AudioDebugInfo {
   musicSwitches: number;
   /** The car's live engine sound is running. */
   engine: boolean;
-  driving: ReturnType<GameAudio["info"]>["driving"];
   /** The engine's gear (1 is first), rpm, smoothed throttle and upshift cut now (null with no engine heard). */
   engineReading: EngineReading | null;
   /** Robots whose servos are audible now. */
@@ -270,11 +267,6 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         const ride = player.ride ?? null;
         // The engine remembers its gear between frames (a new owner starts a fresh gearbox).
         const params=taxiCar ? engine.car(`taxi:${ride!.agentId}`, taxiCar, previousTaxi, dtS) : ride ? engine.ride(`ride:${ride.agentId}`, ride.speed, prevTaxiId===ride.agentId?prevRideSpeed:null, dtS) : inCar ? engine.car("car", player.car, prevCar, dtS) : engine.stop();
-        if(params?.recording){
-          params.recording.identity=ride?`a:${ride.agentId}`:`p:${playerId}`;
-          params.recording.profile=ride?(occupiedAgent&&isCivilianTraffic(occupiedAgent)?vehicleModelForActor(occupiedAgent.id).audioProfile:"road-only"):"light-ice";
-          params.recording.cabin=!!ride&&!ride.manual;
-        }
         mixer.setEngine(params);
         // Collisions between bodies (ext.impacts): crunches, clanks, thuds and scrapes. The player's
         // own body is the ridden taxi while riding. When it is in one, the car's generic hit
@@ -412,7 +404,6 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
       missionVoice.answered(questionId, answerId, now);
     },
     restore(state) {
-      mixer.resetDriving();
       prevTaxiCar=null;prevTaxiId=null;
       missionVoice.reset();
       inner.reset();
@@ -465,7 +456,6 @@ export function createGameAudioDirector(options: GameAudioDirectorOptions): Game
         musicTracks: tracks.length,
         musicSwitches: m.musicSwitches,
         engine: m.engine,
-        driving: m.driving,
         engineReading: m.engine ? engine.reading() : null,
         robotVoices: m.robotVoices,
         ambience: m.ambience,
