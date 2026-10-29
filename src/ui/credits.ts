@@ -21,7 +21,14 @@ export interface CreditGroup {
   entries: CreditEntry[];
 }
 
-interface MusicSource { title: string; author: string; licence: string; page: string; context: string }
+interface MusicSource { title: string; author: string; licence: string; page: string; context: string; origin?: string; style?: string }
+
+/** A music credit: recorded tracks link their source page; the repository is private, so a generated track names its file instead. */
+function musicCredit(t: MusicSource): CreditEntry {
+  const where = t.context === "driving" || t.context === "radio" ? "radio" : t.context;
+  if (t.origin === "generated") return { what: `"${t.title}" (${where}, ${t.style ?? "original"}; ${t.page})`, who: t.author, licence: t.licence };
+  return { what: `"${t.title}" (${where})`, who: t.author, licence: t.licence, url: t.page };
+}
 
 export const CREDITS: readonly CreditGroup[] = [
   {title:"Opening narration",entries:[{what:"Original fictional machine-generated opening; stock voice M1, no real person portrayed",who:"Fog City script, Supertonic 3 by Supertone Inc.",licence:"Local model: OpenRAIL-M; generator: MIT; original generated output",url:"https://huggingface.co/supertone-oss-archive/supertonic-3"}]},
@@ -35,7 +42,7 @@ export const CREDITS: readonly CreditGroup[] = [
   },
   {
     title: "Music",
-    entries: (musicSources.tracks as MusicSource[]).map((t) => ({ what: `"${t.title}" (${t.context === "driving" ? "radio" : t.context})`, who: t.author, licence: t.licence, url: t.page })),
+    entries: (musicSources.tracks as MusicSource[]).map(musicCredit),
   },
   {
     title: "Sound effects",

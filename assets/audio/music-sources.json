@@ -1,7 +1,7 @@
 {
   "version": 1,
   "retrieved": "2026-10-23",
-  "policy": "CC0 only: each page was checked to list CC0 among its licences, and the CC0 grant is the one Fog City relies on. Nothing that merely says 'free' or 'royalty-free' is used.",
+  "policy": "CC0 only for recorded music: each page was checked to list CC0 among its licences, and the CC0 grant is the one Fog City relies on. Nothing that merely says 'free' or 'royalty-free' is used. The car radio's other tracks (origin \"generated\") are original work, composed note by note and synthesised in code by scripts/audio/compose-radio.ts: no sample, recording, cover or quotation of anyone else's music.",
   "tracks": [
     {
       "id": "drive",
@@ -72,6 +72,84 @@
       "licenceUrl": "https://creativecommons.org/publicdomain/zero/1.0/",
       "pageLicences": ["CC0"],
       "why": "Upbeat synthwave (MilkyTracker) under the pause menu, phone and settings."
+    },
+    {
+      "id": "radio-boom-bap",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Seed Round Cypher",
+      "genre": "hip-hop",
+      "style": "boom-bap",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "90 BPM boom-bap in A minor: swung drums, an upright-style bass, chopped electric-piano chords through a sampler colour (tape wow, 24 kHz grit, crackle), a vibraphone hook."
+    },
+    {
+      "id": "radio-trap",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Down Round Drip",
+      "genre": "hip-hop",
+      "style": "trap",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "140 BPM half-time trap in C minor: gliding 808s, hat rolls in sixteenths, sextuplets and 32nds, a clap on three, a dark FM bell motif and a pad."
+    },
+    {
+      "id": "radio-bounce",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Outer Sunset Bounce",
+      "genre": "hip-hop",
+      "style": "West Coast bounce",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "96 BPM West Coast bounce in F minor: a sliding analogue bass, swung sixteenth hats, Rhodes-style comping and a high portamento whistle lead."
+    },
+    {
+      "id": "radio-dance-pop",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Up and to the Right",
+      "genre": "pop",
+      "style": "four-on-the-floor dance-pop",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "122 BPM four-on-the-floor dance-pop in F major: sidechained supersaw chords, off-beat bass, a pluck arpeggio, a breakdown and a bright synth hook."
+    },
+    {
+      "id": "radio-synth-pop",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Demo Day Heart",
+      "genre": "pop",
+      "style": "half-time synth-pop",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "100 BPM half-time synth-pop in D major: a gated snare on three, pulsing eighth bass, a bright arpeggio, tom fills and a saw lead hook."
+    },
+    {
+      "id": "radio-nu-disco",
+      "origin": "generated",
+      "context": "radio",
+      "title": "Lock-Up Period",
+      "genre": "pop",
+      "style": "nu-disco pop",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "generator": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "why": "116 BPM nu-disco pop in E minor: four-on-the-floor, octave disco bass, clav stabs, strings and a brass-style lead hook."
     }
   ]
 }
