@@ -174,6 +174,8 @@ export function createInitialState(world: World, seed: number, playerIds: readon
  *  - v25 -> v26: no ambient Trundles (agents.ts TRUNDLE_FREE_VERSION); no field rewrite: the first v26 step removes them.
  *  - v26 -> v27: measured side activities and collapsed robot projectile silhouettes.
  *    Optional activity state starts only when a run is booked; preserve every saved field.
+ *  - v27 -> v28 -> ... -> v32: Runway Run's 2.3 m pickup ring (v32); v28 to v31 belong to
+ *    parallel branches. Each step only restamps; every saved field is kept.
  */
 export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === SIM_VERSION) return s as SimState;
@@ -200,6 +202,9 @@ export function upgradeState(s: Readonly<SimState>): SimState {
   if (s.version === 24) return upgradeState({ ...s, version: 25 });
   if (s.version === 25) return upgradeState({ ...s, version: 26 });
   if (s.version === 26) return upgradeState({ ...s, version: 27 });
+  // v27 -> v32 (and any reserved v28 to v31 stamp): restamp only, one version at a time, so a
+  // parallel branch's own v28 to v31 step may sit before this line in any merge order.
+  if (s.version >= 27 && s.version < 32) return upgradeState({ ...s, version: s.version + 1 });
   throw new Error(`cannot upgrade sim state version ${s.version}`);
 }
 

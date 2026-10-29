@@ -22,7 +22,7 @@ import { activeBody } from "../step.ts";
 import type { SimSystem, SimSystemContext } from "../system-contract.ts";
 import type { World } from "../world.ts";
 import { RUNWAY_INVESTORS } from "../../content/runwayInvestors.ts";
-import { RUNWAY_RULES, addHype, addedTicks, checkDollars, decayHype, speedFactor } from "./rules.ts";
+import { RUNWAY_RULES, addHype, addedTicks, checkDollars, decayHype, speedFactor, stopRadiusFor } from "./rules.ts";
 import { networkAt, pickPoint, type RunwayPoint } from "./targets.ts";
 
 /** A recorded command: `playerId` starts a run (or a fresh one after a finished run). No payload. */
@@ -175,7 +175,7 @@ function stepRun(world: World, state: Readonly<SimState>, id: PlayerId, before: 
   // Stop beside the target: close, slow, and held for half a second, at the wheel.
   const body = activeBody(p);
   if (run.runwayTicks > 0 && run.target && isDriving(p)) {
-    const inside = dist(body, run.target) <= RUNWAY_RULES.stopRadiusM && Math.abs(body.speed) < RUNWAY_RULES.stopSpeedMps;
+    const inside = dist(body, run.target) <= stopRadiusFor(state.version) && Math.abs(body.speed) < RUNWAY_RULES.stopSpeedMps;
     run.hold = inside ? run.hold + 1 : 0;
     if (run.hold >= RUNWAY_RULES.stopHoldTicks) {
       if (!run.carrying) {

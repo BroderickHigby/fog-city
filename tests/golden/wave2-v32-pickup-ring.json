@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v32: Runway Run 2.3 m pickup ring on top of v27 (consolidated mission activities and collapsed-robot projectile silhouettes); core movement is unchanged, only the version stamp moves; all earlier fixture bytes are preserved",
+  "simVersion": 32,
+  "hashes": [
+    "617f3f5f",
+    "7187f5a2",
+    "9b0b9240",
+    "04af7120",
+    "f19b8123"
+  ]
+}

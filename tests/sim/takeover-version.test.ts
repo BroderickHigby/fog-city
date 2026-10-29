@@ -19,7 +19,7 @@ describe("actual v15 save through the current migration chain", () => {
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     expect(old.ext.missions?.players.p1?.status).toBe("active");
     const current = upgradeState(old);
-    expect(SIM_VERSION).toBe(27);
+    expect(SIM_VERSION).toBe(32);
     expect(current).toEqual({ ...old, version: SIM_VERSION });
     expect(current.players).toBe(old.players);
     expect(current.ext).toBe(old.ext);

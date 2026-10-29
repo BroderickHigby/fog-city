@@ -100,7 +100,11 @@
 // v27: measured side activities (Coit Recon, taxi fares, timed runs), collapsed robot projectile
 // silhouettes, physical 5 m junction hulls and robot weather scaling. Optional activity state
 // starts only when a run is booked; v26-and-earlier replays keep the old rules.
-export const SIM_VERSION = 27;
+// v28 to v31 are reserved for parallel branches (robots, helicopter, drift, shore buildings).
+// v32 (owner, 2026-10-28): Runway Run's pickup and drop radius is 2.3 m, the "about 15 ft wide"
+// ring drawn around the waiting investor (runway-run/rules.ts PICKUP_RING_VERSION); v31-and-
+// earlier replays keep 8 m. No field changes: every upgrade from v27 on only restamps.
+export const SIM_VERSION = 32;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

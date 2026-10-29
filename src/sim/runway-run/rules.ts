@@ -13,8 +13,14 @@ export const RUNWAY_RULES = Object.freeze({
   /** The demo is this far from the pickup, metres (straight line). */
   dropMinM: 300,
   dropMaxM: 1200,
-  /** Pickup and drop: the car inside this radius, slower than this, for this many ticks. */
-  stopRadiusM: 8,
+  /**
+   * Pickup and drop: the car inside this radius, slower than this, for this many ticks. From
+   * SIM_VERSION 32 (PICKUP_RING_VERSION) the radius is 2.3 m: the owner's "about 15 ft wide"
+   * ring around the waiting investor (render/pickup-markers.ts draws exactly this circle).
+   * Earlier replays keep `legacyStopRadiusM`.
+   */
+  stopRadiusM: 2.3,
+  legacyStopRadiusM: 8,
   stopSpeedMps: 2,
   stopHoldTicks: TICK_HZ / 2,
   /** A check is this many dollars per `dollarsPerM` metres of pickup-to-demo distance. */
@@ -49,6 +55,14 @@ export const RUNWAY_RULES = Object.freeze({
   /** Checks are rounded to this many dollars. */
   roundTo: 1000,
 });
+
+/** The first SIM_VERSION whose pickup and drop radius is `stopRadiusM` (2.3 m, a 4.6 m ring). */
+export const PICKUP_RING_VERSION = 32;
+
+/** The pickup and drop radius, metres, for a state of this SIM_VERSION. */
+export function stopRadiusFor(version: number): number {
+  return version >= PICKUP_RING_VERSION ? RUNWAY_RULES.stopRadiusM : RUNWAY_RULES.legacyStopRadiusM;
+}
 
 /** The stage ladder, best first: total raised (dollars) at or above `min` earns `title`. */
 export const STAGES: readonly { readonly min: number; readonly title: string }[] = Object.freeze([

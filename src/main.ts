@@ -84,6 +84,7 @@ import { TIDE_PROMENADE, WEATHER, promenadeAt, weatherView } from "./sim/fog/ind
 import { RIDE_DESTINATION_EVENT, boardableTaxi, takeoverTaxi } from "./sim/ride.ts";
 import { runwayOf } from "./sim/runway-run/index.ts";
 import { bindRunwaySender, clearRunwayRun, quitRunwayRun, startRunwayRun } from "./ui/runway.ts";
+import { pickupMarkers, playerCar } from "./presentation/pickup-markers.ts";
 import { canEnterCar } from "./sim/foot.ts";
 import { MISSIONS } from "./content/catalog.ts";
 import type { CarPose, WalkerPose } from "./render/actors.ts";
@@ -627,6 +628,17 @@ async function boot(): Promise<void> {
       state: () => { const run = runwayOf(curr)?.runs[LOCAL_PLAYER]; return run ? JSON.parse(JSON.stringify(run)) as NonNullable<typeof run> : null; },
     },
     setAgentBags: (full) => view.agents.setBags(full),
+    teleportCar: (x, z, heading) => {
+      // QA only (?debug=1): put the player's car (or the taxi shift's) at rest at (x, z), facing heading.
+      const move = (state: SimState): SimState => {
+        const p = state.players[LOCAL_PLAYER];
+        if (!p) return state;
+        const y = groundHeight(world, x, z);
+        return { ...state, players: { ...state.players, [LOCAL_PLAYER]: { ...p, car: { ...p.car, x, y, z, heading, speed: 0, lateral: 0, yawRate: 0, vy: 0 } } } };
+      };
+      if (taxiSession) { taxiSession = { ...taxiSession, instance: move(taxiSession.instance) }; taxiPrev = taxiSession.instance; }
+      else { curr = move(curr); prev = curr; }
+    },
   });
   // Playable: what the boot held back loads now, behind the first frames.
   bootFiles.ready();
@@ -821,6 +833,8 @@ async function boot(): Promise<void> {
     local.id = me_;
     coitViewer.update(shown,me_,world);
     view.setObservationPose(match||taxiSession?null:coitViewer.camera());
+    // Runway Run investors and taxi fares waiting in their pickup rings (render-only).
+    view.setPickups(match ? [] : pickupMarkers(shown, me_, world.roads, taxiSession, ground), playerCar(shown, me_), dtFrame);
     view.frame(dtFrame, shown.players[me_] ? local : null, flying ? fly : NO_FLY_INPUT, minute, frameS, simSeconds, simCatchingUp);
     impactLayer.update(shownPrev,shown,alpha,dtFrame,target.x,target.z);
     if (!guard.contextLost) view.render();

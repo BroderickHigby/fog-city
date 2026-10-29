@@ -107,8 +107,8 @@ describe("v22 stealing a civilian car", () => {
 
   it("upgrades a v21 save by restamping only", () => {
     const old = { ...besideCivilian(), version: 21 };
-    expect(SIM_VERSION).toBe(27);
-    expect(upgradeState(old)).toEqual({ ...old, version: 27 });
+    expect(SIM_VERSION).toBe(32);
+    expect(upgradeState(old)).toEqual({ ...old, version: 32 });
   });
 
   it("a driver sprays from a stolen car as far as from their own car (the car they drive is not a wall)", () => {

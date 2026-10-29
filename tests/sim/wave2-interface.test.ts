@@ -4,7 +4,8 @@ import {
   sanitizeInput, step, upgradeState, type InputFrame, type SimState, type SimSystem,
 } from "../../src/sim/index.ts";
 import baseline from "../golden/wave1-v2.json";
-import currentReplay from "../golden/wave2-v27-consolidated.json";
+import currentReplay from "../golden/wave2-v32-pickup-ring.json";
+import previous27 from "../golden/wave2-v27-consolidated.json";
 import previous19 from "../golden/wave2-v19-reference-driving.json";
 import previous18 from "../golden/wave2-v18-solid-vehicles.json";
 import previousReplay from "../golden/wave2-v16-robotaxi-takeover.json";
@@ -90,7 +91,7 @@ describe("wave-2 shared interface", () => {
       // people dodge (on their feet), which this replay's traffic does. The v7 and v11 fixtures
       // stay as the record. The combined v15 release adds civilian traffic and faster walking;
       // its separate pin normalizes only the version header. The consolidated v27 pin keeps
-      // the same input log; v19 handling and every earlier recorded fixture remain separate.
+      // the same input log (v32's pickup ring moves only the version stamp); v19 handling and every earlier recorded fixture remain separate.
       expect(hashState(state)).toBe(currentReplay.hashes[i]);
       // The old v11 prefix-equality assertion predates v14 dodge velocity/profile fields and
       // combined vehicle dynamics. Historical v11 data stays unchanged; this release pins its own payload.
@@ -99,7 +100,7 @@ describe("wave-2 shared interface", () => {
     expect(state.tick).toBe(300);
   });
 
-  for (const pin of [previousReplay, previous18, previous19]) it(`preserves the recorded v${pin.simVersion} core replay without upgrading its physics`, () => {
+  for (const pin of [previousReplay, previous18, previous19, previous27]) it(`preserves the recorded v${pin.simVersion} core replay without upgrading its physics`, () => {
     const { world } = loadDevWorldWithRoads();
     let state = { ...upgradeState(deepFreeze(baseline.initial) as unknown as SimState), version: pin.simVersion };
     for (let i = 0; i < baseline.segments.length; i++) {

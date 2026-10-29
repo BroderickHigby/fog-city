@@ -25,7 +25,7 @@ describe("actual v17 save through the solid-vehicle migration", () => {
     expect(old.ext.agents!.list.length).toBeGreaterThan(0);
     expect(old.ext.missions?.players.p1?.status).toBe("active");
     const upgraded = upgradeState(old);
-    expect(SIM_VERSION).toBe(27);
+    expect(SIM_VERSION).toBe(32);
     expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.players).toBe(old.players);
     expect(upgraded.ext).toBe(old.ext);

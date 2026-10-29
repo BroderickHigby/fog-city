@@ -9,7 +9,7 @@ import {
 } from "../../src/sim/index.ts";
 import {
   RUNWAY_CLEAR_EVENT, RUNWAY_QUIT_EVENT, RUNWAY_RULES, RUNWAY_START_EVENT, STAGES, addHype, addedTicks, checkDollars, createRunwaySystem,
-  decayHype, networkAt, parTicks, pickPoint, runwayOf, speedFactor, stageFor, type RunwayRun,
+  decayHype, networkAt, parTicks, pickPoint, PICKUP_RING_VERSION, runwayOf, speedFactor, stageFor, stopRadiusFor, type RunwayRun,
 } from "../../src/sim/runway-run/index.ts";
 import { RUNWAY_INVESTORS } from "../../src/content/runwayInvestors.ts";
 import { lintText } from "../../src/content/lint.ts";
@@ -61,7 +61,7 @@ describe("Runway Run is inert unless a run was started", () => {
     for (let i = 0; i < 100; i++) s = step(world, s, IDLE, [], systems);
     expect("runway" in s.ext).toBe(false);
     expect(s.version).toBe(SIM_VERSION);
-    expect(SIM_VERSION).toBe(27);
+    expect(SIM_VERSION).toBe(32);
   });
   it("ignores a start from a player who is not at the wheel", () => {
     const s = fresh();
@@ -111,7 +111,7 @@ describe("starting a run", () => {
 });
 
 describe("pickup: close, slow, and still for half a second", () => {
-  it("takes the investor after 30 ticks inside 8 m under 2 m/s", () => {
+  it("takes the investor after 30 ticks inside 2.3 m under 2 m/s", () => {
     const s = begin();
     expect(run(stopAt(s, PICK - 1)).carrying).toBe(false);
     const got = stopAt(s, PICK);
@@ -126,12 +126,23 @@ describe("pickup: close, slow, and still for half a second", () => {
     for (let i = 0; i < PICK + 5; i++) x = put(tick(x), { x: t.x, z: t.z, speed: 2.5 });
     expect(run(x).carrying).toBe(false);
   });
-  it("needs to be within 8 m", () => {
+  it("needs to be within 2.3 m: the 15 ft ring drawn around the investor (SIM_VERSION 32)", () => {
     const s = begin(), t = run(s).target!;
-    const out = tick(put(s, { x: t.x + 9, z: t.z, speed: 0 }), PICK + 5);
+    expect(s.version).toBeGreaterThanOrEqual(PICKUP_RING_VERSION);
+    expect(stopRadiusFor(s.version)).toBe(2.3);
+    const out = tick(put(s, { x: t.x + 2.6, z: t.z, speed: 0 }), PICK + 5);
     expect(run(out).carrying).toBe(false);
-    const inn = tick(put(s, { x: t.x + 7.5, z: t.z, speed: 0 }), PICK);
+    expect(run(out).hold).toBe(0);
+    const inn = tick(put(s, { x: t.x + 2.2, z: t.z, speed: 0 }), PICK);
     expect(run(inn).carrying).toBe(true);
+  });
+  it("keeps the 8 m radius for a v31-and-earlier replay", () => {
+    for (const version of [27, PICKUP_RING_VERSION - 1]) {
+      const s = { ...begin(), version }, t = run(s).target!;
+      expect(stopRadiusFor(version)).toBe(8);
+      expect(run(tick(put(s, { x: t.x + 7.5, z: t.z, speed: 0 }), PICK)).carrying).toBe(true);
+      expect(run(tick(put(s, { x: t.x + 9, z: t.z, speed: 0 }), PICK + 5)).carrying).toBe(false);
+    }
   });
   it("starts counting again after moving off", () => {
     const s = begin(), t = run(s).target!;

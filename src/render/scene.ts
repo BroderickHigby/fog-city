@@ -44,6 +44,8 @@ import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLigh
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
+import { PickupMarkerLayer, type PickupLayerInfo } from "./pickup-markers.ts";
+import type { PickupMarker } from "../presentation/pickup-markers.ts";
 import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
 import { loadSurfaceTextures, type SurfaceTextures } from "./surface-textures.ts";
 import { trackGpuMemory, type GpuMemory } from "./gpu-memory.ts";
@@ -135,6 +137,8 @@ export interface RenderInfo {
   carLightsLit: number;
   /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
   crowdDrawn: number;
+  /** Pickup and drop rings on screen, the people waiting in them and their ring radii (pickup-markers.ts). */
+  pickups?: PickupLayerInfo;
   crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
@@ -231,6 +235,8 @@ export class SceneRenderer {
   private carLights: CarLightPool | null = null;
   private readonly carPoses = new Float32Array(512 * VEHICLE_STRIDE);
   private crowd: CrowdHumans | null = null;
+  /** Runway Run investors and taxi fares waiting inside their pickup rings (pickup-markers.ts). */
+  private readonly pickups: PickupMarkerLayer;
   private readonly staticScene: StaticScene;
   private readonly surfaceTextures: SurfaceTextures;
   private frameDelta = 1 / 60;
@@ -458,6 +464,9 @@ export class SceneRenderer {
       this.agents.setCrowd(this.crowd);
       this.scene.add(this.crowd.group);
     }
+    this.pickups = new PickupMarkerLayer(crowdFiles.length > 0 ? modelBytes : null, this.shadows,
+      (x, y, z) => this.avatarGround.heightAt(x, y, z), available ? new Set(crowdFiles) : null);
+    this.scene.add(this.pickups.group);
     this.landmarkFallbacks=new LandmarkFallbacks(landmarkReplacements,ids=>this.streamer.hideBuildings(ids));
     this.prepareShadows(this.landmarkFallbacks.group);
     this.scene.add(this.landmarkFallbacks.group);
@@ -850,6 +859,16 @@ export class SceneRenderer {
     this.actors.setFoot(id, pose ? { ...pose, y: this.avatarGround.heightAt(pose.x, pose.y, pose.z) } : null);
   }
 
+  /**
+   * This frame's pickups and drops (presentation/pickup-markers.ts) and the player's car (null on
+   * foot). Render-only; the taxi passenger these draw is hidden from the crowd.
+   */
+  setPickups(rows: readonly PickupMarker[], car: { x: number; y: number; z: number; heading: number } | null, dt: number): void {
+    const cam = this.camera.position;
+    this.pickups.update(rows, car, { x: cam.x, z: cam.z }, dt);
+    this.agents.setHiddenPeople(this.pickups.hiddenAgents());
+  }
+
   /** The two latest sim states and how far (0..1) the frame is between them: agents are drawn from these. */
   setSim(prev: SimState, curr: SimState, alpha: number): void {
     if (!this.sim) this.sim = { prev, curr, alpha };
@@ -991,6 +1010,7 @@ export class SceneRenderer {
     out.carLightsLit = this.carLights?.lit ?? 0;
     out.crowdDrawn = this.crowd?.drawn ?? 0;
     out.crowdLoaded = this.crowd?.loaded ?? 0;
+    out.pickups = this.pickups.info();
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
     out.night = this.nightOn;
@@ -1061,6 +1081,7 @@ export class SceneRenderer {
       this.actors.dispose();
       this.agents.dispose();
       this.crowd?.dispose();
+      this.pickups.dispose();
       this.sky.dispose();
       this.water.dispose();
       this.landmarkWater?.geometry.dispose();

@@ -622,6 +622,11 @@ export class AgentLayer {
   /** Hide only the occupied taxi while looking from its driver's seat. */
   setHiddenAgent(id: number | null): void { this.hiddenAgent = id; }
 
+  private hiddenPeople: ReadonlySet<number> = new Set();
+
+  /** People drawn by another layer (a waiting taxi fare, pickup-markers.ts): the crowd skips them. */
+  setHiddenPeople(ids: ReadonlySet<number>): void { this.hiddenPeople = ids; }
+
   /**
    * Render-only: errand robots' bags full (true), empty (false), or as each agent says (null,
    * the default; the sim carries no bag tell yet, so full).
@@ -744,7 +749,7 @@ export class AgentLayer {
       const tier = this.tiers[i]!;
       if (tier === TIER_HIDDEN) continue;
       const [a, b] = pairs[i]!;
-      if (b.id === this.hiddenAgent) continue;
+      if (b.id === this.hiddenAgent || (b.kind === "person" && this.hiddenPeople.has(b.id))) continue;
       const pose = this.poses[i]!;
       if (b.kind === "robotaxi") this.lean(b, pose, tier, dt);
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
@@ -920,6 +925,7 @@ export class AgentLayer {
       for (let i = 0; i < this.pairs.length; i++) {
         const actor = this.pairs[i]![1], tier = this.tiers[i]!;
         if (tier === TIER_HIDDEN || actor.id === this.hiddenAgent) continue;
+        if (actor.kind === "person" && this.hiddenPeople.has(actor.id)) continue;
         if (actor.kind === "person") {
           if (tier === TIER_NEAR) {
             const loaded = this.crowd?.costFor(actor.id);

@@ -156,6 +156,8 @@ export interface DebugHandle {
    * the default: full, since the sim carries no bag tell yet).
    */
   setAgentBags(full: boolean | null): void;
+  /** QA only: put the player's car (or the taxi shift's car) at rest at (x, z) facing compass `heading` (radians). Not a recorded event. */
+  teleportCar?(x: number, z: number, heading: number): void;
 }
 
 declare global {
