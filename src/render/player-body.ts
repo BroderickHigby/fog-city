@@ -6,11 +6,14 @@
 // clips.py: a startled push-off, a sprint, pulling up, brushing off once clear) and Mixamo's from
 // MIXAMO_DODGE_FILE (assets/imports/mixamo/build.ts: a stumble back for the override, a flinch on
 // a sidestep), between the jog or run matched to the body's speed (human-motion.ts).
+// With the Mixamo bank, walking, jogging and running are one phase-locked blend of the walk, jog
+// and run clips by ground speed, the planted foot kept at the ground's pace (gait.ts).
 import * as THREE from "three";
 import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { clone as cloneSkinned } from "three/addons/utils/SkeletonUtils.js";
 import type { DodgeState } from "../sim/contract.ts";
-import { MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
+import { MIXAMO_JOG_AT, MIXAMO_RUN_AT, MOTIONS, ONCE, motionFor, type Motion } from "./human-motion.ts";
+import { GAIT_CLIPS, GAIT_PHASE_WRAP, GAIT_SPEED_RATE, gaitClipTime, gaitFrequency, gaitWeights, kneeLimitStrength, softenKnees, type GaitClip, type GaitWeights, type Knee } from "./gait.ts";
 import { HumanFeet, type HumanSupportHeight } from "./human-feet.ts";
 import { disposeRenderObjects } from "./gpu-instance-ownership.ts";
 import { compactCrowdAvatar } from "./crowd-avatar-compact.ts";
@@ -24,9 +27,8 @@ export { motionFor };
 const FADE_S = 0.25;
 const DODGE_FADE_S = 0.12;
 const JOG_FADE_S = 0.1;
-/** The Mixamo locomotion's own speeds (mixamo-motion.json: jog, and run as the Shift sprint), m/s. */
-const MIXAMO_JOG_MPS = 3;
-const MIXAMO_RUN_MPS = 7;
+/** The knee softening follows its target at this rate, 1/s (no snap entering or leaving the gait). */
+const KNEE_RATE = 10;
 /** Drawn yaw closes on the sim heading at this rate (1/s); a turn over TURN_SNAP_RAD snaps. */
 export const TURN_RATE = 14;
 export const TURN_SNAP_RAD = 2.6;
@@ -107,12 +109,35 @@ export function bodyRenderCost(root: THREE.Object3D): BodyRenderCost {
   return cost;
 }
 
+/** The blended walk/jog/run of a body with the Mixamo bank (gait.ts). */
+interface Gait {
+  /** Strides since a left mid-stance, wrapped at GAIT_PHASE_WRAP. */
+  phase: number;
+  /** Strides per second, kept while the blend fades out. */
+  frequency: number;
+  /** The eased ground speed the blend follows, m/s. */
+  speed: number;
+  /** The eased knee-softening strength, 0..1. */
+  knee: number;
+  weights: GaitWeights;
+  knees: Knee[];
+  durations: Record<GaitClip, number>;
+  /** QA readout (root.userData.gait): clip weights, cadence in steps per minute, knee strength. */
+  info: { walk: number; jog: number; run: number; spm: number; knee: number };
+}
+
+function isGait(m: Motion): m is GaitClip {
+  return m === "walk" || m === "jog" || m === "run";
+}
+
 interface Body {
   root: THREE.Object3D;
   mixer: THREE.AnimationMixer;
   feet: HumanFeet;
   actions: Record<Motion, THREE.AnimationAction | null>;
   current: Motion;
+  /** Null without the Mixamo bank: the clips then switch one at a time. */
+  gait: Gait | null;
   materials: THREE.Material[];
   skeletons: Set<THREE.Skeleton>;
   seen: boolean;
@@ -270,7 +295,19 @@ export class PlayerBodies {
     };
     const actions = {} as Record<Motion, THREE.AnimationAction | null>;
     for (const m of MOTIONS) actions[m] = action(m);
-    const body: Body = { root, mixer, feet: new HumanFeet(root, content), actions, current: "idle", materials, skeletons, seen: false, yaw: Number.NaN };
+    let gait: Gait | null = null;
+    if (GAIT_CLIPS.every(clip => actions[clip])) {
+      const knees: Knee[] = [];
+      for (const side of ["L", "R"]) {
+        const bone = content.getObjectByName(`Bip01_${side}_Calf`);
+        if (bone) knees.push({ bone, rest: bone.quaternion.clone() });
+      }
+      const durations = { walk: 0, jog: 0, run: 0 };
+      for (const clip of GAIT_CLIPS) durations[clip] = actions[clip]!.getClip().duration;
+      gait = { phase: 0, frequency: 0, speed: 0, knee: 0, weights: { walk: 1, jog: 0, run: 0 }, knees, durations, info: { walk: 1, jog: 0, run: 0, spm: 0, knee: 0 } };
+      root.userData.gait = gait.info;
+    }
+    const body: Body = { root, mixer, feet: new HumanFeet(root, content), actions, current: "idle", gait, materials, skeletons, seen: false, yaw: Number.NaN };
     body.actions.idle?.play();
     this.group.add(root);
     this.bodies.set(id, body);
@@ -297,26 +334,68 @@ export class PlayerBodies {
     const velocity = Math.abs(speed);
     const wanted = motionFor(velocity, dodge, m => body.actions[m] !== null);
     body.root.userData.motion = wanted;
-    if (wanted !== body.current) {
-      const from = body.actions[body.current];
-      const to = body.actions[wanted];
-      if (to) {
-        to.reset().play();
+    const gait = body.gait;
+    const inGait = gait !== null && isGait(wanted);
+    const wasGait = gait !== null && isGait(body.current);
+    if (wanted !== body.current && !(inGait && wasGait)) {
+      const actionsOf = (m: Motion): THREE.AnimationAction[] => gait && isGait(m) ? GAIT_CLIPS.map(clip => body.actions[clip]!) : body.actions[m] ? [body.actions[m]!] : [];
+      const to = actionsOf(wanted);
+      if (to.length) {
+        const from = actionsOf(body.current);
         // Enter the imported jog promptly (a longer blend from idle folds the shoes into the
         // ground); a dodge's clips change faster than a walk's.
-        if (from) to.crossFadeFrom(from, wanted === "jog" ? JOG_FADE_S : dodge || ONCE.has(body.current) ? DODGE_FADE_S : FADE_S, false);
+        const fade = wanted === "jog" ? JOG_FADE_S : dodge || ONCE.has(body.current) ? DODGE_FADE_S : FADE_S;
+        for (const action of to) {
+          action.reset().play();
+          if (from.length) action.fadeIn(fade);
+        }
+        for (const action of from) action.fadeOut(fade);
+        if (gait && inGait) gait.speed = Math.max(velocity, wanted === "jog" ? MIXAMO_JOG_AT : wanted === "run" ? MIXAMO_RUN_AT : 0);
         body.current = wanted;
       }
+    } else if (inGait) body.current = wanted;
+    if (gait) this.stepGait(body, gait, velocity, wanted, dt);
+    else {
+      const action = body.actions[body.current];
+      // Locomotion plays at the body's speed over the clip's own (no foot sliding).
+      if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed))
+        : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / this.runSpeed))
+        : body.current === "sprint" ? Math.max(0.7, Math.min(1.5, velocity / this.sprintSpeed)) : 1;
     }
-    const action = body.actions[body.current];
-    // Locomotion plays at the body's speed over the clip's own (no foot sliding).
-    if (action) action.timeScale = body.current === "walk" ? Math.max(0.6, Math.min(2, velocity / this.walkSpeed))
-      : body.current === "jog" ? Math.max(0.7, Math.min(2, velocity / MIXAMO_JOG_MPS))
-      : body.current === "run" ? Math.max(0.7, Math.min(2, velocity / (body.actions.jog ? MIXAMO_RUN_MPS : this.runSpeed)))
-      : body.current === "sprint" ? Math.max(0.7, Math.min(1.5, velocity / this.sprintSpeed)) : 1;
     body.mixer.update(Math.max(0, dt));
+    if (gait) softenKnees(gait.knees, gait.knee);
     body.feet.update(Boolean(body.actions.jog) && (wanted === "jog" || wanted === "run"), this.supportHeight);
     this.drawnCount++;
+  }
+
+  /**
+   * The walk/jog/run blend for this frame: clip weights by the eased ground speed, one shared
+   * stride phase advanced at the ground speed over the blended stride, each clip's time set from
+   * it. A dodge's run at a walking pace (motionFor's jog or run) blends as that pace. While the
+   * blend fades out (into idle or a dodge clip) the stride carries on at its last rate.
+   */
+  private stepGait(body: Body, gait: Gait, velocity: number, wanted: Motion, dt: number): void {
+    const step = Math.max(0, dt);
+    const inGait = isGait(body.current);
+    if (inGait) {
+      const target = Math.max(velocity, wanted === "jog" ? MIXAMO_JOG_AT : wanted === "run" ? MIXAMO_RUN_AT : 0);
+      gait.speed += (target - gait.speed) * (1 - Math.exp(-GAIT_SPEED_RATE * step));
+      gaitWeights(gait.speed, gait.weights);
+      gait.frequency = gaitFrequency(velocity, gait.weights, gait.durations);
+    }
+    const kneeTarget = inGait ? kneeLimitStrength(gait.speed) : 0;
+    gait.knee += (kneeTarget - gait.knee) * (1 - Math.exp(-KNEE_RATE * step));
+    if (gait.knee < 1e-3 && kneeTarget === 0) gait.knee = 0;
+    gait.phase = (gait.phase + gait.frequency * step) % GAIT_PHASE_WRAP;
+    for (const clip of GAIT_CLIPS) {
+      const action = body.actions[clip]!;
+      action.weight = gait.weights[clip];
+      action.timeScale = 0;
+      action.time = gaitClipTime(clip, gait.phase, gait.durations[clip]);
+    }
+    const info = gait.info;
+    info.walk = gait.weights.walk; info.jog = gait.weights.jog; info.run = gait.weights.run;
+    info.spm = gait.frequency * 120; info.knee = gait.knee;
   }
 
   end(): void {

@@ -21,6 +21,8 @@ export const MOTIONS: readonly Motion[] = ["idle", "walk", "jog", "run", "sprint
 export const ONCE: ReadonlySet<Motion> = new Set(["runStart", "runStop", "stumble", "flinch"]);
 /** A dive no longer than this is a sidestep (sim/dodge.ts SIDESTEP_M): it flinches rather than runs. */
 const SIDESTEP_M = 1.4;
+/** The Mixamo locomotion's jog (the default on-foot pace) from this speed, m/s (player-body.ts). */
+export const MIXAMO_JOG_AT = 2.4;
 /** The Mixamo locomotion's run (the Shift sprint) from this speed, m/s (player-body.ts). */
 export const MIXAMO_RUN_AT = 5;
 /** The startle at the start of a dodge, seconds (person.ts STARTLE_S). */
@@ -38,7 +40,7 @@ export function motionFor(speed: number, dodge: Readonly<DodgeState> | null, hav
   // run is the same jog and run the player moves with. Otherwise the Rocketbox run and sprint.
   const mixamo = have("jog");
   const locomotion: Motion = mixamo
-    ? v >= MIXAMO_RUN_AT && have("run") ? "run" : v >= 2.4 ? "jog" : v >= 0.2 && have("walk") ? "walk" : "idle"
+    ? v >= MIXAMO_RUN_AT && have("run") ? "run" : v >= MIXAMO_JOG_AT ? "jog" : v >= 0.2 && have("walk") ? "walk" : "idle"
     : v >= 4.2 && have("sprint") ? "sprint" : v >= 2.4 && have("run") ? "run" : v >= 0.2 && have("walk") ? "walk" : "idle";
   if (!dodge) return locomotion;
   if (dodge.phase === "recover") return have("recover") ? "recover" : "idle";
