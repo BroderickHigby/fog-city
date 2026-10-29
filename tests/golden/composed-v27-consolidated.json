@@ -3,12 +3,12 @@
   "scenarios": {
     "city": {
       "hashes": [
-        "8b623234",
-        "ec74630d",
-        "86a63c7c",
-        "296b2f59",
-        "e79cfbfd",
-        "e1f5e752"
+        "09a50cb2",
+        "bbab0be9",
+        "c346924f",
+        "458efdfd",
+        "85e9b617",
+        "5c0c45e1"
       ],
       "coverage": {
         "agents:final": 13,
@@ -20,15 +20,15 @@
     },
     "service": {
       "hashes": [
-        "c2e203c4",
-        "2fb4e6ef",
-        "5ff78015",
-        "86ee4622",
-        "f7e44b67",
-        "3c0dc746",
-        "b2916781",
-        "3db12c8f",
-        "9f5aef3d"
+        "e8809613",
+        "b5bdabae",
+        "9eb9fb58",
+        "9fce1571",
+        "6a89f954",
+        "7aebc571",
+        "3d5da486",
+        "a4a96f08",
+        "53f13fe0"
       ],
       "coverage": {
         "agents:final": 6,
@@ -40,12 +40,12 @@
     },
     "mission": {
       "hashes": [
-        "b56582e9",
-        "c584861c",
-        "bc5a2176",
-        "ba73ac3b",
-        "543d9e23",
-        "9956164f"
+        "9b9a3b7e",
+        "d96b8e87",
+        "8d9e0f7c",
+        "df17a230",
+        "3988de48",
+        "0a669b5a"
       ],
       "coverage": {
         "agents:final": 2,
@@ -57,12 +57,12 @@
     },
     "city-wave3": {
       "hashes": [
-        "8fc71fe5",
-        "9fd52bd9",
-        "6e9b9b7e",
-        "fb7765bb",
-        "92aba016",
-        "e3289f3a"
+        "e19a847f",
+        "f5ea32d5",
+        "971ab199",
+        "9c48ffa4",
+        "6b0d45e1",
+        "a468b0d4"
       ],
       "coverage": {
         "agents:final": 13,
@@ -74,12 +74,12 @@
     },
     "city-wave3-rain": {
       "hashes": [
-        "a0ec1243",
-        "e5c2aa93",
-        "aca62801",
-        "cd5ffe22",
-        "56cfaf25",
-        "6e917b1f"
+        "4521d85d",
+        "98b1d775",
+        "17ebbdf0",
+        "50867d93",
+        "a904d908",
+        "49654a86"
       ],
       "coverage": {
         "agents:final": 13,
@@ -93,15 +93,15 @@
     },
     "robotaxi-drive": {
       "hashes": [
-        "9e1f366f",
-        "be3a8a25",
-        "d19cf91d",
-        "db708209",
-        "9b5de655",
-        "6e0fecf8"
+        "9e431893",
+        "68acbfd2",
+        "8a90090f",
+        "c275bf36",
+        "a3fae24a",
+        "a000dbeb"
       ],
       "coverage": {
-        "agents:final": 12,
+        "agents:final": 13,
         "identities:final": 0,
         "robotaxi:manual-ticks": 240
       }
