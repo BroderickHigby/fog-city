@@ -15,12 +15,15 @@ const spawn = { x: 150, z: 40, heading: 0 };
 
 describe("v26: no ambient Trundles", () => {
   it("the initial fill is unchanged; the first v26 step takes every Trundle off the street, a v25 step keeps them", () => {
-    expect(TRUNDLE_FREE_VERSION).toBe(SIM_VERSION);
+    expect(TRUNDLE_FREE_VERSION).toBe(26);
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(TRUNDLE_FREE_VERSION);
     const world = gridCity();
     const initial = createInitialState(world, 7, ["p1"], spawn);
     expect(count(initial, "sidewalkBot")).toBeGreaterThan(0);
     const before = canonicalJson(initial);
-    const v26 = step(world, initial, {});
+    const v26 = step(world, { ...initial, version: TRUNDLE_FREE_VERSION }, {});
+    // Later versions keep them off the street too.
+    expect(count(step(world, initial, {}), "sidewalkBot")).toBe(0);
     const v25 = step(world, { ...initial, version: TRUNDLE_FREE_VERSION - 1 }, {});
     expect(canonicalJson(initial)).toBe(before);
     expect(count(v26, "sidewalkBot")).toBe(0);
@@ -41,6 +44,7 @@ describe("v26: no ambient Trundles", () => {
       return s;
     };
     const old = run(TRUNDLE_FREE_VERSION - 1), now = run(TRUNDLE_FREE_VERSION);
+    if (SIM_VERSION > TRUNDLE_FREE_VERSION) run(SIM_VERSION); // asserts no Trundle on every tick
     expect(count(old, "sidewalkBot")).toBeGreaterThan(0);
     const robots = count(old, "errandRobot") + count(old, "sidewalkBot");
     expect(count(now, "errandRobot")).toBeGreaterThan(count(old, "errandRobot"));
@@ -81,7 +85,7 @@ describe("v26: no ambient Trundles", () => {
     const old = { ...createInitialState(gridCity(), 7, ["p1"], spawn), version: TRUNDLE_FREE_VERSION - 1 };
     const before = canonicalJson(old);
     const upgraded = upgradeState(old);
-    expect(upgraded).toEqual({ ...old, version: TRUNDLE_FREE_VERSION });
+    expect(upgraded).toEqual({ ...old, version: SIM_VERSION });
     expect(upgraded.ext).toBe(old.ext);
     expect(canonicalJson(old)).toBe(before);
   });
@@ -89,7 +93,7 @@ describe("v26: no ambient Trundles", () => {
   it("missions (and the director's incidents, which stage through the same planner) still stage named Trundles", () => {
     const world = buildWorld([]);
     const state = createInitialState(world, 1, ["p"], { x: 100, z: 100, heading: 0 });
-    expect(state.version).toBe(TRUNDLE_FREE_VERSION);
+    expect(state.version).toBe(SIM_VERSION);
     const stage: MissionStage = { missionId: "spill", stepId: "meet", actorIds: ["sniffer", "courier"],
       definitions: { sniffer: { kind: "badRobot", archetype: "harvester" }, courier: { kind: "goodRobot", archetype: "courierTrundle" } },
       place: { x: 0, y: 0, z: 0 }, radius: 20 };
