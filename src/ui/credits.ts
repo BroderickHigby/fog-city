@@ -39,7 +39,10 @@ export const CREDITS: readonly CreditGroup[] = [
   },
   {
     title: "Sound effects",
-    entries: [{ what: "Blaster, splash, rust, melt, horns and jingle", who: "Fog City (synthesised, assets/audio/generate.py)", licence: "Original work" }],
+    entries: [
+      { what: "Blaster, splash, rust, melt, horns and jingle", who: "Fog City (synthesised, assets/audio/generate.py)", licence: "Original work" },
+      { what: "Car engine (synthesised firing-pulse loops, method after Slop New York's engine voices)", who: "Fog City, after Mr.doob's Slop New York", licence: "MIT", url: "https://github.com/mrdoob/slop-newyork" },
+    ],
   },
   {
     title: "Models, icons and textures",

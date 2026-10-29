@@ -18,6 +18,11 @@ export interface EngineParams {
   engineGain: number;
   /** 0..1: how hard the engine is pulling (cut for a moment on an upshift); opens the exhaust filter. */
   throttle: number;
+  /**
+   * 0..1: how loaded the engine sounds: the pulling power plus the road and air load that holding
+   * a speed takes. It picks between the synth's on-load and off-load firing loops.
+   */
+  load: number;
   /** Road noise low-pass cutoff, Hz. */
   roarCutoff: number;
   roarGain: number;
@@ -172,8 +177,12 @@ function accelOf(speed: number, prevSpeed: number | null, dtS: number): number {
   return prevSpeed !== null && dtS > 0 ? (Math.abs(speed) - Math.abs(prevSpeed)) / dtS : 0;
 }
 
-/** The engine and road layers at a speed, with the gearbox's gear and power and `cabin` scaling the level. */
-function layers(speed: number, box: Gearbox, grounded: boolean, cabin: number): Omit<EngineParams, "squealGain"> {
+/**
+ * The engine and road layers at a speed, with the gearbox's gear and power and `cabin` scaling the
+ * level. `accel` (m/s²) tells holding a speed (the engine works against the road and the air)
+ * from coasting (the wheels turn the engine, which then sounds unloaded).
+ */
+function layers(speed: number, box: Gearbox, grounded: boolean, cabin: number, accel: number): Omit<EngineParams, "squealGain"> {
   const s = clamp01(speed / MAX_SPEED_MPS);
   const throttle = enginePower(box);
   const rpm = gearboxRpm(box, speed);
@@ -183,6 +192,7 @@ function layers(speed: number, box: Gearbox, grounded: boolean, cabin: number): 
     firingHz: (rpm / 60) * 2,
     engineGain,
     throttle,
+    load: clamp01(0.85 * throttle + 0.3 * Math.pow(s, 1.5) * clamp01(1 + (Number.isFinite(accel) ? accel : 0) / 0.6)),
     roarCutoff: 220 + 30 * speed,
     roarGain: grounded ? 0.08 * Math.pow(s, 1.3) * cabin : 0,
   };
@@ -200,7 +210,7 @@ export function engineParams(car: CarState, prev: CarState | null, dtS: number, 
   const gripLoss = clamp01((0.85 - car.grip) / 0.6);
   const braking = speed > 7 && accel < -7 ? clamp01((-accel - 7) / 6) : 0;
   const squealGain = car.grounded && speed > 3 ? 0.25 * Math.max(slip, gripLoss, braking) : 0;
-  return { ...layers(speed, gears ?? settleGearbox(speed, throttleOfAccel(accel)), car.grounded, 1), squealGain };
+  return { ...layers(speed, gears ?? settleGearbox(speed, throttleOfAccel(accel)), car.grounded, 1, accel), squealGain };
 }
 
 /** Riding in the back of a robotaxi: its engine and road, softer from the rear seat; it never squeals. */
@@ -208,7 +218,8 @@ export const RIDE_CABIN = 0.6;
 
 export function rideEngineParams(speed: number, prevSpeed: number | null, dtS: number, gears?: Gearbox): EngineParams {
   const v = Math.abs(speed);
-  return { ...layers(v, gears ?? settleGearbox(v, throttleOfAccel(accelOf(speed, prevSpeed, dtS))), true, RIDE_CABIN), squealGain: 0 };
+  const accel = accelOf(speed, prevSpeed, dtS);
+  return { ...layers(v, gears ?? settleGearbox(v, throttleOfAccel(accel)), true, RIDE_CABIN, accel), squealGain: 0 };
 }
 
 /** What the engine shows now, for the debug panel and tests. */

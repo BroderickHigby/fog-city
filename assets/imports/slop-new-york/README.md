@@ -33,3 +33,11 @@ The owner's follow-up retains **San Francisco, the existing characters, missions
 - `nyc-map.js`: reuse its static-geography/dynamic-overlay approach, road/footprint hierarchy, north-up radar, scale and legible route; build every layer from our existing SF data.
 
 Our crowd retains its authored Rocketbox models, textures, skeletons and clips. A one-draw atlas prototype plus independent human detail admission fixes the model reversion; no reference pedestrian models replace our characters. Whole-game replacement, New York data and the moving development CDN are outside this targeted adoption. The benchmark records the reference's actual development engine version separately rather than treating unmatched city workloads as a speed comparison.
+
+## Engine audio method, October 28, 2026
+
+Source: [mrdoob/slop-newyork at 819a0ad](https://github.com/mrdoob/slop-newyork/tree/819a0ad), `js/audio-synthesis.js` (`combustionBuffers`, `createMotorVoice`), read with `js/audio-sources.js` and `js/audio-system.js`. Its MIT notice is the same as above.
+
+Slop New York plays no recorded engine audio. It renders combustion loops in code: twenty four-stroke cycles of per-cylinder exhaust pulses (each cylinder a little stronger or later, each pulse jittered), with the exhaust's resonance kept in seconds, at two fixed rpms. It plays the two loops with proportional playback rates so their firings stay in step, and crossfades them at equal power by rpm, with a gearbox, a load low-pass and a mechanical layer on top.
+
+`src/audio/vehicle-synth.ts` adapts that method and writes its own code for it: six rpm banks instead of two, an on-load and an off-load take of each, crossfaded by the load, a firing order, intake and valve layers, live saturation and exhaust resonances, and lift-off crackle. No audio file is imported. The gearbox stays Fog City's own (`src/audio/vehicle-sound.ts`).
