@@ -56,6 +56,11 @@ describe("credits", () => {
     const slop = find(/Mr\.doob/);
     expect(slop.licence).toBe("MIT");
     expect(read("assets/imports/slop-new-york/LICENSE.md")).toMatch(/MIT/);
+    // The engine's method comes from Slop New York's audio code; no audio file is imported.
+    const engine = all.find((x) => /Car engine/.test(x.what));
+    expect(engine?.licence).toBe("MIT");
+    expect(engine?.who).toContain("Mr.doob");
+    expect(read("assets/imports/slop-new-york/README.md")).toMatch(/Engine audio method[\s\S]*js\/audio-synthesis\.js[\s\S]*No audio file/);
     // Every shipped surface scan, with its author and source page.
     const scans = readJson<{ textures: Record<string, { source: string; author: string; licence: string }> }>("public/textures/surfaces/sources.json").textures;
     for (const [name, s] of Object.entries(scans)) {
