@@ -60,7 +60,8 @@ function soak(world: World, leg: Leg): void {
     for (const a of agentsOf(s)) {
       if (a.kind !== "robotaxi" || Math.hypot(a.x - at.x, a.z - at.z) > 80) { still.delete(a.id); continue; }
       if (streetEdges.has(a.edge)) metres += Math.abs(a.speed) / 60;
-      const n = a.speed < 0.05 ? (still.get(a.id) ?? 0) + 1 : 0;
+      // Road velocity is signed in SIM27; reversing is physical movement.
+      const n = Math.abs(a.speed) < 0.05 ? (still.get(a.id) ?? 0) + 1 : 0;
       still.set(a.id, n);
       if (n > worst) { worst = n; who = `${a.id} at ${a.x.toFixed(1)},${a.z.toFixed(1)} on ${a.edge}`; }
     }

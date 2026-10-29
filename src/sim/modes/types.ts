@@ -31,6 +31,8 @@ export interface MatchInput {reviveTarget?:string;
   /** Clean Streets: the rival this player's flower lob hits this tick (aim, range and sight already checked). */
   flowerTarget?:string}
 export interface MatchContext {
+  /** Omitted standalone drivers retain historical rules; actual host provides its version. */
+  simVersion?:number;
   /** Global sim tick; omitted for standalone, one-tick drivers. */
   tick?:number;
   positions:Readonly<Record<string,MatchPosition>>;

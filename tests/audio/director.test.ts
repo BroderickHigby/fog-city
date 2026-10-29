@@ -19,6 +19,9 @@ vi.mock("../../src/ui/subtitles.ts", () => ({
 vi.mock("../../src/ui/radio-toast.ts", () => ({
   mountRadioToast: () => ({ show() {}, update() {}, dispose() {} }),
 }));
+vi.mock("../../src/ui/opening.ts",()=>({
+  mountOpeningControls:()=>({update(){},dispose(){}}),
+}));
 
 afterEach(() => vi.restoreAllMocks());
 

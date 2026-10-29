@@ -5,7 +5,7 @@ import { createInitialState, upgradeState } from "../../src/sim/step.ts";
 import { AGENT_SPEC, STOPLINE_M, stepAgents, type AgentState } from "../../src/sim/agents.ts";
 import { lanePath, pathPoint, type RoadsFile } from "../../src/sim/roads.ts";
 import { makeFoot } from "../../src/sim/foot.ts";
-import type { SimState } from "../../src/sim/contract.ts";
+import { SIM_VERSION, type SimState } from "../../src/sim/contract.ts";
 
 function junction(angles = [0, 90, 180, 270]): World {
   const nodes = [{ id: "J", x: 0, z: 0 }, ...angles.map((a, i) => ({ id: `n${i}`, x: Math.sin(a * Math.PI / 180) * 150, z: -Math.cos(a * Math.PI / 180) * 150 }))];
@@ -122,7 +122,7 @@ describe("v20 vehicles obey their approach signal", () => {
   it("upgrades a v19 save by restamping without changing its cars or saved extensions", () => {
     const world = junction(), previous = state(world, [car(world)], 77, 19), saved = JSON.stringify(previous);
     const upgraded = upgradeState(previous);
-    expect(upgraded).toEqual({ ...previous, version: 26 });
+    expect(upgraded).toEqual({ ...previous, version: SIM_VERSION });
     expect(upgraded.ext).toBe(previous.ext); expect(upgraded.players).toBe(previous.players);
     expect(JSON.stringify(previous)).toBe(saved); expect(upgradeState(upgraded)).toBe(upgraded);
   });
@@ -275,6 +275,6 @@ describe("v21 amber dilemma zone", () => {
     for (let i = 0; i < 6; i++) current = advance(world, current);
     const a = current.ext.agents!.list[0]!;
     expect(a.conn).toBeNull(); expect(a.edge).toBe("e0"); expect(a.speed).toBe(0);
-    expect(upgradeState(current).version).toBe(26);
+    expect(upgradeState(current).version).toBe(SIM_VERSION);
   });
 });

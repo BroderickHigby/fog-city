@@ -50,6 +50,9 @@ function down(s:MatchState,p:MatchPlayer):void {
 function combat(s:MatchState,ctx:MatchContext):void {
   const events=[...(ctx.combatEvents??[])].filter(e=>e.tick>s.lastCombatTick && e.tick<=s.tick).sort((a,b)=>a.tick-b.tick||a.id-b.id);
   const seen=new Set<string>();
+  const modern=(ctx.simVersion??20)>=27;
+  const validFlower=(e:{sourceId:string;targetId:string})=>s.mode==="cleanStreets"&&e.sourceId!==e.targetId&&s.players[e.sourceId]!==undefined&&s.players[e.targetId]!==undefined&&s.players[e.sourceId]!.team!==s.players[e.targetId]!.team;
+  const contacts=events.filter(e=>e.kind==="pvp.flower-hit"&&Number.isSafeInteger(e.amount)&&e.amount>0&&validFlower(e));
   for(const e of events) {
     const key=`${e.tick}:${e.id}`;if(seen.has(key))continue;seen.add(key);
     if(e.kind==="robot.converted" && validId(e.targetId) && !s.remainingBad.includes(e.targetId) && s.remainingBad.length<MATCH_RULES.maxObjectives)s.remainingBad.push(e.targetId);
@@ -67,7 +70,16 @@ function combat(s:MatchState,ctx:MatchContext):void {
       event(s,"match.streak-reset",p.id,"",0,"wrong-target");
     } else if(e.kind==="player.runway" && Number.isFinite(e.amount)) {
       const p=s.players[e.targetId];if(p && p.downUntil<=s.tick && !p.eliminated)p.runway=clamp(p.runway+e.amount,0,1000);
-    } else if(e.kind==="pvp.score" && Number.isFinite(e.amount))score(s,e.targetId,e.amount,"flower");
+    } else if(modern&&e.kind==="pvp.flower-hit"&&Number.isSafeInteger(e.amount)&&e.amount>0&&validFlower(e)){
+      const target=s.players[e.targetId]!;target.flowers=(target.flowers??0)+1;event(s,"match.flower",e.sourceId,e.targetId,1);
+    } else if(modern&&e.kind==="player.flowers"&&validFlower(e)&&contacts.some(hit=>hit.tick===e.tick&&hit.sourceId===e.sourceId&&hit.targetId===e.targetId)){
+      s.players[e.targetId]!.flowers=Math.max(1,s.players[e.targetId]!.flowers??0);
+    } else if(modern&&e.kind==="player.distracted"&&validFlower(e)&&contacts.some(hit=>hit.tick===e.tick&&hit.sourceId===e.sourceId&&hit.targetId===e.targetId)){
+      const target=s.players[e.targetId]!;target.distractedUntil=Math.max(target.distractedUntil??0,e.tick+MATCH_RULES.distractedTicks);
+    } else if(e.kind==="pvp.score"&&Number.isFinite(e.amount)){
+      if(!modern)score(s,e.targetId,e.amount,"flower");
+      else if(e.amount===MATCH_RULES.flowerPoints&&e.sourceId===e.targetId&&contacts.some(hit=>hit.tick===e.tick&&hit.sourceId===e.sourceId))score(s,e.targetId,e.amount,"flower");
+    }
     else if(e.kind==="agi.pause" && s.mode!=="fogRoyale" && s.players[e.sourceId])finish(s,sortedIds(s.players).filter(id=>s.players[id]!.team===s.players[e.sourceId]!.team),"agi");
   }
   s.remainingBad.sort();if(events.length)s.lastCombatTick=Math.max(...events.map(e=>e.tick));
@@ -117,6 +129,10 @@ export function stepMatch(previous:MatchState,ctx:MatchContext):MatchState {
   // skipped tick, then advance the match by exactly one active update.
   const skipped=tick-previous.tick-1+(ctx.paused?1:0);
   if(skipped)for(const p of sortedIds(s.players).map(id=>s.players[id]!)){if(p.downUntil>0)p.downUntil+=skipped;if(p.respawnAt>0)p.respawnAt+=skipped;if(p.fleeceUntil>0)p.fleeceUntil+=skipped;}
+  if((ctx.simVersion??20)>=27&&skipped)for(const p of sortedIds(s.players).map(id=>s.players[id]!)){
+    if((p.distractedUntil??0)>previous.tick)p.distractedUntil!+=skipped;
+    if((p.flowerReadyAt??0)>previous.tick)p.flowerReadyAt!+=skipped;
+  }
   if(ctx.paused)return s;
   s.elapsedTicks++;
   if(ctx.endRequested){finish(s,[],"ended");return s;}
@@ -129,7 +145,7 @@ export function stepMatch(previous:MatchState,ctx:MatchContext):MatchState {
   combat(s,ctx);if(s.result!==null)return s;
   for(const p of sortedIds(s.players).map(id=>s.players[id]!))if(p.runway<=0)down(s,p);
   if(s.mode==="botSweep") {revives(s,ctx);if(s.phase==="active" && !s.remainingBad.length && !s.relayId)finish(s,sortedIds(s.players),"sweep-complete");else if(s.elapsedTicks>=s.durationTicks)finish(s,[],"relay-update");}
-  if(s.mode==="cleanStreets"){flowers(s,ctx);if(s.elapsedTicks>=s.durationTicks)finish(s,winners(s),"time");}
+  if(s.mode==="cleanStreets"){if((ctx.simVersion??20)<=20)flowers(s,ctx);if(s.elapsedTicks>=s.durationTicks)finish(s,winners(s),"time");}
   return s;
 }
 export function matchPayout(state:MatchState,playerId:string):MatchPayout {

@@ -1,0 +1,4728 @@
+{
+  "sourceCommit": "66b1e6f51fd1799612d6319980fca7f2241b17a9",
+  "simVersion": 20,
+  "state": {
+    "version": 20,
+    "tick": 60,
+    "seed": 1,
+    "rng": [
+      3987370314,
+      2401745262,
+      2849665535,
+      96
+    ],
+    "players": {
+      "p1": {
+        "id": "p1",
+        "mode": "vehicle",
+        "car": {
+          "x": 0,
+          "y": 0,
+          "z": -2.1776351693350158,
+          "heading": 0,
+          "speed": 4.314139370621756,
+          "steer": 0,
+          "hits": 0,
+          "lateral": 0,
+          "yawRate": 0,
+          "vy": 0,
+          "grounded": true,
+          "airTicks": 0,
+          "grip": 1,
+          "pitch": 0,
+          "roll": 0,
+          "sinceContact": 600,
+          "impactSpeed": 0,
+          "landingSpeed": 0,
+          "personBumps": 0,
+          "nearMisses": 0
+        },
+        "foot": null,
+        "exitPending": false
+      }
+    },
+    "ext": {
+      "agents": {
+        "nextId": 19,
+        "list": [
+          {
+            "id": 1,
+            "kind": "robotaxi",
+            "x": -41.83450792406997,
+            "y": 0,
+            "z": -51.75,
+            "heading": -1.5707963267948966,
+            "pitch": 0,
+            "speed": 2.4999999999999996,
+            "vmax": 12.769043918931857,
+            "edge": "n",
+            "dir": -1,
+            "lane": 0,
+            "s": 85.83450792406997,
+            "next": "w",
+            "ndir": -1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 4136673818,
+            "dodge": null
+          },
+          {
+            "id": 2,
+            "kind": "sidewalkBot",
+            "x": -57.439775462766725,
+            "y": 0,
+            "z": -18.872420542222265,
+            "heading": 1.1415926535897944,
+            "pitch": 0,
+            "speed": 1.0000000000000562,
+            "vmax": 0.9837679343298078,
+            "edge": "w",
+            "dir": -1,
+            "lane": -1,
+            "s": 24.125695556402206,
+            "next": "s",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 1626055520,
+            "dodge": null,
+            "runtimeId": "agent:2",
+            "runtimeLegacy": true,
+            "radius": 0.35,
+            "height": 0.7
+          },
+          {
+            "id": 3,
+            "kind": "person",
+            "x": -34.77657236827761,
+            "y": 0,
+            "z": -43.47525320482301,
+            "heading": -1.4864061277838143,
+            "pitch": 0,
+            "speed": 1.6000000000000894,
+            "vmax": 1.4022183882887476,
+            "edge": "n",
+            "dir": -1,
+            "lane": 1,
+            "s": 76.17936683148146,
+            "next": "w",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 86008502,
+            "dodge": null,
+            "runtimeId": "agent:3",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 4,
+            "kind": "robotaxi",
+            "x": -10.736581790695588,
+            "y": 0,
+            "z": 31.75,
+            "heading": 1.5707963267948966,
+            "pitch": 0,
+            "speed": 2.4999999999999996,
+            "vmax": 10.507554425857961,
+            "edge": "s",
+            "dir": -1,
+            "lane": 0,
+            "s": 33.26341820930441,
+            "next": "e",
+            "ndir": -1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 33388486,
+            "dodge": null
+          },
+          {
+            "id": 5,
+            "kind": "person",
+            "x": -42.582789269162554,
+            "y": 0,
+            "z": 7.505235099760965,
+            "heading": -2.0000000000000027,
+            "pitch": 0,
+            "speed": 1.5999999999999888,
+            "vmax": 1.4155551584321073,
+            "edge": "w",
+            "dir": 1,
+            "lane": 1,
+            "s": 16.09190956503153,
+            "next": "n",
+            "ndir": 1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 3620115085,
+            "dodge": null,
+            "runtimeId": "agent:5",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 6,
+            "kind": "person",
+            "x": -57.26261684466231,
+            "y": 0,
+            "z": 12.223141344209601,
+            "heading": 2.923904707140898,
+            "pitch": 0,
+            "speed": 1.600000000000021,
+            "vmax": 1.2942848272854461,
+            "edge": "w",
+            "dir": -1,
+            "lane": -1,
+            "s": 52.64211566373706,
+            "next": "s",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 4142036733,
+            "dodge": null,
+            "runtimeId": "agent:6",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 7,
+            "kind": "robotaxi",
+            "x": 48.25,
+            "y": 0,
+            "z": -40.86923489758434,
+            "heading": 3.141592653589793,
+            "pitch": 0,
+            "speed": 2.4999999999999996,
+            "vmax": 10.794840978225693,
+            "edge": "e",
+            "dir": 1,
+            "lane": 0,
+            "s": 3.130765102415657,
+            "next": "s",
+            "ndir": 1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2705020303,
+            "dodge": null
+          },
+          {
+            "id": 8,
+            "kind": "robotaxi",
+            "x": 5.079362993935746,
+            "y": 0,
+            "z": -51.75,
+            "heading": -1.5707963267948966,
+            "pitch": 0,
+            "speed": 2.4999999999999996,
+            "vmax": 12.884955224581063,
+            "edge": "n",
+            "dir": -1,
+            "lane": 0,
+            "s": 38.920637006064254,
+            "next": "w",
+            "ndir": -1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 165548675,
+            "dodge": null
+          },
+          {
+            "id": 9,
+            "kind": "errandRobot",
+            "x": 43.40354133906354,
+            "y": 0,
+            "z": -21.44022717294174,
+            "heading": -0.060967677730045126,
+            "pitch": 0,
+            "speed": 1.6000000000000052,
+            "vmax": 1.7504541646922007,
+            "edge": "e",
+            "dir": -1,
+            "lane": 1,
+            "s": 42.843162723700516,
+            "next": "n",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2562856479,
+            "dodge": null,
+            "runtimeId": "agent:9",
+            "runtimeLegacy": true,
+            "radius": 0.45,
+            "height": 1.8
+          },
+          {
+            "id": 10,
+            "kind": "person",
+            "x": 43.403809486864,
+            "y": 0,
+            "z": -23.188207800291103,
+            "heading": -0.05368418686703025,
+            "pitch": 0,
+            "speed": 1.6,
+            "vmax": 1.201973714365158,
+            "edge": "e",
+            "dir": -1,
+            "lane": 1,
+            "s": 44.59114295686595,
+            "next": "n",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2287583290,
+            "dodge": null,
+            "runtimeId": "agent:10",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 11,
+            "kind": "person",
+            "x": 22.75150051170045,
+            "y": 0,
+            "z": -42.48149554159799,
+            "heading": 1.5756839235990898,
+            "pitch": 0,
+            "speed": 1.5999999999999006,
+            "vmax": 1.2338511281763203,
+            "edge": "n",
+            "dir": 1,
+            "lane": 1,
+            "s": 63.15165126565844,
+            "next": "e",
+            "ndir": 1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2015745109,
+            "dodge": null,
+            "runtimeId": "agent:11",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 12,
+            "kind": "robotaxi",
+            "x": 7.067666440953801,
+            "y": 0,
+            "z": 31.75,
+            "heading": 1.5707963267948966,
+            "pitch": 0,
+            "speed": 2.4999999999999996,
+            "vmax": 11.38083551148884,
+            "edge": "s",
+            "dir": -1,
+            "lane": 0,
+            "s": 51.06766644095381,
+            "next": "e",
+            "ndir": -1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 440130925,
+            "dodge": null
+          },
+          {
+            "id": 13,
+            "kind": "sidewalkBot",
+            "x": -6.959810419380663,
+            "y": 0,
+            "z": 22.5,
+            "heading": -1.5707963267948966,
+            "pitch": 0,
+            "speed": 0.9999999999999964,
+            "vmax": 0.9931253524962813,
+            "edge": "s",
+            "dir": 1,
+            "lane": 1,
+            "s": 47.959810419380666,
+            "next": "w",
+            "ndir": 1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2690901119,
+            "dodge": null,
+            "runtimeId": "agent:13",
+            "runtimeLegacy": true,
+            "radius": 0.35,
+            "height": 0.7
+          },
+          {
+            "id": 14,
+            "kind": "person",
+            "x": 17.454456674991757,
+            "y": 0,
+            "z": 23.436820419331195,
+            "heading": 1.529990999604603,
+            "pitch": 0,
+            "speed": 1.5999999999999943,
+            "vmax": 1.299682707490865,
+            "edge": "s",
+            "dir": -1,
+            "lane": 1,
+            "s": 58.85570499813184,
+            "next": "e",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 3809694325,
+            "dodge": null,
+            "runtimeId": "agent:14",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 15,
+            "kind": "person",
+            "x": 36.65977418262171,
+            "y": 0,
+            "z": 36.32448997126946,
+            "heading": 0.42920367320510494,
+            "pitch": 0,
+            "speed": 1.6000000000000607,
+            "vmax": 1.1827458705753087,
+            "edge": "s",
+            "dir": 1,
+            "lane": -1,
+            "s": 7.927183706313372,
+            "next": "w",
+            "ndir": 1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2958190414,
+            "dodge": null,
+            "runtimeId": "agent:15",
+            "runtimeLegacy": true,
+            "radius": 0.3,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": 16,
+            "runtimeId": "mission:hot-desk:shopper",
+            "runtimeLegacy": false,
+            "kind": "errandRobot",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 101.31999343602122,
+            "heading": 0,
+            "speed": 1.6000000000002501,
+            "radius": 0.4,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing",
+            "pitch": 0,
+            "vmax": 0,
+            "edge": "",
+            "dir": 1,
+            "lane": 0,
+            "s": 0,
+            "next": "",
+            "ndir": 1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 16,
+            "dodge": null
+          },
+          {
+            "id": 17,
+            "runtimeId": "mission:hot-desk:thief",
+            "runtimeLegacy": false,
+            "kind": "errandRobot",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 98.3199934360393,
+            "heading": 0,
+            "speed": 1.6000000000002501,
+            "radius": 0.4,
+            "height": 1.8,
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing",
+            "pitch": 0,
+            "vmax": 0,
+            "edge": "",
+            "dir": 1,
+            "lane": 0,
+            "s": 0,
+            "next": "",
+            "ndir": 1,
+            "nlane": 0,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 17,
+            "dodge": null
+          },
+          {
+            "id": 18,
+            "kind": "sidewalkBot",
+            "x": 41.98153995659601,
+            "y": 0,
+            "z": -57.15921391276558,
+            "heading": -2.5707963267948957,
+            "pitch": 0,
+            "speed": 0.9999999999999325,
+            "vmax": 1.0953545848838986,
+            "edge": "n",
+            "dir": -1,
+            "lane": -1,
+            "s": 0.38268264681100844,
+            "next": "w",
+            "ndir": -1,
+            "nlane": 1,
+            "conn": null,
+            "node": "",
+            "resume": 0,
+            "lat": 0,
+            "wait": 0,
+            "dwell": 0,
+            "ghost": 0,
+            "mode": "go",
+            "rng": 2078689539,
+            "dodge": null,
+            "runtimeId": "agent:18",
+            "runtimeLegacy": true,
+            "radius": 0.35,
+            "height": 0.7
+          }
+        ]
+      },
+      "robots": {
+        "version": 1,
+        "tick": 60,
+        "actors": {
+          "agent:1": {
+            "id": "agent:1",
+            "numericId": 1,
+            "model": "robotaxi",
+            "firmware": "good",
+            "archetype": "meanderTaxi",
+            "level": 5,
+            "x": -41.83450792406997,
+            "y": 0,
+            "z": -51.75,
+            "heading": -1.5707963267948966,
+            "speed": 2.4999999999999996,
+            "radius": 1.05,
+            "height": 1.8,
+            "halfLength": 2.2,
+            "halfWidth": 0.95,
+            "legacyId": 1,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "entersFog",
+              "returnToDock"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          },
+          "agent:2": {
+            "id": "agent:2",
+            "numericId": 2,
+            "model": "trundle",
+            "firmware": "good",
+            "archetype": "courierTrundle",
+            "level": 1,
+            "x": -57.439775462766725,
+            "y": 0,
+            "z": -18.872420542222265,
+            "heading": 1.1415926535897944,
+            "speed": 1.0000000000000562,
+            "radius": 0.35,
+            "height": 0.7,
+            "legacyId": 2,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"w\",1,\"nw\"]",
+                "[\"end\",\"w\",0,\"nw\"]",
+                "[\"end\",\"n\",0,\"nw\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"nw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",0,\\\\\\\"nw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",1,\\\\\\\"nw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"w\",1,\"nw\"]",
+                  "to": "[\"end\",\"w\",0,\"nw\"]",
+                  "reverse": true
+                },
+                {
+                  "edgeId": "[\"junction\",\"nw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"nw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",0,\\\\\\\"nw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"w\",0,\"nw\"]",
+                  "to": "[\"end\",\"n\",0,\"nw\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 14.742775628804747
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.0000000000000013
+            },
+            "goalNode": "[\"end\",\"n\",0,\"nw\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "queuesPolitely",
+              "splashesThrough"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -57.5,
+              "z": -17.874304443597794,
+              "tick": 1
+            },
+            "detour": null
+          },
+          "agent:3": {
+            "id": "agent:3",
+            "numericId": 3,
+            "model": "person",
+            "firmware": "none",
+            "x": -34.77657236827761,
+            "y": 0,
+            "z": -43.47525320482301,
+            "heading": -1.4864061277838143,
+            "speed": 1.6000000000000894,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 3,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"n\",0,\"nw\"]",
+                "[\"end\",\"n\",1,\"nw\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"nw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"nw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",1,\\\\\\\"nw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"n\",0,\"nw\"]",
+                  "to": "[\"end\",\"n\",1,\"nw\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 14.035668847618199
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.599999999999998
+            },
+            "goalNode": "[\"end\",\"n\",1,\"nw\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -34.190712019951235,
+              "z": -43.44735783451211,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:4": {
+            "id": "agent:4",
+            "numericId": 4,
+            "model": "robotaxi",
+            "firmware": "good",
+            "archetype": "meanderTaxi",
+            "level": 5,
+            "x": -10.736581790695588,
+            "y": 0,
+            "z": 31.75,
+            "heading": 1.5707963267948966,
+            "speed": 2.4999999999999996,
+            "radius": 1.05,
+            "height": 1.8,
+            "halfLength": 2.2,
+            "halfWidth": 0.95,
+            "legacyId": 4,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "entersFog",
+              "returnToDock"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          },
+          "agent:5": {
+            "id": "agent:5",
+            "numericId": 5,
+            "model": "person",
+            "firmware": "none",
+            "x": -42.582789269162554,
+            "y": 0,
+            "z": 7.505235099760965,
+            "heading": -2.0000000000000027,
+            "speed": 1.5999999999999888,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 5,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"w\",0,\"sw\"]",
+                "[\"end\",\"w\",1,\"sw\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"sw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",0,\\\\\\\"sw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",1,\\\\\\\"sw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"w\",0,\"sw\"]",
+                  "to": "[\"end\",\"w\",1,\"sw\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 14.035668847618199
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.599999999999998
+            },
+            "goalNode": "[\"end\",\"w\",1,\"sw\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -42.53321180738814,
+              "z": 6.920703874931736,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:6": {
+            "id": "agent:6",
+            "numericId": 6,
+            "model": "person",
+            "firmware": "none",
+            "x": -57.26261684466231,
+            "y": 0,
+            "z": 12.223141344209601,
+            "heading": 2.923904707140898,
+            "speed": 1.600000000000021,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 6,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"w\",1,\"sw\"]",
+                "[\"end\",\"w\",0,\"sw\"]",
+                "[\"end\",\"s\",0,\"sw\"]",
+                "[\"end\",\"s\",1,\"sw\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"sw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",0,\\\\\\\"sw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",1,\\\\\\\"sw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"w\",1,\"sw\"]",
+                  "to": "[\"end\",\"w\",0,\"sw\"]",
+                  "reverse": false
+                },
+                {
+                  "edgeId": "[\"junction\",\"sw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",0,\\\\\\\"sw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"w\\\\\\\",0,\\\\\\\"sw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"w\",0,\"sw\"]",
+                  "to": "[\"end\",\"s\",0,\"sw\"]",
+                  "reverse": false
+                },
+                {
+                  "edgeId": "[\"junction\",\"sw\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",0,\\\\\\\"sw\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",1,\\\\\\\"sw\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"s\",0,\"sw\"]",
+                  "to": "[\"end\",\"s\",1,\"sw\"]",
+                  "reverse": false
+                }
+              ],
+              "lengthM": 28.778444476422948
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.599999999999998
+            },
+            "goalNode": "[\"end\",\"s\",1,\"sw\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -57.374940138942094,
+              "z": 11.647395254062452,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:8": {
+            "id": "agent:8",
+            "numericId": 8,
+            "model": "robotaxi",
+            "firmware": "good",
+            "archetype": "meanderTaxi",
+            "level": 4,
+            "x": 5.079362993935746,
+            "y": 0,
+            "z": -51.75,
+            "heading": -1.5707963267948966,
+            "speed": 2.4999999999999996,
+            "radius": 1.05,
+            "height": 1.8,
+            "halfLength": 2.2,
+            "halfWidth": 0.95,
+            "legacyId": 8,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "entersFog",
+              "returnToDock"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          },
+          "agent:9": {
+            "id": "agent:9",
+            "numericId": 9,
+            "model": "footman",
+            "firmware": "good",
+            "archetype": "errandFootman",
+            "level": 5,
+            "x": 43.40354133906354,
+            "y": 0,
+            "z": -21.44022717294174,
+            "heading": -0.060967677730045126,
+            "speed": 1.6000000000000052,
+            "radius": 0.45,
+            "height": 1.8,
+            "legacyId": 9,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"e\",0,\"ne\"]",
+                "[\"end\",\"n\",0,\"ne\"]",
+                "[\"end\",\"n\",1,\"ne\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"e\",0,\"ne\"]",
+                  "to": "[\"end\",\"n\",0,\"ne\"]",
+                  "reverse": false
+                },
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",1,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"n\",0,\"ne\"]",
+                  "to": "[\"end\",\"n\",1,\"ne\"]",
+                  "reverse": false
+                }
+              ],
+              "lengthM": 14.742775628804747
+            },
+            "cursor": {
+              "stepIndex": 1,
+              "distanceM": 0.8928932188134514
+            },
+            "goalNode": "[\"end\",\"n\",1,\"ne\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "full",
+            "statusLight": "steady",
+            "tellIds": [
+              "takesRamps",
+              "returnToDock"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 43.44027799772018,
+              "z": -20.854712157922,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:10": {
+            "id": "agent:10",
+            "numericId": 10,
+            "model": "person",
+            "firmware": "none",
+            "x": 43.403809486864,
+            "y": 0,
+            "z": -23.188207800291103,
+            "heading": -0.05368418686703025,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 10,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"e\",0,\"ne\"]",
+                "[\"end\",\"n\",0,\"ne\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"e\",0,\"ne\"]",
+                  "to": "[\"end\",\"n\",0,\"ne\"]",
+                  "reverse": false
+                }
+              ],
+              "lengthM": 0.7071067811865476
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0.16
+            },
+            "goalNode": "[\"end\",\"n\",0,\"ne\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 43.440192739589826,
+              "z": -22.602686871442522,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:11": {
+            "id": "agent:11",
+            "numericId": 11,
+            "model": "person",
+            "firmware": "none",
+            "x": 22.75150051170045,
+            "y": 0,
+            "z": -42.48149554159799,
+            "heading": 1.5756839235990898,
+            "speed": 1.5999999999999006,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 11,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"n\",0,\"ne\"]",
+                "[\"end\",\"e\",0,\"ne\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"n\",0,\"ne\"]",
+                  "to": "[\"end\",\"e\",0,\"ne\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 0.7071067811865476
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0.16
+            },
+            "goalNode": "[\"end\",\"e\",0,\"ne\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 22.16490504747582,
+              "z": -42.48943309675933,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:12": {
+            "id": "agent:12",
+            "numericId": 12,
+            "model": "robotaxi",
+            "firmware": "good",
+            "archetype": "meanderTaxi",
+            "level": 4,
+            "x": 7.067666440953801,
+            "y": 0,
+            "z": 31.75,
+            "heading": 1.5707963267948966,
+            "speed": 2.4999999999999996,
+            "radius": 1.05,
+            "height": 1.8,
+            "halfLength": 2.2,
+            "halfWidth": 0.95,
+            "legacyId": 12,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "entersFog",
+              "returnToDock"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null
+          },
+          "agent:13": {
+            "id": "agent:13",
+            "numericId": 13,
+            "model": "trundle",
+            "firmware": "good",
+            "archetype": "courierTrundle",
+            "level": 1,
+            "x": -6.959810419380663,
+            "y": 0,
+            "z": 22.5,
+            "heading": -1.5707963267948966,
+            "speed": 0.9999999999999964,
+            "radius": 0.35,
+            "height": 0.7,
+            "legacyId": 13,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"s\",0,\"sw\"]",
+                "[\"end\",\"s\",0,\"se\"]",
+                "[\"end\",\"s\",1,\"se\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"walk\",\"s\",0]",
+                  "from": "[\"end\",\"s\",0,\"sw\"]",
+                  "to": "[\"end\",\"s\",0,\"se\"]",
+                  "reverse": true
+                },
+                {
+                  "edgeId": "[\"junction\",\"se\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",0,\\\\\\\"se\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",1,\\\\\\\"se\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"s\",0,\"se\"]",
+                  "to": "[\"end\",\"s\",1,\"se\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 98.0356688476182
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.0000000000000013
+            },
+            "goalNode": "[\"end\",\"s\",1,\"se\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "queuesPolitely",
+              "splashesThrough"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -5.959810419380666,
+              "z": 22.5,
+              "tick": 1
+            },
+            "detour": null
+          },
+          "agent:14": {
+            "id": "agent:14",
+            "numericId": 14,
+            "model": "person",
+            "firmware": "none",
+            "x": 17.454456674991757,
+            "y": 0,
+            "z": 23.436820419331195,
+            "heading": 1.529990999604603,
+            "speed": 1.5999999999999943,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 14,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"s\",0,\"se\"]",
+                "[\"end\",\"s\",0,\"sw\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"walk\",\"s\",0]",
+                  "from": "[\"end\",\"s\",0,\"se\"]",
+                  "to": "[\"end\",\"s\",0,\"sw\"]",
+                  "reverse": false
+                }
+              ],
+              "lengthM": 84
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.599999999999998
+            },
+            "goalNode": "[\"end\",\"s\",0,\"sw\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 16.868266847007824,
+              "z": 23.46046855758968,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:15": {
+            "id": "agent:15",
+            "numericId": 15,
+            "model": "person",
+            "firmware": "none",
+            "x": 36.65977418262171,
+            "y": 0,
+            "z": 36.32448997126946,
+            "heading": 0.42920367320510494,
+            "speed": 1.6000000000000607,
+            "radius": 0.3,
+            "height": 1.8,
+            "posture": "standing",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "legacyId": 15,
+            "bornTick": 1,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"s\",1,\"se\"]",
+                "[\"end\",\"s\",0,\"se\"]",
+                "[\"end\",\"e\",0,\"se\"]",
+                "[\"end\",\"e\",1,\"se\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"se\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",0,\\\\\\\"se\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",1,\\\\\\\"se\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"s\",1,\"se\"]",
+                  "to": "[\"end\",\"s\",0,\"se\"]",
+                  "reverse": false
+                },
+                {
+                  "edgeId": "[\"junction\",\"se\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"se\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"s\\\\\\\",0,\\\\\\\"se\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"s\",0,\"se\"]",
+                  "to": "[\"end\",\"e\",0,\"se\"]",
+                  "reverse": false
+                },
+                {
+                  "edgeId": "[\"junction\",\"se\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"se\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",1,\\\\\\\"se\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"e\",0,\"se\"]",
+                  "to": "[\"end\",\"e\",1,\"se\"]",
+                  "reverse": false
+                }
+              ],
+              "lengthM": 28.778444476422948
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 1.599999999999998
+            },
+            "goalNode": "[\"end\",\"e\",1,\"se\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 36.08297919793815,
+              "z": 36.430626135271794,
+              "tick": 39
+            },
+            "detour": null
+          },
+          "agent:18": {
+            "id": "agent:18",
+            "numericId": 18,
+            "model": "trundle",
+            "firmware": "good",
+            "archetype": "courierTrundle",
+            "level": 2,
+            "x": 41.98153995659601,
+            "y": 0,
+            "z": -57.15921391276558,
+            "heading": -2.5707963267948957,
+            "speed": 0.9999999999999325,
+            "radius": 0.35,
+            "height": 0.7,
+            "legacyId": 18,
+            "bornTick": 30,
+            "retired": false,
+            "converted": false,
+            "significant": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": {
+              "nodeIds": [
+                "[\"end\",\"n\",1,\"ne\"]",
+                "[\"end\",\"n\",0,\"ne\"]",
+                "[\"end\",\"e\",0,\"ne\"]",
+                "[\"end\",\"e\",1,\"ne\"]"
+              ],
+              "steps": [
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",1,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"n\",1,\"ne\"]",
+                  "to": "[\"end\",\"n\",0,\"ne\"]",
+                  "reverse": true
+                },
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"n\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"n\",0,\"ne\"]",
+                  "to": "[\"end\",\"e\",0,\"ne\"]",
+                  "reverse": true
+                },
+                {
+                  "edgeId": "[\"junction\",\"ne\",\"[\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",0,\\\\\\\"ne\\\\\\\"]\\\",\\\"[\\\\\\\"end\\\\\\\",\\\\\\\"e\\\\\\\",1,\\\\\\\"ne\\\\\\\"]\\\"]\"]",
+                  "from": "[\"end\",\"e\",0,\"ne\"]",
+                  "to": "[\"end\",\"e\",1,\"ne\"]",
+                  "reverse": true
+                }
+              ],
+              "lengthM": 28.778444476422948
+            },
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0.49999999999999994
+            },
+            "goalNode": "[\"end\",\"e\",1,\"ne\"]",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "none",
+            "statusLight": "steady",
+            "tellIds": [
+              "splashesThrough",
+              "yieldToPedestrians"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": 41.617317353188994,
+              "z": -57.5,
+              "tick": 31
+            },
+            "detour": null
+          },
+          "mission:hot-desk:shopper": {
+            "id": "mission:hot-desk:shopper",
+            "model": "footman",
+            "archetype": "errandFootman",
+            "firmware": "good",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 101.31999343602122,
+            "heading": 0,
+            "radius": 0.4,
+            "height": 1.8,
+            "significant": true,
+            "numericId": 16,
+            "legacyId": null,
+            "speed": 1.6000000000002501,
+            "bornTick": 2,
+            "retired": false,
+            "converted": false,
+            "brain": null,
+            "intent": null,
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "idle",
+            "bag": "full",
+            "statusLight": "steady",
+            "tellIds": [
+              "fullBag",
+              "crossesOnWalk",
+              "apologisesOnBump"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -79.26819606012818,
+              "z": 101.87999343602131,
+              "tick": 40
+            }
+          },
+          "mission:hot-desk:thief": {
+            "id": "mission:hot-desk:thief",
+            "model": "footman",
+            "archetype": "snatcher",
+            "level": 1,
+            "firmware": "bad",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 98.3199934360393,
+            "heading": 0,
+            "radius": 0.4,
+            "height": 1.8,
+            "significant": true,
+            "numericId": 17,
+            "legacyId": null,
+            "speed": 1.6000000000002501,
+            "bornTick": 2,
+            "retired": false,
+            "converted": false,
+            "brain": {
+              "id": 17,
+              "archetype": "footman",
+              "mode": "disguised",
+              "modeSinceTick": 2,
+              "lastTick": 60,
+              "waryUntilTick": 0,
+              "knowledge": [],
+              "closeWatches": [],
+              "windup": null,
+              "update": null,
+              "cooldownUntilTick": 0,
+              "fogChaseSinceTick": null,
+              "pendingUpdates": []
+            },
+            "intent": {
+              "movement": {
+                "kind": "errand",
+                "avoidFog": true
+              },
+              "action": {
+                "kind": "none"
+              },
+              "hideOneTell": false,
+              "sabotageActive": false,
+              "fogRustMultiplier": 1
+            },
+            "reaction": {
+              "mode": "idle",
+              "untilTick": 0,
+              "source": null
+            },
+            "route": null,
+            "cursor": {
+              "stepIndex": 0,
+              "distanceM": 0
+            },
+            "goalNode": "",
+            "pendingCursor": null,
+            "pendingPoint": null,
+            "attackSequence": 0,
+            "actionToken": "",
+            "fidelity": "full",
+            "behavior": "disguised",
+            "bag": "empty",
+            "statusLight": "steady",
+            "tellIds": [
+              "tailFootman",
+              "rateSidewalk",
+              "emptyBag"
+            ],
+            "tellIntensity": 1,
+            "hiddenTellId": null,
+            "stall": {
+              "x": -76.26819606014625,
+              "z": 98.87999343603938,
+              "tick": 40
+            }
+          }
+        },
+        "missionBindings": {
+          "hot-desk:shopper": "mission:hot-desk:shopper",
+          "hot-desk:thief": "mission:hot-desk:thief"
+        },
+        "baseBadCount": 1,
+        "lastCombatTick": 59,
+        "attacks": [],
+        "proposals": [
+          {
+            "id": "agent:10",
+            "numericId": 10,
+            "legacyId": 10,
+            "kind": "walker",
+            "x": 43.403809486864,
+            "y": 0,
+            "z": -23.188207800291103,
+            "heading": -0.05368418686703025,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": 43.40524037764668,
+            "sourceY": 0,
+            "sourceZ": -23.161579550955498,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:11",
+            "numericId": 11,
+            "legacyId": 11,
+            "kind": "walker",
+            "x": 22.75150051170045,
+            "y": 0,
+            "z": -42.48149554159799,
+            "heading": 1.5756839235990898,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": 22.72483416354785,
+            "sourceY": 0,
+            "sourceZ": -42.48162587699384,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:13",
+            "numericId": 13,
+            "legacyId": 13,
+            "kind": "walker",
+            "x": -6.959810419380663,
+            "y": 0,
+            "z": 22.5,
+            "heading": -1.5707963267948966,
+            "speed": 1,
+            "radius": 0.35,
+            "height": 0.7,
+            "sourceX": -6.943143752713996,
+            "sourceY": 0,
+            "sourceZ": 22.5,
+            "bodyKind": "robot"
+          },
+          {
+            "id": "agent:14",
+            "numericId": 14,
+            "legacyId": 14,
+            "kind": "walker",
+            "x": 17.454456674991757,
+            "y": 0,
+            "z": 23.436820419331195,
+            "heading": 1.529990999604603,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": 17.427812206241097,
+            "sourceY": 0,
+            "sourceZ": 23.43790825944177,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:15",
+            "numericId": 15,
+            "legacyId": 15,
+            "kind": "walker",
+            "x": 36.65977418262171,
+            "y": 0,
+            "z": 36.32448997126946,
+            "heading": 1.3464995316373343,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": 36.63377549580792,
+            "sourceY": 0,
+            "sourceZ": 36.330421193324774,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:18",
+            "numericId": 18,
+            "legacyId": 18,
+            "kind": "walker",
+            "x": 41.98153995659601,
+            "y": 0,
+            "z": -57.15921391276558,
+            "heading": 2.4378085758399686,
+            "speed": 1,
+            "radius": 0.35,
+            "height": 0.7,
+            "sourceX": 41.970754835091284,
+            "sourceY": 0,
+            "sourceZ": -57.17192056188744,
+            "bodyKind": "robot"
+          },
+          {
+            "id": "agent:2",
+            "numericId": 2,
+            "legacyId": 2,
+            "kind": "walker",
+            "x": -57.439775462766725,
+            "y": 0,
+            "z": -18.872420542222265,
+            "heading": 0.08035567259998379,
+            "speed": 1,
+            "radius": 0.35,
+            "height": 0.7,
+            "sourceX": -57.44111328316608,
+            "sourceY": 0,
+            "sourceZ": -18.855807655225814,
+            "bodyKind": "robot"
+          },
+          {
+            "id": "agent:3",
+            "numericId": 3,
+            "legacyId": 3,
+            "kind": "walker",
+            "x": -34.77657236827761,
+            "y": 0,
+            "z": -43.47525320482301,
+            "heading": -1.4864061277838143,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": -34.75000060134607,
+            "sourceY": 0,
+            "sourceZ": -43.47300546968578,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:5",
+            "numericId": 5,
+            "legacyId": 5,
+            "kind": "walker",
+            "x": -42.582789269162554,
+            "y": 0,
+            "z": 7.505235099760965,
+            "heading": -3.0383827985427008,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": -42.580041890069104,
+            "sourceY": 0,
+            "sourceZ": 7.478710337382614,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:6",
+            "numericId": 6,
+            "legacyId": 6,
+            "kind": "walker",
+            "x": -57.26261684466231,
+            "y": 0,
+            "z": 12.223141344209601,
+            "heading": 2.923904707140898,
+            "speed": 1.6,
+            "radius": 0.3,
+            "height": 1.8,
+            "sourceX": -57.2683761170526,
+            "sourceY": 0,
+            "sourceZ": 12.197104026900677,
+            "bodyKind": "person",
+            "protected": false,
+            "child": false,
+            "mobilityAid": false,
+            "posture": "standing"
+          },
+          {
+            "id": "agent:9",
+            "numericId": 9,
+            "legacyId": 9,
+            "kind": "walker",
+            "x": 43.40354133906354,
+            "y": 0,
+            "z": -21.44022717294174,
+            "heading": -0.060967677730045126,
+            "speed": 1.6,
+            "radius": 0.45,
+            "height": 1.8,
+            "sourceX": 43.4051661367885,
+            "sourceY": 0,
+            "sourceZ": -21.41361005169499,
+            "bodyKind": "robot"
+          },
+          {
+            "id": "mission:hot-desk:shopper",
+            "numericId": 16,
+            "legacyId": null,
+            "kind": "walker",
+            "x": -79.26819606012818,
+            "y": 0,
+            "z": 101.31999343602122,
+            "heading": 0,
+            "speed": 1.6,
+            "radius": 0.4,
+            "height": 1.8,
+            "sourceX": -79.26819606012818,
+            "sourceY": 0,
+            "sourceZ": 101.34666010268789,
+            "bodyKind": "robot"
+          },
+          {
+            "id": "mission:hot-desk:thief",
+            "numericId": 17,
+            "legacyId": null,
+            "kind": "walker",
+            "x": -76.26819606014625,
+            "y": 0,
+            "z": 98.3199934360393,
+            "heading": 0,
+            "speed": 1.6,
+            "radius": 0.4,
+            "height": 1.8,
+            "sourceX": -76.26819606014625,
+            "sourceY": 0,
+            "sourceZ": 98.34666010270597,
+            "bodyKind": "robot"
+          }
+        ],
+        "events": [],
+        "density": {
+          "p1": {
+            "robotaxi": 1,
+            "errandRobot": 1.771,
+            "sidewalkBot": 1.26,
+            "person": 0.45
+          }
+        },
+        "incidents": {},
+        "nextIncident": 1,
+        "services": {
+          "version": 1,
+          "tick": 60,
+          "receiptFloor": 0,
+          "receipts": [],
+          "vehicles": {},
+          "events": []
+        },
+        "missionStages": {}
+      },
+      "clock": {
+        "version": 1,
+        "elapsedTicks": 60
+      },
+      "fog": {
+        "version": 1,
+        "missionCursor": 1,
+        "windows": []
+      },
+      "combat": {
+        "version": 1,
+        "tick": 60,
+        "rng": [
+          1197569939,
+          3122121817,
+          3563649949,
+          13
+        ],
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "water": 8,
+            "salt": false,
+            "reserve": 0,
+            "cones": 3,
+            "balloons": 2,
+            "nextWaterTick": 0,
+            "nextConeTick": 0,
+            "nextFlowerTick": 0,
+            "nextGadgetTick": 0,
+            "nextGearTick": 0,
+            "gearUntil": 0,
+            "gear": "none",
+            "refillId": "",
+            "refillTicks": 0,
+            "scanId": "",
+            "scanTicks": 0,
+            "nextScanTick": 0,
+            "scan": null,
+            "previousMount": "vehicle",
+            "held": [],
+            "boost": "none",
+            "boostUntil": 0,
+            "lastParrotsTick": -3600,
+            "streakSequence": {},
+            "marks": []
+          }
+        },
+        "targets": {
+          "p1": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:1": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:10": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:11": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:12": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:13": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:14": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:15": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:18": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:2": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:3": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:4": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:5": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:6": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:8": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "agent:9": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "mission:hot-desk:shopper": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "mission:hot-desk:thief": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          },
+          "player:p1": {
+            "rust": 0,
+            "phase": "active",
+            "phaseTick": 0,
+            "lastWaterTick": -1000,
+            "heightScale": 1,
+            "puddle": false,
+            "repair": false,
+            "penalized": false,
+            "wetHits": [],
+            "wetUntil": 0,
+            "blindUntil": 0,
+            "waryUntil": 0,
+            "alerted": false,
+            "pullOverTick": 0,
+            "pullOverSpeed": 0,
+            "stoppedUntil": 0,
+            "flowersUntil": 0,
+            "slowUntil": 0,
+            "distractedUntil": 0,
+            "sourceId": "",
+            "movementScale": 1,
+            "windupScale": 1
+          }
+        },
+        "projectiles": [],
+        "gadgets": [],
+        "attacks": [],
+        "attackSequence": {},
+        "events": [],
+        "pauseUntil": 0
+      },
+      "player": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "status": "active",
+            "bridgeUntil": 0,
+            "resumeTick": 0,
+            "safehouseId": "",
+            "startupKitId": "",
+            "downRounds": 0,
+            "commandSequence": 0,
+            "watchingActorId": "",
+            "watchedTicks": 0
+          }
+        },
+        "events": []
+      },
+      "heat": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "threat": 0,
+            "vcQuarters": 0,
+            "lastSeenTick": 1,
+            "lastAssociateSeenTick": 1,
+            "recentMelts": [],
+            "levelMelts": 0,
+            "spawnSequence": 0,
+            "commandSequence": 0,
+            "lastWashId": ""
+          }
+        },
+        "factCursors": {},
+        "events": [],
+        "grantCursors": {
+          "p1": 1
+        }
+      },
+      "missions": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 2,
+        "players": {
+          "p1": {
+            "missionId": "hot-desk",
+            "stepId": "watch",
+            "status": "active",
+            "startedTick": 1,
+            "stepStartedTick": 1,
+            "deadlineTick": 0,
+            "questionIndex": 0,
+            "objectiveCount": 0,
+            "objectiveIds": [],
+            "meters": {},
+            "completedIds": [],
+            "rewardedIds": [],
+            "retryFrom": "",
+            "outcome": "",
+            "commandSequence": 0,
+            "visits": 3,
+            "observed": {
+              "missionId": "hot-desk",
+              "startedTick": 1,
+              "watched": [],
+              "falsePositives": [],
+              "melted": [],
+              "dirty": false,
+              "commandSequence": 0,
+              "previousInteract": false
+            }
+          }
+        },
+        "factCursors": {},
+        "events": [],
+        "parking": {
+          "tick": 60,
+          "nextSequence": 1,
+          "previousInteract": {
+            "p1": false
+          },
+          "players": {}
+        }
+      },
+      "activities": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "nextDirectorTick": 1860,
+            "directorRng": [
+              335087166,
+              1676572083,
+              2243112092,
+              4495
+            ],
+            "activeCardId": "",
+            "cardUntilTick": 0,
+            "cardCooldowns": {},
+            "activeActivityId": "",
+            "activityStartedTick": 0,
+            "completedIds": [],
+            "commandSequence": 0,
+            "checkpointIndex": 0,
+            "objectiveCount": 0,
+            "cooldowns": {}
+          }
+        },
+        "factCursors": {},
+        "events": []
+      },
+      "economy": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "cashCents": 200000,
+            "runwayMonths": 18,
+            "reputation": 50,
+            "paidActorIds": [],
+            "ownedItemIds": [],
+            "ownedSiteIds": [
+              "fidi-desk",
+              "marina-garage",
+              "mission-bay-garage"
+            ],
+            "commandSequence": 0
+          }
+        },
+        "factCursors": {},
+        "grantCursors": {
+          "missions": 1
+        },
+        "events": []
+      },
+      "progression": {
+        "version": 1,
+        "tick": 60,
+        "nextId": 1,
+        "players": {
+          "p1": {
+            "xp": 0,
+            "rank": 1,
+            "tankTier": 0,
+            "flowTier": 0,
+            "scannerTier": 1,
+            "nozzle": "standard",
+            "gadget": "balloon",
+            "gear": "none",
+            "perks": [],
+            "streaks": [
+              "confidence"
+            ],
+            "streakPoints": 0,
+            "streakSequence": 0,
+            "banked": {},
+            "commandSequence": 0
+          }
+        },
+        "grantCursors": {
+          "missions": 1
+        },
+        "events": []
+      },
+      "identities": {
+        "version": 1,
+        "nextId": 18,
+        "ids": {
+          "mission:hot-desk:shopper": 16,
+          "mission:hot-desk:thief": 17
+        }
+      }
+    }
+  },
+  "hash": "6f895c25",
+  "frames": [
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 1,
+          "steer": 0.15,
+          "brake": 0,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    },
+    {
+      "inputs": {
+        "p1": {
+          "throttle": 0,
+          "steer": 0.15,
+          "brake": 1,
+          "actions": 0
+        }
+      },
+      "events": []
+    }
+  ],
+  "originalHashesEvery30": [
+    "3a323669",
+    "5dbc154b",
+    "b4a02788",
+    "74cf36dc",
+    "4ea06f27",
+    "1d89c1aa"
+  ]
+}

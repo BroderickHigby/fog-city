@@ -97,7 +97,10 @@
 // them off the street and Footmen take their population budget (agents.ts TRUNDLE_FREE_VERSION);
 // missions and director incidents still stage named Trundles. No field changes: the save upgrade
 // only restamps; createInitialState is unchanged and v25-and-earlier replays keep every Trundle.
-export const SIM_VERSION = 26;
+// v27: measured side activities (Coit Recon, taxi fares, timed runs), collapsed robot projectile
+// silhouettes, physical 5 m junction hulls and robot weather scaling. Optional activity state
+// starts only when a run is booked; v26-and-earlier replays keep the old rules.
+export const SIM_VERSION = 27;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

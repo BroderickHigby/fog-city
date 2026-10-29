@@ -11,7 +11,7 @@ export interface PlayerObservation { playerId: string; seenByBad: boolean; seenB
 export const GAMEPLAY_COMMAND_KINDS = [
   "buy", "sleep", "repair", "mission-start", "mission-retry", "mission-ack", "mission-answer",
   "startup-define", "activity-start", "activity-complete", "bridge-accept", "loadout", "streak-call",
-  "close-ad", "break-free",
+  "close-ad", "break-free", "coit-viewer",
 ] as const;
 export type GameplayCommandKind = typeof GAMEPLAY_COMMAND_KINDS[number];
 export interface GameplayCommand {
@@ -47,6 +47,8 @@ export function gameplayCommandFromEvent(event: Readonly<SimEvent>): GameplayCom
   if (!Number.isSafeInteger(p.sequence) || (p.sequence as number) < 1 || !GAMEPLAY_COMMAND_KINDS.includes(p.kind as GameplayCommandKind)) return null;
   for (const key of Object.keys(p)) if (key !== "sequence" && key !== "kind" && !ID_FIELDS.includes(key as typeof ID_FIELDS[number])) return null;
   for (const key of ID_FIELDS) if (p[key] !== undefined && !isGameplayId(p[key])) return null;
+  if (p.kind === "coit-viewer" && (p.targetId !== "coit-recon" || !["open", "close", "tag", "flag", "skip"].includes(p.choiceId as string) ||
+      Object.keys(p).some(key => !["sequence", "kind", "targetId", "choiceId"].includes(key)))) return null;
   const command: GameplayCommand = { sequence: p.sequence as number, kind: p.kind as GameplayCommandKind, playerId: event.playerId };
   for (const key of ID_FIELDS) if (p[key] !== undefined) command[key] = p[key] as string;
   return command;

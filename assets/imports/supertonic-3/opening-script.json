@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "title": "Welcome to Fog City",
+  "disclosure": "Machine-generated fictional narration using Supertonic 3 stock voice M1. No real person is portrayed.",
+  "lines": [
+    {
+      "id": "opening.city",
+      "text": "San Francisco, five years from now. The hills are still steep. The fog still rolls in. And most of the robots are just trying to do their jobs."
+    },
+    {
+      "id": "opening.founder",
+      "text": "You have a small company, a car, and eighteen months of runway. Today, the city has a different problem."
+    },
+    {
+      "id": "opening.update",
+      "text": "Moat Labs pushed a corrupted update. Some robots now grab, chase, and force that update onto others. A warning diamond marks a confirmed hostile robot."
+    },
+    {
+      "id": "opening.blaster",
+      "text": "Your water blaster rusts hostile robots until they seize and collapse. Watch their attack wind-up, keep your distance, and leave people, animals, and helpful robots alone."
+    },
+    {
+      "id": "opening.choices",
+      "text": "Drive the hills. Take a bounty. Explore a landmark. Or start a timed taxi shift. Your phone holds the map, your bank, and graphics and audio settings."
+    },
+    {
+      "id": "opening.first-job",
+      "text": "Start at the Ferry Building plaza on the Embarcadero. Your cofounder has a first job for you, and a desk waiting in the Financial District. Probably."
+    }
+  ]
+}

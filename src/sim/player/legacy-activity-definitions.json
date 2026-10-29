@@ -1,0 +1,351 @@
+{
+ "sourceCommit": "4e9b2553cd62083603ead35c40af8e51d15aeac5",
+ "note": "Activity definitions as main had them before SIM_VERSION 27 (content/activity-rules.json at sourceCommit). LEGACY_CATALOG (versions below 27) uses these for every id whose definition changed, and only main's ids, so v21-v26 saves and replays keep main's routes. Do not edit.",
+ "ids": [
+  "search-and-park",
+  "office-hours",
+  "plain-words",
+  "embarcadero-sprint",
+  "hill-delivery",
+  "coit-recon",
+  "pitch-window",
+  "presidio-loop",
+  "bench-tuning",
+  "octavia-chain",
+  "painted-ladies-photo",
+  "foil-integrity",
+  "vermont-curves",
+  "bernal-viewer",
+  "great-highway-night",
+  "lake-loop"
+ ],
+ "definitions": {
+  "search-and-park": {
+   "id": "search-and-park",
+   "kind": "parking",
+   "wave": 3,
+   "objective": {
+    "event": "parking.legalStop",
+    "count": 1
+   },
+   "timeLimitS": 180,
+   "reward": {
+    "cashCents": 7500,
+    "xp": 100
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "arrive",
+     "label": "Pier 70 parking approach",
+     "lat": 37.7605,
+     "lon": -122.3874,
+     "radiusM": 12
+    },
+    {
+     "id": "park",
+     "label": "Signed space on Illinois St",
+     "lat": 37.761,
+     "lon": -122.3872,
+     "radiusM": 12
+    }
+   ]
+  },
+  "office-hours": {
+   "id": "office-hours",
+   "kind": "interview",
+   "wave": 3,
+   "objective": {
+    "event": "demo.robotPresented",
+    "count": 1
+   },
+   "timeLimitS": 900,
+   "reward": {
+    "cashCents": 30000,
+    "xp": 500
+   },
+   "repeatable": true,
+   "cooldownS": 720,
+   "checkpoints": [
+    {
+     "id": "door",
+     "label": "Ramen house at Pier 70",
+     "lat": 37.7608,
+     "lon": -122.385,
+     "radiusM": 20
+    }
+   ]
+  },
+  "plain-words": {
+   "id": "plain-words",
+   "kind": "washBoards",
+   "wave": 3,
+   "objective": {
+    "event": "board.washed",
+    "count": 20
+   },
+   "timeLimitS": 300,
+   "reward": {
+    "cashCents": 20000,
+    "xp": 300
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "south",
+     "label": "Columbus Ave at Broadway",
+     "lat": 37.7982,
+     "lon": -122.4075,
+     "radiusM": 12
+    },
+    {
+     "id": "square",
+     "label": "Washington Square",
+     "lat": 37.8008,
+     "lon": -122.4103,
+     "radiusM": 12
+    },
+    {
+     "id": "north",
+     "label": "Columbus Ave at Bay St",
+     "lat": 37.8051,
+     "lon": -122.4153,
+     "radiusM": 12
+    }
+   ]
+  },
+  "embarcadero-sprint": {
+   "id": "embarcadero-sprint",
+   "kind": "timeTrial",
+   "wave": 3,
+   "objective": {
+    "event": "race.finished",
+    "count": 1
+   },
+   "timeLimitS": 150,
+   "reward": {
+    "cashCents": 15000,
+    "xp": 200
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "start",
+     "label": "Ferry Building plaza",
+     "lat": 37.7954,
+     "lon": -122.394,
+     "radiusM": 12
+    },
+    {
+     "id": "middle",
+     "label": "The Embarcadero at Harrison",
+     "lat": 37.7894,
+     "lon": -122.3884,
+     "radiusM": 12
+    },
+    {
+     "id": "finish",
+     "label": "Mission Bay waterfront",
+     "lat": 37.778,
+     "lon": -122.389,
+     "radiusM": 12
+    }
+   ]
+  },
+  "hill-delivery": {
+   "id": "hill-delivery",
+   "kind": "delivery",
+   "wave": 3,
+   "objective": {
+    "event": "delivery.completed",
+    "count": 1
+   },
+   "timeLimitS": 240,
+   "reward": {
+    "cashCents": 22500,
+    "xp": 250
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "pickup",
+     "label": "Hyde at Union",
+     "lat": 37.7985,
+     "lon": -122.4195,
+     "radiusM": 12
+    },
+    {
+     "id": "drop",
+     "label": "Lombard at Leavenworth",
+     "lat": 37.802,
+     "lon": -122.4185,
+     "radiusM": 12
+    }
+   ]
+  },
+  "coit-recon": {
+   "id": "coit-recon",
+   "kind": "recon",
+   "wave": 3,
+   "objective": {
+    "event": "recon.signalFound",
+    "count": 1
+   },
+   "timeLimitS": 240,
+   "reward": {
+    "cashCents": 15000,
+    "xp": 200
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "start",
+     "label": "Coit Tower path entrance",
+     "lat": 37.8016,
+     "lon": -122.4058,
+     "radiusM": 12
+    },
+    {
+     "id": "view",
+     "label": "Coit Tower overlook",
+     "lat": 37.8024,
+     "lon": -122.4058,
+     "radiusM": 12
+    }
+   ]
+  },
+  "presidio-loop": {
+   "id": "presidio-loop",
+   "kind": "timeTrial",
+   "wave": 4,
+   "objective": {
+    "event": "race.finished",
+    "count": 1
+   },
+   "timeLimitS": 210,
+   "reward": {
+    "cashCents": 22000,
+    "xp": 250
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "start",
+     "label": "Presidio Main Post",
+     "lat": 37.799,
+     "lon": -122.458,
+     "radiusM": 12
+    },
+    {
+     "id": "coast",
+     "label": "Crissy Field",
+     "lat": 37.8058,
+     "lon": -122.4556,
+     "radiusM": 12
+    },
+    {
+     "id": "finish",
+     "label": "Presidio Main Post return",
+     "lat": 37.7993,
+     "lon": -122.4585,
+     "radiusM": 12
+    }
+   ]
+  },
+  "painted-ladies-photo": {
+   "id": "painted-ladies-photo",
+   "kind": "photo",
+   "wave": 5,
+   "objective": {
+    "event": "photo.landmarkFramed",
+    "count": 1
+   },
+   "timeLimitS": 180,
+   "reward": {
+    "cashCents": 10000,
+    "xp": 150
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "photo",
+     "label": "Alamo Square view",
+     "lat": 37.7763,
+     "lon": -122.4328,
+     "radiusM": 10
+    }
+   ]
+  },
+  "vermont-curves": {
+   "id": "vermont-curves",
+   "kind": "timeTrial",
+   "wave": 6,
+   "objective": {
+    "event": "race.finished",
+    "count": 1
+   },
+   "timeLimitS": 180,
+   "reward": {
+    "cashCents": 25000,
+    "xp": 300
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "start",
+     "label": "Vermont St upper approach",
+     "lat": 37.7584,
+     "lon": -122.4031,
+     "radiusM": 12
+    },
+    {
+     "id": "curves",
+     "label": "Vermont St curved block",
+     "lat": 37.7575,
+     "lon": -122.4031,
+     "radiusM": 12
+    },
+    {
+     "id": "finish",
+     "label": "Vermont St lower approach",
+     "lat": 37.7568,
+     "lon": -122.4032,
+     "radiusM": 12
+    }
+   ]
+  },
+  "bernal-viewer": {
+   "id": "bernal-viewer",
+   "kind": "relic",
+   "wave": 6,
+   "objective": {
+    "event": "relic.viewerFound",
+    "count": 1
+   },
+   "timeLimitS": 240,
+   "reward": {
+    "cashCents": 12500,
+    "xp": 200
+   },
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "view",
+     "label": "Bernal Hill lookout",
+     "lat": 37.7431,
+     "lon": -122.4141,
+     "radiusM": 15
+    }
+   ]
+  }
+ }
+}

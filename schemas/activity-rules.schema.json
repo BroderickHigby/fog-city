@@ -73,6 +73,11 @@
             "type": "integer",
             "minimum": 1
           },
+          "maxSpeedMps": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Optional speed cap (m/s): going faster fails the run, e.g. the Pauser binder's 12 mph."
+          },
           "reward": {
             "type": "object",
             "additionalProperties": false,
@@ -152,7 +157,9 @@
         "advanceEvery",
         "southLat",
         "northLat",
-        "corridor"
+        "corridor",
+        "boards",
+        "boardSource"
       ],
       "properties": {
         "boardCount": {
@@ -188,6 +195,42 @@
           "type": "number"
         },
         "corridor": {
+          "type": "string",
+          "minLength": 1
+        },
+        "boards": {
+          "type": "array",
+          "minItems": 20,
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "lat",
+              "lon",
+              "headingDeg"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^board-[0-9]{2}$"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              },
+              "headingDeg": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 360
+              }
+            }
+          }
+        },
+        "boardSource": {
           "type": "string",
           "minLength": 1
         }
@@ -279,6 +322,55 @@
     },
     "provenance": {
       "$ref": "provenance"
+    },
+    "coitRecon": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scanS",
+        "rangeM",
+        "relays",
+        "source"
+      ],
+      "properties": {
+        "scanS": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "rangeM": {
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "relays": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "lat",
+              "lon"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^relay-[0-9]+$"
+              },
+              "lat": {
+                "type": "number"
+              },
+              "lon": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "source": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
 }

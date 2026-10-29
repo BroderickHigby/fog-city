@@ -107,6 +107,7 @@ export interface ImpactEvent {
 
 /** A broken street prop (props.ts), by id in ImpactsExt.props. */
 export interface PropKnock {
+  pausedTicks?: number;
   kind: PropKind;
   /** The tick it broke. */
   tick: number;
@@ -355,7 +356,7 @@ function dimsOf(a: Readonly<AgentState>): SlideDims {
  * already grown by PERSON_CLEAR_M) stops it dead.
  * `holdSpin` (v25): a turn that is not taken keeps the body's spin for when it comes free.
  */
-function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[], holdSpin = false): Slider {
+function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obstacles: readonly Circle[], contacts: CarContact[], holdSpin = false, holdOnPerson = false): Slider {
   let heading = b.heading;
   let fx = dsin(heading);
   let fz = -dcos(heading);
@@ -402,7 +403,13 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
       break;
     }
     if (res.person) {
-      // Someone's clearance: stop dead, before anyone is touched.
+      // Someone's clearance: stop dead, before anyone is touched. v27: where it was before this
+      // step. The resolved pose can be nearer them, not further: a person's push spends the push
+      // budget, then the wall settle sends the box back past where it started.
+      if (holdOnPerson) {
+        x = lastX;
+        z = lastZ;
+      }
       vx = 0;
       vz = 0;
       yaw = 0;
@@ -458,6 +465,8 @@ interface Work {
   combat: Readonly<CombatState> | undefined;
   /** The state's SIM_VERSION. */
   version: number;
+  /** v27: a slide that meets someone's clearance stays where it was (slideBox holdOnPerson). */
+  holdOnPerson: boolean;
 }
 
 function addDents(d: Readonly<Dents>, local: { f: number; r: number }, hl: number, dv: number): Dents {
@@ -708,7 +717,7 @@ function resetProps(world: World, w: Work): void {
   const idx = propIndex(world);
   for (const id of keys) {
     const k = props[id]!;
-    if (w.tick - k.tick < PROP_RESET_TICKS) continue;
+    if (w.tick - k.tick - (k.pausedTicks ?? 0) < PROP_RESET_TICKS) continue;
     const p = idx.byId.get(id);
     if (p && !nobodyWithin(w, p.x, p.z, PROP_RESET_CLEAR_M)) continue;
     out ??= { ...props };
@@ -753,7 +762,7 @@ function stepKnocked(world: World, w: Work, i: number): boolean {
   if (k.phase === "slide") {
     const reach = d.hl + d.hw + Math.sqrt(k.vx * k.vx + k.vz * k.vz) * DT + 1;
     const contacts: CarContact[] = [];
-    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts, w.version >= BOX_CONTACT_VERSION);
+    const s = slideBox(world, { x: a.x, y: a.y, z: a.z, heading: a.heading, vx: k.vx, vz: k.vz, yaw: k.yaw }, d, slideObstacles(w, key, a.x, a.z, reach), contacts, w.version >= BOX_CONTACT_VERSION, w.holdOnPerson);
     const stopped = s.vx * s.vx + s.vz * s.vz < IMPACT.stopSpeed * IMPACT.stopSpeed && (s.yaw < 0 ? -s.yaw : s.yaw) < IMPACT.stopYaw;
     const speed = s.vx * dsin(s.heading) - s.vz * dcos(s.heading);
     // (Read back: what it hit may have changed it, and so may the dents just taken.)
@@ -934,7 +943,7 @@ function stepParked(world: World, w: Work, id: PlayerId): void {
   const key = `p:${id}`;
   const reach = CAR.halfLength + CAR.halfWidth + Math.sqrt(v.vx * v.vx + v.vz * v.vz) * DT + 1;
   const contacts: CarContact[] = [];
-  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts, w.version >= BOX_CONTACT_VERSION);
+  const s = slideBox(world, { x: c.x, y: c.y, z: c.z, heading: c.heading, vx: v.vx, vz: v.vz, yaw: c.yawRate }, CAR_DIMS, slideObstacles(w, key, c.x, c.z, reach), contacts, w.version >= BOX_CONTACT_VERSION, w.holdOnPerson);
   const fx = dsin(s.heading);
   const fz = -dcos(s.heading);
   const car: CarState = { ...c, x: s.x, y: s.y, z: s.z, heading: s.heading, speed: s.vx * fx + s.vz * fz, lateral: s.vx * -fz + s.vz * fx, yawRate: s.yaw, vy: 0 };
@@ -974,6 +983,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     fresh: new Set(),
     combat,
     version: state.version,
+    holdOnPerson: state.version >= 27,
   };
 
   // 1. The players' cars' hits: the other body takes its share. v25: a driving player's car that
@@ -1068,7 +1078,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   const neighbours:number[][]=bodies.map(()=>[]);
   for(const [i,j] of pairs){neighbours[i]!.push(j);neighbours[j]!.push(i);}
   const w:Work={tick:state.tick,players:state.players,agents:list.slice(),index:new Map(list.map((a,i)=>[a.id,i])),
-    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,version:state.version};
+    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,version:state.version,holdOnPerson:state.version>=27};
   const missed=new Map<number,{i:number;j:number;contact:HullContact}>();
   const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
   const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});
@@ -1107,7 +1117,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         if(hullBandsMeet(a.pose,b.pose)&&end.gap<VEHICLE_SKIN)missed.set(i*bodies.length+j,{i,j,contact:end});
         continue;
       }
-      const hit=sweepHulls(trajectory(a),trajectory(b));
+      const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=27?128:32);
       if(!hit||hit.t>1)continue;
       missed.set(i*bodies.length+j,{i,j,contact:hit});
       // Tiny safety retreat also keeps a numerical touching pair free to move apart next tick.
@@ -1125,7 +1135,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   for(const [i,j] of pairs){
     const a=bodies[i]!,b=bodies[j]!;
     if(hullBandsMeet(a.motion.before,b.motion.before)&&hullContact(a.motion.before,b.motion.before).gap< -1e-8)continue;
-    const hit=sweepHulls(trajectory(a),trajectory(b));
+    const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=27?128:32);
     // A skin contact at the endpoint is expected; only an earlier intersection needs rollback.
     if(hit&&hit.t<1-1e-5)blocked.add(root(i));
   }
@@ -1170,6 +1180,9 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         const old=body.oldAgent;
         next={...next,edge:old.edge,dir:old.dir,lane:old.lane,s:old.s,next:old.next,ndir:old.ndir,nlane:old.nlane,
           conn:old.conn,node:old.node,resume:old.resume,lat:old.lat,wait:old.wait+1,mode:"yield"};
+        // v27: a refused whole route step has no travelled velocity. Keeping the attempted
+        // speed made a stationary holder look mobile forever to following traffic.
+        if(state.version>=27)next.speed=0;
         if(old.pass)next.pass=old.pass;else delete next.pass;
         if(old.trafficRoute)next.trafficRoute=old.trafficRoute;else delete next.trafficRoute;
       }

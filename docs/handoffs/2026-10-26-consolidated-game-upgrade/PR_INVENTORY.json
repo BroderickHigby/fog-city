@@ -1,0 +1,1593 @@
+{
+  "schemaVersion": 1,
+  "repository": "BroderickHigby/fog-city",
+  "capturedAt": "2026-10-26T20:51:22.894Z",
+  "scope": "Read-only inventory; not a code review or merge approval",
+  "main": {
+    "sha": "66b1e6f51fd1799612d6319980fca7f2241b17a9",
+    "url": "https://github.com/BroderickHigby/fog-city/commit/66b1e6f51fd1799612d6319980fca7f2241b17a9",
+    "verifiedLive": true
+  },
+  "completeness": {
+    "openPullRequestCount": 16,
+    "searchTotalCount": 16,
+    "incompleteResults": false,
+    "allDetailsFetched": true
+  },
+  "groups": [
+    {
+      "id": "mission-stack",
+      "numbers": [
+        74,
+        76,
+        77,
+        78,
+        79,
+        80
+      ],
+      "summary": "Relevant authored mission/activity work; latest comments keep the stack out of production.",
+      "holds": [
+        "Real-controls twenty-distinct-board Plain Words completion absent: collapsed spinner blocks board02 after two normal attempts and one escalation.",
+        "Coit viewer/audio/full authored scope incomplete.",
+        "Do not merge stale stack directly; forward-port selected work to current main and re-verify."
+      ],
+      "source": "https://github.com/BroderickHigby/fog-city/pull/77#issuecomment-6405942100"
+    },
+    {
+      "id": "legacy-gameplay",
+      "numbers": [
+        14,
+        15,
+        16,
+        19,
+        21,
+        25
+      ],
+      "summary": "Relevant older-wave core/combat/player progression; a partial compatible forward-port exists separately, not complete release proof.",
+      "holds": [
+        "Finish authored scope and canonical save migration.",
+        "Independent current-head Standards/Spec review and full behavior/browser verification required.",
+        "Original draft PRs remain open and should not overwrite the current SIM_VERSION."
+      ],
+      "source": "https://github.com/BroderickHigby/fog-city/pull/21#issuecomment-6405944500"
+    },
+    {
+      "id": "structural-world",
+      "numbers": [
+        1,
+        3,
+        30
+      ],
+      "summary": "Historical city/render integration is partly superseded by the current release, but this complete structural stack remains explicitly held.",
+      "holds": [
+        "Actual controller/placement holds against props/buildings, crest launch, and an unmodelled long Bay Bridge span.",
+        "Two repairs plus escalation failed to establish endpoint/negative-fixture proof; no further blind retry at the same physical head.",
+        "Keep strict physical assertions; no blanket shoreline appearance waiver."
+      ],
+      "source": "https://github.com/BroderickHigby/fog-city/pull/30#issuecomment-6405941168"
+    },
+    {
+      "id": "osm-landcover",
+      "numbers": [
+        54
+      ],
+      "summary": "OSM/ODbL landcover source branch is separate from the currently released non-OSM fixes.",
+      "holds": [
+        "Latest comment explicitly retains unanswered owner ODbL policy decision.",
+        "Current DataSF/USGS/NPS-only work has no broad dependency on this hold."
+      ],
+      "source": "https://github.com/BroderickHigby/fog-city/pull/54#issuecomment-6405945068"
+    }
+  ],
+  "supersededContent": {
+    "claimLevel": "Partial component overlap only, not whole-PR equivalence or closure advice",
+    "currentMainImprovements": [
+      "Reviewed rendering and driving modernization with authored characters preserved",
+      "Startup street readiness so cars do not enter unloaded water",
+      "Trees and grass kept off roads/pavement",
+      "Attached vehicle damage meshes, compass and map",
+      "Palace of Fine Arts and lagoon",
+      "Visible synchronized stoplights with traffic compliance",
+      "Compact icon HUD and optional stat/mission detail"
+    ],
+    "note": "Every open PR head is not an ancestor of current main. This alone does not disprove squashed or manually forward-ported overlap; no whole PR was marked fully superseded."
+  },
+  "limitations": [
+    "GitHub mergeable is relative to each declared base, mostly legacy integration/lane branches, not current main.",
+    "CodeRabbit success statuses are paired with bot comments saying draft PRs were not reviewed; they are not review approval.",
+    "Checks/annotations are historical at exact current PR heads. Billing annotations confirm those jobs did not start; account billing state itself was not queried.",
+    "No full per-file patch-equivalence audit, no fresh tests or browser verification, no check reruns or repository/provider mutations.",
+    "Review threads and reviews were not comprehensively audited because this is inventory only; independent reviews are required before any eventual consolidated PR merge.",
+    "Inherited sustained-performance/allocation and 1 GB capacity hold remains open."
+  ],
+  "prs": [
+    {
+      "number": 80,
+      "title": "Missions: Coit Tower Recon signal producer at the design's wave four (stacked)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/80",
+      "headBranch": "work/missions/coit-recon",
+      "headSha": "28ad972331ebadf7812cbe48d7282e8fd0075163",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "aae1f46591ee04381fc1fe1e4751fb0cacd5d8c2",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:50Z",
+      "changedFiles": 36,
+      "body": "Missions stream, handoff §6 item 2: **Coit Tower Recon**. Stacked on the Search & Park PR; review only the Coit commit.\n\n## What changes\n- **Relays and detection.** Four rogue signal relays stand on open ground around the Coit Tower overlook (`content/activity-rules.json` `coitRecon`). A held one-second Bot Check on foot within 8 m of a relay raises `recon.signalFound`.\n- **Never counted:** scans out of range, from a car or released early, and claimed facts.\n- **The overlook checkpoint** moves from inside the tower to the open ground beside it.\n- **At the design's wave four.** `docs/design.md` (Side activities), `docs/roadmap.md` (wave-4 Sim-Player) and `docs/ai-layer.md` (the wave-4 Hallucination Tour bank) all place Coit Tower Recon in wave 4. The activity's `wave` is now 4 to match, so the wave-3 game does not offer it.\n- **`availability.ts`** keeps only its producer table, since every authored kind now has a producer. The test checks each authored wave-3 activity is offered and an unknown kind is still refused.\n\n## Not done\n- The wave-4 coin-op viewer view, the audio guide and its hallucination flag (render and content work for wave 4).\n\n## Contract changes\n- `PlayerActivities.recon` (optional): additive, with the same next `SIM_VERSION`.\n\n## Edits outside the missions area\n- `schemas/activity-rules.schema.json`: the relays.\n- `src/sim/player/types.ts`.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 0,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405943017,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/80#issuecomment-6405943017",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:49Z",
+          "updatedAt": "2026-10-26T01:05:49Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 79,
+      "title": "Missions: Search & Park legal-stop activity (stacked)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/79",
+      "headBranch": "work/missions/search-and-park",
+      "headSha": "0f50853360543c0254cac6d1a2e7d0c2ecd6b5b6",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "aae1f46591ee04381fc1fe1e4751fb0cacd5d8c2",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:48Z",
+      "changedFiles": 34,
+      "body": "Missions stream, handoff §6 item 2: **Search & Park**. Stacked on the Office Hours PR; review only the Search & Park commits.\n\n## What changes\n- **The route.** It runs from Illinois St at 20th to the signed spaces between 19th and 20th. The old park point was 34 m from any street.\n- **Legal-stop detection.** On that street, the mission parking world offers the painted bays with the committed parking and Street Cleaning rules. The shared legal-stop check (`advanceParking`, now also used by Demo'd Correctly) raises `parking.legalStop` when:\n  - the accepted car sits fully inside a legal bay,\n  - unmoved for two seconds,\n  - and the player presses Interact.\n- **Never counted:** claimed stops, illegal spaces and moving cars.\n- **Guidance.** The panel reads the parking instruction, and the minimap points at the nearest legal bay.\n\n## Evidence\n- Unit tests: a legal stop pays; an illegal bay, a moving car and a claimed stop don't.\n- Real SF: the committed rules offer at least one legal space there.\n- The existing Demo'd Correctly parking tests still pass on the refactor.\n\n## Not done\n- Browser completion needs the car at Pier 70, which ambient-traffic gridlock blocks out of the FiDi desk (#38).\n\n## Contract changes\n- `PlayerActivities.parking` (optional): additive. It takes the next `SIM_VERSION` with the Plain Words fields.\n\n## Edits outside the missions area\n- `src/sim/player/types.ts`.\n- `content/*`: provenance recomputed.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 0,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405942743,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/79#issuecomment-6405942743",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:48Z",
+          "updatedAt": "2026-10-26T01:05:48Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 78,
+      "title": "Missions: Ramen Office Hours as a real repeatable activity; remove the ramen-house marker (stacked)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/78",
+      "headBranch": "work/missions/office-hours",
+      "headSha": "0985ce02205e95a5c6c00ef01fa8539733017d94",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "aae1f46591ee04381fc1fe1e4751fb0cacd5d8c2",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:46Z",
+      "changedFiles": 31,
+      "body": "Missions stream, handoff §6 item 2: **Ramen Office Hours**, and the legacy `ramen-house` marker. Stacked on the Plain Words PR; review only the Office Hours commit.\n\n## What changes\n- **Office Hours runs as its own mission** (`content/missions/office-hours.json`): the three partners' questions from mission 4, then the live three-robot demo with its real presentation check.\n  - Booking at the Ramen door starts it.\n  - The activity counts only the mission's own `demo.robotPresented` (forwarded from mission events) and ends with the mission.\n  - It fails when the mission ends without a presentation. Claimed facts never count.\n- **Opens once Demo'd Correctly is complete** (its `activity:office-hours` unlock). A direct `mission-start` cannot bypass the door, cooldown or unlock.\n- **Pays by outcome**, $1,500 / $700 / $300 (`docs/design.md`), **once per booking**: rewards are keyed per run. The activity itself pays nothing, so no booking is paid twice.\n- **Hands the city back.** When it ends, the mission sets status idle, and the campaign continues at its start areas.\n- **The door** moves from inside the Ramen house to its 20th St side, on open ground.\n- **The legacy `ramen-house` marker is removed.** It was a second, generic start at the same door with no objective; the design's Office Hours is the `office-hours` activity at that door.\n\n## Evidence\n- A composed run with real staged robots, water and recorded answers pays the term sheet once per booking, across two bookings.\n- Unit tests cover the unlock, the direct-start refusal, outcome forwarding, failure and claimed facts.\n\n## Not done\n- A browser playthrough: it means walking 3.5 km from the FiDi desk to Pier 70, or driving through the gridlock that #38 addresses. Planned in the long suite.\n\n## Contract changes\nNone to `contract.ts`. `stepMissions` takes the activities' events (already an optional parameter in the activity-ui PR).\n\n## Edits outside the missions area\n- `src/content/catalog.ts`: register the mission.\n- `content/activities.json`: marker removed.\n- `content/activity-rules.json`, `content/ui-copy.json`: provenance recomputed.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 0,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405942399,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/78#issuecomment-6405942399",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:46Z",
+          "updatedAt": "2026-10-26T01:05:46Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 77,
+      "title": "Missions: Plain Words on Columbus Ave: boards, washing, spinners (stacked)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/77",
+      "headBranch": "work/missions/plain-words",
+      "headSha": "6038c4fc46b777cc0a459fde9b66468b986b9675",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "aae1f46591ee04381fc1fe1e4751fb0cacd5d8c2",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:44Z",
+      "changedFiles": 27,
+      "body": "Missions stream, handoff §6 item 2: **Plain Words**. Stacked on the activity-ui PR; review only the Plain Words commits.\n\n## What changes\n- **Boards.** Twenty sandwich boards stand on the Columbus Ave sidewalks between the real Broadway and Bay St junctions. They're generated from the road graph: outside the Chinatown analysis neighbourhood, at least 15 m from Grant Ave and Stockton St, on open ground (`content/activity-rules.json` `plainWords.boards`). The checkpoints move onto the real junctions; the Columbus/Bay point was 170 m off.\n- **Washing, measured.** Each tick the player's own water particles are swept through each board (the player adapter adds `waterTraces` to the gameplay context). Two seconds of stream turns a board back to plain words and raises `board.washed`. Claimed `board.washed` facts never count.\n- **Sign-spinners.** Starting the activity asks the agents runtime for four bad sign-spinner robots, through the existing `mission.scene-request` path, beside the southern boards. Standing spinners rebrand washed boards every 8 s within 50 m. Every four rebrands the hype word climbs the ladder. At \"made by humans\" a rebrand counts as plain words, as the design says (\"the hype ate itself\"). A rusted spinner stops. A run's spinners retire when it ends.\n- **Completion, as `docs/design.md` states it:** twenty washes and every spinner rusted, inside five minutes. The three checkpoints mark the corridor and its start; no route is required.\n- **HUD.** Progress, the hype word, and minimap blips for rebranded boards and standing spinners.\n\n## Evidence\n- Unit tests (`tests/sim/player/plain-words.test.ts`): washing, missed and foreign water, claimed facts, rebrands and the ladder, rusted spinners, payout and timeout.\n- A real-SF placement test: every board on open Columbus sidewalk, none in Chinatown or a protected area.\n\n## Not done / pacing\n- **With today's water economy the run is not yet winnable on foot.** An 8 L tank, about 1.6 L per board and refills 60-85 m apart cap the Node driver at about 7-12 washes in five minutes.\n  - #44 (unlimited water, an owner decision) removes that bottleneck; the pace will be re-tested on it.\n  - **Do not mark this ready before a driver completion is shown.** Until then it stays a draft, so nothing unwinnable is exposed.\n- Lane R art is requested in the status file: board meshes showing their word, and a sign-spinner model. Until then boards show as minimap blips and spinners as Footman robots.\n\n## Contract changes\n- `PlayerActivities.plainWords` (optional) and `GameplayContext.waterTraces` (optional): an additive state-format change. It takes the next `SIM_VERSION` before ready; the number is being requested from the coordinator.\n\n## Edits outside the missions area\n- `src/sim/player/adapter.ts`: water traces.\n- `src/sim/player/types.ts`: the new types.\n- `src/sim/agents/systems.ts`: read scene requests from activity events, and retire a run's spinners (about 10 lines).\n- `src/main.ts`: merge the run's blips (1 line).\n- `schemas/activity-rules.schema.json`: board list.\n- `content/*`: provenance recomputed.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 0,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405942100,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/77#issuecomment-6405942100",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:44Z",
+          "updatedAt": "2026-10-26T01:05:44Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 76,
+      "title": "Missions: start side activities from the HUD; sprint and hill-delivery stops on real streets (stacked on #74)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/76",
+      "headBranch": "work/missions/activity-ui",
+      "headSha": "c5c421f3ba46f46da9da95e7032aaa684cf82a1c",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "59e5a7babc2f749e0fba4f4ab887715b040b7b76",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:43Z",
+      "changedFiles": 22,
+      "body": "Missions stream, handoff §6 item 3 (and the base for item 2). **Stacked on #74**; review only the commits after `692f5ac`.\n\n## Why\n- **Nothing in the game started a side activity.** No UI ever sent `activity-start`, so the \"available\" wave-3 routes could only be played in sim tests.\n- **Two of the offered routes could never be finished.** The hand-placed Embarcadero Sprint finish (\"Mission Bay waterfront\") was in China Basin. Hill delivery's Hyde/Union and Lombard/Leavenworth stops were 87 m and 52 m off their junctions, inside blocks.\n\n## What changes\n- **A non-modal activity panel** (`src/ui/activities.ts`):\n  - At an activity's start marker it offers the activity with a Start button, which sends the recorded `activity-start` command.\n  - While the activity runs, it shows the next checkpoint and the time left, and points the minimap at that checkpoint.\n  - The offer uses the reducer's own start rule (`canStartActivity`), so the UI never shows a dead button.\n- **Side activities beside a waiting campaign.** A campaign mission that only waits for the player to reach its start area no longer blocks side activities, and that start area does not fire while an activity runs (`missionEngaged`).\n- **Checkpoints on real streets.** The sprint finish and both hill-delivery stops now sit on their road-graph junctions (n23589000, n25512000, n25530000). `tests/sim/player/activity-checkpoints-sf.test.ts` keeps every offered checkpoint on open ground within 25 m of a street.\n- **Hill delivery browser playthrough** (`tests/e2e/activities.long.ts`, long config): walk to Hyde and Union, press Start, walk to Lombard and Leavenworth, hand over with Interact. Paid once, with an exact Node replay.\n\n## Evidence\n- In Node, real SF, real inputs only: hill delivery completes, paid once, 0 contacts.\n- Unit and content tests: tests/sim/player, tests/ui, tests/content pass (1,236).\n\n## Not done\n- The browser run of `activities.long.ts` is still to come (queued behind #74's long run).\n- The Embarcadero Sprint's browser completion needs fast driving, which the ambient-traffic gridlock blocks (see #38).\n\n## Contract changes\nNone.\n\n## Edits outside the missions area\n- `src/main.ts`: mounts the panel and passes its destination (3 lines).\n- `src/sim/player/adapter.ts`: passes `activities` to `stepMissions` (1 line).\n- `content/ui-copy.json`: `ui.activity.*` strings, provenance recomputed.\n- `content/activity-rules.json`: the three corrected checkpoints.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [
+        {
+          "id": 120798861624,
+          "name": "campaign-two-players.long.ts",
+          "headSha": "c5c421f3ba46f46da9da95e7032aaa684cf82a1c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40069230458/job/120798861624",
+          "startedAt": "2026-10-24T06:11:45Z",
+          "completedAt": "2026-10-24T06:11:48Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108608752548,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/c5c421f3ba46f46da9da95e7032aaa684cf82a1c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        },
+        {
+          "id": 120798861612,
+          "name": "activities.long.ts",
+          "headSha": "c5c421f3ba46f46da9da95e7032aaa684cf82a1c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40069230458/job/120798861612",
+          "startedAt": "2026-10-24T06:11:45Z",
+          "completedAt": "2026-10-24T06:11:47Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108608752548,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/c5c421f3ba46f46da9da95e7032aaa684cf82a1c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        },
+        {
+          "id": 120798861511,
+          "name": "typecheck, unit, e2e",
+          "headSha": "c5c421f3ba46f46da9da95e7032aaa684cf82a1c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40069230460/job/120798861511",
+          "startedAt": "2026-10-24T06:11:45Z",
+          "completedAt": "2026-10-24T06:11:47Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108608752554,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/c5c421f3ba46f46da9da95e7032aaa684cf82a1c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        },
+        {
+          "id": 120798861443,
+          "name": "campaign-launch-day.long.ts",
+          "headSha": "c5c421f3ba46f46da9da95e7032aaa684cf82a1c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40069230458/job/120798861443",
+          "startedAt": "2026-10-24T06:11:45Z",
+          "completedAt": "2026-10-24T06:11:48Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108608752548,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/c5c421f3ba46f46da9da95e7032aaa684cf82a1c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 4,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6380754072,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/76#issuecomment-6380754072",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T06:11:41Z",
+          "updatedAt": "2026-10-24T06:11:41Z",
+          "body": "Merged `work/missions/wave3-campaign-browser` (f8b744a, with integrate/wave2 59e5a7b, SIM_VERSION 13) into this branch; head is now `c5c421f`.\n- **Conflicts:** `src/main.ts` (the activity panel next to the new online-match HUD update; the panel is empty during a match) and `content/ui-copy.json` (integrate's strings plus `ui.activity.*`, provenance rehashed).\n- **Test change:** `activities.long.ts` now steps the Start button's queued `activity-start` command, because a debug pause is authoritative since 00e1f300.\n\nLocal evidence on c5c421f:\n- `pnpm typecheck`: clean.\n- `vitest run tests/sim/player tests/ui tests/content tests/e2e/harness.test.ts tests/sim/agents`: 69 files, 1439 passed, 1 skipped.\n\nGitHub Actions is blocked by billing, so CI did not run. This stays a draft.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405941777,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/76#issuecomment-6405941777",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:43Z",
+          "updatedAt": "2026-10-26T01:05:43Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 74,
+      "title": "Missions: Launch Day real-SF browser playthrough, two-player session, curbside save spawn",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/74",
+      "headBranch": "work/missions/wave3-campaign-browser",
+      "headSha": "f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "59e5a7babc2f749e0fba4f4ab887715b040b7b76",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:41Z",
+      "changedFiles": 12,
+      "body": "Missions stream, handoff §6 item 1: Launch Day and Demo'd Correctly played through real controls in the real SF world.\n\n## What changes\n- **Loaded saves no longer strand the car.** The restore put the car on the safehouse pin. The FiDi desk pin is 41 m from any lane, in a 2 m passage, so the car could not drive out. `src/save/restore-spawn.ts` now places it on the nearest drivable lane, facing along it. `tests/ui/restore-spawn.test.ts` checks every safehouse on the real map.\n- **Closed-loop drivers** for Launch Day and Demo'd Correctly (`tests/helpers/drivers/wave3-campaign.ts`). They plan from observed state and step only the production simulation.\n  - When driving meets a jam, the driver brakes for traffic and creeps behind people.\n  - It overtakes only through a swept corridor, and leaves the carriageway only where no one stands nearby.\n  - Failing that, it rewinds and tries another plan; traffic is deterministic, so only the plan that arrives stays in the recorded inputs.\n  - Where the mission allows any travel mode, it walks the street route.\n- **Long real-SF playthroughs** run in their own config, `tests/e2e/campaign-long.config.ts` (`*.long.ts`). They take an hour or more under SwiftShader, beyond the default suite's CI budget.\n  - `campaign-launch-day.long.ts`:\n    - A post-Spill save goes in through the save panel's Import and Load.\n    - Launch Day is played with real controls and the page's own dialogs: drive or walk to Washington Square, Watch, Bot Check, the false positive and its Continue, compare, melt, then the pivot form.\n    - It saves mid-mission and after completion, then reloads both ways.\n    - A second attempt fails on its clock and is retried with fresh actors.\n    - Each page session's Node replay must match the page's hash. Rewards are paid once, with zero protected contacts.\n  - `campaign-two-players.long.ts`:\n    - p2 joins through `player.join` and plays Hot Desk, with its commands arriving as events, while p1 plays Launch Day.\n    - It checks actor bindings, each player's own guidance (`uiProjection`) and once-only rewards, including after a reload on each client.\n- **Test plumbing:** closing a dialog resumes the game clock, so the helpers hold it again after closing.\n\n## Evidence\n- In the browser on `?world=sf` (integrate/wave2 `ff7db5b`, before the v10 merge), the first Launch Day session completed:\n  - 32,136 input frames and 5 recorded commands.\n  - Exact Node replay, hash `b439bf4c`.\n  - Scanner tier 2, `launch-day:complete` paid once, courier dry, zero contacts.\n  - The reload-after-completion checks passed.\n  - That run then reached my old one-hour test limit in the retry phase. The new file allows four hours.\n- Node, real SF: Launch Day completes from the restored save through real inputs only. The two-player Hot Desk leg (p2) completes in 14,625 frames with p1 untouched and zero contacts.\n\n## Not done / blocked (honest status)\n- **Demo'd Correctly cannot yet be finished in the browser.** It needs the car at Pier 70, and every driving plan out of the FiDi desk stalls in ambient-traffic gridlock. The deadlock is diagnosed in `docs/parallel/status/missions-stream.md` and fixed in #38. With #38 merged locally, the walkers no longer freeze, but robotaxi queues still stall these routes. I'm investigating with the City life stream.\n- The long specs have not yet been re-run after merging integrate/wave2 (`86dfb90`, SIM_VERSION 10); that re-run is in progress.\n- CI: `.github` is the Harness's. The long config needs its own CI job; I've asked the coordinator.\n\n## Contract changes\nNone. No `SIM_VERSION` change.\n\n## Edits outside the missions area\n- `src/main.ts`: one line, so the save restore uses `restoreSpawn`.\n- `src/save/restore-spawn.ts`: a new file.\n- `tests/e2e/campaign-browser.ts`, `campaign-long.config.ts`, `*.long.ts`: campaign e2e, owned by this stream.\n\n## Tests run\n- `pnpm typecheck`.\n- `vitest`: tests/sim/player, tests/ui, the e2e harness and forbidden-APIs tests: 165 passed.\n- The browser run described above.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01BrVrz8q41mGFRJ8ra861gB)_",
+      "checks": [
+        {
+          "id": 120774902720,
+          "name": "campaign-launch-day.long.ts",
+          "headSha": "f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40061204119/job/120774902720",
+          "startedAt": "2026-10-24T04:09:10Z",
+          "completedAt": "2026-10-24T04:09:14Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108587481607,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        },
+        {
+          "id": 120774902630,
+          "name": "typecheck, unit, e2e",
+          "headSha": "f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40061204158/job/120774902630",
+          "startedAt": "2026-10-24T04:09:10Z",
+          "completedAt": "2026-10-24T04:09:13Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108587481707,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        },
+        {
+          "id": 120774902606,
+          "name": "campaign-two-players.long.ts",
+          "headSha": "f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40061204119/job/120774902606",
+          "startedAt": "2026-10-24T04:09:10Z",
+          "completedAt": "2026-10-24T04:09:13Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108587481607,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/f8b744a9d2ebb8ba0b1b45ac6eeb3de2a4d4414c/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 3,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6379715009,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/74#issuecomment-6379715009",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T04:13:02Z",
+          "updatedAt": "2026-10-24T04:13:02Z",
+          "body": "CI on `f8b744a` did not run. All three checks (`typecheck, unit, e2e`, `campaign-launch-day.long.ts`, `campaign-two-players.long.ts`) ended in 3 s with \"The job was not started because recent account payments have failed or your spending limit needs to be increased\". That is the account's Actions billing block, not this branch, and there is nothing to re-run until billing is fixed.\n\nLocal evidence on `f8b744a`:\n- `pnpm typecheck`: clean.\n- `vitest run tests/e2e/harness.test.ts tests/ui/restore-spawn.test.ts tests/sim/player`: 13 files, 59 tests passed.\n- The Launch Day long playthrough (`campaign-launch-day.long.ts`) is re-running locally in Chromium. Its result will follow.\n\nThe PR stays a draft until CI runs again.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405941449,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/74#issuecomment-6405941449",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:41Z",
+          "updatedAt": "2026-10-26T01:05:41Z",
+          "body": "This mission stack remains out of production. The separate [reviewed release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nThe prepared mission rules repairs still lack a successful real-controls twenty-distinct-board Plain Words completion: a collapsed spinner blocks board02. The required two normal attempts plus one escalation failed without weakening assertions or injecting completion. Coit also retains incomplete full-spec/viewer scope. This stack is held; no claim of mission release or readiness.\n"
+        }
+      ],
+      "group": "mission-stack",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 54,
+      "title": "World detail: lawns, fences and piers (needs OSM/ODbL sign-off)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/54",
+      "headBranch": "work/world-detail/landcover",
+      "headSha": "50d77eb3e984e5384d2bcc6668a87791615285dd",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "ce59fcfd916cabb3bef2778fa92b2202c452680c",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:06:00Z",
+      "changedFiles": 24,
+      "body": "**Stacked on #53 (street signs), #52 and #41.** The new work is `pipeline/lib/landcover.ts`, `pipeline/lib/osm-pbf.ts` and `src/render/street-landcover.ts`.\n\n## ⚠️ Owner decision needed: OpenStreetMap (ODbL)\n\nThis is the first OpenStreetMap data in the repo. Fort Mason's Great Meadow, the Presidio and Crissy Field (land the city doesn't map) and most fences and piers exist only in OSM. Two requirements follow from the ODbL:\n- The OSM-derived data is kept in its own file, `public/tiles/sf/street-osm.json`, which is a **derivative database under the ODbL** (its `license` field says so). DataSF data stays in `street-landcover.json`.\n- The game must show \"© OpenStreetMap contributors\" where it shows credits. The line is in `street-detail.json` `attribution`; **the credits UI (UI-Audio) needs to display it.**\n\n`docs/data-sources.md` said \"No OpenStreetMap data is used\"; it now says the world build uses none and the street-detail land cover does. If you'd rather not ship OSM, drop `street-osm.json` and the `osm` layer: the DataSF parts still work on their own.\n\nThe extract is the pinned one your local session pushed on `data/osm-sf` (`ec64af5`, SHA-256 `90f1a33c…f3be4`, OSM timestamp 2026-10-22). The producer reads it from `data/osm/` and checks the hash. **This PR does not add the 18.6 MB .pbf.** Merging `data/osm-sf` is needed only to rebuild, not to run the game.\n\n## What\n\n- **Grass**:\n  - Rec and Park lawns: *Functional Areas* `38b7-6db3` Lawn, Non-landscaped Greenspace and Natural Area (Marina Green, the Palace of Fine Arts, every city park).\n  - OSM grass (`landuse=grass/meadow`, `landcover=grass`, `natural=grassland`, grass pitches; ways and multipolygons with holes).\n  - Clipped to 100 m cells and drawn as a terrain-following sheet just above the ground, below the road ribbons.\n- **Fences, walls, hedges**: Rec and Park *Linear Assets* `rny7-88gk` Fence/Gate, plus OSM `barrier=fence/wall/retaining_wall/hedge/guard_rail`. Fences render as posts with a chain-link panel; walls and hedges as blocks.\n- **Piers**: OSM `man_made=pier` (the Marina's yacht-harbour docks, Fort Mason, the Embarcadero), as decks above the sea.\n- `pipeline/lib/osm-pbf.ts` is a small dependency-free PBF reader (zlib blobs, dense nodes, ways, relations).\n\n## Files outside the stream's own\n\n`src/render/scene.ts` (passes the sea height), `src/debug.ts`, `tests/schemas/schemas.test.ts`.\n\n## Tests\n\n`tests/pipeline/landcover.test.ts` covers:\n- cell clipping keeps area and holes;\n- grass drapes on the ground and leaves holes bare;\n- OSM tag classes;\n- joining multipolygons from member ways;\n- on the committed data: the Great Meadow and Marina Green lawns are grassed, and Fort Mason has fences and the Marina has piers.\n\n## Evidence\n\n`docs/shots/world-detail/landcover-*.png` (Fort Mason meadow before/after and from above, Marina Green, Bay St, fences).\n\nhttps://claude.ai/code/session_01TnFQ6xrsfJd7QQWvsMSikG\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+      "checks": [
+        {
+          "id": 120791724639,
+          "name": "typecheck, unit, e2e",
+          "headSha": "50d77eb3e984e5384d2bcc6668a87791615285dd",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40066820998/job/120791724639",
+          "startedAt": "2026-10-24T05:35:05Z",
+          "completedAt": "2026-10-24T05:35:08Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108602448815,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/50d77eb3e984e5384d2bcc6668a87791615285dd/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6377324242,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/54#issuecomment-6377324242",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T00:11:24Z",
+          "updatedAt": "2026-10-24T00:11:24Z",
+          "body": "CI did not run here, and the cause isn't in this PR. GitHub refused to start the only job, `typecheck, unit, e2e`: \"recent account payments have failed or your spending limit needs to be increased\". Every branch in the repo is hitting the same thing (see #41). Per the coordinator, this PR stays a draft until the owner fixes billing or decides on a policy.\n\nLocal evidence on the top of this stack (`work/world-detail/storefront-signs`, which contains this PR's commits):\n- `pnpm typecheck`: clean.\n- Vitest, 161 files: 3,314 passed, 1 skipped (pre-existing), 1 failed. The failure was `tests/assets/privacy.test.ts` rejecting my JPEG screenshots. They're converted to PNG, and that file now passes along with the asset, schema and world suites (1,000/1,000).\n- `node pipeline/build-street-detail.ts --offline` produces byte-identical outputs.\n- The full Chromium e2e on the stack is running now; I'll add its counts when it finishes. The base PR #41 got 39 passed and 10 skipped (no Firefox/WebKit installed).\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6379838473,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/54#issuecomment-6379838473",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T04:26:23Z",
+          "updatedAt": "2026-10-24T04:26:23Z",
+          "body": "I merged `integrate/wave2` (`59e5a7b`, release #67) into this branch with a merge commit, at `6801f2d`. #67 already contains the crosswalks, signals, street signs and trees, so this PR's diff against the base is now only the land cover:\n- `pipeline/lib/landcover.ts` and `pipeline/lib/osm-pbf.ts`;\n- `src/render/street-landcover.ts`;\n- `street-landcover.json` (DataSF, PDDL) and `street-osm.json` (OpenStreetMap, ODbL);\n- their schemas, tests and screenshots;\n- small hook-ups in `street-detail.ts`, `debug.ts` and `scene.ts` (pier height above the water).\n\nLocal evidence (Actions is blocked by billing):\n- `pnpm typecheck`: clean.\n- vitest: 193 files, 3,597 passed, 1 skipped.\n- `build-street-detail --offline --check` with the pinned OSM extract: OK.\n\nThis PR stays a draft until the owner signs off on ODbL and adds the \"© OpenStreetMap contributors\" credit in the UI.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6379935759,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/54#issuecomment-6379935759",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T04:36:58Z",
+          "updatedAt": "2026-10-24T04:36:58Z",
+          "body": "**CI:** `typecheck, unit, e2e` failed on `6801f2d` before any step ran. The job finished 3 seconds after it was created, never got a runner, and has no logs. That matches the GitHub Actions billing block, not this change. The local results in the previous comment stand. I can't re-run it until billing is fixed.\n\nThe coordinator reports that the \"© OpenStreetMap contributors (ODbL)\" credit is already in the Credits panel (#63, merged), so the only thing this PR waits for is the owner's ODbL sign-off.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405945068,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/54#issuecomment-6405945068",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:06:00Z",
+          "updatedAt": "2026-10-26T01:06:00Z",
+          "body": "This OSM/ODbL-dependent change remains outside the [verified release91](https://github.com/BroderickHigby/fog-city/pull/91), pending the existing unanswered owner policy decision. No approval is inferred and no broad hold applies to unrelated DataSF/USGS/NPS source work. [Current public game](https://fog-city-five.vercel.app).\n"
+        }
+      ],
+      "group": "osm-landcover",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 30,
+      "title": "World (a): structural world import as SIM_VERSION 14, source snapshot and reproducibility",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/30",
+      "headBranch": "work/world/source-cache",
+      "headSha": "8691dd9e4e8d820fde17540e440eb40c215081a6",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "59e5a7babc2f749e0fba4f4ab887715b040b7b76",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:40Z",
+      "changedFiles": 1387,
+      "body": "World stream PR (a) of a stack: (a) source cache and reproducibility → (b) generator/collision/sweep fixes → (c) structural physics v9, migration and agent surfaces → (d) renderer wiring.\n\n**Draft. Do not merge yet.** This PR imports the held structural world, and the strict world gate is red on it. Most of that is pre-existing on `qa/world-integration`; PR (b) clears it. It becomes ready only when CI is green.\n\n## What this does\n\n- **Imports the structural SF world** by merging `qa/world-integration` (`4556f8a`) onto `integrate/wave2` as a merge commit, so the original authorship is kept. That branch brings structural surfaces (decks, tunnel bores, stair barriers, inland water), the regenerated SF tiles, the band-aware sweep, the strict world gates and the Lake Merced propulsion fix (780 m → 0 m). Conflicts were resolved by keeping wave2's registry, parking/street-cleaning/transit/sidewalk layers, quarantine, lifecycle, combat and per-attempt mission ids. Only comments and version stamps were combined.\n- **Reproducibility.** The original raw cache is gone: it is in no git ref, and the pipeline never recorded input hashes. DataSF answers again, so the pinned datasets were refetched; DataSF has no as-of queries, so this is today's data. An offline `--check` against that cache reproduced **1,192 of 1,203 files byte-for-byte**: the collider pack, every collider, roads, boundary, gameplay and every far cell. The 11 differences all come from the daily business registry (`g8m3-pdis`): storefront anchors went 10,478 → 10,481, plus `report.json` counters and nine tile GLBs that draw shopfronts.\n- **Explicit new snapshot `2026-10-23T21:20Z`**, not a silent refresh:\n  - `pipeline/source-snapshot.json` pins the SHA-256 and size of all 181 raw responses (389.7 MB).\n  - `pipeline/tools/source-snapshot.ts` writes it and verifies a cache against it.\n  - `docs/data-sources.md` \"Snapshots\" records the date, the hashes and the diff summary.\n  - The tiles were regenerated by the pipeline. No GLB or pack was hand-edited.\n- Merge fallout fixed: duplicate `World` fields, a duplicate import, the sf-world layer list (gameplay + storefronts), version tests, and the docs/testing.md index for the three new e2e specs.\n\n## Contract changes\n\n- `SIM_VERSION` → **14** (additive; integrate now ships v10 weather, v11 player feel, v12 robotaxi rides and v13 city life/unlimited water, so the structural world takes current + 1). The structural physics are stamped 9 in the same commit that imports them, so they never reach a branch targeting `integrate/wave2` under a gameplay-only stamp. `upgradeState` chains … → v12 → v13 → v14, each step written previous → this, with no saved field rewritten; v9 is never written. Every shipped fixture (v7, v8, v10, v11, v12, v13) is unchanged. New pins:\n  - `tests/golden/composed-v14.json`: coverage identical to v13 in all five scenarios; only hashes moved, because the version is hashed.\n  - `tests/golden/wave2-v14.json`.\n\n  PR (c) adds surface-aware load/join recovery and real-save 8→9 tests.\n\n## Known red (pre-existing on `qa/world-integration`; same tests run on a pristine checkout)\n\n- The strict `world-pr` gate: 53 passed / 78 failed / 7 skipped. Of 116 metrics, 67 are better, 37 the same and 12 worse. PR (b) fixes the worse ones and tightens the reviewed improvements.\n- `tests/sim/boundary.test.ts`, southern edge: the 2.1978 m is the probe's own start pose straddling a shoreline wall notch. From every clear start the car stops with 0.000 m overshoot. PR (b) fixes the probe and keeps the 0.02 m assertion.\n- `tests/sim/pack.test.ts`: the test compares raw `ground` objects, but the pack carries lakes as a `lake` array while the JSON carries `cover` digits, by design. Fixed in PR (b) with a stronger equivalence check.\n- `tests/golden/world-baseline.test.ts`, ground-tint wiring: resolved by the renderer's `bakedGround` guard in PR (d).\n- `tests/sim/sf-agents.test.ts`, one agent entering a building: PR (c), banded motion and agent surfaces.\n- **Two browser regressions found by CI** (run 40044165274, attempt 2), not yet root-caused, tracked for this stack:\n  - `car-pose.spec.ts`: `G.far.cellsDrawnFromTwinPeaks` is 9 far cells against a baseline of 13 (W-20 is marked fixed, so this is a hard regression).\n  - `sf-world.spec.ts`, \"the city limit has no crack\": 6 far quads stitched at the southern edge, where more than 50 are required.\n\n  Both concern the far layer meeting the structural tiles in the current renderer. Whether the cause is the far-layer output or the renderer's seam logic (the structural renderer, PR (d), handles baked seams) is still open. Neither is waived.\n\n## Outside the World area\n\n- `tests/golden/*`, `tests/helpers*`, `docs/testing.md` (Harness): version pins, golden fixtures and the e2e doc index.\n- `content/storefronts.json` and the storefront/house/landmark content schemas are deliberately left out. They land with their content in PR (d).\n\n## Validation\n\n- `pnpm typecheck`: passed.\n- Unit project: 3,445 passed / 16 failed before the fallout fixes; the remaining reds are the list above. Content/schema suites: 1,822 passed.\n- `node pipeline/build-world.ts --world sf --offline --check` (with the snapshot cache): see the comment below once CI runs.\n- `node pipeline/tools/source-snapshot.ts`: 181/181 identical.\n\nStatus file: `docs/parallel/status/world-stream.md`.\n\nhttps://claude.ai/code/session_01LNC9ytRUtHqCdr8ADm7ad7\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_",
+      "checks": [
+        {
+          "id": 120794741143,
+          "name": "typecheck, unit, e2e",
+          "headSha": "8691dd9e4e8d820fde17540e440eb40c215081a6",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40067848175/job/120794741143",
+          "startedAt": "2026-10-24T05:50:45Z",
+          "completedAt": "2026-10-24T05:50:48Z",
+          "annotationsCount": 1,
+          "checkSuiteId": 108605103535,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/8691dd9e4e8d820fde17540e440eb40c215081a6/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the 'Billing & plans' section in your settings",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": true
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6375799671,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/30#issuecomment-6375799671",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-23T22:14:26Z",
+          "updatedAt": "2026-10-23T22:14:26Z",
+          "body": "Producer checks on head `34034ea`, run against the snapshot cache (`node pipeline/tools/source-snapshot.ts`: 181/181 responses identical):\n\n- `node pipeline/build-world.ts --world sf --offline --check`: **check OK, all 1,203 files byte-identical** (295 s).\n- `node pipeline/build-gameplay.ts --check`: OK, 581 tiles, 5,292 refills, 800 anchors, 10 territory rows.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6377953343,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/30#issuecomment-6377953343",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-24T01:07:57Z",
+          "updatedAt": "2026-10-24T01:07:57Z",
+          "body": "CI note: the two red `typecheck, unit, e2e` runs on `6e15818` and `965453b` never ran. Each job finished in 3 s with 0 steps and no runner, during the GitHub Actions billing block, so neither is a test result. I re-ran the latest one (run 40044165274, attempt 2). It is still expected to go red on the strict `world-pr` gate, which was already failing on `qa/world-integration` and is listed in the PR body. PR (b) fixes that, and this PR stays a draft until then.\n\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405941168,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/30#issuecomment-6405941168",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:40Z",
+          "updatedAt": "2026-10-26T01:05:40Z",
+          "body": "Current audit: this stack remains out of production. The separate reviewed release [PR91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nStructural-world preparation recovered the authored sources/assets/harness and reproducibly generated all1203 SF files. Strict original thresholds were retained. Actual driver/placement failures remain: controller holds against real props/buildings, crest launch, and an intentionally unmodelled long Bay Bridge span. Two normal repair attempts plus one escalation did not establish a safe endpoint/negative-fixture proof. A blanket shoreline appearance rule was independently rejected. No physical assertion or baseline was weakened to mark this ready. This stack is held; no further retries on the failed physical head.\n"
+        }
+      ],
+      "group": "structural-world",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 25,
+      "title": "Lane 5 (player): wave 4 (stacked on wave 3)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/25",
+      "headBranch": "lane/sim-player/wave4",
+      "headSha": "70089fc67ef874559e094f39177a2eb69f4f0891",
+      "baseBranch": "lane/sim-player/wave3",
+      "baseSha": "59fbfe0a1fcd4382dcca12ee8455a798d85cd89d",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:59Z",
+      "changedFiles": 22,
+      "body": "Lane branch `lane/sim-player/wave4`, stacked on #16 (wave 3), opened by the coordinating Claude session. #21 stacks on this one.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012u6jdJxkY41mYkqG3yG9Xk)_",
+      "checks": [
+        {
+          "id": 120504204731,
+          "name": "typecheck, unit, e2e",
+          "headSha": "70089fc67ef874559e094f39177a2eb69f4f0891",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39979919692/job/120504204731",
+          "startedAt": "2026-10-23T15:37:54Z",
+          "completedAt": "2026-10-23T16:23:17Z",
+          "annotationsCount": 7,
+          "checkSuiteId": 108365706098,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job has exceeded the maximum execution time of 45m0s",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/.github",
+              "start_line": 409,
+              "start_column": null,
+              "end_line": 409,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The operation was canceled.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/.github",
+              "start_line": 752,
+              "start_column": null,
+              "end_line": 752,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "Process completed with exit code 1.",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/wave2-interface.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/tests/sim/wave2-interface.test.ts",
+              "start_line": 48,
+              "start_column": null,
+              "end_line": 48,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/wave2-interface.test.ts > wave-2 shared interface > replays recorded wave-1 inputs through migration against pre-change hashes",
+              "message": "AssertionError: expected 'a19fd77f' to be 'b03f8d5e' // Object.is equality\n\nExpected: \"b03f8d5e\"\nReceived: \"a19fd77f\"\n\n ❯ tests/sim/wave2-interface.test.ts:48:51\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/agents.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/tests/sim/agents.test.ts",
+              "start_line": 121,
+              "start_column": null,
+              "end_line": 121,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/agents.test.ts > population > a world without roads has no agents and no ext key",
+              "message": "AssertionError: expected { player: { version: 1, …(4) }, …(5) } to deeply equal {}\n\n- Expected\n+ Received\n\n- {}\n+ {\n+   \"activities\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"activeActivityId\": \"\",\n+         \"activeCardId\": \"\",\n+         \"activityStartedTick\": 0,\n+         \"cardCooldowns\": {},\n+         \"cardUntilTick\": 0,\n+         \"checkpointIndex\": 0,\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"cooldowns\": {},\n+         \"directorRng\": [\n+           2522921342,\n+           334560833,\n+           186285787,\n+           4494,\n+         ],\n+         \"nextDirectorTick\": 2701,\n+         \"objectiveCount\": 0,\n+         \"ruleFailed\": false,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"economy\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"cashCents\": 200000,\n+         \"commandSequence\": 0,\n+         \"ownedItemIds\": [],\n+         \"ownedSiteIds\": [\n+           \"fidi-desk\",\n+           \"marina-garage\",\n+           \"mission-bay-garage\",\n+         ],\n+         \"paidActorIds\": [],\n+         \"reputation\": 50,\n+         \"runwayMonths\": 18,\n+       },\n+     },\n+     \"settledModeIds\": [],\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"heat\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"lastAssociateSeenTick\": 1,\n+         \"lastSeenTick\": 1,\n+         \"lastWashId\": \"\",\n+         \"levelMelts\": 0,\n+         \"recentMelts\": [],\n+         \"spawnSequence\": 0,\n+         \"threat\": 0,\n+         \"vcQuarters\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"missions\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"deadlineTick\": 0,\n+         \"meters\": {},\n+         \"missionId\": \"\",\n+         \"objectiveCount\": 0,\n+         \"objectiveIds\": [],\n+         \"outcome\": \"\",\n+         \"questionIndex\": 0,\n+         \"retryFrom\": \"\",\n+         \"rewardedIds\": [],\n+         \"startedTick\": 0,\n+         \"status\": \"idle\",\n+         \"stepId\": \"\",\n+         \"stepStartedTick\": 0,\n+         \"visits\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"player\": {\n+     \"events\": [],\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"bridgeUntil\": 0,\n+         \"commandSequence\": 0,\n+         \"downRounds\": 0,\n+         \"resumeTick\": 0,\n+         \"safehouseId\": \"\",\n+         \"startupKitId\": \"\",\n+         \"status\": \"active\",\n+         \"watchedTicks\": 0,\n+         \"watchingActorId\": \"\",\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"progression\": {\n+     \"doom\": {\n+       \"factCursors\": {},\n+       \"factions\": {},\n+       \"lastDay\": 1,\n+       \"months\": 24,\n+       \"pausedUntil\": 0,\n+       \"resets\": 0,\n+       \"winterUntilDay\": -1,\n+       \"winters\": 0,\n+     },\n+     \"events\": [],\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"achievements\": [],\n+         \"banked\": {},\n+         \"commandSequence\": 0,\n+         \"flowTier\": 0,\n+         \"gadget\": \"balloon\",\n+         \"gear\": \"none\",\n+         \"nozzle\": \"standard\",\n+         \"perks\": [],\n+         \"rank\": 1,\n+         \"scannerTier\": 1,\n+         \"streakPoints\": 0,\n+         \"streakSequence\": 0,\n+         \"streaks\": [\n+           \"confidence\",\n+         ],\n+         \"tankTier\": 0,\n+         \"xp\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+ }\n\n ❯ tests/sim/agents.test.ts:121:19\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/io/assets.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/tests/io/assets.test.ts",
+              "start_line": 298,
+              "start_column": null,
+              "end_line": 298,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/io/assets.test.ts > the web build's world JSON > ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS",
+              "message": "AssertionError: src/ reads manifest.layers.gameplay: expected [ 'boundary', 'districts' ] to include 'gameplay'\n ❯ tests/io/assets.test.ts:298:91\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/content/taste.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/70089fc67ef874559e094f39177a2eb69f4f0891/tests/content/taste.test.ts",
+              "start_line": 22,
+              "start_column": null,
+              "end_line": 22,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/content/taste.test.ts > authored content passes the content lint > content/activity-rules.json",
+              "message": "AssertionError: expected [ Array(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"definitions.19.checkpoints.1.label: checklist: R-Evolution (sculpture) | R-Evolution binder delivery\",\n+ ]\n\n ❯ tests/content/taste.test.ts:22:22\n\n",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405944810,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/25#issuecomment-6405944810",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:59Z",
+          "updatedAt": "2026-10-26T01:05:59Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 21,
+      "title": "Sim-Player: bank streak rewards and validate wave-4 mission progression",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/21",
+      "headBranch": "lane/sim-player/wave4-continuation",
+      "headSha": "ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65",
+      "baseBranch": "lane/sim-player/wave4",
+      "baseSha": "70089fc67ef874559e094f39177a2eb69f4f0891",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:57Z",
+      "changedFiles": 21,
+      "body": "## Summary\n\nStreaks now bank an equipped reward when its threshold is crossed and spend that reward when called. Score is retained, old profiles are adopted once, and re-equipping cannot farm another reward. Canonical and legacy loadout IDs use the same authored rank gates. Wide-nozzle purchases, owned nozzle switching and saved Microclimate selection preserve those gates.\n\nParking, bell-duel and cable-car mechanics now feed the registered player pipeline through validated world bindings and accepted poses. Measured story objectives and faction routes reject named-fact shortcuts, late handoffs and remote handoffs. The canonical progression Doom Clock handles absolute-day catch-up, same-tick AGI calls and once-only match settlement without a second clock or duplicate faction payouts.\n\n## Roadmap deliverables\n\n- [x] Wave-4 progression gates, banked streak rewards and enabled-perk projection.\n- [x] Mission-mechanics adapter with physical acceptance and snapshot replay coverage.\n- [x] Reconcile the published wave-4 story, faction and match-isolation work.\n- [x] Canonical Doom Clock, Conference Week state and boundary-aware settlements.\n- [ ] Production world/provider and visual/mode consumers; remaining wave-4 activities and wave-5–8 work.\n\n## Acceptance tests\n\n- Passed: typecheck and all **164 player/purity tests**, including ownership/rank aliases, snapshot restore, forged completion rejection and producer-cursor poisoning.\n- Full unit run: **2,768 passed, four failed, one skipped** with loopback test servers enabled. Remaining failures are inherited content lint (`R-Evolution binder delivery`), missing packaged gameplay layer, the old empty-extension assertion and a pre-player-system replay hash pin.\n- Independent adversarial reviews found no remaining blocker after fixing named-fact shortcuts, endpoint/deadline checks and producer-cursor poisoning.\n- Passed on the final equipment merge: **all 16 browser determinism checks** (Chromium 8, Firefox 4, WebKit 4), including SF running-game/render isolation and multiplayer replay.\n\n## Contract changes\n\nNo new shared contract, content or schema edits in this continuation's diff against `lane/sim-player/wave4`. Optional fields live in lane-owned extension state; the existing canonical `progression.doom` remains authoritative. The published dependency's shared interface/content commits are preserved.\n\n## Requests for other lanes\n\nCore should supply absolute `gameDay`/`gameWeek`, unique actor/objective bindings, accepted mechanics poses and recovered-vehicle ownership through the observed provider. Core, Agents, Render and Modes must consume the clock, Conference Week and perk outputs. The equipment bridge now exposes wide nozzles and Microclimate; the integrating lane must compose their combat runtime. Subscription billing and the before-first-attack producer remain outstanding. Detailed handoff: `docs/parallel/status/sim-player.md`.\n\n## For the owner to judge\n\nThis PR targets `lane/sim-player/wave4` and preserves that branch; it does not merge into a release or integration branch. It is an incremental Lane 5 handoff, not a declaration that the complete game or waves 2–8 are finished.\n",
+      "checks": [
+        {
+          "id": 120211544237,
+          "name": "typecheck, unit, e2e",
+          "headSha": "ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39891229170/job/120211544237",
+          "startedAt": "2026-10-23T02:45:47Z",
+          "completedAt": "2026-10-23T03:31:10Z",
+          "annotationsCount": 7,
+          "checkSuiteId": 108120771472,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job has exceeded the maximum execution time of 45m0s",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/.github",
+              "start_line": 60,
+              "start_column": null,
+              "end_line": 60,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The operation was canceled.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/.github",
+              "start_line": 819,
+              "start_column": null,
+              "end_line": 819,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "Process completed with exit code 1.",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/wave2-interface.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/tests/sim/wave2-interface.test.ts",
+              "start_line": 48,
+              "start_column": null,
+              "end_line": 48,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/wave2-interface.test.ts > wave-2 shared interface > replays recorded wave-1 inputs through migration against pre-change hashes",
+              "message": "AssertionError: expected '7ee768cd' to be 'b03f8d5e' // Object.is equality\n\nExpected: \"b03f8d5e\"\nReceived: \"7ee768cd\"\n\n ❯ tests/sim/wave2-interface.test.ts:48:51\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/agents.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/tests/sim/agents.test.ts",
+              "start_line": 121,
+              "start_column": null,
+              "end_line": 121,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/agents.test.ts > population > a world without roads has no agents and no ext key",
+              "message": "AssertionError: expected { player: { version: 1, …(7) }, …(5) } to deeply equal {}\n\n- Expected\n+ Received\n\n- {}\n+ {\n+   \"activities\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"activeActivityId\": \"\",\n+         \"activeCardId\": \"\",\n+         \"activityStartedTick\": 0,\n+         \"cardCooldowns\": {},\n+         \"cardUntilTick\": 0,\n+         \"checkpointIndex\": 0,\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"cooldowns\": {},\n+         \"directorRng\": [\n+           2522921342,\n+           334560833,\n+           186285787,\n+           4494,\n+         ],\n+         \"nextDirectorTick\": 2701,\n+         \"objectiveCount\": 0,\n+         \"ruleFailed\": false,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+     \"worldEvents\": {\n+       \"conferenceWeek\": false,\n+       \"lastGameWeek\": null,\n+       \"tick\": -1,\n+       \"version\": 1,\n+     },\n+   },\n+   \"economy\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"cashCents\": 200000,\n+         \"commandSequence\": 0,\n+         \"ownedItemIds\": [],\n+         \"ownedSiteIds\": [\n+           \"fidi-desk\",\n+           \"marina-garage\",\n+           \"mission-bay-garage\",\n+         ],\n+         \"paidActorIds\": [],\n+         \"reputation\": 50,\n+         \"runwayMonths\": 18,\n+       },\n+     },\n+     \"settledModeIds\": [],\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"heat\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"lastAssociateSeenTick\": 1,\n+         \"lastSeenTick\": 1,\n+         \"lastWashId\": \"\",\n+         \"levelMelts\": 0,\n+         \"recentMelts\": [],\n+         \"spawnSequence\": 0,\n+         \"threat\": 0,\n+         \"vcQuarters\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"missions\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"deadlineTick\": 0,\n+         \"meters\": {},\n+         \"missionId\": \"\",\n+         \"objectiveCount\": 0,\n+         \"objectiveIds\": [],\n+         \"outcome\": \"\",\n+         \"questionIndex\": 0,\n+         \"retryFrom\": \"\",\n+         \"rewardedIds\": [],\n+         \"startedTick\": 0,\n+         \"status\": \"idle\",\n+         \"stepId\": \"\",\n+         \"stepStartedTick\": 0,\n+         \"visits\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"player\": {\n+     \"boardingIntents\": [],\n+     \"events\": [],\n+     \"mechanicFacts\": [],\n+     \"mechanics\": {\n+       \"boarding\": {},\n+       \"duels\": {},\n+       \"nextSequence\": 1,\n+       \"parking\": {},\n+       \"previousInteract\": {\n+         \"p1\": false,\n+       },\n+       \"tick\": 60,\n+       \"version\": 1,\n+     },\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"bridgeUntil\": 0,\n+         \"commandSequence\": 0,\n+         \"downRounds\": 0,\n+         \"resumeTick\": 0,\n+         \"safehouseId\": \"\",\n+         \"startupKitId\": \"\",\n+         \"status\": \"active\",\n+         \"watchedTicks\": 0,\n+         \"watchingActorId\": \"\",\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"progression\": {\n+     \"doom\": {\n+       \"factCursors\": {},\n+       \"factions\": {},\n+       \"lastDay\": -1,\n+       \"lastTick\": -1,\n+       \"months\": 24,\n+       \"pausedUntil\": 0,\n+       \"resets\": 0,\n+       \"streakCursor\": 0,\n+       \"winterUntilDay\": -1,\n+       \"winterUntilTick\": 0,\n+       \"winters\": 0,\n+     },\n+     \"events\": [],\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"achievements\": [],\n+         \"banked\": {},\n+         \"commandSequence\": 0,\n+         \"earnedStreaks\": [],\n+         \"flowTier\": 0,\n+         \"gadget\": \"balloon\",\n+         \"gear\": \"none\",\n+         \"nozzle\": \"standard\",\n+         \"perks\": [],\n+         \"rank\": 1,\n+         \"scannerTier\": 1,\n+         \"streakPoints\": 0,\n+         \"streakSequence\": 0,\n+         \"s",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/io/assets.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/tests/io/assets.test.ts",
+              "start_line": 298,
+              "start_column": null,
+              "end_line": 298,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/io/assets.test.ts > the web build's world JSON > ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS",
+              "message": "AssertionError: src/ reads manifest.layers.gameplay: expected [ 'boundary', 'districts' ] to include 'gameplay'\n ❯ tests/io/assets.test.ts:298:91\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/content/taste.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/ee7b65e0f4fcee95a335f233cd9b8ccc4cd10d65/tests/content/taste.test.ts",
+              "start_line": 22,
+              "start_column": null,
+              "end_line": 22,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/content/taste.test.ts > authored content passes the content lint > content/activity-rules.json",
+              "message": "AssertionError: expected [ Array(1) ] to deeply equal []\n\n- Expected\n+ Received\n\n- []\n+ [\n+   \"definitions.19.checkpoints.1.label: checklist: R-Evolution (sculpture) | R-Evolution binder delivery\",\n+ ]\n\n ❯ tests/content/taste.test.ts:22:22\n\n",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405944500,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/21#issuecomment-6405944500",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:57Z",
+          "updatedAt": "2026-10-26T01:05:57Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 19,
+      "title": "Lane 2 (core): wave 4 (stacked on wave 2)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/19",
+      "headBranch": "lane/core/wave4",
+      "headSha": "4ffe076a76edb362e5e634f63bab54159e2e92b7",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "c36a550061101346e07fcb9b3bc00663707d7267",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:56Z",
+      "changedFiles": 3,
+      "body": "Lane branch `lane/core/wave4`, opened by the coordinating Claude session because the lane's own session can't reach the GitHub API. The lane keeps pushing to this branch; this PR exists so CI runs and conflicts show up.\n\nBase: `lane/core/wave2` (stacked). Lane rules: `docs/parallel/README.md`. Merge order and review are lane 2's (wave integrator) per that README; nothing here merges into `integrate/wave1` before the world-QA gate.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012u6jdJxkY41mYkqG3yG9Xk)_",
+      "checks": [
+        {
+          "id": 120202490188,
+          "name": "typecheck, unit, e2e",
+          "headSha": "4ffe076a76edb362e5e634f63bab54159e2e92b7",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39888563719/job/120202490188",
+          "startedAt": "2026-10-23T02:15:21Z",
+          "completedAt": "2026-10-23T02:46:56Z",
+          "annotationsCount": 5,
+          "checkSuiteId": 108113566515,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/4ffe076a76edb362e5e634f63bab54159e2e92b7/.github",
+              "start_line": 39,
+              "start_column": null,
+              "end_line": 39,
+              "end_column": null,
+              "annotation_level": "warning",
+              "title": "",
+              "message": "Screenshots stopped early; the ones taken are in the artifact.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/4ffe076a76edb362e5e634f63bab54159e2e92b7/.github",
+              "start_line": 76,
+              "start_column": null,
+              "end_line": 76,
+              "end_column": null,
+              "annotation_level": "notice",
+              "title": "🎭 Playwright Run Summary",
+              "message": "  42 passed (18.2m)",
+              "raw_details": ""
+            },
+            {
+              "path": "[chromium] › tests/e2e/sf-world.spec.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/4ffe076a76edb362e5e634f63bab54159e2e92b7/[chromium] › tests/e2e/sf-world.spec.ts",
+              "start_line": 0,
+              "start_column": null,
+              "end_line": 0,
+              "end_column": null,
+              "annotation_level": "warning",
+              "title": "Slow Test",
+              "message": "[chromium] › tests/e2e/sf-world.spec.ts took 5.5m",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/4ffe076a76edb362e5e634f63bab54159e2e92b7/.github",
+              "start_line": 299,
+              "start_column": null,
+              "end_line": 299,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "Process completed with exit code 1.",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/io/assets.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/4ffe076a76edb362e5e634f63bab54159e2e92b7/tests/io/assets.test.ts",
+              "start_line": 298,
+              "start_column": null,
+              "end_line": 298,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/io/assets.test.ts > the web build's world JSON > ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS",
+              "message": "AssertionError: src/ reads manifest.layers.gameplay: expected [ 'boundary', 'districts' ] to include 'gameplay'\n ❯ tests/io/assets.test.ts:298:91\n\n",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405944199,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/19#issuecomment-6405944199",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:56Z",
+          "updatedAt": "2026-10-26T01:05:56Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 16,
+      "title": "Lane 5 (sim-player): wave 3 (stacked on wave 2)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/16",
+      "headBranch": "lane/sim-player/wave3",
+      "headSha": "59fbfe0a1fcd4382dcca12ee8455a798d85cd89d",
+      "baseBranch": "integrate/wave2",
+      "baseSha": "c36a550061101346e07fcb9b3bc00663707d7267",
+      "draft": true,
+      "mergeable": false,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:54Z",
+      "changedFiles": 71,
+      "body": "Lane branch `lane/sim-player/wave3`, opened by the coordinating Claude session because the lane's own session can't reach the GitHub API. The lane keeps pushing to this branch; this PR exists so CI runs and conflicts show up.\n\nBase: `lane/sim-player/wave2` (stacked). Lane rules: `docs/parallel/README.md`. Merge order and review are lane 2's (wave integrator) per that README; nothing here merges into `integrate/wave1` before the world-QA gate.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012u6jdJxkY41mYkqG3yG9Xk)_",
+      "checks": [
+        {
+          "id": 120203797836,
+          "name": "typecheck, unit, e2e",
+          "headSha": "59fbfe0a1fcd4382dcca12ee8455a798d85cd89d",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39888888335/job/120203797836",
+          "startedAt": "2026-10-23T02:19:42Z",
+          "completedAt": "2026-10-23T02:43:07Z",
+          "annotationsCount": 6,
+          "checkSuiteId": 108114459064,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/.github",
+              "start_line": 45,
+              "start_column": null,
+              "end_line": 45,
+              "end_column": null,
+              "annotation_level": "warning",
+              "title": "",
+              "message": "Screenshots stopped early; the ones taken are in the artifact.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/.github",
+              "start_line": 73,
+              "start_column": null,
+              "end_line": 73,
+              "end_column": null,
+              "annotation_level": "notice",
+              "title": "🎭 Playwright Run Summary",
+              "message": "  42 passed (11.0m)",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/.github",
+              "start_line": 638,
+              "start_column": null,
+              "end_line": 638,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "Process completed with exit code 1.",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/wave2-interface.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/tests/sim/wave2-interface.test.ts",
+              "start_line": 48,
+              "start_column": null,
+              "end_line": 48,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/wave2-interface.test.ts > wave-2 shared interface > replays recorded wave-1 inputs through migration against pre-change hashes",
+              "message": "AssertionError: expected '9557ea57' to be 'b03f8d5e' // Object.is equality\n\nExpected: \"b03f8d5e\"\nReceived: \"9557ea57\"\n\n ❯ tests/sim/wave2-interface.test.ts:48:51\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/sim/agents.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/tests/sim/agents.test.ts",
+              "start_line": 121,
+              "start_column": null,
+              "end_line": 121,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/sim/agents.test.ts > population > a world without roads has no agents and no ext key",
+              "message": "AssertionError: expected { player: { version: 1, …(4) }, …(5) } to deeply equal {}\n\n- Expected\n+ Received\n\n- {}\n+ {\n+   \"activities\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"activeActivityId\": \"\",\n+         \"activeCardId\": \"\",\n+         \"activityStartedTick\": 0,\n+         \"cardCooldowns\": {},\n+         \"cardUntilTick\": 0,\n+         \"checkpointIndex\": 0,\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"cooldowns\": {},\n+         \"directorRng\": [\n+           2522921342,\n+           334560833,\n+           186285787,\n+           4494,\n+         ],\n+         \"nextDirectorTick\": 2701,\n+         \"objectiveCount\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"economy\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"cashCents\": 200000,\n+         \"commandSequence\": 0,\n+         \"ownedItemIds\": [],\n+         \"ownedSiteIds\": [\n+           \"fidi-desk\",\n+           \"marina-garage\",\n+           \"mission-bay-garage\",\n+         ],\n+         \"paidActorIds\": [],\n+         \"reputation\": 50,\n+         \"runwayMonths\": 18,\n+       },\n+     },\n+     \"settledModeIds\": [],\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"heat\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"lastAssociateSeenTick\": 1,\n+         \"lastSeenTick\": 1,\n+         \"lastWashId\": \"\",\n+         \"levelMelts\": 0,\n+         \"recentMelts\": [],\n+         \"spawnSequence\": 0,\n+         \"threat\": 0,\n+         \"vcQuarters\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"missions\": {\n+     \"events\": [],\n+     \"factCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"commandSequence\": 0,\n+         \"completedIds\": [],\n+         \"deadlineTick\": 0,\n+         \"meters\": {},\n+         \"missionId\": \"\",\n+         \"objectiveCount\": 0,\n+         \"objectiveIds\": [],\n+         \"outcome\": \"\",\n+         \"questionIndex\": 0,\n+         \"retryFrom\": \"\",\n+         \"rewardedIds\": [],\n+         \"startedTick\": 0,\n+         \"status\": \"idle\",\n+         \"stepId\": \"\",\n+         \"stepStartedTick\": 0,\n+         \"visits\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"player\": {\n+     \"events\": [],\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"bridgeUntil\": 0,\n+         \"commandSequence\": 0,\n+         \"downRounds\": 0,\n+         \"resumeTick\": 0,\n+         \"safehouseId\": \"\",\n+         \"startupKitId\": \"\",\n+         \"status\": \"active\",\n+         \"watchedTicks\": 0,\n+         \"watchingActorId\": \"\",\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+   \"progression\": {\n+     \"events\": [],\n+     \"grantCursors\": {},\n+     \"nextId\": 1,\n+     \"players\": {\n+       \"p1\": {\n+         \"achievements\": [],\n+         \"banked\": {},\n+         \"commandSequence\": 0,\n+         \"flowTier\": 0,\n+         \"gadget\": \"balloon\",\n+         \"gear\": \"none\",\n+         \"nozzle\": \"standard\",\n+         \"perks\": [],\n+         \"rank\": 1,\n+         \"scannerTier\": 1,\n+         \"streakPoints\": 0,\n+         \"streakSequence\": 0,\n+         \"streaks\": [\n+           \"confidence\",\n+         ],\n+         \"tankTier\": 0,\n+         \"xp\": 0,\n+       },\n+     },\n+     \"tick\": 60,\n+     \"version\": 1,\n+   },\n+ }\n\n ❯ tests/sim/agents.test.ts:121:19\n\n",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/io/assets.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/59fbfe0a1fcd4382dcca12ee8455a798d85cd89d/tests/io/assets.test.ts",
+              "start_line": 298,
+              "start_column": null,
+              "end_line": 298,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/io/assets.test.ts > the web build's world JSON > ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS",
+              "message": "AssertionError: src/ reads manifest.layers.gameplay: expected [ 'boundary', 'districts' ] to include 'gameplay'\n ❯ tests/io/assets.test.ts:298:91\n\n",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405943889,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/16#issuecomment-6405943889",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:54Z",
+          "updatedAt": "2026-10-26T01:05:54Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 15,
+      "title": "Lane 4 (sim-combat): wave 5 (stacked on wave 4)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/15",
+      "headBranch": "lane/sim-combat/wave5",
+      "headSha": "d8e6911aade718ab7bae0b4bd08c108ee2b490eb",
+      "baseBranch": "lane/sim-combat/wave4",
+      "baseSha": "d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:53Z",
+      "changedFiles": 25,
+      "body": "Lane branch `lane/sim-combat/wave5`, opened by the coordinating Claude session because the lane's own session can't reach the GitHub API. The lane keeps pushing to this branch; this PR exists so CI runs and conflicts show up.\n\nBase: `lane/sim-combat/wave4` (stacked: shows only the wave-5 commits). Lane rules: `docs/parallel/README.md`. Merge order and review are lane 2's (wave integrator) per that README; nothing here merges into `integrate/wave1` before the world-QA gate.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012u6jdJxkY41mYkqG3yG9Xk)_",
+      "checks": [
+        {
+          "id": 120202455000,
+          "name": "typecheck, unit, e2e",
+          "headSha": "d8e6911aade718ab7bae0b4bd08c108ee2b490eb",
+          "status": "completed",
+          "conclusion": "failure",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39888551996/job/120202455000",
+          "startedAt": "2026-10-23T02:15:16Z",
+          "completedAt": "2026-10-23T02:57:27Z",
+          "annotationsCount": 5,
+          "checkSuiteId": 108113536841,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d8e6911aade718ab7bae0b4bd08c108ee2b490eb/.github",
+              "start_line": 39,
+              "start_column": null,
+              "end_line": 39,
+              "end_column": null,
+              "annotation_level": "warning",
+              "title": "",
+              "message": "Screenshots stopped early; the ones taken are in the artifact.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d8e6911aade718ab7bae0b4bd08c108ee2b490eb/.github",
+              "start_line": 76,
+              "start_column": null,
+              "end_line": 76,
+              "end_column": null,
+              "annotation_level": "notice",
+              "title": "🎭 Playwright Run Summary",
+              "message": "  42 passed (18.3m)",
+              "raw_details": ""
+            },
+            {
+              "path": "[chromium] › tests/e2e/sf-world.spec.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d8e6911aade718ab7bae0b4bd08c108ee2b490eb/[chromium] › tests/e2e/sf-world.spec.ts",
+              "start_line": 0,
+              "start_column": null,
+              "end_line": 0,
+              "end_column": null,
+              "annotation_level": "warning",
+              "title": "Slow Test",
+              "message": "[chromium] › tests/e2e/sf-world.spec.ts took 5.4m",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d8e6911aade718ab7bae0b4bd08c108ee2b490eb/.github",
+              "start_line": 309,
+              "start_column": null,
+              "end_line": 309,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "Process completed with exit code 1.",
+              "raw_details": ""
+            },
+            {
+              "path": "tests/io/assets.test.ts",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d8e6911aade718ab7bae0b4bd08c108ee2b490eb/tests/io/assets.test.ts",
+              "start_line": 298,
+              "start_column": null,
+              "end_line": 298,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "tests/io/assets.test.ts > the web build's world JSON > ships every data layer the game reads: each manifest.layers.<name> read under src/ is in RUNTIME_LAYERS",
+              "message": "AssertionError: src/ reads manifest.layers.gameplay: expected [ 'boundary', 'districts' ] to include 'gameplay'\n ❯ tests/io/assets.test.ts:298:91\n\n",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405943626,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/15#issuecomment-6405943626",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:53Z",
+          "updatedAt": "2026-10-26T01:05:53Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 14,
+      "title": "Lane 4 (sim-combat): wave 4 (stacked on wave 3)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/14",
+      "headBranch": "lane/sim-combat/wave4",
+      "headSha": "d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad",
+      "baseBranch": "lane/sim-combat/wave3",
+      "baseSha": "d8552e52b2762a8984f05aae6b20750e5c64c465",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:51Z",
+      "changedFiles": 13,
+      "body": "Lane branch `lane/sim-combat/wave4`, opened by the coordinating Claude session because the lane's own session can't reach the GitHub API. The lane keeps pushing to this branch; this PR exists so CI runs and conflicts show up.\n\nBase: `lane/sim-combat/wave3` (stacked: shows only the wave-4 commits). Lane rules: `docs/parallel/README.md`. Merge order and review are lane 2's (wave integrator) per that README; nothing here merges into `integrate/wave1` before the world-QA gate.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_012u6jdJxkY41mYkqG3yG9Xk)_",
+      "checks": [
+        {
+          "id": 120202449354,
+          "name": "typecheck, unit, e2e",
+          "headSha": "d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/39888549969/job/120202449354",
+          "startedAt": "2026-10-23T02:15:13Z",
+          "completedAt": "2026-10-23T03:00:36Z",
+          "annotationsCount": 3,
+          "checkSuiteId": 108113531506,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job has exceeded the maximum execution time of 45m0s",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad/.github",
+              "start_line": 26,
+              "start_column": null,
+              "end_line": 26,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The operation was canceled.",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/d4b411f7aeb4ea7dbd84f2904250d1ea29f5cbad/.github",
+              "start_line": 73,
+              "start_column": null,
+              "end_line": 73,
+              "end_column": null,
+              "annotation_level": "notice",
+              "title": "🎭 Playwright Run Summary",
+              "message": "  42 passed (10.6m)",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6405943312,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/14#issuecomment-6405943312",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:51Z",
+          "updatedAt": "2026-10-26T01:05:51Z",
+          "body": "The compatible forward-port is prepared separately, but this older-wave stack is not verified or released in full. The separate [release91](https://github.com/BroderickHigby/fog-city/pull/91) is verified on [Fog City](https://fog-city-five.vercel.app).\n\nRetain this PR open: the partial port must finish its authored scope, compose with the canonical save migration, and pass independent current-head reviews plus full behavior/browser verification. Passing focused port tests does not prove this original PR is ready for production. No stale SIM_VERSION stack will be merged over the reviewed release.\n"
+        }
+      ],
+      "group": "legacy-gameplay",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 3,
+      "title": "Ferry Building showcase: high graphics tier, PBR streets, plaza, F-line and palms (WIP)",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/3",
+      "headBranch": "feature/ferry-showcase",
+      "headSha": "451f4dc7beba9b81420bfb4f8b7a33ee2754dec0",
+      "baseBranch": "integrate/wave1",
+      "baseSha": "3da4fb46ad1bd7719df29ea7f969671737dad7bd",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:38Z",
+      "changedFiles": 90,
+      "body": "Work in progress on the owner's Ferry Building showcase: the 800 m around the clock tower, rendered like a current-gen game. Based on `qa/housekit`, which already includes the qa/pipeline, qa/render, qa/assets and qa/content lanes. **Do not merge ahead of the world QA gate.**\n\n## What's in it so far\n- **Graphics tiers** (`src/render/gfx.ts`). `?gfx=high|default|auto` sets the tier, and auto is the default.\n  - Auto picks the high tier on a hardware WebGL2 GPU. It picks default on a software rasteriser (every CI and e2e run) or a phone, so the default tier the budget tests measure is unchanged.\n  - An auto-chosen high tier that stays under 30 fps for 5 s drops post-processing, then shadows. An explicit `?gfx=high` never steps down.\n  - `?gfxoff=post,shadows,detail,showcase,ao,bloom` turns features off for A/B shots.\n- **Post-processing** (`post.ts`): N8AO ambient occlusion, bloom, and tone mapping applied once in the output pass. Three's GTAOPass drew the frame black under this scene's 0.5 m–20 km depth range, so it is not used.\n- **Shadows:** 4096 px sun shadows with a softer PCF kernel in the high tier.\n- **Generated PBR detail** (`detail.ts`): the generated texture sets (`assets/textures/generate.py`, WebP, 6 MB, no photographs) are mapped in world space on roads, sidewalks and ground. Grass goes on lawns, and pavers wherever the showcase's mask says.\n- **Showcase street layer** (`showcase.ts`):\n  - crosswalks (continental on busy streets) and stop bars with worn paint\n  - pavers on Harry Bridges Plaza, the Embarcadero median and the waterfront promenade\n  - the F-line trackbed and two tracks down the median\n  - 58 Canary Island date palms\n- Tiles with bores under them now hand their ground material to the scene, so it gets the same detail.\n- **Static build:** packs `models/textures/` (WebP and `textures.json`).\n- **Privacy test:** every image under `public/models/textures/` must come from the generator.\n- **New pinned dependencies:** `n8ao` 2.0.1 and `postprocessing` 6.39.5 (n8ao imports it).\n\n## Still to do\n- Kerbs, then the hero Ferry Building model (arcade depth, tower detail, roof trusses), and stone, stucco and glass PBR on the buildings within the radius.\n- Reflective Bay water, a lighting pass for day, golden hour and night, high-definition avatars, and denser props.\n- Tests for the tier choice, the governor, the showcase geometry (nothing on a carriageway) and the build packing.\n- Budgets measured on both tiers, then the full suite and the world gate.\n- Before-and-after screenshots for the owner. Whether it looks photoreal is the owner's call.\n\n---\n_Generated by [Claude Code](https://claude.ai/code/session_01K4HE49AUF6waq4TuKbdd3r)_",
+      "checks": [
+        {
+          "id": 120594739790,
+          "name": "typecheck, unit, e2e",
+          "headSha": "451f4dc7beba9b81420bfb4f8b7a33ee2754dec0",
+          "status": "completed",
+          "conclusion": "cancelled",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40006234894/job/120594739790",
+          "startedAt": "2026-10-23T18:47:52Z",
+          "completedAt": "2026-10-23T19:33:12Z",
+          "annotationsCount": 2,
+          "checkSuiteId": 108439589311,
+          "annotations": [
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/451f4dc7beba9b81420bfb4f8b7a33ee2754dec0/.github",
+              "start_line": 1,
+              "start_column": null,
+              "end_line": 1,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The job has exceeded the maximum execution time of 45m0s",
+              "raw_details": ""
+            },
+            {
+              "path": ".github",
+              "blob_href": "https://github.com/BroderickHigby/fog-city/blob/451f4dc7beba9b81420bfb4f8b7a33ee2754dec0/.github",
+              "start_line": 50,
+              "start_column": null,
+              "end_line": 50,
+              "end_column": null,
+              "annotation_level": "failure",
+              "title": "",
+              "message": "The operation was canceled.",
+              "raw_details": ""
+            }
+          ],
+          "annotationReadError": null,
+          "billingPreventedRun": false
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6356647186,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/3#issuecomment-6356647186",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-23T03:26:24Z",
+          "updatedAt": "2026-10-23T03:26:24Z",
+          "body": "CI status on 8ab7286: typecheck and e2e pass. Unit tests fail 2 tests, both in `tests/content/landmark-tags.test.ts`:\n- `ballpark`\n- `storefront anchors on civic landmarks…`\n\nThe cause comes from the qa lanes merged in here, not from the showcase code. The regenerated sf world (qa/pipeline, via qa/housekit) drops the ballpark's record `201006.0000003` as stale, in `pipeline/lib/clearance.ts` step 2 (`report.json` → `clearance.staleDropped`, one of 101 records). A street the date table marks as newer than the 2010 LiDAR crosses its footprint. The ballpark opened in 2000, so this is a false positive. Several other low-id downtown records in that list probably deserve the same audit.\n\nPlanned fix, in the integration step (handoff step 2):\n1. Make the stale rule spare records that a landmark names, or records whose parcel predates 2010.\n2. Regenerate with `node pipeline/build-world.ts --world sf`, then `--check`.\n\nThis needs a full SF open-data download (`pipeline/.cache` is empty here) and touches every tile, so it belongs with the integration regeneration rather than this PR. The provenance hash failure from the church edit is fixed (98ffcc6 on qa/housekit, merged here).\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405940877,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/3#issuecomment-6405940877",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:38Z",
+          "updatedAt": "2026-10-26T01:05:38Z",
+          "body": "Current audit: this stack remains out of production. The separate reviewed release [PR91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nStructural-world preparation recovered the authored sources/assets/harness and reproducibly generated all1203 SF files. Strict original thresholds were retained. Actual driver/placement failures remain: controller holds against real props/buildings, crest launch, and an intentionally unmodelled long Bay Bridge span. Two normal repair attempts plus one escalation did not establish a safe endpoint/negative-fixture proof. A blanket shoreline appearance rule was independently rejected. No physical assertion or baseline was weakened to mark this ready. This stack is held; no further retries on the failed physical head.\n"
+        }
+      ],
+      "group": "structural-world",
+      "isHeadAncestorOfMain": false
+    },
+    {
+      "number": 1,
+      "title": "Wave 1 integrated with early wave 2: the whole city, traffic and robots, the player's look, and a hostable build",
+      "url": "https://github.com/BroderickHigby/fog-city/pull/1",
+      "headBranch": "integrate/wave1",
+      "headSha": "3da4fb46ad1bd7719df29ea7f969671737dad7bd",
+      "baseBranch": "main",
+      "baseSha": "2d132ab0f0da1d2bd1bb46beaa10174b608c548e",
+      "draft": true,
+      "mergeable": true,
+      "headRepository": "BroderickHigby/fog-city",
+      "state": "open",
+      "updatedAt": "2026-10-26T01:05:36Z",
+      "changedFiles": 1869,
+      "body": "## What this is\n\nThe six wave-1 tracks (pipeline, render, sim, content, assets, harness), merged into one game, plus the whole-city world and the runtime that plays it. The early wave-2 content, art and player look are merged on top. Each track was built, then reviewed independently and fixed, before it merged.\n\n## What is in it\n\n- **The whole city.** 583 tiles of 500 m and 175,595 buildings from SF open data: DataSF footprints with LiDAR heights, centerlines, the assessor roll, and USGS 3DEP terrain. Tiles are meshopt-compressed and kept in plain git. The wave-1 tower rule (a tower only where the LiDAR supports one) is reconciled with wave 2's citywide pipeline, and tiles regenerate deterministically from the download cache.\n- **Traffic and robots in the game.** The game builds its sim world with the road graph, so robotaxis, Footmen (errand robots), Trundles and people run on it. They are instanced in three distance tiers, interpolated between ticks, and lit at night.\n- **The city runtime.**\n  - The sim boots from the binary collider pack.\n  - The land edge and shore are walled.\n  - Traffic runs near players only.\n  - The far skyline is drawn to 20 km, the sea sits at sea level, and the parks are green.\n- **Wave-2 content (early).**\n  - The YC references are renamed to Ramen.\n  - 14 invented names are searched and signed off, and Porter is renamed Footman, Clout Humbled.\n  - 66 robot tells, 400 barks, 60 Ambient Director cards, and the Hot Desk and Spill missions.\n  - A content lint, and a crisis check for typed text.\n- **Wave-2 art (early).**\n  - One humanoid body for the crowd, baked to vertex-animation textures.\n  - The Footman, Trundle and Meander robotaxi remodelled to the design's robot table.\n  - The Moat Labs van, props and synthesised sounds.\n- **The player's look.** `founder-default` is a stylised likeness of the owner, made at the owner's request from their own photos. The photos are never in the repo, and a test enforces that. It is recorded as the one consented exception to \"never real private people\".\n- **A hostable static build.** It is built from tile packs and boots from any sub-path.\n- **Tests and CI.**\n  - Cross-engine determinism in Node, Chromium, Firefox and WebKit.\n  - Browser tests that hold up under load, and memory-safe test settings.\n  - CI runs on every pull request and on pushes to main, and the screenshot step has its own time limit.\n\n## Not ready to merge\n\nThis stays a draft until the **world-continuity QA gate** passes. A whole-city audit of buildings, terrain, hills, streets and play continuity found 52 blocker, high and medium defects at 54ee728. Examples:\n- streets walled by building footprints;\n- the Broadway Tunnel draped over Russian Hill;\n- freeways drawn on the ground;\n- creek bridges and piers with no decks;\n- dry lakes;\n- render ground that disagrees with the sim's ground.\n\nA fix round is running on the `qa/*` branches and will merge here, followed by re-audits until nothing new turns up.\n\n## Testing\n\n- On b3d54b6: typecheck; Vitest, 68 files, 2,464 passed and 1 skipped; Playwright, 39 passed. Run with `--maxWorkers=2` and `--workers=1` under the machine's memory limit.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nhttps://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
+      "checks": [
+        {
+          "id": 120584697651,
+          "name": "typecheck, unit, e2e",
+          "headSha": "3da4fb46ad1bd7719df29ea7f969671737dad7bd",
+          "status": "completed",
+          "conclusion": "success",
+          "url": "https://github.com/BroderickHigby/fog-city/actions/runs/40003294696/job/120584697651",
+          "startedAt": "2026-10-23T18:26:34Z",
+          "completedAt": "2026-10-23T19:11:14Z",
+          "annotationsCount": 3,
+          "checkSuiteId": 108431365985
+        }
+      ],
+      "statuses": [
+        {
+          "context": "CodeRabbit",
+          "state": "success",
+          "target_url": null
+        }
+      ],
+      "checkTotalCount": 1,
+      "checkListComplete": true,
+      "comments": [
+        {
+          "id": 6309898334,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/1#issuecomment-6309898334",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-21T06:47:51Z",
+          "updatedAt": "2026-10-21T06:47:51Z",
+          "body": "CI on 544f67c: the pull-request run passed (typecheck, unit, e2e). The push run of the same commit was cancelled at the job's 45-minute limit while it was still in the informational **Screenshots** step (`pnpm shots`, 1 to 4 minutes per view under SwiftShader). Every test had already passed.\n\nFix, landing on the next push to this branch: give the Screenshots step its own `timeout-minutes` so it can never cancel the job, and run the `push` trigger on `main` only, since pull requests already run CI for every other branch.\n\n---\n_Generated by [Claude Code](https://claude.ai/code)_"
+        },
+        {
+          "id": 6405940574,
+          "url": "https://github.com/BroderickHigby/fog-city/pull/1#issuecomment-6405940574",
+          "author": "BroderickHigby",
+          "createdAt": "2026-10-26T01:05:36Z",
+          "updatedAt": "2026-10-26T01:05:36Z",
+          "body": "Current audit: this stack remains out of production. The separate reviewed release [PR91](https://github.com/BroderickHigby/fog-city/pull/91) is verified live on [Fog City](https://fog-city-five.vercel.app).\n\nStructural-world preparation recovered the authored sources/assets/harness and reproducibly generated all1203 SF files. Strict original thresholds were retained. Actual driver/placement failures remain: controller holds against real props/buildings, crest launch, and an intentionally unmodelled long Bay Bridge span. Two normal repair attempts plus one escalation did not establish a safe endpoint/negative-fixture proof. A blanket shoreline appearance rule was independently rejected. No physical assertion or baseline was weakened to mark this ready. This stack is held; no further retries on the failed physical head.\n"
+        }
+      ],
+      "group": "structural-world",
+      "isHeadAncestorOfMain": false
+    }
+  ]
+}

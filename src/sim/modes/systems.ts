@@ -28,7 +28,7 @@ export const defaultMatchContext:MatchContextProvider=context=>{
   }
   // Clean Streets flowers: alt-fire lobs at the nearest rival within 20 m, inside a narrow cone
   // around the aim (or the body's heading), with nothing solid in between.
-  if(session?.match.mode==="cleanStreets")for(const id of sortedIds(context.state.players)) {
+  if(context.state.version<=20&&session?.match.mode==="cleanStreets")for(const id of sortedIds(context.state.players)) {
     const thrower=session.match.players[id];
     if(!thrower||!((context.inputs[id]?.actions??0)&Action.altFire))continue;
     const source=positions[id]!,yaw=context.inputs[id]?.aimYaw??source.heading,fx=dsin(yaw),fz=-dcos(yaw);
@@ -52,12 +52,12 @@ export const defaultMatchContext:MatchContextProvider=context=>{
     const team=(event.payload as {team?:unknown}|undefined)?.team;
     return {id:event.playerId!,team:team===1?1:0};
   });
-  return {tick:context.state.tick,positions,inputs,combatEvents,...(endRequested?{endRequested}:{}),...(joins.length?{joins}:{})};
+  return {simVersion:context.state.version,tick:context.state.tick,positions,inputs,combatEvents,...(context.state.version>=27?{armouredIds:sortedIds(context.state.ext.robots?.actors??{}).filter(id=>{const model=context.state.ext.robots!.actors[id]!.model;return model==="patrol"||model==="walker";})}:{}),...(endRequested?{endRequested}:{}),...(joins.length?{joins}:{})};
 };
 export function createModesSystem(provider:MatchContextProvider=defaultMatchContext):SimSystem {
   return {key:"modes",step(context){
     const previous=modeSessionOf(context.previous);if(!previous)return context.state;
-    const match=stepMatch(previous.match,{...provider(context),tick:context.state.tick});
+    const match=stepMatch(previous.match,{...provider(context),simVersion:context.state.version,tick:context.state.tick});
     // Payouts stay on the settled session for the rest of the match (settleSession is a no-op once
     // settled), so a host that steps several ticks per frame or reloads still reads them.
     const session=settleSession({...previous,match});

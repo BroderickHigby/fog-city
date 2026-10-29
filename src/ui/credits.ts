@@ -24,6 +24,7 @@ export interface CreditGroup {
 interface MusicSource { title: string; author: string; licence: string; page: string; context: string }
 
 export const CREDITS: readonly CreditGroup[] = [
+  {title:"Opening narration",entries:[{what:"Original fictional machine-generated opening; stock voice M1, no real person portrayed",who:"Fog City script, Supertonic 3 by Supertone Inc.",licence:"Local model: OpenRAIL-M; generator: MIT; original generated output",url:"https://huggingface.co/supertone-oss-archive/supertonic-3"}]},
   {
     title: "Map data",
     entries: [

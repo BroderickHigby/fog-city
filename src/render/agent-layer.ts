@@ -1,3 +1,4 @@
+import { VEHICLE_MODELS, vehicleModelForActor } from "./vehicle-models.ts";
 // Draws the sim's ambient agents (state.ext.agents: robotaxis, errand robots, sidewalk bots,
 // people) between two sim ticks, interpolated with agentPairs(prev, curr).
 //
@@ -400,6 +401,7 @@ export interface AgentRenderInfo {
   models: string[];
 }
 
+interface CivilianFamilyView { id: string; groupIndex: number; near: PartMesh; far: PartMesh; scale: number; wheelRadius: number; wheelbase: number }
 export class AgentLayer {
   readonly group = new THREE.Group();
   private readonly material = packedMaterial(false, true);
@@ -456,10 +458,7 @@ export class AgentLayer {
   private readonly puddles: THREE.InstancedMesh;
   private puddleCount = 0;
   private readonly pose: PersonPose = { lean: 0, legGain: WALK_LEG, armGain: WALK_ARM, armOut: 0 };
-  private civilianNear: PartMesh | null = null;
-  private civilianFar: PartMesh | null = null;
-  private civilianWheelRadius = 0.36;
-  private civilianScale = 1;
+  private readonly civilianFamilies = new Map<string, CivilianFamilyView>();
   private stats: AgentRenderInfo = { drawn: 0, near: 0, total: 0, drawCalls: 0, triangles: 0, models: [] };
 
   constructor(registry: ModelRegistry<THREE.Object3D>, opts: Partial<TierOptions> = {}, shadows = false) {
@@ -485,7 +484,9 @@ export class AgentLayer {
         this.install(view, extractParts(r.model, AGENT_RIGS[kind]));
       });
     }
-    void registry.get("player-car").then(r => {
+    // Retain the established player car only as a missing-family fallback.
+    const civilianModels = [{id:"legacy",key:"player-car",groupIndex:5,wheelbaseM:2.66},...VEHICLE_MODELS.map((f,i)=>({id:f.id,key:`civilian:${f.id}`,groupIndex:i,wheelbaseM:f.wheelbaseM}))];
+    for (const family of civilianModels) void registry.get(family.key).then(r => {
       if (this.disposed || r.source !== "file" || !r.model) return;
       const model = extractParts(r.model, AGENT_RIGS.robotaxi.filter(part => part.name !== "doorR"));
       const pieces: THREE.BufferGeometry[] = [];
@@ -498,12 +499,13 @@ export class AgentLayer {
         pieces.push(geometry);
       }
       const geometry = mergePacked(pieces);
-      this.civilianWheelRadius = model.wheelRadius;
+
       const size=model.bounds.getSize(new THREE.Vector3());
-      this.civilianScale=civilianModelScale({width:size.x,length:size.z});
-      this.civilianNear = this.adopt(new PartMesh(geometry,this.material,this.capNear,"agents:civilian:near",false));
+      const scale=civilianModelScale({width:size.x,length:size.z});
+      const near=this.adopt(new PartMesh(geometry,this.material,this.capNear,`agents:civilian:${family.id}:near`,false));
       const reduced = proxyOf(model,0.20);
-      this.civilianFar = this.adopt(new PartMesh(reduced,this.material,this.capFar,"agents:civilian:far",false));
+      const far=this.adopt(new PartMesh(reduced,this.material,this.capFar,`agents:civilian:${family.id}:far`,false));
+      this.civilianFamilies.set(family.id,{id:family.id,groupIndex:family.groupIndex,near,far,scale,wheelRadius:model.wheelRadius,wheelbase:family.wheelbaseM});
       geometry.dispose(); reduced.dispose();
       for(const piece of pieces) piece.dispose();
       for(const part of model.parts) part.geometry?.dispose();
@@ -524,6 +526,10 @@ export class AgentLayer {
   }
 
   /** Into the scene, casting shadows when they are on. */
+  private civilianFor(id: number): CivilianFamilyView | null {
+    return this.civilianFamilies.get(vehicleModelForActor(id).id) ?? this.civilianFamilies.get("legacy") ?? null;
+  }
+
   private adopt(part: PartMesh): PartMesh {
     castShadows(part.mesh, this.shadows);
     this.group.add(part.mesh);
@@ -569,11 +575,12 @@ export class AgentLayer {
       const tier = this.tiers[i]!;
       if (actor.kind !== "robotaxi" || tier === TIER_HIDDEN) return false;
       const pose = this.poses[i]!;
-      if (isCivilianTraffic(actor) && this.civilianNear && this.civilianFar) {
-        const part = tier === TIER_NEAR && this.civilianNear.count ? this.civilianNear : this.civilianFar;
+      const civilian=isCivilianTraffic(actor)?this.civilianFor(actor.id):null;
+      if (civilian) {
+        const part = tier === TIER_NEAR && civilian.near.count ? civilian.near : civilian.far;
         if (!part.mesh.geometry.boundingBox) part.mesh.geometry.computeBoundingBox();
         bounds.copy(part.mesh.geometry.boundingBox!);
-        vehicleMatrix(pose, this.civilianScale, matrix);
+        vehicleMatrix(pose, civilian.scale, matrix);
       } else {
         const view = this.kinds.get("robotaxi")!;
         if (tier === TIER_NEAR && view.source === "file") bounds.copy(view.model!.bodyBounds);
@@ -667,6 +674,7 @@ export class AgentLayer {
     for (const [k, v] of this.kinds) {
       out[k] = { near: v.near.reduce((s, p) => s + p.part.triangles, 0), mid: v.mid.triangles, far: v.far.triangles, source: v.source };
     }
+    for(const family of this.civilianFamilies.values())out[`civilian:${family.id}`]={near:family.near.triangles,mid:family.far.triangles,far:family.far.triangles,source:"file"};
     out.person = {
       near: this.people.body.triangles + 2 * this.people.arms.triangles + 2 * this.people.legs.triangles,
       mid: this.peopleMid.triangles,
@@ -723,7 +731,7 @@ export class AgentLayer {
       v.far.begin();
       for (const p of v.near) p.part.begin();
     }
-    this.civilianNear?.begin(); this.civilianFar?.begin();
+    for(const family of this.civilianFamilies.values()){family.near.begin();family.far.begin();}
     this.people.begin();
     this.peopleMid.begin();
     this.peopleFar.begin();
@@ -763,10 +771,11 @@ export class AgentLayer {
         }
         continue;
       }
-      if (isCivilianTraffic(b) && this.civilianNear && this.civilianFar) {
-        const anim = this.anim(b.id,pose,dt,this.civilianWheelRadius*this.civilianScale,2.7*this.civilianScale,10);
-        vehicleMatrix(pose,this.civilianScale,_base);
-        const part = tier === TIER_NEAR ? this.civilianNear : this.civilianFar;
+      const civilian=isCivilianTraffic(b)?this.civilianFor(b.id):null;
+      if (civilian) {
+        const anim = this.anim(b.id,pose,dt,civilian.wheelRadius*civilian.scale,civilian.wheelbase*civilian.scale,10);
+        vehicleMatrix(pose,civilian.scale,_base);
+        const part = tier === TIER_NEAR ? civilian.near : civilian.far;
         part.push(_base,cue,null,carAppearance(Math.floor(b.id/8)),anim.wheel,-anim.steer);
         if(tier === TIER_NEAR) { near++; this.wasNear.add(b.id); }
         continue;
@@ -790,13 +799,15 @@ export class AgentLayer {
     // First account for the instanced tiers. Reserve the procedural rig's three calls whenever
     // any near person cannot fit as a skinned body, so overflow never disappears or exceeds the
     // allocation. Hand the remaining calls to the nearest people, independently of agent ids.
-    let fixedCalls = Number(this.peopleMid.count > 0) + Number(this.peopleFar.count > 0) + Number((this.civilianNear?.count ?? 0)>0) + Number((this.civilianFar?.count ?? 0)>0) + Number(this.puddleCount>0);
+    let fixedCalls = Number(this.peopleMid.count > 0) + Number(this.peopleFar.count > 0) + Number(this.puddleCount>0);
+    for(const family of this.civilianFamilies.values()) fixedCalls+=Number(family.near.count>0)+Number(family.far.count>0);
     for (const v of this.kinds.values()) {
       fixedCalls += Number(v.mid.count > 0) + Number(v.far.count > 0);
       for (const p of v.near) fixedCalls += Number(p.part.count > 0);
     }
-    if(fixedCalls > AGENT_DRAW_CALL_BUDGET-(this.nearPeople.length?3:0) && this.civilianNear?.count && this.civilianFar?.count) {
-      if(this.civilianNear.transferInto(this.civilianFar)) fixedCalls--;
+    for(const family of this.civilianFamilies.values()) {
+      if(fixedCalls <= AGENT_DRAW_CALL_BUDGET-(this.nearPeople.length?3:0))break;
+      if(family.near.count&&family.far.count&&family.near.transferInto(family.far))fixedCalls--;
     }
     const remaining = Math.max(0, AGENT_DRAW_CALL_BUDGET - fixedCalls);
     this.nearPeople.sort((a, b) => {
@@ -829,7 +840,7 @@ export class AgentLayer {
       tally(v.far);
       for (const p of v.near) tally(p.part);
     }
-    if(this.civilianNear) tally(this.civilianNear); if(this.civilianFar) tally(this.civilianFar);
+    for(const family of this.civilianFamilies.values()){tally(family.near);tally(family.far);}
     this.puddles.count = this.puddleCount;
     if (this.puddleCount > 0) {
       this.puddles.instanceMatrix.needsUpdate = true;
@@ -857,7 +868,7 @@ export class AgentLayer {
     s.total = n;
     s.drawCalls = calls;
     s.triangles = tris;
-    s.models = [...this.kinds.values()].filter((v) => v.source === "file").map((v) => v.kind);
+    s.models = [...this.kinds.values()].filter((v) => v.source === "file").map((v) => v.kind as string).concat([...this.civilianFamilies.keys()].filter(id=>id!=="legacy").map(id=>`civilian:${id}`));
   }
 
   /** Each agent's step window for a new current tick (the sim decides far from prev's player bodies). */
@@ -890,7 +901,6 @@ export class AgentLayer {
    * make room, rather than replacing a nearby person's face and clothes with a box rig.
    */
   private planHumanAdmission(viewer: Readonly<Viewer>): void {
-    if (!this.crowd) return;
     const candidates = this.humanCandidates; candidates.length = 0;
     for (let i = 0; i < this.pairs.length; i++) {
       const actor = this.pairs[i]![1];
@@ -901,7 +911,6 @@ export class AgentLayer {
       // A person's near allocation is separate from the rigid actor allocation.
       if (this.tiers[i] === TIER_NEAR) this.tiers[i] = TIER_MID;
     }
-    if (candidates.length === 0) return;
     const distance = (i: number): number => (this.poses[i]!.x - viewer.x) ** 2 + (this.poses[i]!.z - viewer.z) ** 2;
     candidates.sort((a, b) => distance(a) - distance(b) || this.ids[a]! - this.ids[b]!);
     for (let k = 0; k < Math.min(candidates.length, this.capNear, CROWD_NEAR_MAX); k++) this.tiers[candidates[k]!] = TIER_NEAR;
@@ -913,13 +922,14 @@ export class AgentLayer {
         if (tier === TIER_HIDDEN || actor.id === this.hiddenAgent) continue;
         if (actor.kind === "person") {
           if (tier === TIER_NEAR) {
-            const loaded = this.crowd!.costFor(actor.id);
+            const loaded = this.crowd?.costFor(actor.id);
             if (loaded) people += loaded.drawCalls; else groups.add(3);
           } else groups.add(tier === TIER_MID ? 1 : 2);
           continue;
         }
-        if (isCivilianTraffic(actor) && this.civilianNear && this.civilianFar) {
-          groups.add(tier === TIER_NEAR ? 5 : 6); continue;
+        const civilian=isCivilianTraffic(actor)?this.civilianFor(actor.id):null;
+        if (civilian) {
+          groups.add(128+civilian.groupIndex*2+(tier===TIER_NEAR?0:1)); continue;
         }
         const view = this.kinds.get(actor.kind)!;
         const group = actor.kind === "robotaxi" ? 32 : actor.kind === "errandRobot" ? 64 : 96;
@@ -938,7 +948,7 @@ export class AgentLayer {
       for (let i = 0; i < this.pairs.length; i++) {
         const actor = this.pairs[i]![1];
         if (this.tiers[i] === TIER_HIDDEN || actor.kind === "person") continue;
-        const family = isCivilianTraffic(actor) && this.civilianNear && this.civilianFar ? "civilian" : actor.kind;
+        const family = isCivilianTraffic(actor) && this.civilianFor(actor.id) ? "civilian" : actor.kind;
         if (family === kind) nearest = Math.min(nearest, distance(i));
       }
       if (nearest < Infinity) kinds.push({ kind, distance: nearest });
@@ -950,7 +960,7 @@ export class AgentLayer {
         for (let i = 0; i < this.pairs.length; i++) {
           const actor = this.pairs[i]![1];
           if (actor.kind === "person" || this.tiers[i] !== from) continue;
-          const family = isCivilianTraffic(actor) && this.civilianNear && this.civilianFar ? "civilian" : actor.kind;
+          const family = isCivilianTraffic(actor) && this.civilianFor(actor.id) ? "civilian" : actor.kind;
           if (family === candidate.kind) this.tiers[i] = to;
         }
         if (cost() <= AGENT_DRAW_CALL_BUDGET) return;
@@ -1059,7 +1069,8 @@ export class AgentLayer {
       v.far.dispose();
       for (const p of v.near) p.part.dispose();
     }
-    this.civilianNear?.dispose(); this.civilianFar?.dispose();
+    for(const family of this.civilianFamilies.values()){family.near.dispose();family.far.dispose();}
+    this.civilianFamilies.clear();
     this.puddles.geometry.dispose();
     (this.puddles.material as THREE.Material).dispose();
     this.people.dispose();

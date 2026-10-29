@@ -4,6 +4,7 @@ import type { JsonObject } from "../extensions.ts";
 import type { World } from "../world.ts";
 import { createMatchState, matchPayout } from "./match.ts";
 import type { MatchConfig, MatchPayout, MatchState } from "./types.ts";
+import { applyValidatedMatchCarry,type MatchCarrySource } from "./carry.ts";
 import { isGameplayId } from "../gameplay-contract.ts";
 
 /** Financial balances, missions and free-roam runway deliberately do not carry in. */
@@ -33,12 +34,12 @@ export function modeSessionOf(state:Readonly<SimState>):ModeSession|undefined {
 }
 
 /** A fresh simulation instance; the saved free-roam state is never mutated or referenced. */
-export function createMatchSession(world:World,config:MatchConfig,spawn:Spawn,loadouts:Readonly<Record<string,MatchLoadout>>={}):SimState {
+export function createMatchSession(world:World,config:MatchConfig,spawn:Spawn,loadouts:Readonly<Record<string,MatchLoadout>>={},carrySource?:MatchCarrySource):SimState {
   const match=createMatchState({...config,tick:0});
   const state=createInitialState(world,config.seed,sortedIds(match.players),spawn);
   const carry=copyMatchLoadouts(sortedIds(match.players),loadouts);
   state.ext.modes=encodeSession({version:1,match,loadouts:carry,settled:false,payouts:[]});
-  return state;
+  return carrySource?applyValidatedMatchCarry(state,carrySource):state;
 }
 
 /** Settlement IDs let the profile owner consume each payout once, even after replay. */

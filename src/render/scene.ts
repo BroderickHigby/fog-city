@@ -1,9 +1,9 @@
+import { activeWorldTick } from "../sim/pause-timers.ts";
 // The M0 renderer: owns the WebGLRenderer, scene, lighting, sky, the Bay, streamed tiles,
 // players, ambient agents and landmarks. main.ts feeds it interpolated player poses and the
 // two latest sim states (agents are interpolated here); it never changes sim state.
 
 import * as THREE from "three";
-import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import type { Assets } from "../io/assets.ts";
 import type { SimState } from "../sim/contract.ts";
 import type { TileCollider } from "../sim/world.ts";
@@ -16,6 +16,7 @@ import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
 import { LandmarkLayer } from "./landmark-layer.ts";
 import { LandmarkFallbacks } from "./landmark-fallback.ts";
+import { landmarkRenderReplacements } from "./landmark-replacements.ts";
 import { filterLandmarkHulls } from "./landmark-mask.ts";
 import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
 import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
@@ -201,6 +202,8 @@ export class SceneRenderer {
   readonly renderer: THREE.WebGLRenderer | WebGPURenderer;
   private readonly gpu: GpuEngine | null;
   readonly scene = new THREE.Scene();
+  private observationPose:{x:number;y:number;z:number;yaw:number;pitch:number;fovDegrees:number}|null=null;
+  private observationFov:number|null=null;
   readonly camera = new THREE.PerspectiveCamera(62, 1, 0.5, CAMERA_FAR_M);
   readonly rig: CameraRig;
   readonly streamer: TileStreamer;
@@ -349,7 +352,7 @@ export class SceneRenderer {
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
 
-    const gltf = new GLTFLoader();
+    const gltf = createTileLoader();
     const assets = world.assets;
     this.surfaceTextures = loadSurfaceTextures(this.materials, async path => {
       if (assets) return assets.bytes(path);
@@ -376,7 +379,8 @@ export class SceneRenderer {
       parkPavementRegions(parks)) : undefined;
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
-    const landmarkSources=world.landmarkReplacements?.flatMap(l=>l.sources)??[];
+    const landmarkReplacements=landmarkRenderReplacements(opts.landmarks,world.colliders.values(),world.landmarkReplacements);
+    const landmarkSources=landmarkReplacements.flatMap(l=>l.sources);
     this.far = new FarLayer({
       manifest: world.manifest,
       base: world.base,
@@ -454,7 +458,7 @@ export class SceneRenderer {
       this.agents.setCrowd(this.crowd);
       this.scene.add(this.crowd.group);
     }
-    this.landmarkFallbacks=new LandmarkFallbacks(world.landmarkReplacements??[],ids=>this.streamer.hideBuildings(ids));
+    this.landmarkFallbacks=new LandmarkFallbacks(landmarkReplacements,ids=>this.streamer.hideBuildings(ids));
     this.prepareShadows(this.landmarkFallbacks.group);
     this.scene.add(this.landmarkFallbacks.group);
     this.landmarks = new LandmarkLayer(
@@ -735,6 +739,9 @@ export class SceneRenderer {
     this.framesSinceJump = 0;
   }
 
+  /** A recorded coin-op viewing pose; the player remains at the actual overlook. */
+  setObservationPose(pose:{x:number;y:number;z:number;yaw:number;pitch:number;fovDegrees:number}|null):void {this.observationPose=pose;}
+
   /** Jump the free camera (debug, screenshots). Angles in radians. */
   flyTo(x: number, y: number, z: number, yaw: number, pitch: number): void {
     this.rig.setFlyPose(x, y, z, yaw, pitch);
@@ -890,6 +897,14 @@ export class SceneRenderer {
       this.agents.setHiddenAgent(null);
       this.rig.update(dtSeconds, NO_TARGET, fly);
     }
+    const observation=this.observationPose;
+    if(observation){
+      this.observationFov??=this.camera.fov;
+      this.camera.position.set(observation.x,observation.y,observation.z);
+      this.camera.lookAt(observation.x+Math.sin(observation.yaw)*Math.cos(observation.pitch),observation.y+Math.sin(observation.pitch),observation.z-Math.cos(observation.yaw)*Math.cos(observation.pitch));
+      if(this.camera.fov!==observation.fovDegrees){this.camera.fov=observation.fovDegrees;this.camera.updateProjectionMatrix();}
+      this.camera.updateMatrixWorld();
+    }else if(this.observationFov!==null){this.camera.fov=this.observationFov;this.observationFov=null;this.camera.updateProjectionMatrix();}
     this.actors.update(dtSeconds);
     const cam = this.camera.position;
     if (this.sim) {
@@ -919,7 +934,7 @@ export class SceneRenderer {
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
     this.streetDetail.setView(this.camera, this.shadows ? this.sunDir : null);
-    this.streetDetail.update(cam.x, cam.z, this.sim?.curr.tick ?? 0);
+    this.streetDetail.update(cam.x, cam.z, this.sim?activeWorldTick(this.sim.curr):0);
     this.landmarks.update(minuteOfDay);
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
     this.staticScene.update();

@@ -240,10 +240,12 @@ describe("a body on a roof or a deck", () => {
 describe("people in a corner or against a wall", () => {
   const corner4 = (): AgentState[] => [[-0.4, 0.4], [-1.1, 0.45], [-0.45, 1.15], [-1.2, 1.2]].map(([x, z], i) => agent(CORNER, 200 + i, "person", x!, z!));
 
-  it("four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 6 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
+  it("historical SIM12: four people in an inside corner, a car coming up beside them at 10 m/s that brakes and steers into them 6 m short (repro-corner, probe-park): never inside it, before or after it hits the wall and stops still turning", () => {
     // (8 m short before the v12 dynamics; with realistic tyres the car reaches the walls still
     // turning when it turns in 6 m short, as the review saw.)
-    const s0 = scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: 10 }], [], corner4());
+    // Preserve the original v12 stopped-yaw reproduction. Modern tyre dynamics
+    // are covered by the current-version speed/turn-distance matrix immediately below.
+    const s0 = { ...scene(CORNER, [{ id: "c", x: -3.4, z: 40, heading: 0, speed: 10 }], [], corner4()), version: 12 };
     let stoppedTurning = 0;
     const { s, contacts } = run(CORNER, s0, 240, (k) => {
       const c = k.players.c!.car;

@@ -1,0 +1,76 @@
+{
+  "schema": 1,
+  "source": "Original Fog City procedural authoring; no third-party robot model or texture bytes.",
+  "design": "Industrial sensor pod, powder-coated casing, service panel, actuator rails and tread details; original design, no manufacturer affiliation.",
+  "tool": {
+    "name": "Blender",
+    "version": "4.5.3 LTS",
+    "build": "67807e1800cc",
+    "officialDownload": "https://download.blender.org/release/Blender4.5/blender-4.5.3-macos-x64.dmg",
+    "officialSha256": "c1fd8f30eef1b37918659ad65c504d30cebd3e5bac74dd54f7df1a311aeebe18",
+    "threads": 2
+  },
+  "contract": {
+    "runtimeBudgetTriangles": 6000,
+    "animatedNodes": "Original Porter hierarchy retained",
+    "morphs": [
+      "seize",
+      "slump",
+      "melt"
+    ],
+    "rustAttribute": "_RUST_MASK",
+    "simGeometryChanged": false
+  },
+  "files": [
+    {
+      "path": "assets/blender/models/errand_robot.py",
+      "bytes": 10634,
+      "sha256": "bc1d88915fb7f45583b85be523ef6793e58f1cbace997d309bda1d5d31bb0fd1"
+    },
+    {
+      "path": "assets/blender/models/heaps.py",
+      "bytes": 7064,
+      "sha256": "285252b74650796d3c9d77fb684544f388e28062330b1e3f8c7e0f1489d632ae"
+    },
+    {
+      "path": "assets/blender/lib/fc.py",
+      "bytes": 23963,
+      "sha256": "4c333497533aea47d385144313b7941f24845e192c48453e305fe79679314ad6"
+    },
+    {
+      "path": "assets/blender/lib/melt.py",
+      "bytes": 4660,
+      "sha256": "ab4a2d6a18b4689fe34410da398048a288b22cdfa699fe94711bce91bd3621ee"
+    },
+    {
+      "path": "public/models/errand-robot.glb",
+      "bytes": 522724,
+      "sha256": "ff4469382fbb964e5dd12eb758ea72b97b199daa387b0dc6b54fbf424e2ec894",
+      "triangles": 5120
+    },
+    {
+      "path": "public/models/heap-porter.glb",
+      "bytes": 94500,
+      "sha256": "53b89b3f7ea60bf0ccee078598fed2b59ac0d8ccf3bb33c3fc20ca6460dc7ced",
+      "triangles": 2391
+    },
+    {
+      "path": "public/models/heap-trundle.glb",
+      "bytes": 103132,
+      "sha256": "3aea20b9cdcfefeb2bd03d56764a9372f0227820e95eb1838214846c69d335ae",
+      "triangles": 2092
+    },
+    {
+      "path": "public/models/heap-mixed.glb",
+      "bytes": 124188,
+      "sha256": "9363b8c6d64f2b076573a5e372e89bde452b1281be13dbad39ca7fa412326571",
+      "triangles": 2392
+    }
+  ],
+  "acceptance": {
+    "generator": true,
+    "draftTurntable": true,
+    "nativeGame": false,
+    "independentReview": false
+  }
+}

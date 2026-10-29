@@ -106,16 +106,21 @@
    "id": "hot-desk.arrive.line1",
    "kind": "line",
    "speaker": "cofounder",
-   "text": "bad robots look exactly like good ones. watch what they DO",
-   "hash": "e03b6746a2d776edc114fe404262437de56c40da3fcceadde1f00b84ed07a83e",
+   "text": "warning diamonds mark hostile robots. watch their wind-up, and leave helpful robots alone",
+   "hash": "93eac32b8ab77a9cc37dbd31b57e641faa0d9b238a2449b6595b6f050e1e50d6",
    "file": null,
-   "durationS": 4.49,
+   "durationS": 5.35,
    "measured": false,
    "cues": [
     {
      "startS": 0,
-     "endS": 4.49,
-     "text": "bad robots look exactly like good ones. watch what they DO"
+     "endS": 2.25,
+     "text": "warning diamonds mark hostile robots."
+    },
+    {
+     "startS": 2.25,
+     "endS": 5.35,
+     "text": "watch their wind-up, and leave helpful robots alone"
     }
    ]
   },
@@ -2628,6 +2633,590 @@
      "startS": 0,
      "endS": 4.11,
      "text": "I've rescheduled you for tomorrow. Same time. Earlier, probably."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewfeature.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "If the large platforms copy the feature, what remains?",
+   "questionId": "interviewfeature",
+   "hash": "fc16b039dd55cdfd382792c8a3c6d5d6756c1f287d96624ae7856908c7ca34cc",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "If the large platforms copy the feature, what remains?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewfeature.workflow.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A reason to stay that does not fit on a release note.",
+   "questionId": "interviewfeature",
+   "answerId": "workflow",
+   "hash": "d0e9e1301242c151014a3cf60f53009549d12b24197e4463398c13edf729aa16",
+   "file": null,
+   "durationS": 4.86,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.86,
+     "text": "A reason to stay that does not fit on a release note."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewfeature.faster.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Speed is an activity. What will it accumulate?",
+   "questionId": "interviewfeature",
+   "answerId": "faster",
+   "hash": "1011287ce8e469659eb509d753b1ffb0e4d9e8c0c901e7d713421f51e2ffc6eb",
+   "file": null,
+   "durationS": 3.5,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.5,
+     "text": "Speed is an activity. What will it accumulate?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewfeature.honest.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A small honest question can become a useful company.",
+   "questionId": "interviewfeature",
+   "answerId": "honest",
+   "hash": "cdd643be71fcdc98910b30ad7607b67b03e28df330ded25e500db01449b65869",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "A small honest question can become a useful company."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewproof.prompt",
+   "kind": "prompt",
+   "speaker": "philosopher",
+   "text": "What would convince you this idea is wrong?",
+   "questionId": "interviewproof",
+   "hash": "2b3de0231a2cbd50ea26fb1bb29daf5f249c5ff52ee8f7bfd554b942351575d3",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "What would convince you this idea is wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewproof.test.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "A belief with an exit door. Encouraging.",
+   "questionId": "interviewproof",
+   "answerId": "test",
+   "hash": "920164266896ce4ad88c8f7010be677218981148a93392df6dabe32100a7a3ee",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "A belief with an exit door. Encouraging."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewproof.faith.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Then this is a faith round. We do not lead those.",
+   "questionId": "interviewproof",
+   "answerId": "faith",
+   "hash": "e1c9bef2828675f9fd41b12ece8e97c9d0e36c082f5a7e017be29a97a9b2f9e8",
+   "file": null,
+   "durationS": 4.61,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.61,
+     "text": "Then this is a faith round. We do not lead those."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-philosopher",
+   "id": "office-hours.pitch-philosopher.interviewproof.price.reply",
+   "kind": "reply",
+   "speaker": "philosopher",
+   "text": "Good. Do not discount away the answer.",
+   "questionId": "interviewproof",
+   "answerId": "price",
+   "hash": "22e594a0b28e560613974edaee2ac746d0ac4475bdf2448186081a28c6209374",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Good. Do not discount away the answer."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewstory.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "Explain the demo without explaining the architecture.",
+   "questionId": "interviewstory",
+   "hash": "0e57c6412a7b2f2336241f906a4a07b5b26a222c28a7d3d20f059f6a659c5c3b",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Explain the demo without explaining the architecture."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewstory.job.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture the person and the Tuesday.",
+   "questionId": "interviewstory",
+   "answerId": "job",
+   "hash": "2bdff199a7eeb497d2503e3771d7148ab93721f4ddf33659792aee7714b09e6f",
+   "file": null,
+   "durationS": 3.38,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.38,
+     "text": "I can picture the person and the Tuesday."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewstory.stack.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "I can picture a diagram arguing with another diagram.",
+   "questionId": "interviewstory",
+   "answerId": "stack",
+   "hash": "9c5d238ab9f061496b755dd9c76eb00af715c9bf1bb20ca54c472e51a59a962a",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "I can picture a diagram arguing with another diagram."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewstory.small.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "Excellent. The room has one attention span.",
+   "questionId": "interviewstory",
+   "answerId": "small",
+   "hash": "bd621de1782de6f08f2aab546b228891776d900920b30c5cc65a9bf86685a55a",
+   "file": null,
+   "durationS": 3.13,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.13,
+     "text": "Excellent. The room has one attention span."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewfailure.prompt",
+   "kind": "prompt",
+   "speaker": "vibes",
+   "text": "What happens when it is confidently wrong?",
+   "questionId": "interviewfailure",
+   "hash": "60ba9f21edf73ec14a9b421fa5c5f9810fbb3f42af48502638ce4bcf877ad0df",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "What happens when it is confidently wrong?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewfailure.review.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The correction is part of the product. Keep it visible.",
+   "questionId": "interviewfailure",
+   "answerId": "review",
+   "hash": "5eadc9225787c38806ad45d3cdbc30d3219800676699a11b8d63974073f76685",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "The correction is part of the product. Keep it visible."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewfailure.hide.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "The number was not the problem I was asking about.",
+   "questionId": "interviewfailure",
+   "answerId": "hide",
+   "hash": "1b3823a25b87088679c465b2756771c2ff8264ffb406d3facd7b03c562f5cd39",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "The number was not the problem I was asking about."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-vibes",
+   "id": "office-hours.pitch-vibes.interviewfailure.manual.reply",
+   "kind": "reply",
+   "speaker": "vibes",
+   "text": "An unglamorous landing is still a landing.",
+   "questionId": "interviewfailure",
+   "answerId": "manual",
+   "hash": "bda75196270d2a636d84bd7e7577b756364549bd71ff12f212c9d9be350c1000",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "An unglamorous landing is still a landing."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewretention.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "What did your first customers do the second week?",
+   "questionId": "interviewretention",
+   "hash": "6157c24dfd8fb90ed7b4392ee3e1ff58bd274a2135a2b1cf5937eadc5174f48b",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "What did your first customers do the second week?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewretention.cohort.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A cohort and a denominator. We can have a conversation.",
+   "questionId": "interviewretention",
+   "answerId": "cohort",
+   "hash": "eb124f5adfe1237491dff8f7d8dd9f3b5ce907806f3ab8078d308d89ea48ad4e",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A cohort and a denominator. We can have a conversation."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewretention.users.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A sign-up is a hello. I asked whether they stayed.",
+   "questionId": "interviewretention",
+   "answerId": "users",
+   "hash": "9114b604ecb9fe84449df4a49c6e8fdcaedda4640321cab007f9e1f8ff021eaa",
+   "file": null,
+   "durationS": 4.24,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.24,
+     "text": "A sign-up is a hello. I asked whether they stayed."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewretention.destiny.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Please put inevitable in the forecast, not the actuals.",
+   "questionId": "interviewretention",
+   "answerId": "destiny",
+   "hash": "53d01aa27a2039d04f5802b17eb72b94b8e4a8c25e50eac0146fbaf900ecba4d",
+   "file": null,
+   "durationS": 3.87,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.87,
+     "text": "Please put inevitable in the forecast, not the actuals."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewbuyer.prompt",
+   "kind": "prompt",
+   "speaker": "metrics",
+   "text": "Who can say yes to buying this?",
+   "questionId": "interviewbuyer",
+   "hash": "e99badf519f148f4ebb151905550efcde167392441808f9767a8eed4104ef99d",
+   "file": null,
+   "durationS": 3.01,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.01,
+     "text": "Who can say yes to buying this?"
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewbuyer.owner.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "A buyer close enough to the problem to recognise it.",
+   "questionId": "interviewbuyer",
+   "answerId": "owner",
+   "hash": "cd307833db279e61ba6e497eb5429230cead9d5c7222a279cfe15adc6e9db3b1",
+   "file": null,
+   "durationS": 4.12,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.12,
+     "text": "A buyer close enough to the problem to recognise it."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewbuyer.everyone.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "That is a distribution problem disguised as a market.",
+   "questionId": "interviewbuyer",
+   "answerId": "everyone",
+   "hash": "9033b29257fa5beda0feba9de434319452a82b081146b78968a7866a103e94e3",
+   "file": null,
+   "durationS": 3.75,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.75,
+     "text": "That is a distribution problem disguised as a market."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "pitch-metrics",
+   "id": "office-hours.pitch-metrics.interviewbuyer.unknown.reply",
+   "kind": "reply",
+   "speaker": "metrics",
+   "text": "Good. Bring the calls, including the uncomfortable one.",
+   "questionId": "interviewbuyer",
+   "answerId": "unknown",
+   "hash": "73558b0ef7a83c7b82493d605cdd81ad25c561d6c13231558721ab0c6230cae8",
+   "file": null,
+   "durationS": 3.62,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.62,
+     "text": "Good. Bring the calls, including the uncomfortable one."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "demo-stage",
+   "id": "office-hours.demo-stage.line0",
+   "kind": "line",
+   "speaker": "cofounder",
+   "text": "three robots, one bad. the partners stay behind the rope. observation first, water second.",
+   "hash": "4368de22cd8b7e903fb961307d3ca3b20d442e916ad1325fabcbffc1b6f9b0e4",
+   "file": null,
+   "durationS": 6.09,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.9,
+     "text": "three robots, one bad. the partners stay behind the rope."
+    },
+    {
+     "startS": 3.9,
+     "endS": 6.09,
+     "text": "observation first, water second."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "term-sheet",
+   "id": "office-hours.term-sheet.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "We are in. Please let us announce it first; our post is already drafted.",
+   "hash": "d796ecc6708eae6a302963949dd6017f848a0c269ee22c7d2256f25b8f193021",
+   "file": null,
+   "durationS": 5.85,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 5.85,
+     "text": "We are in. Please let us announce it first; our post is already drafted."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "follow-up",
+   "id": "office-hours.follow-up.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Useful demo. Send weekly numbers, including the weeks they go down.",
+   "hash": "6742665150e0d3b15ba03bd67b62c1b51ad0f10b96ecfeefa0f781157950a858",
+   "file": null,
+   "durationS": 4.73,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 4.73,
+     "text": "Useful demo. Send weekly numbers, including the weeks they go down."
+    }
+   ]
+  },
+  {
+   "missionId": "office-hours",
+   "stepId": "practice",
+   "id": "office-hours.practice.line0",
+   "kind": "line",
+   "speaker": "metrics",
+   "text": "Strong energy. Bring clearer evidence next time. Office Hours open again tomorrow.",
+   "hash": "267a7a5721873e21e12f0636ec37015e1d29c8dd6a2dfca0ecac1d7286e78602",
+   "file": null,
+   "durationS": 5.1,
+   "measured": false,
+   "cues": [
+    {
+     "startS": 0,
+     "endS": 3.02,
+     "text": "Strong energy. Bring clearer evidence next time."
+    },
+    {
+     "startS": 3.02,
+     "endS": 5.1,
+     "text": "Office Hours open again tomorrow."
     }
    ]
   },

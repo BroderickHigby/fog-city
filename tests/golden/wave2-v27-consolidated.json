@@ -1,0 +1,12 @@
+{
+  "sourceInput": "wave1-v2.json",
+  "sourcePhysics": "v27: consolidated mission activities and collapsed-robot projectile silhouettes; existing traffic-signal and city-road handling behavior is retained; all earlier fixture bytes are preserved",
+  "simVersion": 27,
+  "hashes": [
+    "d21450e9",
+    "0107fed0",
+    "32768d4e",
+    "9c1a6c2e",
+    "63814ee5"
+  ]
+}

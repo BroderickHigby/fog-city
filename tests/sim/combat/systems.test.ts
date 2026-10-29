@@ -147,3 +147,34 @@ describe("registered combat system", () => {
     expect(unsafe.id).toBe("forged");
   });
 });
+
+describe("SIM27 owned device controls",()=>{
+  it("maps held gear and a reserved profile grant once, then accepts a consecutive new same-kind reservation",()=>{
+    let sequence=1;
+    const grantSystem=createCombatSystem(system=>({context:contextFromState(system.world,system.state,{wave:4,loadouts:{p:{gear:"boots"}},streaks:[{playerId:"p",kind:"confidence",sequence}]})}));
+    let state=step(world,initial(),{p:{...neutral,actions:Action.gear}},[],[grantSystem]);
+    expect(state.ext.combat!.events.some(event=>event.kind==="gear.activated")).toBe(true);
+    expect(state.ext.combat!.events.filter(event=>event.kind==="streak.used")).toHaveLength(1);
+    state=step(world,state,{},[],[grantSystem]);
+    expect(state.ext.combat!.events.some(event=>event.kind==="streak.used")).toBe(false);
+    sequence=2;state=step(world,state,{},[],[grantSystem]);
+    expect(state.ext.combat!.events.filter(event=>event.kind==="streak.used"&&event.amount===2)).toHaveLength(1);
+  });
+  it("does not acknowledge a pending grant during pause and executes it once after resume",()=>{
+    const ctx=contextFromState(world,initial(),{wave:4});let state=initial();state.ext.combat=createCombatState(state.seed,ctx);state.ext.combat.pauseUntil=3;
+    const combat=provider({wave:4,streaks:[{playerId:"p",kind:"confidence",sequence:1}]});
+    for(let index=0;index<3;index++){
+      state=step(world,state,{},[],[combat]);expect(state.ext.combat!.players.p!.streakSequence.confidence??0).toBe(0);
+    }
+    state=step(world,state,{},[],[combat]);expect(state.ext.combat!.events.filter(event=>event.kind==="streak.used"&&event.amount===1)).toHaveLength(1);
+    state=step(world,state,{},[],[combat]);expect(state.ext.combat!.events.some(event=>event.kind==="streak.used")).toBe(false);
+  });
+});
+
+it("maps recorded aim through trusted placement and rejects a blocked desired point without placing a fallback",()=>{
+ const ranges:number[]=[];
+ const owned={wave:4 as const,loadouts:{p:{gadget:"sprinkler" as const,gadgetEnabled:true}}};
+ const mapped=provider({...owned,aimPlacement:(player,input,range)=>{ranges.push(range);expect(input.aimYaw).toBe(.3);return {x:player.x+1.5,y:0,z:player.z};},devicePlacementAllowed:point=>Math.abs(point.x-1.5)<1e-6});
+ const placed=step(world,initial(),{p:{...neutral,actions:Action.gadget,aimYaw:.3}},[],[mapped]);expect(ranges).toEqual([2]);expect(placed.ext.combat!.gadgets[0]?.x).toBe(1.5);
+ const blocked=step(world,initial(),{p:{...neutral,actions:Action.gadget}},[],[provider({...owned,aimPlacement:()=>null,devicePlacementAllowed:()=>true})]);expect(blocked.ext.combat!.gadgets).toEqual([]);expect(blocked.ext.combat!.players.p!.nextGadgetTick).toBe(0);
+});

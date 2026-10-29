@@ -1,0 +1,318 @@
+{
+ "source": "DEFAULT_CATALOG at main 4e9b2553 (src/sim/player/catalog.ts), the catalog v21-v26 ran with",
+ "activities": [
+  {
+   "x": -26.422732020877145,
+   "z": 11.099258529579808,
+   "y": 0,
+   "id": "hot-desk-start",
+   "kind": "mission",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 132.1136600993792,
+   "z": 277.48146324974766,
+   "y": 0,
+   "id": "spill-start",
+   "kind": "mission",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 35.2303093599179,
+   "z": -33.297775590316725,
+   "y": 0,
+   "id": "ferry-market-queue",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -44.03788670021028,
+   "z": 88.79406823979306,
+   "y": 0,
+   "id": "embarcadero-coning",
+   "kind": "coning",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -686.9910325202763,
+   "z": 554.9629264994953,
+   "y": 0,
+   "id": "fidi-vendor",
+   "kind": "vendor",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -466.80159902047666,
+   "z": 277.48146324974766,
+   "y": 0,
+   "id": "fidi-lobby-watch",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -1171.407786220086,
+   "z": 843.5436482796114,
+   "y": 0,
+   "id": "downtown-kiosk",
+   "kind": "repairKiosk",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -1241.868404939922,
+   "z": 1198.7199212395724,
+   "y": 0,
+   "id": "downtown-turntable",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -1462.0578384409735,
+   "z": -588.2607020906007,
+   "y": 0,
+   "id": "north-beach-square",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -1655.8245399198959,
+   "z": -721.4518044502903,
+   "y": 0,
+   "id": "north-beach-carwash",
+   "kind": "carWash",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -1946.4745921407832,
+   "z": -1409.6058333102637,
+   "y": 0,
+   "id": "wharf-kiosk",
+   "kind": "repairKiosk",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -2228.317067020126,
+   "z": -1365.2087991903672,
+   "y": 0,
+   "id": "wharf-coning",
+   "kind": "coning",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -3813.6809882201865,
+   "z": -499.466633850019,
+   "y": 0,
+   "id": "marina-carwash",
+   "kind": "carWash",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -3989.832535019776,
+   "z": -1165.4221456500443,
+   "y": 0,
+   "id": "marina-green-board",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 502.0319083791429,
+   "z": 4162.221948749369,
+   "y": 0,
+   "id": "dogpatch-board",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 554.8773724196456,
+   "z": 3940.2367781498865,
+   "y": 0,
+   "id": "dogpatch-coning",
+   "kind": "coning",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -657.0452695647842,
+   "z": 1496.1800498433522,
+   "y": 0,
+   "id": "soma-delivery",
+   "kind": "deliveryShift",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -757.4516512401121,
+   "z": 1154.3228871196757,
+   "y": 0,
+   "id": "soma-kiosk",
+   "kind": "repairKiosk",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -554.8773724208972,
+   "z": 1387.407316249527,
+   "y": 0,
+   "id": "soma-hq-watch",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 325.88036157955344,
+   "z": 2941.3035104498485,
+   "y": 0,
+   "id": "mission-bay-carwash",
+   "kind": "carWash",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 237.80458817913288,
+   "z": 2097.7598621694488,
+   "y": 0,
+   "id": "mission-bay-bridge",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 149.72881477996395,
+   "z": 998.933267700038,
+   "y": 0,
+   "id": "rincon-board",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": -26.422732020877145,
+   "z": 1165.4221456500443,
+   "y": 0,
+   "id": "rincon-kiosk",
+   "kind": "repairKiosk",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 466.801599019225,
+   "z": 943.436975049773,
+   "y": 0,
+   "id": "bridge-depot-coning",
+   "kind": "coning",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "x": 369.9182482797637,
+   "z": 1165.4221456500443,
+   "y": 0,
+   "id": "bridge-queue-board",
+   "kind": "bountyHotspot",
+   "wave": 2,
+   "radius": 25
+  },
+  {
+   "id": "embarcadero-sprint",
+   "kind": "timeTrial",
+   "wave": 3,
+   "x": -26.422732020877145,
+   "z": 11.099258529579808,
+   "y": 0,
+   "radius": 12,
+   "rewardCents": 15000,
+   "rewardXp": 200,
+   "objective": {
+    "event": "race.finished",
+    "count": 1
+   },
+   "timeLimitS": 150,
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "start",
+     "x": -26.422732020877145,
+     "z": 11.099258529579808,
+     "y": 0,
+     "radius": 12
+    },
+    {
+     "id": "middle",
+     "x": 466.801599019225,
+     "z": 677.054770329605,
+     "y": 0,
+     "radius": 12
+    },
+    {
+     "id": "finish",
+     "x": 413.95613497997397,
+     "z": 1942.3702427498108,
+     "y": 0,
+     "radius": 12
+    }
+   ]
+  },
+  {
+   "id": "hill-delivery",
+   "kind": "delivery",
+   "wave": 3,
+   "x": -2272.3549537203367,
+   "z": -332.97775590001265,
+   "y": 0,
+   "radius": 12,
+   "rewardCents": 22500,
+   "rewardXp": 250,
+   "objective": {
+    "event": "delivery.completed",
+    "count": 1
+   },
+   "timeLimitS": 240,
+   "repeatable": true,
+   "cooldownS": 120,
+   "checkpoints": [
+    {
+     "id": "pickup",
+     "x": -2272.3549537203367,
+     "z": -332.97775590001265,
+     "y": 0,
+     "radius": 12
+    },
+    {
+     "id": "drop",
+     "x": -2184.279180319916,
+     "z": -721.4518044502903,
+     "y": 0,
+     "radius": 12
+    }
+   ]
+  }
+ ],
+ "missionIds": [
+  "hot-desk",
+  "spill",
+  "launch-day",
+  "demoed-correctly",
+  "demo-day",
+  "fleet-week",
+  "hill-climb",
+  "acqui-hire-offer",
+  "marine-layer",
+  "comeback-round",
+  "ramen-pitch"
+ ]
+}

@@ -5,6 +5,7 @@ import spill from "../../content/missions/spill.json" with { type: "json" };
 import partnerMeeting from "../../content/missions/ramen-pitch.json" with { type: "json" };
 import launchDay from "../../content/missions/launch-day.json" with { type: "json" };
 import demoedCorrectly from "../../content/missions/demoed-correctly.json" with { type: "json" };
+import officeHours from "../../content/missions/office-hours.json" with { type: "json" };
 import demoDay from "../../content/missions/demo-day.json" with { type: "json" };
 import fleetWeek from "../../content/missions/fleet-week.json" with { type: "json" };
 import hillClimb from "../../content/missions/hill-climb.json" with { type: "json" };
@@ -18,7 +19,7 @@ import { type Mission } from "./missions.ts";
 export { VENDOR } from "./vendor.ts";
 export { DIRECTOR_CARDS } from "./directorCards.ts";
 
-export const MISSIONS: readonly Mission[] = [hotDesk, spill, launchDay, demoedCorrectly, demoDay, fleetWeek, hillClimb, acquiHireOffer, marineLayer, comebackRound, partnerMeeting] as unknown as readonly Mission[];
+export const MISSIONS: readonly Mission[] = [hotDesk, spill, launchDay, demoedCorrectly, demoDay, fleetWeek, hillClimb, acquiHireOffer, marineLayer, comebackRound, partnerMeeting, officeHours] as unknown as readonly Mission[];
 export const CAMPAIGN_MISSIONS: readonly Mission[] = MISSIONS.filter((mission) => mission.campaign !== undefined);
 export const ACTIVITIES = activities.activities;
 export const SAFEHOUSES = safehouses.sites;

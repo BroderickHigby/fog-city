@@ -415,16 +415,16 @@ describe("errand-robot (the Porter)", () => {
     expect(fb.size[0]).toBeGreaterThan(4 * fb.size[1]);
   });
 
-  it("has a lantern head: a barrel wider than its collar, a cap and a carrying ring on top", async () => {
+  it("has an industrial sensor pod wider than its machined neck, a service lid and a compact mast", async () => {
     const { doc } = await loadModel("errand-robot.glb");
     const headNode = node(doc, "head");
     const pts = nodePositions(headNode, "local");
     const hb = box(pts);
-    expect(hb.size[1]).toBeGreaterThan(0.33); // tall like a lantern
+    expect(hb.size[1]).toBeGreaterThan(0.33); // sensor pod plus neck and mast
     expect(hb.size[1]).toBeLessThan(0.45);
     const widthAt = (y0: number, y1: number) => box(pts.filter((p) => p[1] > y0 && p[1] < y1)).size[0];
-    expect(widthAt(0.14, 0.24)).toBeGreaterThan(1.8 * widthAt(-0.01, 0.04)); // barrel vs neck
-    expect(widthAt(hb.max[1] - 0.05, hb.max[1] + 0.01)).toBeLessThan(0.1); // the ring on top
+    expect(widthAt(0.075, 0.317)).toBeGreaterThan(1.8 * widthAt(-0.01, 0.04)); // protected sensor housing vs neck
+    expect(widthAt(hb.max[1] - 0.025, hb.max[1] + 0.01)).toBeLessThan(0.1); // the compact lidar mast
   });
 
   it("is opaque everywhere: no translucent face plate or torso", async () => {

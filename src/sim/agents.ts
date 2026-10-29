@@ -73,8 +73,10 @@
 
 import { isCivilianTraffic, CIVILIAN_PASS_INTERVAL_TICKS } from "./civilian-traffic.ts";
 import { agentActorId } from "./identity.ts";
+import { activeWorldTick } from "./pause-timers.ts";
+import { coitFidelityAnchors } from "./activities/coit-viewer.ts";
 import { DT, SIM_VERSION, sortedIds, type DodgeState, type RngState, type SimState } from "./contract.ts";
-import { clamp, datan, datan2, dcos, dsin } from "./dmath.ts";
+import { clamp, datan, datan2, dcos, dsin, sq } from "./dmath.ts";
 import { arrived, hailsByAgent, playerPose, ridesByAgent } from "./ride.ts";
 import { rideRouteNext } from "./ride-route.ts";
 import { hash32, nextFloat, nextFloatWord, nextU32 } from "./rng.ts";
@@ -106,8 +108,11 @@ import {
 } from "./roads.ts";
 import { CAR } from "./car.ts";
 import { FOOT } from "./foot.ts";
-import { cellKey, circleBlocked, meshGroundHeight, type World } from "./world.ts";
-import { amberTicksLeft, signalAspect, type TrafficSignalControls } from "./traffic-signals.ts";
+import { cellKey, circleBlocked, meshGroundHeight, ROOF_STEP_M, type World } from "./world.ts";
+import { boxBlocked, boxCrossedWall } from "./collide.ts";
+import { propsNear } from "./props.ts";
+import { hullAt, sweepHulls, type VehicleHull, type VehicleMotion } from "./vehicle-contacts.ts";
+import { amberTicksLeft, signalAspect, SIGNAL_GREEN_S, type TrafficSignalControls } from "./traffic-signals.ts";
 import {
   PASS_BEYOND_M,
   PASS_RAMPS_M,
@@ -273,6 +278,7 @@ export interface AgentState {
   heading: number;
   /** Body pitch on hills, radians, + = nose up (robotaxis; 0 for walkers). */
   pitch: number;
+  /** Signed forward velocity for road bodies (SIM21 reverse yield is negative). */
   speed: number;
   /** This agent's cruise speed. */
   vmax: number;
@@ -596,6 +602,22 @@ function minDist2(bodies: readonly Body[], x: number, z: number): number {
     if (d2 < best) best = d2;
   }
   return best;
+}
+
+/** Remote observation is an interest area belonging to a real player, never a body. */
+export interface PopulationInterest extends Body { owner: number; radiusM: number }
+function inInterest(interests: readonly PopulationInterest[], x: number, z: number, extra = 0): boolean {
+  return interests.some(anchor => sq(anchor.x - x) + sq(anchor.z - z) <= sq(anchor.radiusM + extra));
+}
+function populationOwner(bodies: readonly Body[], interests: readonly PopulationInterest[], x: number, z: number): number {
+  let owner = nearestBody(bodies, x, z), distance = sq(bodies[owner]!.x - x) + sq(bodies[owner]!.z - z);
+  for (const anchor of interests) {
+    const d = sq(anchor.x - x) + sq(anchor.z - z);
+    if (anchor.owner >= 0 && anchor.owner < bodies.length && d <= sq(anchor.radiusM + AREA_HALF_DIAG) && d < distance) {
+      owner = anchor.owner; distance = d;
+    }
+  }
+  return owner;
 }
 
 /** Index of the nearest body (the first on a tie: bodies come in player id order). */
@@ -1137,12 +1159,15 @@ function probe(
   ignoreRobotaxis: boolean,
   scratch: Obs[],
   routes: Map<number, Route> | null = null,
+  physical = false,
 ): ProbeResult {
   const spec = AGENT_SPEC[a.kind];
+  const halfLength = physical && spec.road ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength;
+  const halfWidth = physical && spec.road ? a.halfWidth ?? ROBOTAXI_BODY.halfWidth : spec.halfWidth;
   const step = spec.road ? 1.5 : 0.5;
   const start = spec.road ? 0.8 : 0.2;
-  const look = spec.road ? spec.halfLength + Math.max(6, (a.speed * a.speed) / 6 + 4) : spec.halfLength + 2.5;
-  const pr = spec.halfWidth + (spec.road ? 0.3 : 0.15);
+  const look = spec.road ? halfLength + Math.max(6, (a.speed * a.speed) / 6 + 4) : halfLength + 2.5;
+  const pr = halfWidth + (spec.road ? 0.3 : 0.15);
   let first: Hit | null = null;
   let second: Hit | null = null;
   // Everything the look-ahead could touch lies within `look` of the agent (paths are never
@@ -1160,7 +1185,7 @@ function probe(
     const dx = o.x - a.x;
     const dz = o.z - a.z;
     if (dx * dx + dz * dz > (reach + o.r) * (reach + o.r)) continue;
-    if (dx * hx + dz * hz < -(spec.halfLength + o.r + 3)) continue; // well behind
+    if (dx * hx + dz * hz < -(halfLength + o.r + 3)) continue; // well behind
     near.push(o);
   }
   if (near.length === 0) return { first: null, second: null };
@@ -1191,9 +1216,9 @@ function probe(
         const ef = Math.max(0, (lf < 0 ? -lf : lf) - o.box.hl);
         const dist = Math.sqrt(ex * ex + ef * ef);
         if (dist >= pr) continue;
-        gap = Math.max(0, d - spec.halfLength - (pr - dist));
+        gap = Math.max(0, d - halfLength - (pr - dist));
       } else {
-        gap = Math.max(0, d - spec.halfLength - o.r);
+        gap = Math.max(0, d - halfLength - o.r);
       }
       const side = dx * -q.tz + dz * q.tx;
       const hit: Hit = { gap, id: o.id, player: o.player, side, ...(o.pass ? { pass: o.pass } : {}), ...(o.passing ? { passing: true } : {}) };
@@ -1205,7 +1230,7 @@ function probe(
       }
     }
     if (first && second) break;
-    if (first && d > first.gap + spec.halfLength + 3) break;
+    if (first && d > first.gap + halfLength + 3) break;
   }
   return { first, second };
 }
@@ -1217,10 +1242,106 @@ interface Hold {
   x: number;
   z: number;
   heading: number;
+  /** v27: physical dimensions and future centre path, rather than the legacy tail ribbon. */
+  hull?: VehicleHull;
+  sweepPath?: Path | null;
+  sweeps?: readonly VehicleMotion[];
+}
+
+/** The same full body used by the final contact seam; legacy planning remains versioned. */
+function roadHull(a: Readonly<AgentState>): VehicleHull {
+  return { key: `a:${a.id}`, x: a.x, y: a.y, z: a.z, heading: a.heading,
+    hl: a.halfLength ?? ROBOTAXI_BODY.halfLength, hw: a.halfWidth ?? ROBOTAXI_BODY.halfWidth,
+    height: a.height ?? ROBOTAXI_BODY.height };
+}
+
+function junctionSweeps(path: Path, body: Readonly<VehicleHull>, world?: World): VehicleMotion[] {
+  const motions: VehicleMotion[] = [];
+  let last: VehicleHull | null = path.xs.length && Math.abs(path.xs[0]! - body.x) + Math.abs(path.zs[0]! - body.z) < 1e-6 ? { ...body } : null;
+  for (let i = 0; i + 1 < path.xs.length; i++) {
+    const x = path.xs[i]!, z = path.zs[i]!, nx = path.xs[i + 1]!, nz = path.zs[i + 1]!;
+    if (sq(nx - x) + sq(nz - z) < 1e-16) continue;
+    const heading = datan2(nx - x, -(nz - z));
+    const before = { ...body, x, z, heading, y: world ? meshGroundHeight(world, x, z) : body.y };
+    const after = { ...body, x: nx, z: nz, heading, y: world ? meshGroundHeight(world, nx, nz) : body.y };
+    // Reserve both translations and the heading transition at each polyline vertex.
+    if (last && last.heading !== before.heading) motions.push({ before: last, after: before });
+    motions.push({ before, after }); last = after;
+  }
+  return motions;
+}
+
+/** Full physical swept hull against a queued body; also used by small geometry fixtures. */
+export function junctionPathHitsHull(path: Path, queued: Readonly<VehicleHull>, mover: Readonly<VehicleHull>, world?: World): boolean {
+  const fixed = { before: queued, after: queued };
+  return junctionSweeps(path, mover, world).some(motion => sweepHulls(motion, fixed, 128) !== null);
+}
+
+/** A holder's future centres. Its full hull already includes the tail; do not count it twice. */
+function reservationSweepPath(g: RoadGraph, a: Readonly<AgentState>, nodeId: string): Path | null {
+  const index = g.edgeIndex.get(a.edge);
+  if (index === undefined) return null;
+  const edge = g.edges[index]!, lane = basePath(edge, a);
+  if (a.node === nodeId && a.conn) return joinPaths(subPath(connectorPath(a.conn), a.s, connectorPath(a.conn).len), subPath(lane, 0, Math.min(HOLD_EXIT_M, lane.len)));
+  if (a.node === nodeId && g.nodes[startNode(edge, a.dir)]!.id === nodeId) return subPath(lane, a.s, Math.min(lane.len, Math.max(a.s, HOLD_EXIT_M)));
+  const planned = plannedConnector(g, a);
+  return planned ? joinPaths(subPath(lane, a.s, lane.len), planned) : null;
+}
+
+function fullHold(g: RoadGraph, a: Readonly<AgentState>, nodeId: string, path: Path | null, physical: boolean): Hold {
+  const hold: Hold = { id: a.id, path, x: a.x, z: a.z, heading: a.heading };
+  if (physical) { hold.hull = roadHull(a); hold.sweepPath = reservationSweepPath(g, a, nodeId); }
+  return hold;
+}
+
+function reservedHullHits(c: Ctx, hold: Hold, body: VehicleHull): boolean {
+  if (!c.junctionHulls || !hold.sweepPath || !hold.hull) return false;
+  hold.sweeps ??= junctionSweeps(hold.sweepPath, hold.hull, c.world);
+  const fixed = { before: body, after: body };
+  return hold.sweeps.some(motion => sweepHulls(motion, fixed, 128) !== null);
+}
+
+/** A short junction box may be entered only while its downstream green can clear the body. */
+export function shortLinkSignalWindow(controls: TrafficSignalControls | undefined, node: string, edge: string, tick: number, clearanceTicks: number): boolean {
+  const current = signalAspect(controls, node, edge, tick);
+  if (current === null) return true;
+  // No green can span this much time. This also prevents accepting an endpoint after
+  // wrapping a complete cycle through intervening red/yellow phases.
+  if (current !== "green" || !Number.isSafeInteger(clearanceTicks) || clearanceTicks < 0 || clearanceTicks >= SIGNAL_GREEN_S * 60) return false;
+  if (signalAspect(controls, node, edge, tick + clearanceTicks) !== "green") return false;
+  // With only one axis the cycle includes just a five-second stop. A short
+  // window can wrap that stop and end green again, so verify every recorded tick.
+  if (controls?.get(node)?.groupCount === 1) for (let offset = 1; offset < clearanceTicks; offset++) {
+    if (signalAspect(controls, node, edge, tick + offset) !== "green") return false;
+  }
+  return true;
+}
+
+function downstreamShortWait(g: RoadGraph, a: Readonly<AgentState>, controls: TrafficSignalControls | undefined, tick: number): boolean {
+  if (!controls || a.conn !== null) return false;
+  const index = g.edgeIndex.get(a.edge);
+  if (index === undefined) return false;
+  const current = g.edges[index]!, lane = basePath(current, a);
+  if (lane.len - a.s > 15) return false;
+  const plan = planNext(g, a), halfLength = a.halfLength ?? ROBOTAXI_BODY.halfLength;
+  // There is no full-body stop between these two junctions. Hold upstream instead
+  // of leaving a red-stopped nose and tail in both junctions at once.
+  if (!plan || plan.path.len >= 2 * halfLength + 1 + STOPLINE_M) return false;
+  const farNode = g.nodes[endNode(plan.edge, plan.dir)]!.id;
+  const aspect = signalAspect(controls, farNode, plan.edge.id, tick);
+  if (aspect === null) return false;
+  if (aspect !== "green") return true;
+  const turn = makeConnector(lane, plan.path, .56);
+  const cruise = Math.min(a.vmax, current.speedLimitMps * 1.1, plan.edge.speedLimitMps * 1.1);
+  const speed = Math.max(.5, turnSpeed(turn, cruise));
+  // Include a complete launch from rest and the rear bumper's travel. The actual
+  // far-node controller and physical seam still gate every accepted step.
+  const seconds = (connectorPath(turn).len + plan.path.len + halfLength + STOPLINE_M) / speed + speed / AGENT_SPEC[a.kind].accel;
+  return !shortLinkSignalWindow(controls, farNode, plan.edge.id, tick, Math.ceil(seconds * 60));
 }
 
 /** A reserved turn is occupied only after its front crossed the line, or while clearing it. */
-function enteredJunction(g: RoadGraph, a: Readonly<AgentState>, nodeId: string): boolean {
+function enteredJunction(g: RoadGraph, a: Readonly<AgentState>, nodeId: string, physical = false): boolean {
   if (a.node !== nodeId) return false;
   if (a.conn !== null) return true;
   const ei = g.edgeIndex.get(a.edge);
@@ -1228,7 +1349,7 @@ function enteredJunction(g: RoadGraph, a: Readonly<AgentState>, nodeId: string):
   const edge = g.edges[ei]!;
   if (g.nodes[startNode(edge, a.dir)]!.id === nodeId) return true;
   if (g.nodes[endNode(edge, a.dir)]!.id !== nodeId) return false;
-  const stop = basePath(edge, a).len - AGENT_SPEC[a.kind].halfLength - STOPLINE_M;
+  const stop = basePath(edge, a).len - (physical ? a.halfLength ?? ROBOTAXI_BODY.halfLength : AGENT_SPEC[a.kind].halfLength) - STOPLINE_M;
   return a.s > stop + 1e-6;
 }
 
@@ -1259,9 +1380,10 @@ function committedOnAmber(g: RoadGraph, signals: TrafficSignalControls | undefin
 /** May this robotaxi drive into the junction at node id? (It holds it, or it won it this tick.) */
 function mayEnter(c: Ctx, a: Readonly<AgentState>, nodeId: string, edgeId = a.edge): boolean {
   const hs = c.holders.get(nodeId);
+  if (c.downstreamWait.has(a.id) && !enteredJunction(c.g, a, nodeId, c.junctionHulls)) return false;
   const aspect = signalAspect(c.signals, nodeId, edgeId, c.tick);
   const goesOn = c.amberCommit && committedOnAmber(c.g, c.signals, c.tick, a, nodeId);
-  if (aspect !== null && aspect !== "green" && !goesOn) return enteredJunction(c.g, a, nodeId);
+  if (aspect !== null && aspect !== "green" && !goesOn) return enteredJunction(c.g, a, nodeId, c.junctionHulls);
   if (hs) for (const h of hs) if (h.id === a.id) return true;
   return c.winners.has(a.id);
 }
@@ -1345,14 +1467,16 @@ function bodyAt(lane: Path, s: number, id: number): Hold {
  */
 function stopPoint(c: Ctx, a: Readonly<AgentState>, lane: Path, nodeId: string): number {
   const spec = AGENT_SPEC[a.kind];
-  let s = lane.len - spec.halfLength - STOPLINE_M;
+  const halfLength = c.junctionHulls ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength;
+  let s = lane.len - halfLength - STOPLINE_M;
   const hs = c.holders.get(nodeId);
   if (!hs) return s;
-  for (let k = 0; k < 8 && s > a.s; k++) {
+  for (let k = 0; k < 8 && (c.junctionHulls || s > a.s); k++) {
     const body = bodyAt(lane, s, a.id);
     let hit = false;
     for (const h of hs) {
-      if (h.id !== a.id && h.path && holdConflicts(h.path, body)) {
+      const physicalBody = c.junctionHulls ? { ...roadHull(a), x: body.x, z: body.z, heading: body.heading, y: meshGroundHeight(c.world, body.x, body.z) } : null;
+      if (h.id !== a.id && h.path && (holdConflicts(h.path, body) || physicalBody && reservedHullHits(c, h, physicalBody))) {
         hit = true;
         break;
       }
@@ -1377,19 +1501,19 @@ function joinPaths(p: Path, q: Path): Path {
 }
 
 /** On a short link (SHORT_LINK_M), still holding the junction at its start (its tail is in it). */
-function rearHold(g: RoadGraph, a: Readonly<AgentState>, signals?: TrafficSignalControls): boolean {
+function rearHold(g: RoadGraph, a: Readonly<AgentState>, signals?: TrafficSignalControls, physical = false): boolean {
   if (a.node === "" || a.conn !== null) return false;
   const ei = g.edgeIndex.get(a.edge);
   if (ei === undefined) return false;
   const e = g.edges[ei]!;
   const ahead = g.nodes[endNode(e, a.dir)]!;
-  return g.nodes[startNode(e, a.dir)]!.id === a.node && basePath(e, a).len < SHORT_LINK_M && (ahead.degree >= 3 || signals?.has(ahead.id) === true);
+  return g.nodes[startNode(e, a.dir)]!.id === a.node && basePath(e, a).len < (physical ? 2 * (a.halfLength ?? ROBOTAXI_BODY.halfLength) + 1 + STOPLINE_M + 8 : SHORT_LINK_M) && (ahead.degree >= 3 || signals?.has(ahead.id) === true);
 }
 
 /** Whether a planned lane is a short link (SHORT_LINK_M) into another junction. */
-function shortLink(g: RoadGraph, plan: Plan, signals?: TrafficSignalControls): boolean {
+function shortLink(g: RoadGraph, plan: Plan, signals?: TrafficSignalControls, physical = false): boolean {
   const ahead = g.nodes[endNode(plan.edge, plan.dir)]!;
-  return plan.path.len < SHORT_LINK_M && (ahead.degree >= 3 || signals?.has(ahead.id) === true);
+  return plan.path.len < (physical ? 2 * ROBOTAXI_BODY.halfLength + 1 + STOPLINE_M + 8 : SHORT_LINK_M) && (ahead.degree >= 3 || signals?.has(ahead.id) === true);
 }
 
 /** The path through the junction a robotaxi waiting at the end of its lane will take (turn + exit), or null. */
@@ -1430,6 +1554,11 @@ interface Ctx {
   unstick: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
+  /** v27 reserves actual 5 m hulls; versions through 20 retain their recorded planning. */
+  junctionHulls: boolean;
+  downstreamWait: ReadonlySet<number>;
+  /** Legal prospective exits can ask a queued nose for room before admission. */
+  yieldRequests: ReadonlyMap<number, Hold>;
   world: World;
   g: RoadGraph;
   hash: Map<number, Obs[]>;
@@ -1459,6 +1588,7 @@ interface Ctx {
   /** Every vehicle (players' cars, robotaxis, service vehicles) and everyone on foot, for planning a pass. */
   vehicles: PassVehicle[];
   feet: PassFoot[];
+  brokenProps: Readonly<Record<string, unknown>>;
 }
 
 /** A vehicle slower than this stands still for going round it, m/s. */
@@ -1546,6 +1676,91 @@ function backClear(c: Ctx, a: Readonly<AgentState>, lane: Path, s: number): bool
 }
 
 /**
+ * A stationary queue may already occupy a holder's turning sweep in an imported/current
+ * save. Yield backwards only along its existing lane, and propagate that request through
+ * a close stationary queue. This changes no route, priority, green phase, or physical guard.
+ */
+function queuedTurnHolder(c: Ctx, original: Readonly<AgentState>): { id: number; pending: boolean } | null {
+  let a = original;
+  const seen = new Set<number>();
+  for (let depth = 0; depth < 8; depth++) {
+    if (seen.has(a.id) || a.conn || a.node || a.pass || a.speed > PASS_STOPPED_MPS) return null;
+    seen.add(a.id);
+    const ei = c.g.edgeIndex.get(a.edge);
+    if (ei === undefined) return null;
+    const lane = basePath(c.g.edges[ei]!, a);
+    const nodeId = c.g.nodes[endNode(c.g.edges[ei]!, a.dir)]!.id;
+    const requested = c.yieldRequests.get(a.id);
+    const floor = lane.len - (a.halfLength ?? ROBOTAXI_BODY.halfLength) - STOPLINE_M - 8;
+    if (requested && a.s > floor && (reservedHullHits(c, requested, roadHull(a))
+      || requested.path && holdConflicts(requested.path, { id: a.id, path: null, x: a.x, z: a.z, heading: a.heading }))) {
+      return { id: requested.id, pending: true };
+    }
+    if (lane.len - a.s < 15 && stopPoint(c, a, lane, nodeId) < a.s - .01) {
+      for (const hold of c.holders.get(nodeId) ?? []) {
+        const holder = c.byId.get(hold.id);
+        if (hold.id !== a.id && holder
+          && enteredJunction(c.g, holder, nodeId, true) && reservedHullHits(c, hold, roadHull(a))) return { id: hold.id, pending: false };
+      }
+    }
+    const next = probeOf(c, a.id)?.first;
+    if (!next || next.player || next.gap > ROBOTAXI_GAP_M + 1) return null;
+    const ahead = c.byId.get(next.id);
+    if (!ahead || ahead.edge !== a.edge || ahead.dir !== a.dir || ahead.lane !== a.lane || ahead.s <= a.s) return null;
+    a = ahead;
+  }
+  return null;
+}
+
+/**
+ * Full-body reverse sweep. Every ordinary clearance margin remains in force. The one
+ * already-close turning holder can only gain separation, never lose it; the common
+ * physical hull sweep still rejects contact with that holder or any other car.
+ */
+function queueBackClear(c: Ctx, a: Readonly<AgentState>, lane: Path, s: number, holderId: number): boolean {
+  const q = pathPoint(lane, s), heading = datan2(q.tx, -q.tz);
+  const before = roadHull(a), after = { ...before, x: q.x, z: q.z, y: meshGroundHeight(c.world, q.x, q.z), heading };
+  const motion = { before, after }, self = `a:${a.id}`;
+  // Full rectangular street geometry, including every still-solid prop and wall sweep.
+  for (const t of [0, .5, 1]) {
+    const pose = hullAt(motion, t);
+    if (bodyBlocked(c.world, a.kind, pose.x, pose.z, pose.heading)) return false;
+    const props = propsNear(c.world, pose.x, pose.z, pose.hl + pose.hw + 1).filter(prop => !c.brokenProps[prop.id])
+      .filter(prop => { const y = meshGroundHeight(c.world, prop.x, prop.z); return pose.y < y + prop.height && pose.y + pose.height > y; })
+      .map(prop => ({ x: prop.x, z: prop.z, r: prop.r, person: false }));
+    if (boxBlocked(c.world, pose, pose.y + ROOF_STEP_M, props, pose.y + pose.height) || boxCrossedWall(c.world, pose, before)) return false;
+  }
+  const bodyRect = (h: VehicleHull): Rect => ({ x: h.x, z: h.z, fx: dsin(h.heading), fz: -dcos(h.heading), hl: h.hl, hw: h.hw });
+  for (const vehicle of c.vehicles) {
+    if (vehicle.key === self || Math.abs(vehicle.rect.x - a.x) > 28 || Math.abs(vehicle.rect.z - a.z) > 28) continue;
+    const base: VehicleHull = { key: vehicle.key, x: vehicle.rect.x, y: a.y, z: vehicle.rect.z,
+      heading: datan2(vehicle.rect.fx, -vehicle.rect.fz), hl: vehicle.rect.hl, hw: vehicle.rect.hw, height: before.height };
+    const fixed = { before: base, after: base };
+    if (sweepHulls(motion, fixed, 128)) return false;
+    const startGap = rectGap(bodyRect(before), vehicle.rect), endGap = rectGap(bodyRect(after), vehicle.rect);
+    if (vehicle.key === `a:${holderId}` && startGap < PASS_VEHICLE_GAP_M) {
+      if (endGap <= startGap + 1e-8) return false;
+      continue;
+    }
+    for (const t of Math.abs(vehicle.speed) < PASS_STOPPED_MPS ? [0] : [0, .5, 1]) {
+      const moved = { ...vehicle.rect, x: vehicle.rect.x + vehicle.rect.fx * vehicle.speed * t, z: vehicle.rect.z + vehicle.rect.fz * vehicle.speed * t };
+      if (rectGap(bodyRect(after), moved) < PASS_VEHICLE_GAP_M) return false;
+      const predicted = { ...base, x: moved.x, z: moved.z };
+      if (sweepHulls(motion, { before: base, after: predicted }, 128)) return false;
+    }
+  }
+  // A square encloses the existing circular pedestrian berth. Its relative sweep is
+  // conservative over the whole forecast second, including children and moving walkers.
+  for (const foot of c.feet) {
+    if (Math.abs(foot.x - a.x) > 28 || Math.abs(foot.z - a.z) > 28) continue;
+    const berth = (foot.child ? ROBOTAXI_SLOW_BERTH_CHILD_M : ROBOTAXI_SLOW_BERTH_M) + BERTH_SLACK_M + foot.r;
+    const person: VehicleHull = { key: "foot", x: foot.x, y: a.y, z: foot.z, heading: 0, hl: berth, hw: berth, height: before.height };
+    if (sweepHulls(motion, { before: person, after: { ...person, x: foot.x + foot.vx, z: foot.z + foot.vz } }, 128)) return false;
+  }
+  return true;
+}
+
+/**
  * A pass round `target` (standing still ahead of robotaxi a on `lane`), or null when there is no
  * room or the road is not clear: the smaller offset that clears it inside the carriageway (left
  * first), the shortest ease-out that keeps every pose clear (passClear), easing back in
@@ -1579,7 +1794,7 @@ function probeOf(c: Ctx, id: number): ProbeResult | undefined {
   if (have) return have;
   const a = c.byId.get(id);
   if (!a || a.dwell > 0 || a.dodge !== null) return undefined;
-  const p = probe(c.g, a, c.hash, a.ghost > 0 && !c.solidVehicles, c.scratch, c.routes);
+  const p = probe(c.g, a, c.hash, a.ghost > 0 && !c.solidVehicles, c.scratch, c.routes, c.junctionHulls);
   c.probes.set(id, p);
   return p;
 }
@@ -1693,6 +1908,19 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     }
   }
 
+  if (c.junctionHulls && spec.road && a.conn === null && !a.node && !pass && a.speed <= PASS_STOPPED_MPS
+    && (movement?.maxSpeed ?? Infinity) > 0 && (movement?.scale ?? 1) > 0) {
+    const holder = queuedTurnHolder(c, a);
+    const backSpeed = Math.min(PASS_BACKUP_MPS, PASS_BACKUP_MPS * (movement?.scale ?? 1), movement?.maxSpeed ?? Infinity);
+    const back = a.s - backSpeed * dt;
+    // Do not reverse into the junction behind, even on a short link.
+    if (holder !== null && (holder.pending || a.wait >= 30) && backSpeed > 0 && back >= (a.halfLength ?? ROBOTAXI_BODY.halfLength) + STOPLINE_M && queueBackClear(c, a, cur, back, holder.id)) {
+      const q = pathPoint(cur, back), heading = datan2(q.tx, -q.tz);
+      return { ...a, x: q.x, y: meshGroundHeight(c.world, q.x, q.z), z: q.z, heading,
+        pitch: bodyPitch(c.world, q.x, q.z, heading), s: back, speed: -backSpeed, wait: a.wait + ticks, mode: "yield", rng };
+    }
+  }
+
   // Target speed.
   const speedCap = movement?.maxSpeed ?? Infinity;
   let cruise = Math.min(a.vmax * (movement?.scale ?? 1), speedCap);
@@ -1723,7 +1951,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
       // Wait behind the line until this robotaxi may enter. Signals also gate jam recovery;
       // unsignalised intersections retain the existing all-way-stop priority.
       const node = g.nodes[endNode(e, a.dir)]!;
-      if (((node.degree >= 3 && a.ghost === 0) || c.signals?.get(node.id)?.approaches.has(e.id)) && !mayEnter(c, a, node.id)) {
+      if (((node.degree >= 3 && a.ghost === 0) || c.signals?.get(node.id)?.approaches.has(e.id) || c.downstreamWait.has(a.id)) && !mayEnter(c, a, node.id)) {
         const v = Math.sqrt(2 * spec.decel * Math.max(0, stopPoint(c, a, cur, node.id) - a.s));
         if (v < target) {
           target = v;
@@ -1770,11 +1998,12 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
       }
       // Stopped too close to steer round it (it pulled up behind it while it still moved, or it
       // stopped right in front): back up along its lane to the standoff, while the way back is clear.
-      const back = a.s - PASS_BACKUP_MPS * dt;
-      if (blocker!.gap < PASS_STANDOFF_M - 0.3 && back >= 0 && backClear(c, a, cur, back)) {
+      const backSpeed = c.junctionHulls ? Math.min(PASS_BACKUP_MPS, PASS_BACKUP_MPS * (movement?.scale ?? 1), movement?.maxSpeed ?? Infinity) : PASS_BACKUP_MPS;
+      const back = a.s - backSpeed * dt;
+      if (backSpeed > 0 && blocker!.gap < PASS_STANDOFF_M - 0.3 && back >= 0 && backClear(c, a, cur, back)) {
         const q = pathPoint(cur, back);
         const heading = datan2(q.tx, -q.tz);
-        return { ...a, x: q.x, y: meshGroundHeight(c.world, q.x, q.z), z: q.z, heading, pitch: bodyPitch(c.world, q.x, q.z, heading), s: back, speed: 0, wait: a.wait + ticks, mode: "yield", rng };
+        return { ...a, x: q.x, y: meshGroundHeight(c.world, q.x, q.z), z: q.z, heading, pitch: bodyPitch(c.world, q.x, q.z, heading), s: back, speed: c.junctionHulls ? -backSpeed : 0, wait: a.wait + ticks, mode: "yield", rng };
       }
     } else if (pass && a.s < pass.commit && (c.tick + a.id) % PASS_RETRY_TICKS === 0 && !passClear(c, a, cur, pass, a.s)) {
       // Not yet alongside and the road is no longer clear: ease back in behind it, and wait again.
@@ -1824,7 +2053,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   let nlane = a.nlane;
   let resume = a.resume;
   let trafficRoute = a.trafficRoute;
-  if (spec.road && a.conn === null && (a.node === "" || rearHold(g, a, c.signals)) && c.winners.has(a.id)) {
+  if (spec.road && a.conn === null && (a.node === "" || rearHold(g, a, c.signals, c.junctionHulls)) && c.winners.has(a.id)) {
     node = g.nodes[endNode(e, a.dir)]!.id; // claim the junction (letting go of the one behind)
   }
   let curEdge = e;
@@ -1843,8 +2072,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     }
     if (spec.road) {
       const nd = g.nodes[endNode(curEdge, dir)]!;
-      if (((nd.degree >= 3 && a.ghost === 0) || c.signals?.get(nd.id)?.approaches.has(curEdge.id)) && !mayEnter(c, a, nd.id, curEdge.id)) {
-        s = Math.min(len, Math.max(a.s, len - spec.halfLength - STOPLINE_M));
+      if (((nd.degree >= 3 && a.ghost === 0) || c.signals?.get(nd.id)?.approaches.has(curEdge.id) || c.downstreamWait.has(a.id)) && !mayEnter(c, a, nd.id, curEdge.id)) {
+        s = Math.min(len, Math.max(a.s, len - (c.junctionHulls ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength) - STOPLINE_M));
         speed = 0;
         held = true;
         break;
@@ -1881,7 +2110,7 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
     }
   }
 
-  if (spec.road && conn === null && node !== "" && node === g.nodes[startNode(curEdge, dir)]!.id && s >= spec.halfLength + 1) {
+  if (spec.road && conn === null && node !== "" && node === g.nodes[startNode(curEdge, dir)]!.id && s >= (c.junctionHulls ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength) + 1) {
     node = ""; // tail clear of the junction: release it
   }
 
@@ -1915,7 +2144,8 @@ function stepAgent(c: Ctx, a: AgentState, dt: number, movement?: ReturnType<type
   const aspect = spec.road && a.conn === null && a.node !== nextNode ? signalAspect(c.signals, nextNode, e.id, c.tick) : null;
   // Regulatory waiting is not a jam. Reset its age so a long red cannot retire a car
   // or trigger ghost recovery on the first green. Real collision handling below stays active.
-  const signalWaiting = aspect !== null && aspect !== "green";
+  const signalWaiting = aspect !== null && aspect !== "green"
+    || c.downstreamWait.has(a.id) && !enteredJunction(c.g, a, nextNode, c.junctionHulls);
   // A walker's wait only clears once it is really walking again (not inching along).
   let wait = signalWaiting ? 0 : blocked ? a.wait + ticks : spec.road || speed > 0.6 * cruise ? 0 : Math.max(0, a.wait - ticks);
   // On a safe lane (roads.ts LANE_SAFE_M) a robotaxi cannot touch a building: skip the check.
@@ -2288,19 +2518,20 @@ export function populate(
   cars: readonly CarSpot[] = [],
   scales: PopulationScales = [],
   version: number = SIM_VERSION,
+  interests: readonly PopulationInterest[] = [],
 ): { ext: AgentsExt; rng: RngState } {
   const g = world.roads;
   if (!g || bodies.length === 0) return { ext, rng };
-  const keep = ext.list.filter((a) => minDist2(bodies, a.x, a.z) <= DESPAWN_RANGE_M * DESPAWN_RANGE_M);
+  const keep = ext.list.filter((a) => minDist2(bodies, a.x, a.z) <= DESPAWN_RANGE_M * DESPAWN_RANGE_M || inInterest(interests, a.x, a.z, SPAWN_MIN_PLAYER_M));
   const list = keep.slice();
   let nextId = ext.nextId;
   let r = rng;
 
   const reach = ACTIVE_RANGE_M + AREA_HALF_DIAG;
   const active = g.areas
-    .map((ar) => ({ ar, d2: minDist2(bodies, ar.cx, ar.cz) }))
-    .filter((v) => v.d2 <= reach * reach)
-    .sort((p, q) => p.d2 - q.d2 || (p.ar.key < q.ar.key ? -1 : p.ar.key > q.ar.key ? 1 : 0));
+    .map((ar) => ({ ar, d2: minDist2(bodies, ar.cx, ar.cz), remote: inInterest(interests, ar.cx, ar.cz, AREA_HALF_DIAG) }))
+    .filter((v) => v.d2 <= reach * reach || v.remote)
+    .sort((p, q) => Number(q.remote) - Number(p.remote) || p.d2 - q.d2 || (p.ar.key < q.ar.key ? -1 : p.ar.key > q.ar.key ? 1 : 0));
 
   // Agents wander between areas, so an area can be short while its neighbours are over.
   // Each kind's total is also held to the sum of the active areas' budgets.
@@ -2312,10 +2543,10 @@ export function populate(
     const k = `${areaOf(a.x, a.z).key}|${a.kind}`;
     counts.set(k, (counts.get(k) ?? 0) + 1);
     totals.set(a.kind, (totals.get(a.kind) ?? 0) + 1);
-    owned[nearestBody(bodies, a.x, a.z)]!++;
+    owned[populationOwner(bodies, interests, a.x, a.z)]!++;
   }
   // Each area is scaled by its owner's density (the nearest player's).
-  const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[nearestBody(bodies, ar.cx, ar.cz)]?.[kind] ?? 1;
+  const scaleOf = (ar: AreaRoads, kind: AgentKind): number => scales[populationOwner(bodies, interests, ar.cx, ar.cz)]?.[kind] ?? 1;
   // v26: no ambient Trundles; Footmen take each area's Trundle budget, one for one, with its hour
   // and district shaping. Never in the initial fill (see the header, Population).
   const trundleFree = !initial && version >= TRUNDLE_FREE_VERSION;
@@ -2341,7 +2572,7 @@ export function populate(
       const surplus = Math.min(TRIM_PER_POP, -room.get(kind)!);
       if (surplus <= 0) continue;
       const out = list
-        .filter((a) => a.kind === kind && (a.runtimeId === undefined || a.runtimeLegacy === true) && a.dodge === null && minDist2(bodies, a.x, a.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M)
+        .filter((a) => a.kind === kind && (a.runtimeId === undefined || a.runtimeLegacy === true) && a.dodge === null && minDist2(bodies, a.x, a.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M && !inInterest(interests, a.x, a.z))
         .sort((p, q) => minDist2(bodies, q.x, q.z) - minDist2(bodies, p.x, p.z) || p.id - q.id)
         .slice(0, surplus);
       for (const a of out) drop.add(a.id);
@@ -2355,7 +2586,7 @@ export function populate(
   }
   const minPlayer = initial ? 6 : SPAWN_MIN_PLAYER_M;
   for (const { ar } of active) {
-    const owner = nearestBody(bodies, ar.cx, ar.cz);
+    const owner = populationOwner(bodies, interests, ar.cx, ar.cz);
     for (const kind of AGENT_KINDS) {
       const want = areaWant(ar, kind);
       const have = counts.get(`${ar.key}|${kind}`) ?? 0;
@@ -2365,10 +2596,13 @@ export function populate(
         const [agent, r2] = trySpawn(world, g, ar, kind, r, nextId, list, bodies, minPlayer, cars);
         r = r2;
         if (!agent) continue;
+        // Remote areas use the normal seeded candidate and every real body clearance.
+        // Reject a candidate outside the small lens interest, never move it into view.
+        if (minDist2(bodies, ar.cx, ar.cz) > reach * reach && !inInterest(interests, agent.x, agent.z)) continue;
         list.push(agent);
         nextId++;
         room.set(kind, room.get(kind)! - 1);
-        owned[nearestBody(bodies, agent.x, agent.z)]!++;
+        owned[populationOwner(bodies, interests, agent.x, agent.z)]!++;
       }
     }
   }
@@ -2460,7 +2694,8 @@ function protectedTrafficIds(state:Readonly<SimState>):ReadonlySet<number> {
 
 /** Admit an ordinary car every thirty simulation seconds when a safe connected approach has room. */
 export function admitPassingCars(world: World, state: Readonly<SimState>, tick: number, ext: AgentsExt): AgentsExt {
-  if (tick % CIVILIAN_PASS_INTERVAL_TICKS !== 0 || !world.roads) return ext;
+  const scheduleTick = activeWorldTick(state) + (tick - state.tick);
+  if (scheduleTick % CIVILIAN_PASS_INTERVAL_TICKS !== 0 || !world.roads) return ext;
   const graph=world.roads,bodies=playerBodies(state),cars=playerCars(state),protectedIds=protectedTrafficIds(state);
   if(!bodies.length) return ext;
   let list=ext.list.slice(),nextId=ext.nextId;
@@ -2489,7 +2724,7 @@ export function admitPassingCars(world: World, state: Readonly<SimState>, tick: 
         list=list.filter(a=>a.id!==removable.id);
       }
       while(nextId%8!==7) nextId++;
-      const id=nextId++,rng=hash32(state.seed,id,tick),planned=choice.route[0];
+      const id=nextId++,rng=hash32(state.seed,id,scheduleTick),planned=choice.route[0];
       const [next,ndir,nlane,arng]=planned?[planned.edge,planned.dir,planned.lane,rng] as const:chooseNext(graph,choice.edge,choice.dir,choice.lane,true,rng);
       list.push({id,kind:"robotaxi",x:point.x,y:meshGroundHeight(world,point.x,point.z),z:point.z,heading,pitch:bodyPitch(world,point.x,point.z,heading),speed:0,vmax:10,
         edge:choice.edge.id,dir:choice.dir,lane:choice.lane,s:choice.s,next,ndir,nlane,conn:null,node:"",resume:0,lat:0,wait:0,dwell:0,ghost:0,mode:"go",rng:arng,dodge:null,
@@ -2530,9 +2765,11 @@ export function initialAgents(world: World, state: Readonly<SimState>): { ext: A
  * tick); returns the new agents and the new global RNG state.
  */
 export function stepAgents(world: World, prev: Readonly<SimState>, tick: number, controlled: ReadonlySet<number> = new Set()): { ext: AgentsExt; rng: RngState } | null {
+  const scheduleTick = activeWorldTick(prev) + (tick - prev.tick);
   const g = world.roads;
   if (!g) return null;
   const signals = prev.version >= 20 ? world.signals : undefined;
+  const downstreamWait = new Set<number>();
   const amberCommit = prev.version >= 21;
   let ext = (prev.ext[AGENTS_EXT_KEY] as AgentsExt | undefined) ?? { nextId: 1, list: [] };
   if (signals) {
@@ -2542,15 +2779,22 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     let released: AgentState[] | undefined;
     for (let i = 0; i < ext.list.length; i++) {
       const a = ext.list[i]!;
-      if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node)) continue;
-      const aspect = signalAspect(signals, a.node, a.edge, tick);
+      if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node, prev.version >= 27)) continue;
+      const aspect = signalAspect(signals, a.node, a.edge, scheduleTick);
       if (aspect === null || aspect === "green") continue;
-      if (amberCommit && committedOnAmber(g, signals, tick, a, a.node)) continue;
+      if (amberCommit && committedOnAmber(g, signals, scheduleTick, a, a.node)) continue;
       released ??= ext.list.slice(); released[i] = { ...a, node: "" };
     }
     if (released) ext = { ...ext, list: released };
   }
+  if (prev.version >= 27) for (const a of ext.list) {
+    if (AGENT_SPEC[a.kind].road && !a.manualCar && downstreamShortWait(g, a, signals, scheduleTick)) downstreamWait.add(a.id);
+  }
   const bodies = playerBodies(prev);
+  const ownerIds = sortedIds(prev.players);
+  const interests: PopulationInterest[] = coitFidelityAnchors(prev, world).map(anchor => ({
+    x: anchor.x, z: anchor.z, radiusM: anchor.radiusM ?? 120, owner: ownerIds.indexOf(anchor.ownerId),
+  })).filter(anchor => anchor.owner >= 0);
   if (bodies.length === 0) return { ext, rng: prev.rng };
   // v26: ambient Trundles leave the street on the state's first step (the starting street drawn
   // while a new game loads still shows them). One diving out of a vehicle's way, or knocked flying,
@@ -2579,9 +2823,9 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const stepDt = new Map<number, number>();
   for (const a of ext.list) {
     if (controlled.has(a.id) || a.manualCar || a.runtimeId !== undefined) continue;
-    const near = minDist2(bodies, a.x, a.z) <= NEAR_RANGE_M * NEAR_RANGE_M;
+    const near = minDist2(bodies, a.x, a.z) <= NEAR_RANGE_M * NEAR_RANGE_M || inInterest(interests, a.x, a.z);
     if (near) stepDt.set(a.id, DT);
-    else if ((tick + a.id) % LOD_STRIDE === 0) stepDt.set(a.id, DT * LOD_STRIDE);
+    else if ((scheduleTick + a.id) % LOD_STRIDE === 0) stepDt.set(a.id, DT * LOD_STRIDE);
   }
 
   // Look-ahead for everyone who steps (pass 1), so mutual blocks can be resolved fairly.
@@ -2589,7 +2833,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const scratch: Obs[] = [];
   for (const a of ext.list) {
     if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
-    probes.set(a.id, probe(g, a, hash, a.ghost > 0 && prev.version < 18, scratch, routes));
+    probes.set(a.id, probe(g, a, hash, a.ghost > 0 && prev.version < 18, scratch, routes, prev.version >= 27));
   }
 
   // Junctions (nodes with 3+ streets): who holds each one (claimed at the line, crossing, or
@@ -2617,7 +2861,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
         const path = holdPath(g, a);
         let l = holders.get(a.node);
         if (!l) holders.set(a.node, (l = []));
-        l.push({ id: a.id, path, x: a.x, z: a.z, heading: a.heading });
+        l.push(fullHold(g, a, a.node, path, prev.version >= 27));
       }
     }
     if (a.conn === null && a.s < EXIT_CLEAR_M) fullStart.add(`${a.edge}|${a.dir}|${a.lane}`);
@@ -2631,31 +2875,34 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // On a short link with its tail still in the junction behind (rearHold): it contends for the
     // junction ahead from wherever it waits, or it would hold the one behind while every other
     // approach takes the one ahead.
-    const rear = rearHold(g, a, signals);
+    const rear = rearHold(g, a, signals, prev.version >= 27);
     if (a.node !== "" && !rear) continue;
     const rem = remainingOnPath(g, a);
     if (!rem) continue;
     const nd = g.nodes[rem.node]!;
-    const aspect = signalAspect(signals, nd.id, a.edge, tick);
+    const aspect = signalAspect(signals, nd.id, a.edge, scheduleTick);
     if ((nd.degree < 3 || a.ghost > 0) && aspect === null) continue;
-    if (rem.dist > spec.halfLength + STOPLINE_M + 9 && !rear) continue;
+    const halfLength = prev.version >= 27 ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength;
+    if (rem.dist > halfLength + STOPLINE_M + 9 && !rear) continue;
     let w = waiters.get(nd.id);
     if (!w) waiters.set(nd.id, (w = []));
     w.push({ a, path: plannedConnector(g, a) });
-    if (aspect !== null && aspect !== "green" && !(amberCommit && committedOnAmber(g, signals, tick, a, nd.id))) continue;
+    if (aspect !== null && aspect !== "green" && !(amberCommit && committedOnAmber(g, signals, scheduleTick, a, nd.id))) continue;
+    if (downstreamWait.has(a.id)) continue;
     const dt = stepDt.get(a.id) ?? DT;
-    if (rem.dist > spec.halfLength + STOPLINE_M + 1 + a.speed * dt && !(rear && a.speed < 0.05)) continue;
+    if (rem.dist > halfLength + STOPLINE_M + 1 + a.speed * dt && !(rear && a.speed < 0.05)) continue;
     const plan = planNext(g, a);
     if (plan && fullStart.has(`${plan.edge.id}|${plan.dir}|${plan.lane}`)) continue;
     // Down a short link against a robotaxi coming up it (or holding its far junction to): each
     // would hold the junction the other waits for, for good (Fillmore St between Retiro Way and
     // Marina Blvd, 15.7 m: the Fleet Week getaway jam, 2026-10-24).
-    if (plan && shortLink(g, plan, signals) && linked.has(`${plan.edge.id}|${-plan.dir}`)) continue;
+    if (plan && shortLink(g, plan, signals, prev.version >= 27) && linked.has(`${plan.edge.id}|${-plan.dir}`)) continue;
     let l = contenders.get(nd.id);
     if (!l) contenders.set(nd.id, (l = []));
     l.push(a);
   }
   const winners = new Set<number>();
+  const yieldRequests = new Map<number, Hold>();
   const entering = new Set<string>(); // short links winners turn onto this tick, by edge|dir
   for (const key of [...contenders.keys()].sort()) {
     const l = contenders.get(key)!.slice().sort((p, q) => q.wait - p.wait || p.id - q.id);
@@ -2665,9 +2912,12 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     for (const a of l) {
       const path = plannedConnector(g, a);
       if (!path) continue;
+      const physical = prev.version >= 27;
+      const sweep = physical ? reservationSweepPath(g,a,key) : null;
+      const movingHull = physical ? roadHull(a) : null;
       let ok = true;
       for (const h of hs) {
-        if (holdConflicts(path, h)) {
+        if (holdConflicts(path, h) || sweep && movingHull && h.hull && junctionPathHitsHull(sweep,h.hull,movingHull,world)) {
           ok = false;
           break;
         }
@@ -2679,15 +2929,26 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
         if (!ok) break;
         if (w.a.id === a.id || winners.has(w.a.id)) continue;
         const wb: Hold = { id: w.a.id, path: null, x: w.a.x, z: w.a.z, heading: w.a.heading };
-        if (holdConflicts(path, wb) && !(w.path && holdConflicts(w.path, me))) ok = false;
+        const legacyBlocked=holdConflicts(path,wb)&&!(w.path&&holdConflicts(w.path,me));
+        const queuedHull=physical?roadHull(w.a):null;
+        const queuedSweep=physical?reservationSweepPath(g,w.a,key):null;
+        const fullBlocked=!!(sweep&&movingHull&&queuedHull&&junctionPathHitsHull(sweep,queuedHull,movingHull,world)&&
+          !(queuedSweep&&junctionPathHitsHull(queuedSweep,movingHull,queuedHull,world)));
+        if ((legacyBlocked || fullBlocked) && physical && w.a.node === "" && w.a.conn === null
+          && !w.a.pass && w.a.speed <= PASS_STOPPED_MPS && !yieldRequests.has(w.a.id)) {
+          // Ask for safe space; the contender remains unadmitted until BOTH existing
+          // path guards are clear. This also lets a lawful red queue yield backwards.
+          yieldRequests.set(w.a.id, fullHold(g, a, key, path, true));
+        }
+        if(legacyBlocked||fullBlocked)ok=false;
       }
       const plan = planNext(g, a);
-      const link = plan && shortLink(g, plan, signals) ? plan : null;
+      const link = plan && shortLink(g, plan, signals, prev.version >= 27) ? plan : null;
       if (link && entering.has(`${link.edge.id}|${-link.dir}`)) continue;
       if (!ok) continue;
       if (link) entering.add(`${link.edge.id}|${link.dir}`);
       winners.add(a.id);
-      hs.push({ id: a.id, path, x: a.x, z: a.z, heading: a.heading });
+      hs.push(fullHold(g, a, key, path, prev.version >= 27));
     }
   }
 
@@ -2702,7 +2963,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { signals, amberCommit, unstick: prev.version >= UNSTICK_VERSION, solidVehicles: prev.version >= 18, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick, vehicles, feet, rides, hailed: hailsByAgent(prev) };
+  const ctx: Ctx = { signals, amberCommit, unstick: prev.version >= UNSTICK_VERSION, solidVehicles: prev.version >= 18, junctionHulls: prev.version >= 27, downstreamWait, yieldRequests, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick: scheduleTick, vehicles, feet, rides, hailed: hailsByAgent(prev), brokenProps: (prev.ext.impacts as { props?: Record<string, unknown> } | undefined)?.props ?? {} };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -2715,18 +2976,18 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     const n = stepAgent(ctx, a, dt, limit);
     if (!n) continue;
     // Out of view and stuck for good (a standoff in a tangle of real-world junctions): retire it.
-    if (n.wait > STUCK_REMOVE_TICKS && !rides.has(n.id) && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M) continue;
+    if (n.wait > STUCK_REMOVE_TICKS && !rides.has(n.id) && minDist2(bodies, n.x, n.z) > SPAWN_MIN_PLAYER_M * SPAWN_MIN_PLAYER_M && !inInterest(interests, n.x, n.z)) continue;
     list.push(n);
   }
 
   let out: AgentsExt = { nextId: ext.nextId, list };
   let rng = prev.rng;
-  if (tick % POP_INTERVAL === 0) {
+  if (scheduleTick % POP_INTERVAL === 0) {
     // Claimed legacy bodies still occupy the ambient population budget. Counting
     // only unclaimed rows refills the same slots every population tick. They must
     // also obey the same distance cull: restoring every claimed body afterwards
     // leaves a trail of frozen pedestrians as the player travels across the city.
-    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev), prev.version);
+    const p = populate(world, out, rng, bodies, prev.seed, false, playerCars(prev), populationScales(prev), prev.version, interests);
     out = p.ext;
     rng = p.rng;
   }
@@ -2759,7 +3020,7 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
   if (!g || !a) return null;
   const ext = state.ext[AGENTS_EXT_KEY] as AgentsExt;
   const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list, g)]);
-  const pr = probe(g, a, hash, a.ghost > 0 && state.version < 18, []);
+  const pr = probe(g, a, hash, a.ghost > 0 && state.version < 18, [], null, state.version >= 27);
   const rem = remainingOnPath(g, a);
   let holder: number | null = null;
   const nodeId = rem ? g.nodes[rem.node]!.id : null;

@@ -1,3 +1,7 @@
+**Consolidated Porter update, 26 October 2026:** the runtime robot now has an original
+industrial sensor pod and mechanical service details. Animation/rust/collapse contracts
+and the 6k triangle budget remain. See [source and output record](../imports/industrial-porter/README.md).
+
 # Fog City assets (scripted Blender)
 
 **Runtime update, 23 October 2026:** the default player now uses the generic, MIT-licensed
@@ -70,7 +74,7 @@ writes Cycles previews to `assets/blender/.renders/` (gitignored).
 | `r-evolution.glb` | 32,216 (40k) | 14.3 m on a 7.2 m plinth | `r_evolution` > `frame` (rods), `shell` (`steel_mesh`, MASK), `glow` (`light_sculpture_glow`, MASK), `plinth` |
 | `player-car.glb` | 2,992 (8k) | 4.33 x 2.04 x 1.50 m | `player_car` > `body`, `wheel_FL/FR/RL/RR`; `paint` (recolourable), `light_headlight`, `light_taillight` |
 | `robotaxi.glb` (Meander) | 4,488 (10k) | 4.98 x 1.95 x 1.95 m | `robotaxi` > `body`, `door_slide_R`, `sensor_band`, `wheel_FL/FR/RL/RR`; `light_status` (teal line in the roof band), `light_headlight`, `light_taillight`. **No `sensor_dome`** |
-| `errand-robot.glb` (Porter) | 4,948 (6k) | 1.95 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
+| `errand-robot.glb` (Porter) | 5,120 (6k) | 1.92 m tall | `errand_robot` > `torso` > `head`, `arm_upper_L/R` > `arm_lower_L/R` (> `bag` > `bag_contents` on R), `leg_upper_L/R` > `leg_lower_L/R`; `light_face`; morphs `seize/slump/melt`; `_RUST_MASK` |
 | `sidewalk-bot.glb` (Trundle) | 2,008 (3k) | 0.56 m tall, 0.75 m long | `sidewalk_bot` > `body`, `lid`, `cargo`, `wheel_L1/L2`, `wheel_R1/R2` (1 = front); `light_face`; morphs `seize/slump/melt`; `_RUST_MASK`. **No `flag`** |
 | `moat-van.glb` | 3,904 (9k) | 5.81 x 2.28 x 2.50 m | `moat_van` > `body`, `wheel_FL/FR/RL/RR`, `door_rear_L/R`; `light_headlight`, `light_taillight`, `light_accent` |
 | `humanoid-crowd.glb` + VAT | 2,879 / 871 per body | 1.78 m (adult), 1.18 m (child) | meshes `adult_lod0/1`, `child_lod0/1` (attributes `_VID`, `_SLOT`); see Humanoid line |

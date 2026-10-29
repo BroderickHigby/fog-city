@@ -19,6 +19,7 @@ import { agentsRuntimeOf, type RuntimeSpawn } from "../agents/runtime.ts";
 import { protectedAreaAt } from "../../content/places.ts";
 import { toLatLon } from "../../geo/project.ts";
 import { createMatchSession, modeSessionOf, type MatchPayoutEvent } from "./session.ts";
+import type { MatchCarrySource } from "./carry.ts";
 import { MATCH_RULES } from "./match.ts";
 import type { MatchResult } from "./types.ts";
 
@@ -93,7 +94,7 @@ export function botSweepArena(state: Readonly<SimState>): Arena | null {
 }
 
 /** A new, separate match instance on an arena cut from `world`. Throws ArenaUnavailableError. */
-export function createBotSweep(world: World, config: BotSweepConfig): SimState {
+export function createBotSweep(world: World, config: BotSweepConfig,carrySource?:MatchCarrySource): SimState {
   if (!VALID_ID.test(config.id)) throw new Error("Invalid match id");
   const bots = config.bots ?? 0;
   if (!Number.isSafeInteger(bots) || bots < 0 || bots >= BOT_SWEEP_MAX_PLAYERS || config.players.some(isBotId)) throw new Error("Invalid bot teammates");
@@ -112,7 +113,7 @@ export function createBotSweep(world: World, config: BotSweepConfig): SimState {
   const center = { x: config.spawn.x, y: groundHeight(world, config.spawn.x, config.spawn.z), z: config.spawn.z }, radius = BOT_SWEEP_ARENA_RADIUS;
   const arena = { center, radius }, isolated = arenaWorld(world, arena);
   if (!hasArenaRefill(isolated, arena)) throw new ArenaUnavailableError("refill", "This arena needs an accessible water refill");
-  let state = createMatchSession(isolated, { id: config.id, mode, seed: config.seed, players, ...(sweepMode ? { relayId } : { teams }), ...(config.durationTicks !== undefined ? { durationTicks: config.durationTicks } : {}) }, config.spawn);
+  let state = createMatchSession(isolated, { id: config.id, mode, seed: config.seed, players, ...(sweepMode ? { relayId } : { teams }), ...(config.durationTicks !== undefined ? { durationTicks: config.durationTicks } : {}) }, config.spawn,{},carrySource);
   const roster = planModeRoster(isolated, state, { id: config.id, mode: sweepMode ? "bot-sweep" : "clean-streets", playerCount: players.length, center, radius,
     contains: (x, z) => arenaContains(arena, x, z, 1) && (x - center.x) * (x - center.x) + (z - center.z) * (z - center.z) >= TEAM_SPAWN_CLEAR_M * TEAM_SPAWN_CLEAR_M && !excluded(x, z) && dryPoint(isolated, x, z) }, isolated.sidewalks);
   // Missing objectives cannot turn an unbuilt arena into an automatic win.
@@ -139,6 +140,13 @@ const CITY_ONLY = new Set(["missions", "activities", "heat", "economy"]);
  * the arena wall on robots.
  */
 const SYSTEMS: readonly SimSystem[] = createGameSystems({ wave: 4,
+  combat:context=>{
+    if(context.state.version<=20)return {};
+    const match=modeSessionOf(context.state)?.match;
+    if(!match)return {mode:"bot-sweep"};
+    const rivalPlayerIds=Object.fromEntries(sortedIds(match.players).map(id=>[id,sortedIds(match.players).filter(other=>other!==id&&match.players[other]!.team!==match.players[id]!.team)]));
+    return {mode:match.mode==="cleanStreets"?"clean-streets":"bot-sweep",rivalPlayerIds};
+  },
   agents: context => ({ spawns: sweep(context.state)?.roster ?? [], services: false }),
   modes: [matchModes],
 }).filter(system => !CITY_ONLY.has(system.key)).map<SimSystem>(system => system.key !== "robots" || !system.prepare ? system : { ...system, prepare(context) {
@@ -156,6 +164,8 @@ const SYSTEMS: readonly SimSystem[] = createGameSystems({ wave: 4,
 export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: InputFrame, events: readonly SimEvent[] = []): SimState {
   const local = sweep(state), session = modeSessionOf(state); if (!local || !session) throw new Error("Not a Bot Sweep match");
   const isolated = arenaWorld(world, local);
+  // Core owns paused membership/timers. Do not advance outside-core bot planning or RNG.
+  if(state.version>=27&&(state.ext.combat?.pauseUntil??0)>state.tick)return step(isolated,state,inputs,events,SYSTEMS);
   const controls: Record<string, InputFrame[string]> = { ...inputs };
   const limitControls = (): void => {
     for (const id of sortedIds(session.match.players)) {
