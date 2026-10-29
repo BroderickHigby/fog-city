@@ -12,7 +12,7 @@ test("phone home has consistent icons, honest unavailable apps and working Back/
   await expect(page.locator(".fc-phone-status")).toHaveAttribute("data-tick", "17");
   await expect(page.locator(".fc-phone-status")).toHaveText("Fog CityEmbarcadero");
   const apps = page.getByRole("navigation", { name: "Phone apps", exact: true });
-  for (const name of ["Map", "BotBounty", "Bot Check", "Bank", "Settings", "Office Hours"]) {
+  for (const name of ["Runway Run", "Taxi shift", "Map", "BotBounty", "Bot Check", "Bank", "Settings", "Office Hours"]) {
     const app = apps.getByRole("button", { name, exact: true }); await expect(app).toBeEnabled(); await expect(app.locator("svg path").first()).toHaveAttribute("d", /.+/);
   }
   for (const name of ["Ride", "Radio", "FogCast", "Messages", "Playlists"]) {
@@ -31,6 +31,21 @@ test("phone home has consistent icons, honest unavailable apps and working Back/
   await expect(apps.getByRole("button", { name: "BotBounty", exact: true })).toBeFocused();
   await page.keyboard.press("Escape"); await expect(opener).toBeFocused();
   expect(await page.evaluate(() => (window as unknown as { appEvents: string[] }).appEvents)).toEqual(["bank", "botBounty"]);
+});
+test("the Runway Run and Taxi shift tiles start their modes from the phone", async ({ page }) => {
+  const opener = page.getByRole("button", { name: "Open phone", exact: true }); await opener.click();
+  const apps = page.getByRole("navigation", { name: "Phone apps", exact: true });
+  await expect(apps.getByRole("button").first()).toHaveAccessibleName("Runway Run");
+  // On foot the run cannot start: the tile explains it instead.
+  await apps.getByRole("button", { name: "Runway Run", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Runway Run", exact: true })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.evaluate(() => (window as unknown as { updatePhoneFixture(patch: unknown): void }).updatePhoneFixture({ runway: { phase: "idle", canStart: true, runwayS: 0, raised: 0, hype: 1, closed: 0, best: 0, stage: "Pre-seed", carrying: false, notes: [] } }));
+  await opener.click(); await apps.getByRole("button", { name: "Runway Run", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await opener.click(); await apps.getByRole("button", { name: "Taxi shift", exact: true }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(await page.evaluate(() => (window as unknown as { modeStarts: string[] }).modeStarts)).toEqual(["runway:start", "taxi"]);
 });
 test("Office Hours shows the host's booking reason, routes to Ramen and books only when available", async ({ page }) => {
   await page.getByRole("button", { name: "Open phone", exact: true }).click(); await page.getByRole("button", { name: "Office Hours", exact: true }).click();

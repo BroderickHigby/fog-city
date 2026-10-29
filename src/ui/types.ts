@@ -60,7 +60,7 @@ export interface RunwayView {
   readonly targetTurn?:number;
   readonly notes:readonly RunwayNoteView[];
 }
-export type PhoneApp="loadout"|"map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings"|"officeHours";
+export type PhoneApp="runwayRun"|"taxi"|"loadout"|"map"|"botBounty"|"botCheck"|"ride"|"radio"|"fogcast"|"messages"|"bank"|"playlists"|"settings"|"officeHours";
 export interface UiView {
   readonly loadout?:LoadoutView;
   readonly tick:number;

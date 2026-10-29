@@ -17,10 +17,11 @@ let view: UiView = { tick: 17, playerId: "p1", x: 0, z: 0, heading: 0, speedMps:
   officeHours: { available: false, detail: "Visit the Ramen door to book your interview.", remaining: 2, destination: { x: 120, z: 200 } },
   map: { nodes: [{ id: "a", x: 0, z: 0 }, { id: "b", x: 50, z: 0 }], edges: [{ from: "a", to: "b" }], blips: [{ id: "water", kind: "water", x: 20, z: 20, label: "Water" }] },
   bounties: [{ id: "b1", title: "Confirmed rogue firmware", detail: "At the waterfront", multiplier: 2, confirmed: true }], scan: { targetId: "b1", bad: true, confidence: .93 } };
-const waypoints: MapPoint[] = [], appEvents: string[] = [], bookingRequests: number[] = [];
+const waypoints: MapPoint[] = [], appEvents: string[] = [], bookingRequests: number[] = [], modeStarts: string[] = [];
 const ui = mountGameUI(document.querySelector<HTMLElement>("#game")!, { copy: uiText, touch: new URLSearchParams(location.search).get("touch") === "1",
-  callbacks: { waypoint: point => waypoints.push(point), app: app => appEvents.push(app), bookOfficeHours: () => bookingRequests.push(view.tick) },
+  callbacks: { waypoint: point => waypoints.push(point), app: app => appEvents.push(app), bookOfficeHours: () => bookingRequests.push(view.tick),
+    runway: action => modeStarts.push(`runway:${action}`), openTaxi: () => modeStarts.push("taxi") },
   graphicsSettings: doc => mountGraphicsSettings(doc, { controller: graphics }), audioSettings: doc => mountAudioSettings(doc, { store: audio }),
   saves: { store, capture: () => ({ wallet: { cashCents: view.cashCents } }), restore: () => {} } });
 ui.update(view);
-Object.assign(window, { ui, waypoints, appEvents, bookingRequests, updatePhoneFixture: (patch: Partial<UiView>) => { view = { ...view, ...patch }; ui.update(view); } });
+Object.assign(window, { ui, waypoints, appEvents, bookingRequests, modeStarts, updatePhoneFixture: (patch: Partial<UiView>) => { view = { ...view, ...patch }; ui.update(view); } });

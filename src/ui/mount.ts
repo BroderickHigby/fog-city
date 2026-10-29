@@ -96,7 +96,7 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(from)layer.querySelector<HTMLElement>(`[data-phone-app="${from}"]`)?.focus();
     else if(phoneBody)phoneBody.scrollTop=0;
   }
-  function phoneAppAvailable(key:PhoneApp):boolean{return IMPLEMENTED_PHONE_APPS.includes(key)&&(view?.phoneApps??["map","botBounty","botCheck"]).includes(key);}
+  function phoneAppAvailable(key:PhoneApp):boolean{if(key==="runwayRun")return !!callbacks.runway;if(key==="taxi")return !!callbacks.openTaxi;return IMPLEMENTED_PHONE_APPS.includes(key)&&(view?.phoneApps??["map","botBounty","botCheck"]).includes(key);}
   function focusableControls():HTMLElement[]{return [...layer.querySelectorAll<HTMLElement>("button:not(:disabled),input:not(:disabled),textarea:not(:disabled),select:not(:disabled),a[href],summary,[tabindex='0']")].filter(element=>element.getClientRects().length>0);}
   function renderPanel():void {
     if(phoneBody){phoneScrollOffsets.set(phoneBody.dataset.screen??"home",phoneBody.scrollTop);phoneBody=undefined;}phoneLocation=undefined;phoneStatus=undefined;
@@ -196,12 +196,14 @@ export function mountGameUI(host:HTMLElement,options:UiMountOptions):MountedGame
     if(runPhase==="running"&&phase==="over")setModal("runway");
     runPhase=phase;
   }
+  /** The phone's Runway Run tile: start a run when the car can (startRunwayRun via callbacks.runway), else show how it works. */
+  function runwayFromPhone():void{if(view?.runway?.canStart){callbacks.runway?.("start");setModal(undefined);}else setModal("runway");}
   function renderPhone(dialog:HTMLElement):void {
     if(view?.interaction)dialog.append(button(copy("ui.common.continue"),()=>setModal("interaction")));
     if(!app){
       const apps=node("nav","fc-phone-apps");apps.setAttribute("aria-label",copy("ui.map.phoneApps"));
       for(const key of PHONE_APPS){
-        const label=phoneAppLabel(key,copy),b=button("",()=>{app=key;callbacks.app?.(key);renderPanel();}),symbol=node("span","fc-phone-app-symbol"),name=node("span","fc-phone-app-name",label);
+        const label=phoneAppLabel(key,copy),b=button("",()=>{if(key==="runwayRun"){runwayFromPhone();return;}if(key==="taxi"){setModal(undefined);callbacks.openTaxi?.();return;}app=key;callbacks.app?.(key);renderPanel();}),symbol=node("span","fc-phone-app-symbol"),name=node("span","fc-phone-app-name",label);
         b.dataset.phoneApp=key;b.setAttribute("aria-label",label);b.disabled=!phoneAppAvailable(key);symbol.append(createPhoneAppIcon(doc,key));b.append(symbol,name);
         if(b.disabled){const unavailable=node("small","fc-phone-app-unavailable","Unavailable");unavailable.id=`fc-phone-unavailable-${key}`;b.setAttribute("aria-describedby",unavailable.id);b.append(unavailable);}
         apps.append(b);

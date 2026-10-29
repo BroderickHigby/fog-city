@@ -1,14 +1,16 @@
 import { createIcon, type IconName } from "./icons.ts";
 import type { PhoneApp, UiCopy } from "./types.ts";
 
-/** Working apps lead; future apps remain visibly unavailable on the same home screen. */
-export const PHONE_APPS: readonly PhoneApp[] = ["map", "loadout", "botBounty", "botCheck", "bank", "settings", "officeHours", "ride", "radio", "fogcast", "messages", "playlists"];
-const EXISTING_ICONS: Partial<Record<PhoneApp, IconName>> = { map: "map", botBounty: "threat", bank: "cash" };
+/** Working apps lead; future apps remain visibly unavailable on the same home screen.
+ *  Runway Run (the featured mode) and Taxi shift are action tiles: they start the mode, not a screen. */
+export const PHONE_APPS: readonly PhoneApp[] = ["runwayRun", "taxi", "map", "loadout", "botBounty", "botCheck", "bank", "settings", "officeHours", "ride", "radio", "fogcast", "messages", "playlists"];
+const EXISTING_ICONS: Partial<Record<PhoneApp, IconName>> = { runwayRun: "runway", map: "map", botBounty: "threat", bank: "cash" };
 /** Original companion drawings, in the existing HUD's 24-unit / 1.8-stroke family. */
 const APP_PATHS = {
   loadout:["M4 7h16v14H4Z","M8 7V3h8v4M4 12h16m-10 0v3h4v-3"],
   botCheck: ["M7 3H3v4m14-4h4v4M3 17v4h4m14-4v4h-4", "M8 8h8v8H8Z", "m10 12 1.5 1.5L15 10"],
   settings: ["M10 2h4l.6 2.8 2.2 1.3 2.7-.9 2 3.5-2.1 1.9v2.6l2.1 1.9-2 3.5-2.7-.9-2.2 1.3L14 22h-4l-.6-2.8-2.2-1.3-2.7.9-2-3.5 2.1-1.9v-2.6L2.5 8.9l2-3.5 2.7.9 2.2-1.3L10 2Z", "M16 12a4 4 0 1 1-8 0 4 4 0 1 1 8 0Z"],
+  taxi: ["M10 2h4v2h-4Z", "m5 9 2-5h10l2 5", "M4 9h16v9H4Z", "M7 13h.01M17 13h.01M7 18v3m10-3v3"],
   ride: ["m5 9 2-5h10l2 5", "M4 9h16v9H4Z", "M7 13h.01M17 13h.01M7 18v3m10-3v3M9 17h6"],
   radio: ["M4 9h16v12H4Z", "m6 9 12-6M8 13h8m-8 4h.01M12 17h4"],
   fogcast: ["M7 13a4 4 0 1 1 1-7 5 5 0 0 1 9 2 3 3 0 1 1 1 5H7Z", "M4 17h16M7 21h10"],
@@ -28,7 +30,7 @@ export function createPhoneAppIcon(doc: Document, app: PhoneApp): SVGSVGElement 
   return existing ? createIcon(doc, existing) : drawing(doc, APP_PATHS[app as keyof typeof APP_PATHS], `phone-${app}`);
 }
 export function phoneAppLabel(app: PhoneApp, copy: UiCopy): string {
-  return app === "officeHours" ? "Office Hours" : copy(`ui.phone.${app}`);
+  return app === "officeHours" ? "Office Hours" : app === "taxi" ? "Taxi shift" : app === "runwayRun" ? copy("ui.runway.title") : copy(`ui.phone.${app}`);
 }
 
 export interface PhoneShellOptions {
