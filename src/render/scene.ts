@@ -40,6 +40,7 @@ import { VisualQuality, presentationLook, type PresentationLook } from "./qualit
 import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
+import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
@@ -81,6 +82,13 @@ export interface RenderOptions {
   landmarks: unknown;
   /** The promenade the King tide floods (the sim's TIDE_PROMENADE), or none. */
   tide?: TideStrip;
+  /**
+   * WebGPU only: size of the car headlight pool (?carlights=; 0 turns it off) and of the street
+   * lamp pool (?lamplights=; 0 keeps the 8-lamp rig of the other backends). Whole numbers from 0
+   * to MAX_POOL_SIZE; anything else is clamped. See night-light-pools.ts.
+   */
+  carLights?: number;
+  lampLights?: number;
 }
 
 export interface WorldData {
@@ -123,6 +131,8 @@ export interface RenderInfo {
   weather: { fog: number; rain: boolean; wetness: number; puddles: number; tideM: number };
   /** Street lamps lit by real point lights this frame (high tier, at night). */
   streetLightsLit: number;
+  /** Oncoming-car headlights lit by real point lights this frame (WebGPU backend, at night). */
+  carLightsLit: number;
   /** Pedestrians drawn as skinned Rocketbox people last frame, and crowd characters loaded. */
   crowdDrawn: number;
   crowdLoaded: number;
@@ -216,6 +226,10 @@ export class SceneRenderer {
   private quality: VisualQuality | null = null;
   /** Point lights at the nearest street lamps at night (high tier only). */
   private streetLights: StreetLightRig | null = null;
+  /** WebGPU backend: pools of real lights for the street lamps and the cars' headlights at night. */
+  private lampPool: LampLightPool | null = null;
+  private carLights: CarLightPool | null = null;
+  private readonly carPoses = new Float32Array(512 * VEHICLE_STRIDE);
   private crowd: CrowdHumans | null = null;
   private readonly staticScene: StaticScene;
   private readonly surfaceTextures: SurfaceTextures;
@@ -470,7 +484,17 @@ export class SceneRenderer {
       this.streetLights = new StreetLightRig();
       this.scene.add(this.streetLights.group);
     }
-    if (gpu) { gpu.attach(this.scene, this.camera, world.manifest.water?.y ?? 0); this.streetLights = new StreetLightRig(); this.scene.add(this.streetLights.group); }
+    if (gpu) {
+      gpu.attach(this.scene, this.camera, world.manifest.water?.y ?? 0);
+      // Only WebGPU has clustered lighting (gpu-engine.ts), where more point lights are cheap; the
+      // WebGL node backend and the legacy renderer evaluate every light for every pixel and keep 8.
+      const clustered = gpu.backend === "webgpu" && this.tier !== "low";
+      const lamps = clustered ? poolSize(opts.lampLights, LAMP_LIGHT_POOL) : 0;
+      if (lamps > 0) { this.lampPool = new LampLightPool(lamps); this.scene.add(this.lampPool.group); }
+      else { this.streetLights = new StreetLightRig(); this.scene.add(this.streetLights.group); }
+      const cars = clustered ? poolSize(opts.carLights, CAR_LIGHT_POOL) : 0;
+      if (cars > 0) { this.carLights = new CarLightPool(cars); this.scene.add(this.carLights.group); }
+    }
     this.weather = new WeatherLayer(opts.tide ?? null, world.ground);
     this.scene.add(this.weather.root);
     const preset = opts.timeOfDay ? LIGHTING_PRESETS[opts.timeOfDay] : opts.night ? NIGHT : DAY;
@@ -662,6 +686,8 @@ export class SceneRenderer {
     this.lights.setNight(night);
     this.agents.setNight(night);
     this.streetLights?.setNight(night);
+    this.lampPool?.setNight(night);
+    this.carLights?.setNight(night);
     if (this.gpu) this.gpu.setPreset(p, look, `${envKey}:${weatherKey(this.weatherLook)}`);
     else { this.scene.environment = this.envFor(`${envKey}:${weatherKey(this.weatherLook)}`); this.scene.environmentIntensity = p.envIntensity; }
   }
@@ -889,6 +915,7 @@ export class SceneRenderer {
       this.viewer.fx = h > 1e-6 ? this.camDir.x / h : 0;
       this.viewer.fz = h > 1e-6 ? this.camDir.z / h : -1;
       this.agents.update(this.sim.prev, this.sim.curr, this.sim.alpha, this.viewer, dtSeconds, this.time);
+      if (this.carLights) this.carLights.update(cam.x, cam.z, this.viewer.fx, this.viewer.fz, this.carPoses, this.agents.vehiclePoses(this.carPoses, local?.target.robotaxiId ?? null));
     }
     this.fitNearPlane();
     this.sky.follow(this.camera);
@@ -903,8 +930,10 @@ export class SceneRenderer {
     this.sun.target.updateMatrixWorld();
     this.streamer.update(cam.x, cam.z, 4);
     this.streetLights?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads());
+    this.lampPool?.update(cam.x, cam.z, dtSeconds, this.streamer.lampHeads(), this.viewer.fx, this.viewer.fz);
     this.far.update(cam.x, cam.z);
     this.foliage.update(cam.x, cam.z);
+    this.streetDetail.setView(this.camera, this.shadows ? this.sunDir : null);
     this.streetDetail.update(cam.x, cam.z, this.sim?activeWorldTick(this.sim.curr):0);
     this.landmarks.update(minuteOfDay);
     this.weather.update(this.weatherLook, this.camera, this.time, fcUniforms.fcNight.value);
@@ -958,7 +987,8 @@ export class SceneRenderer {
     out.lightingPreset = this.activePreset;
     out.followsClock = !this.lightingPinned;
     out.weather = { fog: this.weatherLook.fog, wetness: this.weatherLook.wetness, ...this.weather.info };
-    out.streetLightsLit = this.streetLights?.lit ?? 0;
+    out.streetLightsLit = (this.streetLights?.lit ?? 0) + (this.lampPool?.lit ?? 0);
+    out.carLightsLit = this.carLights?.lit ?? 0;
     out.crowdDrawn = this.crowd?.drawn ?? 0;
     out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
@@ -1023,6 +1053,8 @@ export class SceneRenderer {
       this.foliage.dispose();
       this.quality?.dispose();
       this.streetLights?.dispose();
+      this.lampPool?.dispose();
+      this.carLights?.dispose();
       this.far.dispose();
       this.landmarkFallbacks.dispose();
       this.streetDetail.dispose();
@@ -1058,6 +1090,7 @@ const EMPTY_INFO: RenderInfo = Object.freeze({
   followsClock: false,
   weather: { fog: 0, rain: false, wetness: 0, puddles: 0, tideM: 0 },
   streetLightsLit: 0,
+  carLightsLit: 0,
   crowdDrawn: 0,
   crowdLoaded: 0,
   foliage: { near: 0, far: 0, draws: 0 }, surfaceTextures: [],

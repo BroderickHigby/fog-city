@@ -70,9 +70,9 @@ try {
         }
     });
     if (scenario !== 'far-failure')
-        await page.route('**/tiles/sf/packs/tiles-*.pack.gz.b64.txt', async (route) => { R.requests.push(route.request().url()); firstRequest(); flush(); await gate; await route.continue(); });
+        await page.route('**/tiles/sf/packs/tiles-*.pack*', async (route) => { R.requests.push(route.request().url()); firstRequest(); flush(); await gate; await route.continue(); });
     if (scenario === 'far-failure')
-        await page.route('**/tiles/sf/packs/far-*.pack.gz.b64.txt', async (route) => { R.requests.push(route.request().url()); firstRequest(); flush(); await route.fulfill({ status: 503, contentType: 'text/plain', body: 'Intentional far skyline unavailable in QA' }); });
+        await page.route('**/tiles/sf/packs/far-*.pack*', async (route) => { R.requests.push(route.request().url()); firstRequest(); flush(); await route.fulfill({ status: 503, contentType: 'text/plain', body: 'Intentional far skyline unavailable in QA' }); });
     const url = new URL(base);
     for (const [k, v] of Object.entries({ renderer: 'webgpu', tod: 'golden', debug: '1', capture: 'stats', radius: '300' }))
         url.searchParams.set(k, v);

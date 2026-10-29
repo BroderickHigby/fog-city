@@ -149,7 +149,7 @@ it passes the name search (see Legal and taste).
 |---|---|---|---|---|---|
 | Footman | Bramblecot Home | Tall, slim errand humanoid; opaque ceramic shell, no translucent face plate or torso; a lantern-shaped head with a soft face-light strip; carries groceries | yes | 1.0× | 1 |
 | Trundle | Trundle | Four-wheeled sidewalk delivery bot with a roll-top lid like a bread bin; not a cooler, no flag on a whip antenna | yes | 1.0× | 1 |
-| Meander robotaxi | Meander ("We'll get you there.") | Long, low, asymmetric hatch with a sensor band wrapped along the roof edge and one sliding kerb-side door; not an SUV with a roof dome, not a symmetric pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
+| Meander robotaxi | Meander ("We'll get you there.") | Tall, two-ended carriage pod, the same both ways round, in its own design (owner, 2026-10-27): big glass round slim white corner posts, a light bar across each end, every sensor in one dark band with a teal status line round the roof edge and nothing on the roof (no corner sensor housings), one sliding kerb-side door and a white post between the street side's windows; no logo, badge or livery, and not a copy of any real pod. Most of the traffic; obeys every rule; scenic routes | rogue robotaxi (always empty) | 0.7× | 1 |
 | Ad drone | Moat Labs | Hovering screen at 6 m; ad blasts | always bad | 1.5× | 3 |
 | Patrol unit | Moat Labs | Low, wide graphite wedge on treads with a fold-out lectern, no white egg or bullet shape; reads Terms of Service aloud | always bad | 0.5× | 3 |
 | Sign-spinner | Moat Labs | Rebrands sandwich boards with buzzwords | always bad | 1.0× | 3 |
@@ -1328,3 +1328,25 @@ minute). Starting budgets *(tune)*: 60 fps at 1080p on a mid-range 2022 laptop; 
   the 0.75 m clearance holds outside counted override episodes. The player and the skinned crowd play real clips
   (Rocketbox runs and dust-off, Mixamo stumble and flinch retargeted to the Rocketbox rig); the procedural
   crowd leans, lengthens its stride with speed and startles. SIM_VERSION 14.
+- 2026-10-27 · **No ambient Trundles, for now** (owner: "We can probably remove the little vacuum robots for
+  now"). From SIM_VERSION 26 the Trundle (`sidewalkBot`, `public/models/sidewalk-bot.glb`) is no longer part of
+  the street population: a v26 state's first step takes the ambient ones off the street and Footmen take their
+  population budget one for one, keeping the Trundles' hour and district shaping (night still brings more
+  delivery robots out), so the street holds as many robots and bodies as before. Missions and director incidents
+  (which the bounty board posts) that name a Trundle still stage one, because their text and tells are written for
+  it, so a Trundle now appears only when a story calls for it. The model, its content and every code path stay for older
+  saves and replays, which keep their Trundles bit for bit (`src/sim/agents.ts` `TRUNDLE_FREE_VERSION`).
+  Footmen are bigger and faster than Trundles, so they met turning robotaxis on crosswalks more often, and that
+  exposed a stand-off v26 also fixes (`UNSTICK_VERSION`): a walker that turned round mid-crossing used to aim at
+  the far kerb's sidewalk and loop back into the robotaxi; it now walks back to the kerb it came from.
+  The new mix also moved where the ferry bus enters, and on The Embarcadero it met a robotaxi nose to nose. Before
+  v26 every touch knocked a runtime vehicle, however slow, so the creeping bus was knocked, sat honking, crept back and
+  was knocked again, and no deadlock breaker fired. From v26 two vehicles nobody drives that touch closing slower than
+  0.3 m/s (`impacts.ts` `TOUCH_CONTACT_MPS`) only lean on each other, so the bus's own blocked-then-reverse breaker can act.
+- 2026-10-27 · **The Meander becomes a tall two-ended pod** (owner: "make the robotaxis look more like bigger Zoox
+  or something"). The long, low, asymmetric hatch becomes a carriage pod of its own in the genre of today's
+  bidirectional robotaxis: the same both ways round, 4.96 x 1.92 m (inside the sim's unchanged 5.0 x 2.0 m robotaxi
+  box) and 1.95 m to the roof, big glass, wheels at the corners and a light bar across each end, with nothing on the
+  roof (no corner sensor housings: that is the best-known real pod's signature). It keeps the Meander's own marks (warm white, the dark sensor band with the teal status line, one
+  sliding kerb-side door, a different street side) and copies no real pod's shape, logo, name or livery
+  (`tests/assets/trade-dress.json`). Render only: the sim's footprint, its 1.6 m height and SIM_VERSION are unchanged.

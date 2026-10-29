@@ -11,6 +11,68 @@ export interface HullSweep extends HullContact { t: number }
 export const VEHICLE_SKIN = .001;
 const diagonal=(hl:number,hw:number):number=>Math.sqrt(hl*hl+hw*hw);
 
+/** First SIM_VERSION in which a car meets another car or a robotaxi as two boxes (boxContact, car.ts boxHit). */
+export const BOX_CONTACT_VERSION = 25;
+export interface BoxContact { depth: number; nx: number; nz: number; x: number; z: number }
+
+/**
+ * v25: where two overlapping oriented boxes touch, or null when they do not overlap. Ported from
+ * Slop New York's vehicleContact (vehicle-physics.js at 819a0ad, MIT; tests/golden/
+ * vehicle-contact-819a0ad.json pins the original's answers): the least-penetration separating
+ * axis (depth; the normal points from b toward a) and a contact point from the incident face
+ * clipped to the reference face, so a centred bumper hit has no lever arm and an offset one the
+ * middle of the overlap.
+ */
+export function boxContact(a: Readonly<Box>, b: Readonly<Box>): BoxContact | null {
+  const afx = dsin(a.heading), afz = -dcos(a.heading), arx = -afz, arz = afx;
+  const bfx = dsin(b.heading), bfz = -dcos(b.heading), brx = -bfz, brz = bfx;
+  const dx = a.x - b.x, dz = a.z - b.z;
+  let depth = Infinity, nx = 0, nz = 0, refA = true, widthAxis = true;
+  for (let axis = 0; axis < 4; axis++) {
+    const ownA = axis < 2, width = axis % 2 === 0;
+    const ax = ownA ? (width ? arx : afx) : (width ? brx : bfx);
+    const az = ownA ? (width ? arz : afz) : (width ? brz : bfz);
+    const separation = dx * ax + dz * az;
+    const overlap = a.hw * Math.abs(ax * arx + az * arz) + a.hl * Math.abs(ax * afx + az * afz)
+      + b.hw * Math.abs(ax * brx + az * brz) + b.hl * Math.abs(ax * bfx + az * bfz) - Math.abs(separation);
+    if (overlap <= 0) return null;
+    if (overlap < depth) {
+      depth = overlap;
+      const sign = separation >= 0 ? 1 : -1;
+      nx = ax * sign; nz = az * sign;
+      refA = ownA; widthAxis = width;
+    }
+  }
+  // The reference face is on the body owning the axis, facing the other body (rn); the incident
+  // face is the other body's face most opposed to it, clipped to the reference face's sides and
+  // to the penetrating side of its plane.
+  const ref = refA ? a : b, inc = refA ? b : a;
+  const ifx = refA ? bfx : afx, ifz = refA ? bfz : afz, irx = refA ? brx : arx, irz = refA ? brz : arz;
+  const s = refA ? -1 : 1, rnx = nx * s, rnz = nz * s, tx = rnz, tz = -rnx;
+  const extent = widthAxis ? ref.hw : ref.hl, halfSide = widthAxis ? ref.hl : ref.hw;
+  const faceX = ref.x + rnx * extent, faceZ = ref.z + rnz * extent;
+  const across = rnx * irx + rnz * irz, along = rnx * ifx + rnz * ifz;
+  const widthFace = Math.abs(across) > Math.abs(along);
+  const faceSign = (widthFace ? across : along) >= 0 ? -1 : 1;
+  const inx = widthFace ? irx : ifx, inz = widthFace ? irz : ifz;
+  const itx = widthFace ? ifx : irx, itz = widthFace ? ifz : irz;
+  const ie = widthFace ? inc.hw : inc.hl, length = widthFace ? inc.hl : inc.hw;
+  const cx = inc.x + inx * ie * faceSign, cz = inc.z + inz * ie * faceSign;
+  let lo = -length, hi = length;
+  const centerT = (cx - faceX) * tx + (cz - faceZ) * tz, directionT = itx * tx + itz * tz;
+  if (Math.abs(directionT) > 1e-8) {
+    const first = (-halfSide - centerT) / directionT, last = (halfSide - centerT) / directionT;
+    lo = Math.max(lo, Math.min(first, last));
+    hi = Math.min(hi, Math.max(first, last));
+  }
+  const centerN = (cx - faceX) * rnx + (cz - faceZ) * rnz, directionN = itx * rnx + itz * rnz;
+  if (directionN > 1e-8) hi = Math.min(hi, -centerN / directionN);
+  else if (directionN < -1e-8) lo = Math.max(lo, -centerN / directionN);
+  const mid = (lo + hi) * 0.5;
+  const plane = Math.min(0, centerN + mid * directionN);
+  return { depth, nx, nz, x: cx + itx * mid - rnx * plane * 0.5, z: cz + itz * mid - rnz * plane * 0.5 };
+}
+
 export function hullAt(m: Readonly<VehicleMotion>, t: number): VehicleHull {
   const a = m.before, b = m.after;
   return { ...b, x: a.x + (b.x-a.x)*t, y: a.y + (b.y-a.y)*t,

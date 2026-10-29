@@ -6,7 +6,7 @@ import { gridCity } from "../fixtures.ts";
 const world = gridCity(), bodies = [{ x: 1000, z: 1000 }];
 const interest = { x: 150, z: 150, radiusM: 120, owner: 0 };
 const empty = { nextId: 1, list: [] };
-const run = (anchors: typeof interest[]) => populate(world, empty, seedRng(7), bodies, 17, true, [], [], anchors);
+const run = (anchors: typeof interest[]) => populate(world, empty, seedRng(7), bodies, 17, true, [], [], 27, anchors);
 describe("Coit ambient population interest", () => {
   it("uses ordinary seeded population around the lens without inventing a player body", () => {
     expect(run([]).ext.list).toHaveLength(0);

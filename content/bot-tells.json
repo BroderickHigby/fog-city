@@ -5,7 +5,7 @@
   "models": {
     "errand-robot": { "name": "Footman", "maker": "Bramblecot Home", "glb": "errand-robot.glb", "rustRate": 1, "description": "Tall, slim errand robot with a lantern-shaped head and a soft face-light strip; carries shopping." },
     "sidewalk-bot": { "name": "Trundle", "maker": "Trundle", "glb": "sidewalk-bot.glb", "rustRate": 1, "description": "Four-wheeled sidewalk delivery robot with a roll-top lid like a bread bin." },
-    "robotaxi": { "name": "Meander", "maker": "Meander", "glb": "robotaxi.glb", "rustRate": 0.7, "description": "Long, low robotaxi with a sensor band along the roof edge. Obeys every rule. A rogue one is always empty." }
+    "robotaxi": { "name": "Meander", "maker": "Meander", "glb": "robotaxi.glb", "rustRate": 0.7, "description": "Tall two-ended robotaxi pod with a sensor band along the roof edge. Obeys every rule. A rogue one is always empty." }
   },
   "lineSets": {
     "rateSidewalk": [
@@ -248,7 +248,7 @@
   "provenance": {
     "source": "agent",
     "authorSession": "https://claude.ai/code/session_01Nw9mRkTnnDS7d1XcfF7Fsd",
-    "contentHash": "fnv1a32:6866fa74",
+    "contentHash": "fnv1a32:bfaeefa7",
     "reviewedBy": [],
     "review": "Pending: a second agent session reads every line against the docs/ai-layer.md checklist; the user reviews a stratified sample."
   }

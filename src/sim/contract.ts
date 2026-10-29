@@ -83,9 +83,23 @@
 // v23: people get out of a player's car's way only when it is about to reach them (dodge.ts
 // REACT_S, REACT_LAG_S): not when it will pass them by or is still far off. No field changes:
 // the save upgrade only restamps; v22-and-earlier replays keep the old early dive.
+// v24: brake + steer rotates the player's car with a sliding tail (reference-driving.ts: braking
+// against travel cuts lateral grip, the yaw keeps full grip, as Slop New York does), and the
+// handbrake (brake + steer above 9 m/s) brakes the rear wheels only and kicks the tail out as it
+// engages. No field changes: the save upgrade only restamps; v23-and-earlier replays keep v19
+// handling exactly. Ambient and robotaxi driving are unchanged.
+// v25: a car that hits another car or a robotaxi meets it box to box (vehicle-contacts.ts
+// boxContact, from Slop New York: the face normal and a contact point clipped to the touching
+// faces) with Slop's contact friction 0.35 (car.ts boxHit), so a side-swipe or an offset hit
+// spins both cars from the same point.
+// No field changes: the save upgrade only restamps; v24-and-earlier replays keep the circle contact.
+// v26 (owner, 2026-10-27): no ambient Trundles (sidewalk bots). The first step of a v26 state takes
+// them off the street and Footmen take their population budget (agents.ts TRUNDLE_FREE_VERSION);
+// missions and director incidents still stage named Trundles. No field changes: the save upgrade
+// only restamps; createInitialState is unchanged and v25-and-earlier replays keep every Trundle.
 // v27: measured side activities (Coit Recon, taxi fares, timed runs), collapsed robot projectile
 // silhouettes, physical 5 m junction hulls and robot weather scaling. Optional activity state
-// starts only when a run is booked; v23-and-earlier replays keep the old rules.
+// starts only when a run is booked; v26-and-earlier replays keep the old rules.
 export const SIM_VERSION = 27;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;

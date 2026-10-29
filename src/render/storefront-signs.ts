@@ -7,6 +7,7 @@
 // The anchor stands 0.3 m outside the shopfront wall, `heading` = the way the shop faces.
 
 import * as THREE from "three";
+import { LocalInstances, type InstanceBlock, type InstanceSink } from "./instance-pool.ts";
 
 export interface StorefrontRecord {
   id: string;
@@ -216,6 +217,7 @@ interface Protos {
   pole: THREE.MeshStandardMaterial;
   poleGeo: THREE.BufferGeometry;
   boxGeo: THREE.BufferGeometry;
+  neonGeo: THREE.BufferGeometry;
 }
 
 let protos: Protos | null = null;
@@ -291,6 +293,8 @@ function getProtos(): Protos {
     pole: new THREE.MeshStandardMaterial({ color: stripes ? 0xffffff : 0xc4232b, map: stripes, roughness: 0.35, name: "fc:barber-pole" }),
     poleGeo: new THREE.CylinderGeometry(0.09, 0.09, 0.8, 12).translate(0, 0.4, 0),
     boxGeo: new THREE.BoxGeometry(1, 1, 1),
+    // Shared, like the other prototypes: a per-cell geometry would split the pooled draw.
+    neonGeo: new THREE.PlaneGeometry(1, 1).rotateY(Math.PI),
   };
   return protos;
 }
@@ -304,9 +308,13 @@ export class StorefrontCell {
   readonly group = new THREE.Group();
   readonly signs: number;
   private readonly owned: THREE.BufferGeometry[] = [];
+  private readonly sink: InstanceSink;
+  private readonly blocks: InstanceBlock[] = [];
 
-  constructor(shops: readonly StorefrontRecord[], ground: (x: number, z: number) => number) {
+  /** `sink`: where the instanced slots, brackets, neons and poles go; by default this cell's own meshes. */
+  constructor(shops: readonly StorefrontRecord[], ground: (x: number, z: number) => number, sink?: InstanceSink) {
     const p = getProtos();
+    this.sink = sink ?? new LocalInstances(this.group);
     this.signs = shops.length;
     // Blade signs: one merged mesh (two faces each), UVs into the icon atlas.
     const pos: number[] = [], uv: number[] = [], nor: number[] = [], idx: number[] = [];
@@ -352,25 +360,19 @@ export class StorefrontCell {
     blades.castShadow = true;
     blades.matrixAutoUpdate = false;
     this.group.add(blades);
-    const neonGeo = new THREE.PlaneGeometry(1, 1).rotateY(Math.PI);
-    this.owned.push(neonGeo);
     const inst = (geo: THREE.BufferGeometry, mat: THREE.Material, mats: THREE.Matrix4[], name: string): void => {
-      if (!mats.length) return;
-      const im = new THREE.InstancedMesh(geo, mat, mats.length);
-      mats.forEach((mm, k) => im.setMatrixAt(k, mm));
-      im.computeBoundingSphere();
-      im.name = name;
-      im.matrixAutoUpdate = false;
-      this.group.add(im);
+      const block = this.sink.add(geo, mat, mats, { name });
+      if (block) this.blocks.push(block);
     };
     inst(p.boxGeo, p.fascia, fascia, "storefront sign slots");
     inst(p.boxGeo, p.bracket, brackets, "storefront brackets");
-    inst(neonGeo, p.neon, neons, "bar neons");
+    inst(p.neonGeo, p.neon, neons, "bar neons");
     inst(p.poleGeo, p.pole, poles, "barber poles");
   }
 
   dispose(): void {
-    for (const o of this.group.children) if (o instanceof THREE.InstancedMesh) o.dispose();
+    for (const block of this.blocks) this.sink.release(block);
+    this.blocks.length = 0;
     for (const g of this.owned) g.dispose();
     this.group.clear();
   }

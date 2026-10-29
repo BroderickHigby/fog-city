@@ -26,6 +26,7 @@ import { VEHICLE_MODELS, vehicleModelForActor } from "./vehicle-models.ts";
 
 import * as THREE from "three";
 import { carAppearance, type CarAppearance } from "./car-appearance.ts";
+import { TrafficLean } from "./body-motion.ts";
 import { isCivilianTraffic } from "../sim/civilian-traffic.ts";
 import { AGENT_KINDS, AGENT_SPEC, MAX_AGENTS, agentPairs, playerBodies, type AgentKind, type AgentState } from "../sim/agents.ts";
 import type { SimState } from "../sim/contract.ts";
@@ -200,6 +201,8 @@ function flag(a: THREE.BufferAttribute, count: number): void {
 // ---------------------------------------------------------------- scratch maths
 
 const _base = new THREE.Matrix4();
+/** A near vehicle's placement without its body lean: its wheels' parent. */
+const _flat = new THREE.Matrix4();
 const _local = new THREE.Matrix4();
 const _m = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -223,6 +226,16 @@ function partMatrix(base: THREE.Matrix4, px: number, py: number, pz: number, rx:
   _q.setFromEuler(_e);
   _local.compose(_p.set(px, py, pz), _q, _one);
   return out.multiplyMatrices(base, _local);
+}
+
+/**
+ * A vehicle's placement with its drawn body lean (body-motion.ts TrafficLean) added to pitch and roll,
+ * turned about the vehicle's origin on the road. A one-instance car or a far proxy tilts whole, wheels
+ * included (as Slop New York's traffic does): a wheel dips or floats by at most 5 cm (LEAN_DROP_MAX). A
+ * near model with its own wheel parts keeps its wheels flat instead (drawNear) and tilts only the body.
+ */
+function vehicleMatrix(pose: Readonly<AgentPose>, scale: number, out: THREE.Matrix4): THREE.Matrix4 {
+  return baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch + (pose.leanPitch ?? 0), scale, out, (pose.roll ?? 0) + (pose.leanRoll ?? 0));
 }
 
 // ---------------------------------------------------------------- people (agents and players)
@@ -340,8 +353,12 @@ export const AGENT_RIGS: Readonly<Record<Exclude<AgentKind, "person">, readonly 
  * Vertex-cluster cell for each kind's mid-range proxy, metres. The wave-2 Trundle has twice the
  * wave-1 bot's detail; 0.12 m cells left it 302 triangles (budget 200), 0.2 m leaves 176. At the
  * mid tier's 60 m the 0.56 m bot is about six pixels tall, so the coarser cell does not show.
+ * The Meander pod (2026-10-28) is taller than the hatch it replaced: 0.2 m cells left it 1280
+ * triangles (budget 1200) and the count jumps about between 0.2 and 0.24 m as the grid meets
+ * its rings; from 0.25 to 0.3 m it stays 956-1034, under the hatch's 1116 at 0.2 m. At the
+ * mid tier's 60 m a 0.25 m cell is about two pixels.
  */
-export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.2, errandRobot: 0.16, sidewalkBot: 0.2 };
+export const PROXY_CELL: Readonly<Record<Exclude<AgentKind, "person">, number>> = { robotaxi: 0.25, errandRobot: 0.16, sidewalkBot: 0.2 };
 /** Peak limb swing, radians, for a walking errand robot. */
 const ROBOT_SWING = 0.38;
 
@@ -425,6 +442,8 @@ export class AgentLayer {
   private readonly nearPeopleWet = new Map<number, number>();
   private readonly personCue: AgentCue = { brake: 0, flash: 0, rust: 0, wet: 0, brakeUntil: 0 };
   private anims = new Map<number, Anim>();
+  /** Per vehicle id: its body spring (near and mid tiers only; a far car is too small to show it). */
+  private leans = new Map<number, TrafficLean>();
   private frameNo = 0;
   private readonly cue: AgentCue = { brake: 0, flash: 0, brakeUntil: 0 };
   /** Per agent id: render time until which its brake lights stay on (agentCue's hold). */
@@ -527,6 +546,26 @@ export class AgentLayer {
     return out;
   }
 
+  /**
+   * After update(): the road vehicles drawn this frame, packed x, y, z, compass heading, id (5
+   * floats each), up to out.length / 5 of them; returns how many. Render-only: the night light
+   * pool (night-light-pools.ts) puts a headlight ahead of each of the nearest. `skipId` leaves one
+   * agent out whatever the camera mode (the robotaxi the player rides keeps its own headlight).
+   */
+  vehiclePoses(out: Float32Array, skipId: number | null = null): number {
+    if (this.disposed) return 0;
+    const cap = Math.floor(out.length / 5);
+    let n = 0;
+    for (let i = 0; i < this.pairs.length && n < cap; i++) {
+      const actor = this.pairs[i]![1];
+      if (!AGENT_SPEC[actor.kind].road || actor.id === this.hiddenAgent || actor.id === skipId || this.tiers[i] === TIER_HIDDEN) continue;
+      const pose = this.poses[i]!;
+      const o = n++ * 5;
+      out[o] = pose.x; out[o + 1] = pose.y; out[o + 2] = pose.z; out[o + 3] = pose.heading; out[o + 4] = actor.id;
+    }
+    return n;
+  }
+
   /** After update(): the visible vehicle's interpolated, grounded frame and model bounds. */
   copyVehicleFrame(id: number, matrix: THREE.Matrix4, bounds: THREE.Box3): boolean {
     if (this.disposed || id === this.hiddenAgent) return false;
@@ -541,7 +580,7 @@ export class AgentLayer {
         const part = tier === TIER_NEAR && civilian.near.count ? civilian.near : civilian.far;
         if (!part.mesh.geometry.boundingBox) part.mesh.geometry.computeBoundingBox();
         bounds.copy(part.mesh.geometry.boundingBox!);
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, civilian.scale, matrix);
+        vehicleMatrix(pose, civilian.scale, matrix);
       } else {
         const view = this.kinds.get("robotaxi")!;
         if (tier === TIER_NEAR && view.source === "file") bounds.copy(view.model!.bodyBounds);
@@ -550,7 +589,7 @@ export class AgentLayer {
           if (!geometry.boundingBox) geometry.computeBoundingBox();
           bounds.copy(geometry.boundingBox!);
         }
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, matrix, pose.roll);
+        vehicleMatrix(pose, view.scale, matrix);
         const override = this.lookOverride?.get(actor.id);
         collapse(matrix, actor, override ?? visualCombat(actor), override?.height ?? visualHeight(actor));
       }
@@ -677,6 +716,8 @@ export class AgentLayer {
         p.z = b.z + _off.z;
       }
       p.y = this.supportHeight(p.x, p.y, p.z);
+      p.leanPitch = 0;
+      p.leanRoll = 0;
       this.ids[i] = b.id;
       this.xs[i] = p.x;
       this.zs[i] = p.z;
@@ -705,6 +746,7 @@ export class AgentLayer {
       const [a, b] = pairs[i]!;
       if (b.id === this.hiddenAgent) continue;
       const pose = this.poses[i]!;
+      if (b.kind === "robotaxi") this.lean(b, pose, tier, dt);
       const held = this.brakeUntil.get(b.id) ?? -Infinity;
       const moved = a ? Math.hypot(b.x - a.x, b.z - a.z) : 0;
       const cue = agentCue(b.kind, b.mode, a ? a.speed : b.speed, b.speed, moved, time, held, this.cue);
@@ -732,7 +774,7 @@ export class AgentLayer {
       const civilian=isCivilianTraffic(b)?this.civilianFor(b.id):null;
       if (civilian) {
         const anim = this.anim(b.id,pose,dt,civilian.wheelRadius*civilian.scale,civilian.wheelbase*civilian.scale,10);
-        baseMatrix(pose.x,pose.y,pose.z,pose.heading,pose.pitch,civilian.scale,_base);
+        vehicleMatrix(pose,civilian.scale,_base);
         const part = tier === TIER_NEAR ? civilian.near : civilian.far;
         part.push(_base,cue,null,carAppearance(Math.floor(b.id/8)),anim.wheel,-anim.steer);
         if(tier === TIER_NEAR) { near++; this.wasNear.add(b.id); }
@@ -749,7 +791,7 @@ export class AgentLayer {
         near++;
         this.drawNear(view, b, pose, cue, dt);
       } else {
-        baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
+        vehicleMatrix(pose, view.scale, _base);
         collapse(_base, b, combat, height);
         (tier === TIER_FAR ? view.far : view.mid).push(_base, cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
       }
@@ -816,6 +858,7 @@ export class AgentLayer {
 
     if (this.frameNo % 120 === 0) {
       for (const [id, an] of this.anims) if (this.frameNo - an.seen > 120) this.anims.delete(id);
+      for (const [id, l] of this.leans) if (this.frameNo - l.seen > 120) this.leans.delete(id);
       for (const [id, until] of this.brakeUntil) if (until < time) this.brakeUntil.delete(id);
       for (const [id, w] of this.windows) if (w.seen < this.windowTick) this.windows.delete(id);
     }
@@ -926,6 +969,22 @@ export class AgentLayer {
   }
 
   /**
+   * Set this vehicle's drawn lean (pose.leanPitch/leanRoll) from its drawn speed and heading: the
+   * body-motion.ts spring, stepped for near and mid vehicles only. A manually driven taxi has its own
+   * suspension (pose.roll); a vehicle that was out of sight starts level.
+   */
+  private lean(b: Readonly<AgentState>, pose: AgentPose, tier: number, dt: number): void {
+    if (tier < TIER_MID || pose.roll !== undefined) return;
+    let l = this.leans.get(b.id);
+    if (!l) this.leans.set(b.id, l = new TrafficLean());
+    else if (this.frameNo - l.seen > 1) l.reset(); // a skipped frame would read its change as one frame's
+    l.seen = this.frameNo;
+    l.update(dt, pose.speed, pose.heading);
+    pose.leanPitch = l.pitch;
+    pose.leanRoll = l.roll;
+  }
+
+  /**
    * The animation state of a near agent, advanced to this frame's pose. A person (`person`) steps
    * by the distance it is drawn to move whichever way it goes (a sidestep swings its legs too),
    * with longer steps the faster it goes (strideFor), so its feet never slide.
@@ -969,9 +1028,14 @@ export class AgentLayer {
     const spec = AGENT_SPEC[b.kind];
     const radius = model.wheelRadius * view.scale;
     const anim = this.anim(b.id, pose, dt, radius, model.wheelbase * view.scale, (spec.vmin + spec.vmax) / 2);
-    baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _base, pose.roll);
+    // The body takes the lean; the wheels (their own parts) stay flat on the road under it.
+    vehicleMatrix(pose, view.scale, _base);
+    const leaning = (pose.leanPitch ?? 0) !== 0 || (pose.leanRoll ?? 0) !== 0;
+    if (leaning) baseMatrix(pose.x, pose.y, pose.z, pose.heading, pose.pitch, view.scale, _flat, pose.roll);
     const override = this.lookOverride?.get(b.id);
-    collapse(_base, b, override ?? visualCombat(b), override?.height ?? visualHeight(b));
+    const combat = override ?? visualCombat(b), height = override?.height ?? visualHeight(b);
+    collapse(_base, b, combat, height);
+    if (leaning) collapse(_flat, b, combat, height);
     // A seized robot's limbs and wheels stop where they are.
     const swing = cue.rust && cue.rust >= 1 ? 0 : Math.sin(anim.gait) * anim.amount * ROBOT_SWING;
     for (const p of view.near) {
@@ -993,7 +1057,8 @@ export class AgentLayer {
         case "none":
           break;
       }
-      p.part.push(partMatrix(_base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
+      const wheel = p.channel.type === "spin" || p.channel.type === "steer-spin";
+      p.part.push(partMatrix(wheel && leaning ? _flat : _base, p.pivot.x, p.pivot.y, p.pivot.z, rx, ry, _m), cue, null, b.kind === "robotaxi" ? carAppearance(b.id,true) : undefined);
     }
   }
 
@@ -1101,8 +1166,9 @@ function taper(w: number, h: number, d: number, kx: number, kz: number, x: numbe
 /**
  * The far proxy of a kind (also its stand-in while the model loads, or if it never does):
  * boxes in the model's proportions and colours, lights included. Faces -z, origin on the ground.
- * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, 4.98 x 1.92 x
- * 1.53 m with its sensors in one dark roof band round a teal status line and no dome; the
+ * Sizes follow the wave-2 models (assets/blender/README.md): the Meander robotaxi, a two-ended
+ * pod 4.96 x 1.92 m and 1.95 m to the roof, its sensors in one dark roof band round a teal
+ * status line, nothing on the roof; the
  * Footman, 1.95 m to the ring on its lantern head; the Trundle, a 0.56 m bread bin with a sage
  * roll-top lid and no flag.
  */
@@ -1116,17 +1182,19 @@ export function fallbackProxy(kind: Exclude<AgentKind, "person">): THREE.BufferG
     const tail = surf(0x8a1010, 0.3, 0, 2, 0xff2a1a);
     const status = surf(0x2fd6c1, 0.3, 0, 3, 0x2fffe0);
     const parts = [
-      // Long side on z (the car faces -z): 1.9 m across, 4.95 m nose to tail, low and flat-roofed.
-      box(1.9, 0.62, 4.95, 0, 0.6, 0, white),
-      // Long raked windscreen and fastback: a glass greenhouse set back from the short nose.
-      taper(1.8, 0.52, 4.0, 0.88, 0.82, 0, 1.17, 0.3, glass),
-      // The sensor band round the roof edge, with the teal status line in it.
-      box(1.6, 0.1, 3.3, 0, 1.48, 0.3, band),
-      box(1.64, 0.04, 2.2, 0, 1.46, 0.55, status),
-      box(1.2, 0.04, 0.04, 0, 0.585, -2.47, head),
-      box(1.52, 0.04, 0.04, 0, 0.9, 2.47, tail),
+      // Long side on z (the car faces -z): a tall two-ended pod, 1.92 m across, 4.96 m end to end.
+      box(1.92, 0.64, 4.96, 0, 0.56, 0, white),
+      // Big glass from the belt to the band, the sides leaning in a little.
+      taper(1.9, 0.84, 4.94, 0.93, 0.97, 0, 1.32, 0, glass),
+      // The sensor band round the roof edge, with the teal status line in it, and the white roof.
+      box(1.76, 0.11, 4.78, 0, 1.815, 0, band),
+      box(1.78, 0.03, 4.8, 0, 1.818, 0, status),
+      box(1.68, 0.08, 4.7, 0, 1.91, 0, white),
+      // A light bar across each end: the same housing both ways round.
+      box(1.4, 0.07, 0.04, 0, 0.83, -2.47, head),
+      box(1.4, 0.07, 0.04, 0, 0.83, 2.47, tail),
     ];
-    for (const [x, z] of [[-0.81, -1.52], [0.81, -1.52], [-0.81, 1.52], [0.81, 1.52]] as const) parts.push(box(0.22, 0.72, 0.72, x, 0.36, z, dark));
+    for (const [x, z] of [[-0.8, -1.7], [0.8, -1.7], [-0.8, 1.7], [0.8, 1.7]] as const) parts.push(box(0.25, 0.76, 0.76, x, 0.38, z, dark));
     return mergePacked(parts);
   }
   if (kind === "errandRobot") {
