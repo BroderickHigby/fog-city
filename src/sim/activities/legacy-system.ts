@@ -4,15 +4,7 @@ import { toLatLon } from "../../geo/project.ts";
 import { Action } from "../contract.ts";
 import { commands,planarDistanceSquared,event,facts,sortedBodies } from "../player/common.ts";
 import type { ActivitiesState,DirectorCard,GameplayBody,GameplayContext,MissionState,PlayerActivities } from "../player/types.ts";
-import type { ActivityDefinition } from "../player/types.ts";
-function activityAvailable(activity:Pick<ActivityDefinition,"wave"|"kind"|"objective"|"checkpoints">):boolean{
- if(activity.wave<3)return true;
- if(!activity.checkpoints?.length)return false;
- return activity.kind==="timeTrial"&&activity.objective?.event==="race.finished"
- ||activity.kind==="delivery"&&activity.objective?.event==="delivery.completed"
- ||activity.kind==="photo"&&activity.objective?.event==="photo.landmarkFramed"
- ||activity.kind==="relic"&&activity.objective?.event==="relic.viewerFound";
-}
+import { legacyActivityAvailable as activityAvailable } from "./availability.ts";
 import { CITY_LIFE, cardWeight } from "../../content/cityLife.ts";
 /** Director pacing (content/city-life.json): ticks between incidents [min, min + span), and how long one stays staged. */
 const IDLE_MIN=Math.round(CITY_LIFE.director.idleWindowS[0]*60),IDLE_SPAN=Math.round((CITY_LIFE.director.idleWindowS[1]-CITY_LIFE.director.idleWindowS[0])*60)+1,STAGED=Math.round(CITY_LIFE.director.stagedS*60);
