@@ -594,7 +594,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
   write(join(out, "third-party-notices.txt"), notices +
     "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n" +
     "\nPlayer movement: supplied Mixamo animations, retargeted to the existing Rocketbox rig. Adobe Mixamo terms apply. https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html\n" +
-    "\nMusic: CC0 1.0 tracks from OpenGameArt.org. See audio/music/manifest.json for each title, author and source page.\n");
+    "\nMusic: CC0 1.0 tracks from OpenGameArt.org, and original car-radio tracks composed and synthesised in code by Fog City. See audio/music/manifest.json for each title, author, licence and source.\n");
 
   const check = checkHostLimits(out, binary ? BINARY_LIMITS : HOST_LIMITS);
   if (check.problems.length > 0) throw new Error(`the build breaks the host's limits:\n  ${check.problems.join("\n  ")}`);

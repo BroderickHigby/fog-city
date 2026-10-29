@@ -91,6 +91,114 @@
       },
       "durationS": 203.58,
       "loop": true
+    },
+    {
+      "id": "radio-boom-bap",
+      "context": "radio",
+      "title": "Seed Round Cypher",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-boom-bap.ogg",
+        "mp3": "audio/music/radio-boom-bap.mp3"
+      },
+      "bytes": {
+        "ogg": 500082,
+        "mp3": 512640
+      },
+      "durationS": 42.67,
+      "loop": true
+    },
+    {
+      "id": "radio-trap",
+      "context": "radio",
+      "title": "Down Round Drip",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-trap.ogg",
+        "mp3": "audio/music/radio-trap.mp3"
+      },
+      "bytes": {
+        "ogg": 603640,
+        "mp3": 494496
+      },
+      "durationS": 41.15,
+      "loop": true
+    },
+    {
+      "id": "radio-bounce",
+      "context": "radio",
+      "title": "Outer Sunset Bounce",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-bounce.ogg",
+        "mp3": "audio/music/radio-bounce.mp3"
+      },
+      "bytes": {
+        "ogg": 444354,
+        "mp3": 480672
+      },
+      "durationS": 40.01,
+      "loop": true
+    },
+    {
+      "id": "radio-dance-pop",
+      "context": "radio",
+      "title": "Up and to the Right",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-dance-pop.ogg",
+        "mp3": "audio/music/radio-dance-pop.mp3"
+      },
+      "bytes": {
+        "ogg": 579232,
+        "mp3": 567360
+      },
+      "durationS": 47.22,
+      "loop": true
+    },
+    {
+      "id": "radio-synth-pop",
+      "context": "radio",
+      "title": "Demo Day Heart",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-synth-pop.ogg",
+        "mp3": "audio/music/radio-synth-pop.mp3"
+      },
+      "bytes": {
+        "ogg": 603315,
+        "mp3": 576576
+      },
+      "durationS": 48.01,
+      "loop": true
+    },
+    {
+      "id": "radio-nu-disco",
+      "context": "radio",
+      "title": "Lock-Up Period",
+      "author": "Fog City (composed and synthesised in code)",
+      "page": "scripts/audio/compose-radio.ts",
+      "licence": "Original work",
+      "files": {
+        "ogg": "audio/music/radio-nu-disco.ogg",
+        "mp3": "audio/music/radio-nu-disco.mp3"
+      },
+      "bytes": {
+        "ogg": 552841,
+        "mp3": 596448
+      },
+      "durationS": 49.66,
+      "loop": true
     }
   ]
 }

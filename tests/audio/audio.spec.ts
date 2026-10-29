@@ -139,6 +139,13 @@ test("real controls play Hot Desk with subtitles, contextual music, the car radi
   await expect(radio).toContainText("Series A 101.3", { timeout: 30_000 });
   await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("menu");
   expect((await audio(page)).station).toBe("series-a");
+  // Three more stations up: the first original hip-hop station, streaming its generated track.
+  for (let i = 0; i < 3; i++) await page.keyboard.press("KeyM");
+  await expect(radio).toContainText("Cap Table 97.1", { timeout: 30_000 });
+  await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("radio-boom-bap");
+  expect((await audio(page)).music?.paused).toBe(false);
+  for (let i = 0; i < 3; i++) await page.keyboard.press("Shift+KeyM");
+  await expect.poll(async () => (await audio(page)).station, { timeout: 30_000 }).toBe("series-a");
   await page.keyboard.press("Shift+KeyM");
   await expect(radio).toContainText("Runway FM 88.5", { timeout: 30_000 });
   await expect.poll(async () => (await audio(page)).music?.trackId, { timeout: 30_000 }).toBe("drive");

@@ -101,7 +101,7 @@ go through the effects bus.
     - gulls on the waterfront by day, every 7 to 22 s.
   - **Districts** come from the `content/districts.json` polygons, and levels change smoothly.
 
-# Music (CC0, OpenGameArt)
+# Music (CC0 from OpenGameArt, and original radio tracks)
 
 `node scripts/audio/build-music.ts` builds `public/audio/music/` from the sources in
 [`music-sources.json`](music-sources.json): it downloads each source once into
@@ -129,12 +129,45 @@ CC0 needs no attribution; the credits ship anyway (settings panel "Now playing",
 
 Total: 10 files, about 12.8 MB (well inside the build's 15 MB per file, 240 MB and 450 files).
 
+## Original radio tracks (generated in code)
+
+Six more tracks play only on the car radio. They are original work: every note is written in
+[`scripts/audio/compose-radio.ts`](../../scripts/audio/compose-radio.ts) and every sound is an
+oscillator, a filter or seeded noise in
+[`scripts/audio/radio-synth.ts`](../../scripts/audio/radio-synth.ts). No sample, recording,
+cover or quotation of anyone else's music is used, so there is no third-party licence. They are
+listed in `music-sources.json` with `"origin": "generated"` and licence "Original work".
+
+`node scripts/audio/build-music.ts radio-boom-bap radio-trap radio-bounce radio-dance-pop radio-synth-pop radio-nu-disco`
+renders each loop (deterministic, seeded; about 5 s each), then normalises and encodes it exactly
+like the recorded tracks (-18 LUFS, -1.5 dBTP, Ogg Opus 80 kb/s and MP3 96 kb/s). For a generated
+loop the build refuses a loudness that would need loudnorm's dynamic mode, since a riding gain
+would break the loop seam. `node scripts/audio/compose-radio.ts --out DIR` writes the raw loops
+as WAV for listening.
+
+Each track is one seamless loop of whole bars: reverb, delay and note tails past the loop end are
+added back onto its start, and the sidechain and tape wow are periodic in the loop.
+
+| File | Genre | Style | Title | Tempo, key | Length | Ogg + MP3 |
+|---|---|---|---|---|---|---|
+| `music/radio-boom-bap.ogg` + `.mp3` | hip-hop | boom-bap | Seed Round Cypher | 90 BPM, A minor | 42.7 s | 1.01 MB |
+| `music/radio-trap.ogg` + `.mp3` | hip-hop | trap | Down Round Drip | 140 BPM, C minor | 41.1 s | 1.10 MB |
+| `music/radio-bounce.ogg` + `.mp3` | hip-hop | West Coast bounce | Outer Sunset Bounce | 96 BPM, F minor | 40.0 s | 0.93 MB |
+| `music/radio-dance-pop.ogg` + `.mp3` | pop | four-on-the-floor dance-pop | Up and to the Right | 122 BPM, F major | 47.2 s | 1.15 MB |
+| `music/radio-synth-pop.ogg` + `.mp3` | pop | half-time synth-pop | Demo Day Heart | 100 BPM, D major | 48.0 s | 1.18 MB |
+| `music/radio-nu-disco.ogg` + `.mp3` | pop | nu-disco pop | Lock-Up Period | 116 BPM, E minor | 49.7 s | 1.15 MB |
+
+Together 12 files, 6.51 MB. With them the music and voice files total about 19.8 MB of the
+20 MB audio budget in `tests/audio/provenance.test.ts`, so the next audio addition needs a
+budget decision. A player downloads only the station they tune to (one Opus file, 0.44 to
+0.60 MB), streamed after the game is running, never preloaded.
+
 ## Car radio
 
 In a car the music is the radio (`src/audio/radio.ts`): M tunes to the next station, Shift+M to
 the previous one, and there is an Off position; the settings panel has a station picker too. The
 station is kept with the audio preferences. A card shows the station when the player gets in or
-tunes. Stations are invented (no real call signs) and play the CC0 tracks above:
+tunes. Stations are invented (no real call signs) and play the tracks above:
 
 | Station | Track |
 |---|---|
@@ -142,6 +175,12 @@ tunes. Stations are invented (no real call signs) and play the CC0 tracks above:
 | Series A 101.3 | `music/menu` Midnight Drive |
 | Pivot 94.9 | `music/foot` Electronic Outlaw |
 | Burn Rate 107.7 | `music/mission` Down to Business |
+| Cap Table 97.1 | `music/radio-boom-bap` Seed Round Cypher (boom-bap) |
+| Down Round 103.9 | `music/radio-trap` Down Round Drip (trap) |
+| Fog Bank 100.7 | `music/radio-bounce` Outer Sunset Bounce (West Coast bounce) |
+| Unicorn 99.5 | `music/radio-dance-pop` Up and to the Right (dance-pop) |
+| Hockey Stick 92.3 | `music/radio-synth-pop` Demo Day Heart (synth-pop) |
+| Lock-Up 105.5 | `music/radio-nu-disco` Lock-Up Period (nu-disco) |
 | Radio off | silence |
 
 On foot the music follows the moment again: combat, a timed mission step, or the on-foot track.

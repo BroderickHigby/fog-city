@@ -33,16 +33,21 @@ describe("credits", () => {
     expect(doc).toContain("USGS National Map 3D Elevation Program (3DEP)");
   });
 
-  it("lists every music track with its author, licence and source page", () => {
-    const tracks = readJson<{ tracks: Array<{ title: string; author: string; licence: string; page: string }> }>("assets/audio/music-sources.json").tracks;
+  it("lists every music track with its author, licence and source (page, or generator file)", () => {
+    const tracks = readJson<{ tracks: Array<{ title: string; author: string; licence: string; page: string; origin?: string }> }>("assets/audio/music-sources.json").tracks;
     const music = CREDITS.find((g) => g.title === "Music")!.entries;
     expect(music).toHaveLength(tracks.length);
     for (const t of tracks) {
-      const e = music.find((m) => m.url === t.page);
+      const e = music.find((m) => m.what.startsWith(`"${t.title}"`));
       expect(e, t.title).toBeTruthy();
-      expect(e!.what).toContain(t.title);
       expect(e!.who).toBe(t.author);
       expect(e!.licence).toBe(t.licence);
+      if (t.origin === "generated") {
+        // The repository is private: name the generator file rather than link a page players cannot open.
+        expect(e!.url, t.title).toBeUndefined();
+        expect(e!.what).toContain(t.page);
+        expect(e!.licence).toBe("Original work");
+      } else expect(e!.url, t.title).toBe(t.page);
     }
   });
 

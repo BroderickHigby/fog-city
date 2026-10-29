@@ -85,9 +85,12 @@ export class MusicContextTracker {
   }
 }
 
+/** A context's own track, or "radio": a track only a car radio station plays (radio.ts). */
+export type MusicTrackContext = MusicContext | "radio";
+
 export interface MusicTrack {
   id: string;
-  context: MusicContext;
+  context: MusicTrackContext;
   title: string;
   author: string;
   licence: string;

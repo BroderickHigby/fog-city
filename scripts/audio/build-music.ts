@@ -1,18 +1,20 @@
 // node scripts/audio/build-music.ts [--offline] [id ...]
 //
-// Builds the contextual soundtrack in public/audio/music/ from the CC0 sources listed in
-// assets/audio/music-sources.json, and writes public/audio/music/manifest.json.
+// Builds the contextual soundtrack and the car radio in public/audio/music/ from the sources
+// listed in assets/audio/music-sources.json, and writes public/audio/music/manifest.json.
 //
-//  1. Each source is downloaded once into assets/audio/.cache/ (gitignored) and checked
-//     against the SHA-256 recorded in music-sources.json: a changed upload stops the build
-//     rather than silently shipping different audio under the recorded licence.
+//  1. A recorded (CC0) source is downloaded once into assets/audio/.cache/ (gitignored) and
+//     checked against the SHA-256 recorded in music-sources.json: a changed upload stops the
+//     build rather than silently shipping different audio under the recorded licence. A
+//     generated source (original music, origin "generated") is rendered by
+//     scripts/audio/compose-radio.ts into the same cache; it needs no network.
 //  2. Two-pass EBU R128 loudness normalisation (ffmpeg loudnorm, linear) to MUSIC_LUFS, so
 //     every context sits at the same level under the effects and voices.
 //  3. Encoded twice, stereo 48 kHz: Ogg Opus (primary, MUSIC_OPUS_KBPS) and MP3 (fallback for a
 //     browser without Ogg Opus, MUSIC_MP3_KBPS). Both formats are served as plain files and
 //     streamed by an <audio> element, never preloaded.
 //
-// --offline uses only the cache (fails if a source is missing). Needs ffmpeg with libopus and
+// --offline uses only the cache (fails if a recorded source is missing). Needs ffmpeg with libopus and
 // libmp3lame. Outputs are committed; rerun only when a source or a setting changes.
 
 import { createHash } from "node:crypto";
@@ -20,6 +22,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { renderSong, songById } from "./compose-radio.ts";
+import { wav } from "./radio-synth.ts";
 
 export const ROOT = join(import.meta.dirname, "..", "..");
 export const SOURCES = join(ROOT, "assets", "audio", "music-sources.json");
@@ -30,9 +34,14 @@ export const MUSIC_TRUE_PEAK = -1.5;
 export const MUSIC_OPUS_KBPS = 80;
 export const MUSIC_MP3_KBPS = 96;
 
-export interface MusicSource {
+/** A game context's track, or "radio": a track only a car radio station plays. */
+export type MusicSourceContext = "driving" | "foot" | "mission" | "combat" | "menu" | "radio";
+
+/** A recorded CC0 track from OpenGameArt. */
+export interface RecordedMusicSource {
   id: string;
-  context: "driving" | "foot" | "mission" | "combat" | "menu";
+  origin?: "recorded";
+  context: MusicSourceContext;
   title: string;
   author: string;
   authorUrl: string;
@@ -44,6 +53,24 @@ export interface MusicSource {
   pageLicences: string[];
   why: string;
 }
+
+/** Original music composed and synthesised in code (scripts/audio/compose-radio.ts). */
+export interface GeneratedMusicSource {
+  id: string;
+  origin: "generated";
+  context: MusicSourceContext;
+  title: string;
+  genre: "hip-hop" | "pop";
+  style: string;
+  author: string;
+  /** The repository file that composes it (the "source page" for a generated track). */
+  page: string;
+  generator: string;
+  licence: string;
+  why: string;
+}
+
+export type MusicSource = RecordedMusicSource | GeneratedMusicSource;
 
 export interface MusicManifestTrack {
   id: string;
@@ -66,7 +93,16 @@ export interface MusicManifest {
 
 const sha256 = (bytes: Uint8Array): string => createHash("sha256").update(bytes).digest("hex");
 
-async function fetchSource(track: MusicSource, offline: boolean): Promise<string> {
+/** Render a generated track's loop to a WAV in the cache. */
+function renderSource(track: GeneratedMusicSource): string {
+  mkdirSync(CACHE, { recursive: true });
+  const file = join(CACHE, `${track.id}-generated.wav`);
+  const r = renderSong(songById(track.id));
+  writeFileSync(file, wav(r.left, r.right));
+  return file;
+}
+
+async function fetchSource(track: RecordedMusicSource, offline: boolean): Promise<string> {
   mkdirSync(CACHE, { recursive: true });
   const file = join(CACHE, `${track.id}-${track.sourceSha256.slice(0, 12)}${track.source.slice(track.source.lastIndexOf("."))}`);
   if (!existsSync(file)) {
@@ -104,8 +140,13 @@ export async function buildMusic(ids: readonly string[], offline: boolean): Prom
   for (const track of sources) {
     const ogg = join(OUT, `${track.id}.ogg`), mp3 = join(OUT, `${track.id}.mp3`);
     if (ids.length === 0 || ids.includes(track.id)) {
-      const input = await fetchSource(track, offline);
+      const input = track.origin === "generated" ? renderSource(track) : await fetchSource(track, offline);
       const m = measure(input);
+      // A generated loop must normalise with one linear gain: loudnorm's dynamic fallback would
+      // ride the level and break the loop seam.
+      if (track.origin === "generated" && Number(m.input_tp) + (MUSIC_LUFS - Number(m.input_i)) > MUSIC_TRUE_PEAK) {
+        throw new Error(`${track.id}: ${m.input_i} LUFS at ${m.input_tp} dBTP cannot reach ${MUSIC_LUFS} LUFS under ${MUSIC_TRUE_PEAK} dBTP linearly`);
+      }
       const norm = `loudnorm=I=${MUSIC_LUFS}:TP=${MUSIC_TRUE_PEAK}:LRA=11:linear=true:measured_I=${m.input_i}:measured_TP=${m.input_tp}:measured_LRA=${m.input_lra}:measured_thresh=${m.input_thresh}:offset=${m.target_offset}`;
       const common = ["-y", "-i", input, "-map_metadata", "-1", "-af", `${norm},aresample=48000`, "-ac", "2", "-fflags", "+bitexact", "-flags:a", "+bitexact"];
       ffmpeg([...common, "-c:a", "libopus", "-b:a", `${MUSIC_OPUS_KBPS}k`, "-vbr", "on", "-application", "audio", ogg]);

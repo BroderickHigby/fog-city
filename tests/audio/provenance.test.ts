@@ -1,5 +1,5 @@
-// Soundtrack and voice provenance: every music file is CC0 with its source, author and licence
-// recorded; the encodes are real Ogg Opus / MP3 at the documented length and loudness; the voice
+// Soundtrack and voice provenance: every recorded music file is CC0 with its source, author and
+// licence recorded, every other one is original music generated in code; the encodes are real Ogg Opus / MP3 at the documented length and loudness; the voice
 // manifest matches the mission content and the casting, and states why voices are held.
 import { MPEGDecoder } from "mpg123-decoder";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -8,7 +8,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { ROOT, readJson } from "../helpers.ts";
 import { MISSIONS } from "../../src/content/catalog.ts";
 import { missionVoiceLines, subtitleCues, estimateDurationS, splitCueText, MAX_CUE_CHARS, type VoiceManifest } from "../../src/audio/voice-lines.ts";
-import type { MusicManifest, MusicSource } from "../../scripts/audio/build-music.ts";
+import type { GeneratedMusicSource, MusicManifest, MusicSource, RecordedMusicSource } from "../../scripts/audio/build-music.ts";
+import { RADIO_SONGS } from "../../scripts/audio/compose-radio.ts";
 import { innerVoiceLines } from "../../src/audio/inner-voice.ts";
 import { BUDGET_CAP, allVoiceLines, buildManifest, characterBudget, commercialTier, fileFor, lineHash, plan, type Casting } from "../../scripts/audio/generate-voices.ts";
 
@@ -50,11 +51,14 @@ const mp3 = new MPEGDecoder();
 beforeAll(async () => { await mp3.ready; });
 afterAll(() => mp3.free());
 
+const recorded = sources.tracks.filter((t): t is RecordedMusicSource => t.origin !== "generated");
+const generated = sources.tracks.filter((t): t is GeneratedMusicSource => t.origin === "generated");
+
 describe("music sources", () => {
-  it("are all CC0, each with a source page, file, checksum, author and licence", () => {
+  it("recorded ones are all CC0, each with a source page, file, checksum, author and licence", () => {
     expect(sources.policy).toMatch(/CC0 only/);
-    expect(sources.tracks.map((t) => t.context).sort()).toEqual([...CONTEXTS].sort());
-    for (const t of sources.tracks) {
+    expect(recorded.map((t) => t.context).sort()).toEqual([...CONTEXTS].sort());
+    for (const t of recorded) {
       expect(t.licence, t.id).toBe("CC0 1.0");
       expect(t.licenceUrl, t.id).toBe("https://creativecommons.org/publicdomain/zero/1.0/");
       expect(t.pageLicences, t.id).toContain("CC0");
@@ -67,11 +71,27 @@ describe("music sources", () => {
       for (const field of [t.title, t.author, t.page, `music/${t.id}.ogg`]) expect(readme, `${t.id}: README lists ${field}`).toContain(field);
     }
   });
+
+  it("generated ones are original radio tracks, each composed by compose-radio.ts and recorded in the README", () => {
+    expect(sources.policy).toMatch(/no sample, recording, cover or quotation/);
+    expect(generated.map((t) => t.id)).toEqual(RADIO_SONGS.map((s) => s.id));
+    for (const t of generated) {
+      const song = RADIO_SONGS.find((s) => s.id === t.id)!;
+      expect(t.context, t.id).toBe("radio");
+      expect(t.licence, t.id).toBe("Original work");
+      expect(t.generator, t.id).toBe("scripts/audio/compose-radio.ts");
+      expect(t.page, t.id).toBe(t.generator);
+      expect(t.author, t.id).toMatch(/^Fog City /);
+      expect({ title: t.title, genre: t.genre, style: t.style }, t.id).toEqual({ title: song.title, genre: song.genre, style: song.style });
+      for (const field of [t.title, t.style, `music/${t.id}.ogg`]) expect(readme, `${t.id}: README lists ${field}`).toContain(field);
+    }
+  });
 });
 
 describe("public/audio/music", () => {
-  it("has exactly one track per context, each manifest entry matching its source record", () => {
-    expect(music.tracks.map((t) => t.context).sort()).toEqual([...CONTEXTS].sort());
+  it("has exactly one track per game context plus the radio tracks, each manifest entry matching its source record", () => {
+    expect(music.tracks.filter((t) => t.context !== "radio").map((t) => t.context).sort()).toEqual([...CONTEXTS].sort());
+    expect(music.tracks.map((t) => t.id)).toEqual(sources.tracks.map((t) => t.id));
     for (const t of music.tracks) {
       const s = sources.tracks.find((x) => x.id === t.id)!;
       expect(s, t.id).toBeTruthy();
