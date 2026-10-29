@@ -20,12 +20,12 @@ function context(at: { x: number; z: number }, patch: Partial<GameplayContext> =
     actors: [], observations: [], facts: [], commands: [], day: 1, month: 1, ...patch };
 }
 function run(at: { x: number; z: number }, ticks: number, actions: number, mode: "foot" | "vehicle" = "foot", facts: GameplayFact[] = []): ActivitiesState & { seen: string[] } {
-  let state = stepActivities(createActivities(), context(recon, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: recon.id }] }), 1, createMissions(), 7, 24);
+  let state = stepActivities(createActivities(), context(recon, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: recon.id }] }), 1, createMissions(), 7, 27);
   const seen: string[] = [];
   // Walk the path to the overlook, then work at the relay.
-  state = stepActivities(state, context(recon.checkpoints![1]!), 2, createMissions(), 7, 24);
+  state = stepActivities(state, context(recon.checkpoints![1]!), 2, createMissions(), 7, 27);
   for (let tick = 3; tick < 3 + ticks; tick++) {
-    state = stepActivities(state, context(at, { actions: { p: actions }, facts: tick === 3 ? facts : [] }, mode), tick, createMissions(), 7, 24);
+    state = stepActivities(state, context(at, { actions: { p: actions }, facts: tick === 3 ? facts : [] }, mode), tick, createMissions(), 7, 27);
     seen.push(...state.events.map(value => value.kind));
   }
   return { ...state, seen };

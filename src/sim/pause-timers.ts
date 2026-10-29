@@ -18,7 +18,7 @@ export type PausedActivity=PlayerActivities&{pausedTicks?:number;activityUntilTi
 /** Pure periodic schedules (signals/population/fidelity), never recorded event timestamps. */
 export function activeWorldTick(state:Readonly<SimState>):number {
   const pause=state.ext.pause as WorldPauseState|undefined;
-  return state.version>=24&&pause?.version===1?state.tick-pause.totalTicks:state.tick;
+  return state.version>=27&&pause?.version===1?state.tick-pause.totalTicks:state.tick;
 }
 /** Extend only live absolute deadlines. Equality is already expired; zero/MAX are sentinels. */
 export function holdLiveDeadline(value:number,previousTick:number):number {
@@ -63,7 +63,7 @@ function bots(previous:RivalBotState,tick:number):RivalBotState {
 }
 /** No change at all to SIM20 or earlier. Tick advancement belongs to root core for that path. */
 export function holdPausedWorldTimers(previous:Readonly<SimState>):SimState {
-  if(previous.version<24)return previous as SimState;
+  if(previous.version<27)return previous as SimState;
   const at=previous.tick,tick=at+1,ext={...previous.ext},pause=previous.ext.pause as WorldPauseState|undefined;
   ext.pause={version:1,totalTicks:count(pause?.totalTicks)} satisfies WorldPauseState;
   // Car/foot/ride physics are unchanged; only a pending hail's expiry is a nonphysical timer.

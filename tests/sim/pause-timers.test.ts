@@ -40,7 +40,7 @@ it("preserves brain channel identity and completed-update history while freezing
   const held=holdPausedWorldTimers(state),after=held.ext.robots!.actors.robot!;
   expect(after.actionToken).toBe(actor.actionToken);expect(after.brain!.windup!.startedTick).toBe(80);expect(after.brain!.windup!.pausedTicks).toBe(1);expect(after.brain!.lastTick).toBe(101);expect(after.brain!.knowledge[0]!.observedTick).toBe(50);expect(after.brain!.knowledge[0]!.expiresTick).toBe(651);expect(after.brain!.pendingUpdates).toEqual([{targetId:2,completedTick:90}]);expect(after.x).toBe(actor.x);expect(actor.brain!.windup!.pausedTicks).toBeUndefined();
 });
-it("keeps pre-SIM24 state byte-identical and a paused checkpoint roundtrip deterministic",()=>{
+it("keeps pre-SIM27 state byte-identical and a paused checkpoint roundtrip deterministic",()=>{
   const old={...fixture(),version:20};expect(holdPausedWorldTimers(old)).toBe(old);
   let one=fixture(),two=JSON.parse(JSON.stringify(one)) as SimState;
   for(let index=0;index<180;index++){one=holdPausedWorldTimers(one);two=holdPausedWorldTimers(two);}

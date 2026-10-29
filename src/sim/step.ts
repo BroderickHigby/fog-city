@@ -539,7 +539,7 @@ export function step(world: World, prev: Readonly<SimState>, inputs: InputFrame,
       : input;
   }
   const prior: SimState = { ...prev, players };
-  if(prior.version>=24&&(prior.ext.combat?.pauseUntil??0)>prior.tick){
+  if(prior.version>=27&&(prior.ext.combat?.pauseUntil??0)>prior.tick){
     const held=holdPausedWorldTimers(prior);
     // Combat owns its pause deadline and membership cleanup; no preparer or physical owner runs.
     return runSystems({world,previous:prior,state:held,inputs:sanitized,events},systems.filter(system=>system.key==="combat"));

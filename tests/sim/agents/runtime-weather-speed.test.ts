@@ -10,18 +10,18 @@ function proposal(model: RuntimeSpawn["model"], version: number, speedMultiplier
   return planAgentRuntime(world, sim, {}, { spawns: [spawn], speedMultiplier, controlledActorIds: controlled ? [spawn.id] : [] }).proposals.find(p => p.id === spawn.id);
 }
 describe("authored autonomous robot weather speed", () => {
-  it("scales accepted target distance and speed only at SIM24, with finite bounds", () => {
-    const normal = proposal("footman", 24)!;
-    const winter = proposal("footman", 24, .9)!;
+  it("scales accepted target distance and speed only at SIM27, with finite bounds", () => {
+    const normal = proposal("footman", 27)!;
+    const winter = proposal("footman", 27, .9)!;
     expect(winter.speed).toBeCloseTo(normal.speed * .9);
     expect(Math.hypot(winter.x, winter.z)).toBeCloseTo(Math.hypot(normal.x, normal.z) * .9);
-    expect(proposal("footman", 24, -20)!.speed).toBeCloseTo(normal.speed * .5);
-    expect(proposal("footman", 24, 20)!.speed).toBe(normal.speed);
-    expect(proposal("footman", 24, NaN)!.speed).toBe(normal.speed);
+    expect(proposal("footman", 27, -20)!.speed).toBeCloseTo(normal.speed * .5);
+    expect(proposal("footman", 27, 20)!.speed).toBe(normal.speed);
+    expect(proposal("footman", 27, NaN)!.speed).toBe(normal.speed);
     expect(proposal("footman", 20, .5)).toEqual(proposal("footman", 20));
   });
   it("leaves people, animals, civilian vehicles and controlled bodies alone", () => {
-    for (const model of ["person", "pigeon", "robotaxi"] as const) expect(proposal(model, 24, .5)).toEqual(proposal(model, 24));
-    expect(proposal("footman", 24, .5, true)).toBeUndefined();
+    for (const model of ["person", "pigeon", "robotaxi"] as const) expect(proposal(model, 27, .5)).toEqual(proposal(model, 27));
+    expect(proposal("footman", 27, .5, true)).toBeUndefined();
   });
 });

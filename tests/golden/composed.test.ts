@@ -7,7 +7,7 @@
 import { describe, expect, it } from "vitest";
 import { SIM_VERSION } from "../../src/sim/index.ts";
 import { COMPOSED_SCENARIOS, runComposedScenario } from "../helpers/composed-golden.ts";
-import golden from "./composed-v24-consolidated.json";
+import golden from "./composed-v27-consolidated.json";
 import v23 from "./composed-v23-late-dodge.json";
 import v22 from "./composed-v22-steal-car.json";
 import v21 from "./composed-v21-amber-commit.json";

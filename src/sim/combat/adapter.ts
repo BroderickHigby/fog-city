@@ -79,7 +79,7 @@ export function contextFromState(world:World,state:Readonly<SimState>,options:Co
     actors.push({kind:"player",firmware:"none",robotBody:false,radius:0.35,height:1.8,...actorMetadata(options,id),id,playerId:player.id,x:player.x,y:player.y,z:player.z,heading:player.heading,speed:player.speed});
   }
   actors.push(...(options.extraActors??[]));
-  if(state.version>=24)for(let i=actors.length-1;i>=0;i--){
+  if(state.version>=27)for(let i=actors.length-1;i>=0;i--){
     const actor=actors[i]!,target=state.ext.combat?.targets[actor.id];
     if(actor.kind!=="robot"||actor.protected||!target)continue;
     if(target.phase==="cleared"){actors.splice(i,1);continue;}

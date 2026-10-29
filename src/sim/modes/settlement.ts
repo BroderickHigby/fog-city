@@ -31,7 +31,7 @@ export function applyMatchSettlement(city: Readonly<SimState>, payout: Readonly<
   if (isBotSweep(city)) throw new Error("Settle into the free-roam city, never into a match");
   if (!SETTLEMENT_ID.test(payout.id) || !isGameplayId(cityPlayerId) || !city.players[cityPlayerId]) return city as SimState;
   if (!Number.isSafeInteger(payout.cashCents) || payout.cashCents < 0 || !Number.isSafeInteger(payout.xp) || payout.xp < 0 || !Array.isArray(payout.achievements)) return city as SimState;
-  if(city.version>=24&&payout.factionClockMoves!==0&&payout.factionClockMoves!==1)return city as SimState;
+  if(city.version>=27&&payout.factionClockMoves!==0&&payout.factionClockMoves!==1)return city as SimState;
   const snapshot = gameplaySnapshot({ state: city });
   const settled = settledModeIds(city);
   if (settled.includes(payout.id)) return city as SimState;
@@ -44,7 +44,7 @@ export function applyMatchSettlement(city: Readonly<SimState>, payout: Readonly<
   if (achievements.length) own.achievements = [...new Set([...(own.achievements ?? []), ...achievements])].sort();
   const economy = { ...snapshot.economy, players: { ...snapshot.economy.players, [cityPlayerId]: wallet }, settledModeIds: [...settled, payout.id].slice(-MAX_SETTLED_MODE_IDS) };
   const progression = { ...snapshot.progression, players: { ...snapshot.progression.players, [cityPlayerId]: own } };
-  if(city.version>=24&&payout.factionClockMoves===1){
+  if(city.version>=27&&payout.factionClockMoves===1){
     const clock=progression.doom??createDoomClock(),faction=factionFor(clock,cityPlayerId);
     if(faction!=="unaffiliated"){
       const moved=moveDoomClock(clock,faction==="pauser"?1:-1,city.tick,cityPlayerId);

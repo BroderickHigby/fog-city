@@ -30,14 +30,14 @@ describe("side activities beside the campaign", () => {
 
   it("starts an activity while the next campaign mission only waits for its start area", () => {
     const ctx = context(sprint, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: sprint.id }] });
-    const state = stepActivities(createActivities(), ctx, 1, waiting(), 7, 24);
+    const state = stepActivities(createActivities(), ctx, 1, waiting(), 7, 27);
     expect(state.players.p!.activeActivityId).toBe(sprint.id);
     expect(state.events.map(value => value.kind)).toEqual(["activity.started"]);
   });
 
   it("still refuses an activity during an engaged mission step", () => {
     const ctx = context(sprint, { commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: sprint.id }] });
-    expect(stepActivities(createActivities(), ctx, 1, waiting("watch"), 7, 24).players.p!.activeActivityId).toBe("");
+    expect(stepActivities(createActivities(), ctx, 1, waiting("watch"), 7, 27).players.p!.activeActivityId).toBe("");
   });
 
   it("holds the campaign start area while an activity runs, then lets it fire", () => {

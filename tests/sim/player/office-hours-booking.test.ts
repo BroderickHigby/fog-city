@@ -26,7 +26,7 @@ function missions(waiting = false): MissionState {
 
 /** A settled-booking fixture; no mission completion or reward is claimed by these booking tests. */
 function available(bookings?: PlayerActivities["officeHoursBookings"], cooldown = 0): ActivitiesState {
-  const state = stepActivities(createActivities(), context(), 1, missions(), 7, 24);
+  const state = stepActivities(createActivities(), context(), 1, missions(), 7, 27);
   const own = state.players.p!;
   return { ...state, players: { p: { ...own, cooldowns: { "office-hours": cooldown },
     ...(bookings ? { officeHoursBookings: { ...bookings } } : {}) } } };
@@ -34,7 +34,7 @@ function available(bookings?: PlayerActivities["officeHoursBookings"], cooldown 
 
 function book(state: ActivitiesState, tick: number, patch: Partial<GameplayContext> = {}, progress = missions()): ActivitiesState {
   const sequence = (state.players.p?.commandSequence ?? 0) + 1;
-  return stepActivities(state, context({ ...patch, commands: [{ playerId: "p", sequence, kind: "activity-start", targetId: door.id }] }), tick, progress, 7, 24);
+  return stepActivities(state, context({ ...patch, commands: [{ playerId: "p", sequence, kind: "activity-start", targetId: door.id }] }), tick, progress, 7, 27);
 }
 
 describe("Office Hours booking boundaries", () => {

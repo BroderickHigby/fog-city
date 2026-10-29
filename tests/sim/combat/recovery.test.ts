@@ -1,4 +1,4 @@
-/** SIM24 physical combat and once-only authority regressions. */
+/** SIM27 physical combat and once-only authority regressions. */
 import { describe,expect,it } from "vitest";
 import { createCombatState,stepCombat } from "../../../src/sim/combat/system.ts";
 import { launchBalloon,stepDevices } from "../../../src/sim/combat/devices.ts";
@@ -10,11 +10,11 @@ import type { CombatActor,CombatContext,CombatPlayer,CombatState,Projectile } fr
 const player=(id="p",x=0):CombatPlayer=>({id,x,y:0,z:0,heading:0,speed:0,mount:"foot",tankTier:0,flowTier:0,scannerTier:1,gadget:"balloon",gadgetEnabled:true,gear:"none"});
 const actor=(id:string,patch:Partial<CombatActor>={}):CombatActor=>({id,kind:"robot",firmware:"bad",model:"footman",x:2,y:0,z:0,heading:0,speed:0,radius:.35,height:1.8,...patch});
 const body=(id:string,z=0):CombatActor=>actor(`player:${id}`,{kind:"player",firmware:"none",playerId:id,robotBody:false,x:0,z});
-const context=(patch:Partial<CombatContext>={}):CombatContext=>({simVersion:24,wave:5,players:[player(),{...player("r"),z:-6}],actors:[body("p"),body("r",-6)],mode:"clean-streets",rivalPlayerIds:{p:["r"],r:["p"]},walls:[],refills:[],...patch});
+const context=(patch:Partial<CombatContext>={}):CombatContext=>({simVersion:27,wave:5,players:[player(),{...player("r"),z:-6}],actors:[body("p"),body("r",-6)],mode:"clean-streets",rivalPlayerIds:{p:["r"],r:["p"]},walls:[],refills:[],...patch});
 const roundtrip=<T>(value:T):T=>JSON.parse(JSON.stringify(value)) as T;
 function hitProjectile(state:CombatState):Projectile {return {id:999,kind:"flower",ownerId:"p",x:0,y:1,z:-6,vx:0,vy:0,vz:-12,bornTick:state.tick,distance:6,range:20,volume:0,salt:false,vehicle:false,rustRate:0};}
 
-describe("SIM24 selected combat recovery",()=>{
+describe("SIM27 selected combat recovery",()=>{
   it("launches a visible slow flower and scores only its later actual rival contact",()=>{
     const ctx=context();let state=createCombatState(7,ctx);
     state=stepCombat(state,ctx,{p:{altFire:true,aimPitch:.1}});

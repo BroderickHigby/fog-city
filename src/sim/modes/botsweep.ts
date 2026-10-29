@@ -165,7 +165,7 @@ export function stepBotSweep(world: World, state: Readonly<SimState>, inputs: In
   const local = sweep(state), session = modeSessionOf(state); if (!local || !session) throw new Error("Not a Bot Sweep match");
   const isolated = arenaWorld(world, local);
   // Core owns paused membership/timers. Do not advance outside-core bot planning or RNG.
-  if(state.version>=24&&(state.ext.combat?.pauseUntil??0)>state.tick)return step(isolated,state,inputs,events,SYSTEMS);
+  if(state.version>=27&&(state.ext.combat?.pauseUntil??0)>state.tick)return step(isolated,state,inputs,events,SYSTEMS);
   const controls: Record<string, InputFrame[string]> = { ...inputs };
   const limitControls = (): void => {
     for (const id of sortedIds(session.match.players)) {

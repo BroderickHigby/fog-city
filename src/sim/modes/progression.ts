@@ -3,7 +3,7 @@ import type { GameplayFact } from "../gameplay-contract.ts";
 import type { MatchState } from "./types.ts";
 /** Canonical mode events are observed by progression on its next update, retaining event IDs. */
 export function modeProgressionFacts(state:Readonly<SimState>,tick=state.tick):GameplayFact[] {
-  if(state.version<24||!Number.isSafeInteger(tick)||tick<0)return [];
+  if(state.version<27||!Number.isSafeInteger(tick)||tick<0)return [];
   const match=(state.ext.modes as unknown as {match?:MatchState}|undefined)?.match;
   if(match?.version!==1||!Number.isSafeInteger(match.tick)||match.tick>tick||!(match.mode==="botSweep"||match.mode==="cleanStreets"))return [];
   return [...match.events].filter(event=>Number.isSafeInteger(event.id)&&event.id>0&&event.tick<=tick&&match.players[event.playerId]!==undefined).sort((a,b)=>a.id-b.id).flatMap(event=>{

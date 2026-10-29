@@ -19,7 +19,7 @@ const profile=(patch:Partial<ReturnType<typeof createProgressionPlayer>>={}):Pro
 const grant=(id:number,kind:string,patch:Partial<GameplayEvent>={}):GameplayEvent=>({id,tick:id,kind,playerId:"p",targetId:"",amount:0,detail:"",...patch});
 const ack=(sequence:number,kind="streak.used",streak="confidence",tick=2)=>({id:`combat:${tick}`,source:"combat" as const,sequence:tick,tick,kind,playerId:"p",amount:sequence,detail:streak});
 
-describe("SIM24 authored progression",()=>{
+describe("SIM27 authored progression",()=>{
  it("delegates the omitted/20 version to the unchanged legacy reducer",()=>{
   const state=profile(),context=ctx({actions:{p:Action.streak}}),groups={economy:[grant(1,"bounty.paid")]};
   expect(stepProgression(state,context,1,groups)).toEqual(stepLegacyProgression(state,context,1,groups));
@@ -27,38 +27,38 @@ describe("SIM24 authored progression",()=>{
   expect(rankForXp(900)).toBe(4);expect(rankForXp(900,20)).toBe(2);
  });
  it("adopts an old score once and persists its earned ledger across JSON reload/equip changes",()=>{
-  let state=stepProgression(profile({streakPoints:700,banked:{}}),ctx(),1,{}, {},24);
+  let state=stepProgression(profile({streakPoints:700,banked:{}}),ctx(),1,{}, {},27);
   expect(state.players.p!.banked.confidence).toBe(1);expect(state.players.p!.earnedStreaks).toEqual(["confidence","parrots","tensor"]);
-  state.players.p!.banked.confidence=0;state=stepProgression(JSON.parse(JSON.stringify(state)),ctx(),2,{}, {},24);
+  state.players.p!.banked.confidence=0;state=stepProgression(JSON.parse(JSON.stringify(state)),ctx(),2,{}, {},27);
   expect(state.players.p!.banked.confidence).toBe(0);expect(state.players.p!.streakPoints).toBe(700);
  });
  it("reserves with one fresh X and spends only an exact used acknowledgment once",()=>{
   let state=profile({earnedStreaks:["confidence"],banked:{confidence:2},streakPoints:310});
-  state=stepProgression(state,ctx({actions:{p:Action.streak}}),1,{}, {},24);
+  state=stepProgression(state,ctx({actions:{p:Action.streak}}),1,{}, {},27);
   expect(state.players.p!.pendingStreak).toEqual({kind:"confidence",sequence:1});expect(state.players.p!.banked.confidence).toBe(2);expect(state.events.filter(e=>e.kind==="streak.grant")).toHaveLength(1);
-  state=stepProgression(state,ctx({actions:{p:Action.streak},facts:[ack(99)]}),2,{}, {},24);expect(state.players.p!.pendingStreak?.sequence).toBe(1);expect(state.events).toEqual([]);
-  state=stepProgression(state,ctx({actions:{p:Action.streak},facts:[ack(1,"streak.used","confidence",3)]}),3,{}, {},24);
+  state=stepProgression(state,ctx({actions:{p:Action.streak},facts:[ack(99)]}),2,{}, {},27);expect(state.players.p!.pendingStreak?.sequence).toBe(1);expect(state.events).toEqual([]);
+  state=stepProgression(state,ctx({actions:{p:Action.streak},facts:[ack(1,"streak.used","confidence",3)]}),3,{}, {},27);
   expect(state.players.p!.banked.confidence).toBe(1);expect(state.players.p!.pendingStreak).toBeUndefined();expect(state.players.p!.streakPoints).toBe(310);expect(state.events.filter(e=>e.kind==="streak.spent")).toHaveLength(1);
-  state=stepProgression(state,ctx({facts:[ack(1,"streak.used","confidence",4)]}),4,{}, {},24);expect(state.players.p!.banked.confidence).toBe(1);
+  state=stepProgression(state,ctx({facts:[ack(1,"streak.used","confidence",4)]}),4,{}, {},27);expect(state.players.p!.banked.confidence).toBe(1);
  });
  it("retains a rejected reward and accepts a fresh UI retry without command sequence collision",()=>{
   let state=profile({earnedStreaks:["confidence"],banked:{confidence:1}});
-  state=stepProgression(state,ctx({commands:[{kind:"streak-call",playerId:"p",sequence:50,itemId:"confidence"}]}),1,{}, {},24);
-  state=stepProgression(state,ctx({facts:[ack(1,"streak.rejected")]}),2,{}, {},24);
+  state=stepProgression(state,ctx({commands:[{kind:"streak-call",playerId:"p",sequence:50,itemId:"confidence"}]}),1,{}, {},27);
+  state=stepProgression(state,ctx({facts:[ack(1,"streak.rejected")]}),2,{}, {},27);
   expect(state.players.p!.banked.confidence).toBe(1);expect(state.players.p!.pendingStreak).toBeUndefined();expect(state.events.some(e=>e.kind==="streak.blocked")).toBe(true);
-  state=stepProgression(state,ctx({commands:[{kind:"streak-call",playerId:"p",sequence:51,itemId:"confidence"}]}),3,{}, {},24);expect(state.players.p!.pendingStreak?.sequence).toBe(2);expect(state.players.p!.commandSequence).toBe(51);
+  state=stepProgression(state,ctx({commands:[{kind:"streak-call",playerId:"p",sequence:51,itemId:"confidence"}]}),3,{}, {},27);expect(state.players.p!.pendingStreak?.sequence).toBe(2);expect(state.players.p!.commandSequence).toBe(51);
  });
  it("uses accepted first-attack bonus and prevents repeated grants from re-awarding XP or bank",()=>{
   const context=ctx({actors:[{id:"bot",firmware:"bad",beforeFirstAttack:true} as GameplayContext["actors"][number]]});
-  let state=profile({earnedStreaks:[],streakPoints:200});state=stepProgression(state,context,1,{economy:[grant(1,"bounty.paid",{targetId:"bot"})]}, {},24);
+  let state=profile({earnedStreaks:[],streakPoints:200});state=stepProgression(state,context,1,{economy:[grant(1,"bounty.paid",{targetId:"bot"})]}, {},27);
   expect(state.players.p!.streakPoints).toBe(350);expect(state.players.p!.banked.confidence).toBe(1);const xp=state.players.p!.xp;
-  state=stepProgression(state,context,2,{economy:[grant(1,"bounty.paid",{targetId:"bot"})]}, {},24);expect(state.players.p!.xp).toBe(xp);expect(state.players.p!.banked.confidence).toBe(1);
+  state=stepProgression(state,context,2,{economy:[grant(1,"bounty.paid",{targetId:"bot"})]}, {},27);expect(state.players.p!.xp).toBe(xp);expect(state.players.p!.banked.confidence).toBe(1);
  });
  it("enforces authored rank/ownership and perk/streak slot limits before applying choices",()=>{
   const command=(sequence:number,itemId:string)=>({kind:"loadout" as const,playerId:"p",sequence,itemId});
-  let state=profile({xp:2800});state=stepProgression(state,ctx({commands:[command(1,"wide"),command(2,"speaker"),command(3,"boots")]}),1,{}, {},24);
+  let state=profile({xp:2800});state=stepProgression(state,ctx({commands:[command(1,"wide"),command(2,"speaker"),command(3,"boots")]}),1,{}, {},27);
   expect(state.players.p).toMatchObject({nozzle:"standard",gadget:"balloon",gear:"boots"});
-  state=stepProgression(state,ctx({commands:[command(4,"wide"),command(5,"marine-layer"),command(6,"lean")]}),2,{}, {p:["wide-nozzle"]},24);expect(state.players.p!.nozzle).toBe("wide");expect(state.players.p!.perks).toEqual(["marine-layer"]);
+  state=stepProgression(state,ctx({commands:[command(4,"wide"),command(5,"marine-layer"),command(6,"lean")]}),2,{}, {p:["wide-nozzle"]},27);expect(state.players.p!.nozzle).toBe("wide");expect(state.players.p!.perks).toEqual(["marine-layer"]);
  });
  it("isolates match Doom and requires actual spent AGI to reset the city clock",()=>{
   const before={...createDoomClock(),months:1,lastDay:0};
@@ -80,49 +80,49 @@ describe("SIM24 authored progression",()=>{
  it("checks vendor rank before cash debit and grants only available free garages",()=>{
   const item={id:"wide-nozzle",kind:"nozzle",priceCents:150000,rank:8,wave:4,effect:{}},site={id:"vendor",kind:"vendor" as const,x:0,y:0,z:0,radius:10,wave:4,vendorItems:[item.id]};
   const context=ctx({items:[item],sites:[site,{id:"garage-now",kind:"garage",x:0,y:0,z:0,radius:10,wave:4},{id:"garage-later",kind:"garage",x:0,y:0,z:0,radius:10,wave:5}],commands:[{playerId:"p",kind:"buy",sequence:1,targetId:site.id,itemId:item.id}]});
-  let state=stepEconomy(createEconomy(),context,1,[],undefined,[],[],{p:1},{},24);expect(state.players.p!.cashCents).toBe(200000);expect(state.players.p!.ownedSiteIds).toContain("garage-now");expect(state.players.p!.ownedSiteIds).not.toContain("garage-later");
-  state=stepEconomy(state,{...context,commands:[{...context.commands[0]!,sequence:2}]},2,[],undefined,[],[],{p:8},{},24);expect(state.players.p!.cashCents).toBe(50000);expect(state.players.p!.ownedItemIds).toContain(item.id);
+  let state=stepEconomy(createEconomy(),context,1,[],undefined,[],[],{p:1},{},27);expect(state.players.p!.cashCents).toBe(200000);expect(state.players.p!.ownedSiteIds).toContain("garage-now");expect(state.players.p!.ownedSiteIds).not.toContain("garage-later");
+  state=stepEconomy(state,{...context,commands:[{...context.commands[0]!,sequence:2}]},2,[],undefined,[],[],{p:8},{},27);expect(state.players.p!.cashCents).toBe(50000);expect(state.players.p!.ownedItemIds).toContain(item.id);
  });
 });
 
 it("derives faction completion from accepted route, stopped final Interact and never a remote completion fact",()=>{
  const activity=DEFAULT_CATALOG.activities.find(a=>a.id==="faction-pauser")!,start=activity.checkpoints![0]!,finish=activity.checkpoints![1]!;
  const body={...start,id:"p",mode:"foot" as const,speed:0},context=ctx({bodies:[body],commands:[{kind:"activity-start",sequence:1,playerId:"p",targetId:activity.id}],activities:[activity],directorCards:[]});
- let state=stepActivities(createActivities(),context,1,createMissions(),7,24);
+ let state=stepActivities(createActivities(),context,1,createMissions(),7,27);
  expect(state.players.p!.activeActivityId).toBe(activity.id);
- state=stepActivities(state,{...context,commands:[],facts:[{id:"world:1",source:"world",sequence:1,tick:61,kind:"faction.pauserCompleted",playerId:"p",actorId:activity.id}]},61,createMissions(),7,24);
+ state=stepActivities(state,{...context,commands:[],facts:[{id:"world:1",source:"world",sequence:1,tick:61,kind:"faction.pauserCompleted",playerId:"p",actorId:activity.id}]},61,createMissions(),7,27);
  expect(state.events.some(e=>e.kind==="activity.cash")).toBe(false);expect(state.players.p!.objectiveCount).toBe(0);
- state=stepActivities(state,{...context,commands:[],facts:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},62,createMissions(),7,24);
+ state=stepActivities(state,{...context,commands:[],facts:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},62,createMissions(),7,27);
  expect(state.events.filter(e=>e.kind==="faction.pauserCompleted")).toHaveLength(1);expect(state.events.filter(e=>e.kind==="activity.cash")).toHaveLength(1);
- state=stepActivities(state,{...context,commands:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},63,createMissions(),7,24);expect(state.events.some(e=>e.kind==="activity.cash")).toBe(false);
- let fast=stepActivities(createActivities(),context,1,createMissions(),7,24);fast=stepActivities(fast,{...context,commands:[],bodies:[{...body,speed:6}]},2,createMissions(),7,24);expect(fast.events.some(e=>e.kind==="activity.failed")).toBe(true);
+ state=stepActivities(state,{...context,commands:[],bodies:[{...body,...finish,id:"p"}],actions:{p:Action.interact}},63,createMissions(),7,27);expect(state.events.some(e=>e.kind==="activity.cash")).toBe(false);
+ let fast=stepActivities(createActivities(),context,1,createMissions(),7,27);fast=stepActivities(fast,{...context,commands:[],bodies:[{...body,speed:6}]},2,createMissions(),7,27);expect(fast.events.some(e=>e.kind==="activity.failed")).toBe(true);
 });
 it("adds Default Alive only to an actually rewarded bounty and replays neither cash nor runway",()=>{
  const wallet={...createWallet(),runwayMonths:10},before={...createEconomy(),players:{p:wallet}},facts=[{id:"combat:1",source:"combat" as const,sequence:1,tick:1,kind:"robot.heap",playerId:"p",actorId:"bot"}],context=ctx({actors:[{id:"bot",firmware:"bad"}],facts});
- let state=stepEconomy(before,context,1,[],undefined,[],[],{}, {p:["default-alive"]},24);expect(state.players.p!.runwayMonths).toBe(11);const cash=state.players.p!.cashCents;
- state=stepEconomy(state,{...context,facts:[{...facts[0]!,tick:2}]},2,[],undefined,[],[],{}, {p:["default-alive"]},24);expect(state.players.p!.runwayMonths).toBe(11);expect(state.players.p!.cashCents).toBe(cash);
+ let state=stepEconomy(before,context,1,[],undefined,[],[],{}, {p:["default-alive"]},27);expect(state.players.p!.runwayMonths).toBe(11);const cash=state.players.p!.cashCents;
+ state=stepEconomy(state,{...context,facts:[{...facts[0]!,tick:2}]},2,[],undefined,[],[],{}, {p:["default-alive"]},27);expect(state.players.p!.runwayMonths).toBe(11);expect(state.players.p!.cashCents).toBe(cash);
 });
 it("bills a Microclimate subscription once per observed absolute week, retains same-week credit and stops after cancel",()=>{
  const context=ctx({gameWeek:4}),gear={p:"microclimate"};
- let state=stepEconomy(createEconomy(),context,1,[],undefined,[],[],{}, {}, 24,gear);
+ let state=stepEconomy(createEconomy(),context,1,[],undefined,[],[],{}, {}, 27,gear);
  expect(state.players.p!.cashCents).toBe(199100);expect(state.players.p!.microclimatePaidWeek).toBe(4);expect(state.players.p!.microclimateActive).toBe(true);expect(state.events.filter(e=>e.kind==="subscription.renewed")).toHaveLength(1);
- state=stepEconomy(JSON.parse(JSON.stringify(state)),context,2,[],undefined,[],[],{}, {}, 24,gear);expect(state.players.p!.cashCents).toBe(199100);expect(state.events).toEqual([]);
- state=stepEconomy(state,context,3,[],undefined,[],[],{}, {}, 24,{p:"none"});expect(state.players.p!.microclimateActive).toBe(false);
- state=stepEconomy(state,context,4,[],undefined,[],[],{}, {}, 24,gear);expect(state.players.p!.cashCents).toBe(199100);
- state=stepEconomy(state,{...context,gameWeek:5},5,[],undefined,[],[],{}, {}, 24,gear);expect(state.players.p!.cashCents).toBe(198200);
- state=stepEconomy(state,{...context,gameWeek:6},6,[],undefined,[],[],{}, {}, 24,{p:"none"});expect(state.players.p!.cashCents).toBe(198200);
+ state=stepEconomy(JSON.parse(JSON.stringify(state)),context,2,[],undefined,[],[],{}, {}, 27,gear);expect(state.players.p!.cashCents).toBe(199100);expect(state.events).toEqual([]);
+ state=stepEconomy(state,context,3,[],undefined,[],[],{}, {}, 27,{p:"none"});expect(state.players.p!.microclimateActive).toBe(false);
+ state=stepEconomy(state,context,4,[],undefined,[],[],{}, {}, 27,gear);expect(state.players.p!.cashCents).toBe(199100);
+ state=stepEconomy(state,{...context,gameWeek:5},5,[],undefined,[],[],{}, {}, 27,gear);expect(state.players.p!.cashCents).toBe(198200);
+ state=stepEconomy(state,{...context,gameWeek:6},6,[],undefined,[],[],{}, {}, 27,{p:"none"});expect(state.players.p!.cashCents).toBe(198200);
 });
 it("never charges or enables an unpaid subscription, spams one notice, or bills a match/legacy context",()=>{
  const context=ctx({gameWeek:1}),before={...createEconomy(),players:{p:{...createWallet(),cashCents:899}}},gear={p:"microclimate"};
- let state=stepEconomy(before,context,1,[],undefined,[],[],{}, {}, 24,gear);expect(state.players.p!.cashCents).toBe(899);expect(state.players.p!.microclimateActive).toBe(false);expect(state.events.filter(e=>e.kind==="subscription.unpaid")).toHaveLength(1);
- state=stepEconomy(state,context,2,[],undefined,[],[],{}, {}, 24,gear);expect(state.events).toEqual([]);state.players.p!.cashCents=900;
- state=stepEconomy(state,context,3,[],undefined,[],[],{}, {}, 24,gear);expect(state.players.p!.cashCents).toBe(0);expect(state.players.p!.microclimateActive).toBe(true);
- const mode=stepEconomy(before,{...context,mode:"cleanStreets"},1,[],undefined,[],[],{}, {}, 24,gear);expect(mode.players.p!.cashCents).toBe(899);expect(mode.players.p!.microclimateActive).toBeUndefined();
+ let state=stepEconomy(before,context,1,[],undefined,[],[],{}, {}, 27,gear);expect(state.players.p!.cashCents).toBe(899);expect(state.players.p!.microclimateActive).toBe(false);expect(state.events.filter(e=>e.kind==="subscription.unpaid")).toHaveLength(1);
+ state=stepEconomy(state,context,2,[],undefined,[],[],{}, {}, 27,gear);expect(state.events).toEqual([]);state.players.p!.cashCents=900;
+ state=stepEconomy(state,context,3,[],undefined,[],[],{}, {}, 27,gear);expect(state.players.p!.cashCents).toBe(0);expect(state.players.p!.microclimateActive).toBe(true);
+ const mode=stepEconomy(before,{...context,mode:"cleanStreets"},1,[],undefined,[],[],{}, {}, 27,gear);expect(mode.players.p!.cashCents).toBe(899);expect(mode.players.p!.microclimateActive).toBeUndefined();
  const legacy=stepEconomy(before,context,1,[],undefined,[],[],{}, {},20,gear);expect(legacy.players.p!.microclimateActive).toBeUndefined();
 });
 
 it("AI Winter blocks new bridge answers only in21 and a paid accepted bridge is not immediately reopened",()=>{
- const before={...createPlayer(),players:{p:{...createPlayerStatus(),status:"bridge" as const,bridgeUntil:1000}}},economy={...createEconomy(),players:{p:{...createWallet(),runwayMonths:0}}},context=ctx({simVersion:24,associatesAnswer:false,commands:[{kind:"bridge-accept",sequence:1,playerId:"p"}],observations:[{playerId:"p",seenByBad:false,seenByAssociate:true,associateWithin200:true,fog:0,protectedArea:false}]});
+ const before={...createPlayer(),players:{p:{...createPlayerStatus(),status:"bridge" as const,bridgeUntil:1000}}},economy={...createEconomy(),players:{p:{...createWallet(),runwayMonths:0}}},context=ctx({simVersion:27,associatesAnswer:false,commands:[{kind:"bridge-accept",sequence:1,playerId:"p"}],observations:[{playerId:"p",seenByBad:false,seenByAssociate:true,associateWithin200:true,fog:0,protectedArea:false}]});
  expect(stepPlayer(before,context,1,economy,createHeat()).events.some(e=>e.kind==="player.bridge")).toBe(false);
  const accepted=stepPlayer(before,{...context,associatesAnswer:true},1,economy,createHeat());expect(accepted.players.p!.status).toBe("active");expect(accepted.events.filter(e=>e.kind==="player.bridge")).toHaveLength(1);expect(accepted.events.some(e=>e.kind==="player.bridge-offer")).toBe(false);
  expect(stepPlayer(before,{...context,simVersion:20},1,economy,createHeat()).events.some(e=>e.kind==="player.bridge")).toBe(true);
@@ -131,7 +131,7 @@ it("AI Winter blocks new21 Bell Duels but an already accepted round can complete
  const mission=MISSIONS.find(m=>m.steps.some(s=>s.type==="objective"&&s.objective.kind==="event"&&s.objective.event==="bell.duelStarted"))!;
  const step=mission.steps.find(s=>s.type==="objective"&&s.objective.kind==="event"&&s.objective.event==="bell.duelStarted")!;
  const missions={...createMissions(),players:{p:{...createMissionProgress(),missionId:mission.id,stepId:step.id,status:"active" as const,startedTick:0,visits:1}}},body={...TURNTABLES[0]!,id:"p",y:0,mode:"foot" as const,speed:0};
- const context=ctx({simVersion:24,associatesAnswer:false,missions:[mission],bodies:[body],actions:{p:Action.interact}});
+ const context=ctx({simVersion:27,associatesAnswer:false,missions:[mission],bodies:[body],actions:{p:Action.interact}});
  expect(prepareMissionBell(undefined,missions,context,createHeat(),1,7).state.duels.p).toBeUndefined();
  expect(prepareMissionBell(undefined,missions,{...context,simVersion:20},createHeat(),1,7).state.duels.p).toBeDefined();
  let duel=prepareMissionBell(undefined,missions,{...context,associatesAnswer:true},createHeat(),1,7),won=false;const request=duel.state.duels.p!.requestId,responses=new Set(duel.state.duels.p!.responseTicks);

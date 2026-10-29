@@ -10,7 +10,7 @@ import {initialTarget} from "../../../src/sim/combat/shared.ts";
 import type {CombatContext} from "../../../src/sim/combat/types.ts";
 const world=buildWorld([]);
 function fixture(patch:Partial<RuntimeSpawn>={}){const state=createInitialState(world,7,["p"],{x:100,z:100,heading:0}),spawn={id:"bad",numericId:10,model:"footman" as const,firmware:"bad" as const,x:30,y:0,z:0,heading:0,radius:.4,height:1.8,...patch};state.ext.robots=createAgentsRuntime(state,{spawns:[spawn]});state.ext.combat=createCombatState(7,contextFromState(world,state));state.ext.combat.gadgets=[{id:1,kind:"parrots",ownerId:"p",x:0,y:0,z:0,untilTick:1200,targetId:"",radius:40,progress:0,boost:"salt"}];return {state,actor:state.ext.robots.actors.bad!};}
-describe("SIM24 live gadget lure movement",()=>{
+describe("SIM27 live gadget lure movement",()=>{
  it("plans a bounded ordinary step toward a15m stand-off without changing accepted source pose",()=>{
   const {state,actor}=fixture(),before=JSON.stringify(state),planned=planAgentRuntime(world,{...state,tick:1},{}),proposal=planned.proposals.find(p=>p.id==="bad")!;
   expect(proposal.x).toBeLessThan(actor.x);expect(actor.x-proposal.x).toBeLessThanOrEqual(1.6/60+1e-8);expect(proposal.x).toBeGreaterThan(15+actor.radius);expect(JSON.stringify(state)).toBe(before);
@@ -28,7 +28,7 @@ describe("SIM24 live gadget lure movement",()=>{
  it("keeps accepted robot-to-good-robot sabotage/channel intent ahead of lure movement and distraction",()=>{
   const {state,actor}=fixture();actor.brain={...actor.brain!,update:{targetId:11,startedTick:0}};state.ext.combat!.attacks=[{id:"accepted",kind:"forced-update",attackerId:"bad",targetId:"good",startTick:0,resolveTick:360,endTick:360,presses:0,active:false}];expect(runtimeDeviceLure(state,actor)).toBeNull();
   const combat=state.ext.combat!;combat.tick=1;combat.targets.bad=initialTarget();combat.targets.good=initialTarget();combat.attacks=[{id:"channel",kind:"forced-update",attackerId:"bad",targetId:"good",startTick:0,resolveTick:360,endTick:360,presses:0,active:false}];combat.gadgets=[];
-  const ctx:CombatContext={simVersion:24,wave:4,players:[{id:"p",x:0,y:0,z:0,heading:0,speed:0,mount:"foot",tankTier:0,flowTier:0,scannerTier:1}],actors:[{id:"bad",kind:"robot",firmware:"bad",model:"footman",x:30,y:0,z:0,heading:0,speed:0,radius:.4,height:1.8},{id:"good",kind:"robot",firmware:"good",x:31,y:0,z:0,heading:0,speed:0,radius:.4,height:1.8}],walls:[],refills:[],streaks:[{kind:"parrots",playerId:"p",sequence:1}]};
+  const ctx:CombatContext={simVersion:27,wave:4,players:[{id:"p",x:0,y:0,z:0,heading:0,speed:0,mount:"foot",tankTier:0,flowTier:0,scannerTier:1}],actors:[{id:"bad",kind:"robot",firmware:"bad",model:"footman",x:30,y:0,z:0,heading:0,speed:0,radius:.4,height:1.8},{id:"good",kind:"robot",firmware:"good",x:31,y:0,z:0,heading:0,speed:0,radius:.4,height:1.8}],walls:[],refills:[],streaks:[{kind:"parrots",playerId:"p",sequence:1}]};
   stepDevices(combat,ctx,{p:{streak:"parrots",targetX:0,targetZ:0}});expect(combat.targets.bad!.distractedUntil).toBe(0);expect(combat.attacks[0]!.id).toBe("channel");expect(combat.gadgets[0]!.kind).toBe("parrots");
  });
 });

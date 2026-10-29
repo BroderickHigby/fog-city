@@ -83,10 +83,10 @@
 // v23: people get out of a player's car's way only when it is about to reach them (dodge.ts
 // REACT_S, REACT_LAG_S): not when it will pass them by or is still far off. No field changes:
 // the save upgrade only restamps; v22-and-earlier replays keep the old early dive.
-// v24: measured side activities (Coit Recon, taxi fares, timed runs), collapsed robot projectile
+// v27: measured side activities (Coit Recon, taxi fares, timed runs), collapsed robot projectile
 // silhouettes, physical 5 m junction hulls and robot weather scaling. Optional activity state
 // starts only when a run is booked; v23-and-earlier replays keep the old rules.
-export const SIM_VERSION = 24;
+export const SIM_VERSION = 27;
 export const TICK_HZ = 60;
 export const DT = 1 / 60;
 

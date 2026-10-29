@@ -384,7 +384,7 @@ function slideBox(world: World, b: Readonly<Slider>, d: Readonly<SlideDims>, obs
       break;
     }
     if (res.person) {
-      // Someone's clearance: stop dead, before anyone is touched. v24: where it was before this
+      // Someone's clearance: stop dead, before anyone is touched. v27: where it was before this
       // step. The resolved pose can be nearer them, not further: a person's push spends the push
       // budget, then the wall settle sends the box back past where it started.
       if (holdOnPerson) {
@@ -444,7 +444,7 @@ interface Work {
   /** Agents knocked this tick (they start sliding next tick: stepAgents already moved them). */
   fresh: Set<number>;
   combat: Readonly<CombatState> | undefined;
-  /** v24: a slide that meets someone's clearance stays where it was (slideBox holdOnPerson). */
+  /** v27: a slide that meets someone's clearance stays where it was (slideBox holdOnPerson). */
   holdOnPerson: boolean;
 }
 
@@ -955,7 +955,7 @@ export function stepImpacts(world: World, state: SimState, contacts: ReadonlyMap
     ext: prior ?? { version: 1, nextId: 1, events: [], cars: {} },
     fresh: new Set(),
     combat,
-    holdOnPerson: state.version >= 24,
+    holdOnPerson: state.version >= 27,
   };
 
   // 1. The players' cars' hits: the other body takes its share.
@@ -1047,7 +1047,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   const neighbours:number[][]=bodies.map(()=>[]);
   for(const [i,j] of pairs){neighbours[i]!.push(j);neighbours[j]!.push(i);}
   const w:Work={tick:state.tick,players:state.players,agents:list.slice(),index:new Map(list.map((a,i)=>[a.id,i])),
-    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,holdOnPerson:state.version>=24};
+    ext:impactsOf(state)??{version:1,nextId:1,events:[],cars:{}},fresh:new Set(),combat:state.ext.combat,holdOnPerson:state.version>=27};
   const missed=new Map<number,{i:number;j:number;contact:HullContact}>();
   const poseChanged=(a:Readonly<VehicleHull>,b:Readonly<VehicleHull>)=>a.x!==b.x||a.y!==b.y||a.z!==b.z||a.heading!==b.heading;
   const trajectory=(b:SolidVehicle):VehicleMotion=>({before:b.motion.before,after:b.pose});
@@ -1086,7 +1086,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         if(hullBandsMeet(a.pose,b.pose)&&end.gap<VEHICLE_SKIN)missed.set(i*bodies.length+j,{i,j,contact:end});
         continue;
       }
-      const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=24?128:32);
+      const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=27?128:32);
       if(!hit||hit.t>1)continue;
       missed.set(i*bodies.length+j,{i,j,contact:hit});
       // Tiny safety retreat also keeps a numerical touching pair free to move apart next tick.
@@ -1104,7 +1104,7 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
   for(const [i,j] of pairs){
     const a=bodies[i]!,b=bodies[j]!;
     if(hullBandsMeet(a.motion.before,b.motion.before)&&hullContact(a.motion.before,b.motion.before).gap< -1e-8)continue;
-    const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=24?128:32);
+    const hit=sweepHulls(trajectory(a),trajectory(b),state.version>=27?128:32);
     // A skin contact at the endpoint is expected; only an earlier intersection needs rollback.
     if(hit&&hit.t<1-1e-5)blocked.add(root(i));
   }
@@ -1149,9 +1149,9 @@ export function resolveVehicleContacts(world: World, before: Readonly<SimState>,
         const old=body.oldAgent;
         next={...next,edge:old.edge,dir:old.dir,lane:old.lane,s:old.s,next:old.next,ndir:old.ndir,nlane:old.nlane,
           conn:old.conn,node:old.node,resume:old.resume,lat:old.lat,wait:old.wait+1,mode:"yield"};
-        // v24: a refused whole route step has no travelled velocity. Keeping the attempted
+        // v27: a refused whole route step has no travelled velocity. Keeping the attempted
         // speed made a stationary holder look mobile forever to following traffic.
-        if(state.version>=24)next.speed=0;
+        if(state.version>=27)next.speed=0;
         if(old.pass)next.pass=old.pass;else delete next.pass;
         if(old.trafficRoute)next.trafficRoute=old.trafficRoute;else delete next.trafficRoute;
       }

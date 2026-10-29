@@ -31,34 +31,34 @@ describe("Ramen Office Hours", () => {
     expect(door).toBeDefined();
     expect(activityUnlocked("office-hours", ["hot-desk", "spill", "launch-day"])).toBe(false);
     expect(activityUnlocked("office-hours", after4)).toBe(true);
-    expect(stepActivities(createActivities(), context({ commands: [book] }), 1, done(["hot-desk", "spill", "launch-day"]), 7, 24).players.p!.activeActivityId).toBe("");
-    expect(stepActivities(createActivities(), context({ commands: [book] }), 1, done(after4), 7, 24).players.p!.activeActivityId).toBe("office-hours");
+    expect(stepActivities(createActivities(), context({ commands: [book] }), 1, done(["hot-desk", "spill", "launch-day"]), 7, 27).players.p!.activeActivityId).toBe("");
+    expect(stepActivities(createActivities(), context({ commands: [book] }), 1, done(after4), 7, 27).players.p!.activeActivityId).toBe("office-hours");
     expect(DEFAULT_CATALOG.activities.some(value => value.id === "ramen-house")).toBe(false);
   });
 
   it("starts its interview only through the booked activity, never from a direct mission request", () => {
     const missions = done(after4), direct: GameplayCommand = { playerId: "p", sequence: 1, kind: "mission-start", targetId: "office-hours" };
     expect(stepMissions(missions, context({ commands: [direct] }), 1, createHeat(), createPlayer()).players.p!.missionId).not.toBe("office-hours");
-    const booked = stepActivities(createActivities(), context({ commands: [book] }), 1, missions, 7, 24);
+    const booked = stepActivities(createActivities(), context({ commands: [book] }), 1, missions, 7, 27);
     const started = stepMissions(missions, context(), 2, createHeat(), createPlayer(), 0, booked).players.p!;
     expect(started).toMatchObject({ missionId: "office-hours", status: "active", stepId: "pitch-philosopher" });
     expect(started.completedIds).toEqual(after4);
   });
 
   it("finishes the activity on the forwarded presentation and fails it when the mission ends without one", () => {
-    const booked = stepActivities(createActivities(), context({ commands: [book] }), 1, done(after4), 7, 24);
+    const booked = stepActivities(createActivities(), context({ commands: [book] }), 1, done(after4), 7, 27);
     const presented: MissionState = { ...done(after4), events: [
       { id: 1, tick: 900, kind: "demo.robotPresented", playerId: "p", targetId: "office-hours", amount: 0, detail: "" },
       { id: 2, tick: 900, kind: "mission.finished", playerId: "p", targetId: "office-hours", amount: 0, detail: "termSheet" },
     ] };
-    const paid = stepActivities(booked, context(), 900, presented, 7, 24);
+    const paid = stepActivities(booked, context(), 900, presented, 7, 27);
     expect(paid.events.map(value => value.kind)).toEqual(["activity.cash", "activity.xp", "activity.finished"]);
     // Office Hours pays through the mission's outcome; the activity adds nothing on top.
     expect(paid.events.filter(value => value.kind === "activity.cash" || value.kind === "activity.xp").every(value => value.amount === 0)).toBe(true);
-    const failed = stepActivities(booked, context(), 900, { ...done(after4), events: [presented.events[1]!] }, 7, 24);
+    const failed = stepActivities(booked, context(), 900, { ...done(after4), events: [presented.events[1]!] }, 7, 27);
     expect(failed.events.map(value => value.kind)).toEqual(["activity.failed"]);
     // A claimed presentation fact from outside the mission never counts.
-    const spoofed = stepActivities(booked, context({ facts: [{ id: "x", source: "world", sequence: 1, tick: 900, kind: "demo.robotPresented", playerId: "p" }] }), 900, done(after4), 7, 24);
+    const spoofed = stepActivities(booked, context({ facts: [{ id: "x", source: "world", sequence: 1, tick: 900, kind: "demo.robotPresented", playerId: "p" }] }), 900, done(after4), 7, 27);
     expect(spoofed.players.p!.objectiveCount).toBe(0);
   });
 });

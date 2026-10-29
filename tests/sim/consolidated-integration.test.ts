@@ -25,7 +25,7 @@ function fixture(options: { version?: number; bad?: boolean; players?: string[];
   if (options.bad) spawns.push({ ...spawns[0]!, id: "fixture:bad", numericId: 101, firmware: "bad", x: 45 });
   const systems = createGameSystems({ wave: 4, protectedArea: () => false, agents: () => ({ spawns, services: false }), combat: options.combat, modes: [] });
   let state = createInitialState(world, 7, options.players ?? ["p"], { x: 0, z: 0, heading: 0 });
-  state.version = options.version ?? 24;
+  state.version = options.version ?? 27;
   state = step(world, state, { p: neutral }, [], systems);
   const advance = (previous: SimState, inputs: InputFrame = { p: neutral }, events: SimEvent[] = []) => step(world, previous, inputs, events, systems);
   return { world, systems, state, advance };
@@ -36,7 +36,7 @@ function bank(state: SimState, kind = "parrots", count = 1): void {
   own.streakSequence = 0; own.streakHeld = false; delete own.pendingStreak;
 }
 
-describe("SIM24 composed ownership and provider integration", () => {
+describe("SIM27 composed ownership and provider integration", () => {
   it("keeps ordinary nearby robot anchors alive without a Coit viewer", () => {
     const { advance, state } = fixture();
     expect(state.ext.robots!.actors["fixture:good"]!.retired).toBe(false);
@@ -104,7 +104,7 @@ describe("SIM24 composed ownership and provider integration", () => {
     expect(resumed.ext.activities!.players.p!.cardCooldowns.expired).toBe(at);
   });
 
-  it.each([19, 20])("keeps the historical SIM%s core path moving while the SIM24 pause contract is inactive", version => {
+  it.each([19, 20])("keeps the historical SIM%s core path moving while the SIM27 pause contract is inactive", version => {
     const { advance, state } = fixture({ version });
     state.ext.combat!.pauseUntil = state.tick + 5;
     const next = advance(state, { p: { ...forward, actions: 0 } });

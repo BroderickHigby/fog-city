@@ -10,7 +10,7 @@ export interface MatchCarrySource {city:Readonly<SimState>;bindings:Readonly<Rec
 const amount=(value:number)=>Number.isSafeInteger(value)&&value>=0?value:0;
 /** Copy gameplay authority only; no body, wallet balance, campaign, clock, Doom or RNG crosses. */
 export function applyValidatedMatchCarry(instance:SimState,source:MatchCarrySource):SimState {
-  if(instance.version<24||source.city.version<24)return instance;
+  if(instance.version<27||source.city.version<27)return instance;
   const city=source.city,session=city.ext.modes as {match?:{version?:number}}|undefined;
   if(session?.match?.version===1)throw new Error("Match loadout authority must come from the paused city");
   const keys=sortedIds(source.bindings),used=new Set<string>();
@@ -21,7 +21,7 @@ export function applyValidatedMatchCarry(instance:SimState,source:MatchCarrySour
     if(!isGameplayId(id)||!isGameplayId(sourceId)||!instance.players[id]||!city.players[sourceId]||used.has(sourceId))throw new Error("Match carry requires unique current city seats");
     used.add(sourceId);
     const old=city.ext.progression?.players[sourceId]??createProgressionPlayer(),wallet=city.ext.economy?.players[sourceId];
-    const xp=amount(old.xp),rank=rankForXp(xp,24),owned=(wallet?.ownedItemIds??[]).filter(value=>isGameplayId(value)&&(value==="trunk-tank"||value==="roof-cannon"||normalizeLoadoutChoice(value)?.kind==="nozzle")).slice(0,64);
+    const xp=amount(old.xp),rank=rankForXp(xp,27),owned=(wallet?.ownedItemIds??[]).filter(value=>isGameplayId(value)&&(value==="trunk-tank"||value==="roof-cannon"||normalizeLoadoutChoice(value)?.kind==="nozzle")).slice(0,64);
     const nozzle=normalizeLoadoutChoice(old.nozzle),gadget=normalizeLoadoutChoice(old.gadget),gear=normalizeLoadoutChoice(old.gear);
     const canOwnNozzle=nozzle?.kind==="nozzle"&&(!nozzle.requiresOwnership||owned.some(id=>{const choice=normalizeLoadoutChoice(id);return choice?.kind==="nozzle"&&choice.value===nozzle.value;}));
     const perks=[...new Set(old.perks.flatMap(id=>{const choice=normalizeLoadoutChoice(id);return choice?.kind==="perk"?[choice.value]:[];}))].slice(0,loadoutSlots("perkSlots",rank,4));

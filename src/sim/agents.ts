@@ -1221,7 +1221,7 @@ interface Hold {
   x: number;
   z: number;
   heading: number;
-  /** v24: physical dimensions and future centre path, rather than the legacy tail ribbon. */
+  /** v27: physical dimensions and future centre path, rather than the legacy tail ribbon. */
   hull?: VehicleHull;
   sweepPath?: Path | null;
   sweeps?: readonly VehicleMotion[];
@@ -1531,7 +1531,7 @@ interface Ctx {
   amberCommit: boolean;
   /** v18 jam recovery relaxes priority, never physical vehicle clearance. */
   solidVehicles: boolean;
-  /** v24 reserves actual 5 m hulls; versions through 20 retain their recorded planning. */
+  /** v27 reserves actual 5 m hulls; versions through 20 retain their recorded planning. */
   junctionHulls: boolean;
   downstreamWait: ReadonlySet<number>;
   /** Legal prospective exits can ask a queued nose for room before admission. */
@@ -2681,7 +2681,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     let released: AgentState[] | undefined;
     for (let i = 0; i < ext.list.length; i++) {
       const a = ext.list[i]!;
-      if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node, prev.version >= 24)) continue;
+      if (!AGENT_SPEC[a.kind].road || a.manualCar || a.node === "" || enteredJunction(g, a, a.node, prev.version >= 27)) continue;
       const aspect = signalAspect(signals, a.node, a.edge, scheduleTick);
       if (aspect === null || aspect === "green") continue;
       if (amberCommit && committedOnAmber(g, signals, scheduleTick, a, a.node)) continue;
@@ -2689,7 +2689,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     }
     if (released) ext = { ...ext, list: released };
   }
-  if (prev.version >= 24) for (const a of ext.list) {
+  if (prev.version >= 27) for (const a of ext.list) {
     if (AGENT_SPEC[a.kind].road && !a.manualCar && downstreamShortWait(g, a, signals, scheduleTick)) downstreamWait.add(a.id);
   }
   const bodies = playerBodies(prev);
@@ -2726,7 +2726,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   const scratch: Obs[] = [];
   for (const a of ext.list) {
     if (!stepDt.has(a.id) || a.dwell > 0 || a.dodge !== null) continue;
-    probes.set(a.id, probe(g, a, hash, a.ghost > 0 && prev.version < 18, scratch, routes, prev.version >= 24));
+    probes.set(a.id, probe(g, a, hash, a.ghost > 0 && prev.version < 18, scratch, routes, prev.version >= 27));
   }
 
   // Junctions (nodes with 3+ streets): who holds each one (claimed at the line, crossing, or
@@ -2754,7 +2754,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
         const path = holdPath(g, a);
         let l = holders.get(a.node);
         if (!l) holders.set(a.node, (l = []));
-        l.push(fullHold(g, a, a.node, path, prev.version >= 24));
+        l.push(fullHold(g, a, a.node, path, prev.version >= 27));
       }
     }
     if (a.conn === null && a.s < EXIT_CLEAR_M) fullStart.add(`${a.edge}|${a.dir}|${a.lane}`);
@@ -2768,14 +2768,14 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // On a short link with its tail still in the junction behind (rearHold): it contends for the
     // junction ahead from wherever it waits, or it would hold the one behind while every other
     // approach takes the one ahead.
-    const rear = rearHold(g, a, signals, prev.version >= 24);
+    const rear = rearHold(g, a, signals, prev.version >= 27);
     if (a.node !== "" && !rear) continue;
     const rem = remainingOnPath(g, a);
     if (!rem) continue;
     const nd = g.nodes[rem.node]!;
     const aspect = signalAspect(signals, nd.id, a.edge, scheduleTick);
     if ((nd.degree < 3 || a.ghost > 0) && aspect === null) continue;
-    const halfLength = prev.version >= 24 ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength;
+    const halfLength = prev.version >= 27 ? a.halfLength ?? ROBOTAXI_BODY.halfLength : spec.halfLength;
     if (rem.dist > halfLength + STOPLINE_M + 9 && !rear) continue;
     let w = waiters.get(nd.id);
     if (!w) waiters.set(nd.id, (w = []));
@@ -2789,7 +2789,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     // Down a short link against a robotaxi coming up it (or holding its far junction to): each
     // would hold the junction the other waits for, for good (Fillmore St between Retiro Way and
     // Marina Blvd, 15.7 m: the Fleet Week getaway jam, 2026-10-24).
-    if (plan && shortLink(g, plan, signals, prev.version >= 24) && linked.has(`${plan.edge.id}|${-plan.dir}`)) continue;
+    if (plan && shortLink(g, plan, signals, prev.version >= 27) && linked.has(`${plan.edge.id}|${-plan.dir}`)) continue;
     let l = contenders.get(nd.id);
     if (!l) contenders.set(nd.id, (l = []));
     l.push(a);
@@ -2805,7 +2805,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
     for (const a of l) {
       const path = plannedConnector(g, a);
       if (!path) continue;
-      const physical = prev.version >= 24;
+      const physical = prev.version >= 27;
       const sweep = physical ? reservationSweepPath(g,a,key) : null;
       const movingHull = physical ? roadHull(a) : null;
       let ok = true;
@@ -2836,12 +2836,12 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
         if(legacyBlocked||fullBlocked)ok=false;
       }
       const plan = planNext(g, a);
-      const link = plan && shortLink(g, plan, signals, prev.version >= 24) ? plan : null;
+      const link = plan && shortLink(g, plan, signals, prev.version >= 27) ? plan : null;
       if (link && entering.has(`${link.edge.id}|${-link.dir}`)) continue;
       if (!ok) continue;
       if (link) entering.add(`${link.edge.id}|${link.dir}`);
       winners.add(a.id);
-      hs.push(fullHold(g, a, key, path, prev.version >= 24));
+      hs.push(fullHold(g, a, key, path, prev.version >= 27));
     }
   }
 
@@ -2856,7 +2856,7 @@ export function stepAgents(world: World, prev: Readonly<SimState>, tick: number,
   for (const a of ext.list) byId.set(a.id, a);
   const rides = ridesByAgent(prev);
   const { vehicles, feet } = passBodies(prev, ext.list);
-  const ctx: Ctx = { signals, amberCommit, solidVehicles: prev.version >= 18, junctionHulls: prev.version >= 24, downstreamWait, yieldRequests, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick: scheduleTick, vehicles, feet, rides, hailed: hailsByAgent(prev), brokenProps: (prev.ext.impacts as { props?: Record<string, unknown> } | undefined)?.props ?? {} };
+  const ctx: Ctx = { signals, amberCommit, solidVehicles: prev.version >= 18, junctionHulls: prev.version >= 27, downstreamWait, yieldRequests, world, g, hash, footHash, boxHash, routes, probes, byId, scratch, holders, holding, road, winners, tick: scheduleTick, vehicles, feet, rides, hailed: hailsByAgent(prev), brokenProps: (prev.ext.impacts as { props?: Record<string, unknown> } | undefined)?.props ?? {} };
   const list: AgentState[] = [];
   for (const a of ext.list) {
     const dt = stepDt.get(a.id);
@@ -2913,7 +2913,7 @@ export function explainAgent(world: World, state: Readonly<SimState>, id: number
   if (!g || !a) return null;
   const ext = state.ext[AGENTS_EXT_KEY] as AgentsExt;
   const hash = buildHash([...playerObstacles(state), ...agentObstacles(ext.list, g)]);
-  const pr = probe(g, a, hash, a.ghost > 0 && state.version < 18, [], null, state.version >= 24);
+  const pr = probe(g, a, hash, a.ghost > 0 && state.version < 18, [], null, state.version >= 27);
   const rem = remainingOnPath(g, a);
   let holder: number | null = null;
   const nodeId = rem ? g.nodes[rem.node]!.id : null;

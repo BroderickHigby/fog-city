@@ -15,7 +15,7 @@ import type {GameplayContext,ProgressionState} from "../../../src/sim/player/typ
 const world=buildWorld([]),initial=(id="p")=>createInitialState(world,7,[id],{x:0,z:0,heading:0});
 function city(){const state=initial();state.ext.progression={...createProgression(),players:{p:{...createProgressionPlayer(),xp:5500,rank:55,nozzle:"wide",gadget:"sprinkler",gear:"boots",perks:["lean","marine-layer"],streaks:["confidence","tensor"],banked:{confidence:2,tensor:1},pendingStreak:{kind:"confidence",sequence:7},streakSequence:7,streakPoints:800,earnedStreaks:["confidence","tensor"]}}};state.ext.economy={...createEconomy(),players:{p:{...createWallet(),cashCents:98765,ownedItemIds:["wide-nozzle","trunk-tank"],ownedSiteIds:["fidi-desk"]}}};return state;}
 const ctx=(patch:Partial<GameplayContext>={}):GameplayContext=>({...DEFAULT_CATALOG,wave:4,mode:"botSweep",bodies:[{id:"p",x:0,y:0,z:0,mode:"foot",speed:0}],actors:[],observations:[],facts:[],commands:[],day:0,month:1,...patch});
-describe("SIM24 isolated profile authority",()=>{
+describe("SIM27 isolated profile authority",()=>{
  it("carries only validated earned profile/equipment authority without copying or mutating campaign money/bodies/RNG",()=>{
   const source=city(),before=canonicalJson(source),instance=initial("seat"),rng=instance.rng,body=instance.players.seat!.car;
   const carried=applyValidatedMatchCarry(instance,{city:source,bindings:{seat:"p"}}),profile=carried.ext.progression!.players.seat!,wallet=carried.ext.economy!.players.seat!;
@@ -39,10 +39,10 @@ describe("SIM24 isolated profile authority",()=>{
  });
  it("derives bank points from canonical match score once without economy/combat double counting or city Doom",()=>{
   let match=createMatchState({id:"earned",mode:"botSweep",seed:7,players:["p"],relayId:"relay",badRobotIds:["bad"]});
-  match=stepMatch(match,{simVersion:24,tick:1,positions:{p:{x:0,y:0,z:0}},combatEvents:[{id:1,tick:1,kind:"robot.heap",sourceId:"p",targetId:"bad",amount:1,detail:"footman"}]});
+  match=stepMatch(match,{simVersion:27,tick:1,positions:{p:{x:0,y:0,z:0}},combatEvents:[{id:1,tick:1,kind:"robot.heap",sourceId:"p",targetId:"bad",amount:1,detail:"footman"}]});
   let state=initial();state.ext.modes={match} as unknown as NonNullable<typeof state.ext.modes>;const facts=modeProgressionFacts(state,2);expect(facts[0]?.detail).toBe("melt");
   let profile:ProgressionState={...createProgression(),players:{p:{...createProgressionPlayer(),xp:550,streakPoints:200,earnedStreaks:[]}}};
-  profile=stepProgression(profile,ctx({facts}),2,{}, {},24);expect(profile.players.p!.streakPoints).toBe(300);expect(profile.players.p!.banked.confidence).toBe(1);expect(profile.doom?.resets).toBe(0);
-  profile=stepProgression(JSON.parse(JSON.stringify(profile)),ctx({facts:modeProgressionFacts(state,3)}),3,{}, {},24);expect(profile.players.p!.streakPoints).toBe(300);expect(profile.players.p!.banked.confidence).toBe(1);
+  profile=stepProgression(profile,ctx({facts}),2,{}, {},27);expect(profile.players.p!.streakPoints).toBe(300);expect(profile.players.p!.banked.confidence).toBe(1);expect(profile.doom?.resets).toBe(0);
+  profile=stepProgression(JSON.parse(JSON.stringify(profile)),ctx({facts:modeProgressionFacts(state,3)}),3,{}, {},27);expect(profile.players.p!.streakPoints).toBe(300);expect(profile.players.p!.banked.confidence).toBe(1);
  });
 });

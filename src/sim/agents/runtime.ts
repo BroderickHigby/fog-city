@@ -118,7 +118,7 @@ export interface AgentsRuntimeState {
 export interface AgentRuntimeOptions {
   graph?: SidewalkGraph;
   services?: boolean;
-  /** v24 authored weather scaling for autonomous robots only; finite values clamp to .5..1. */
+  /** v27 authored weather scaling for autonomous robots only; finite values clamp to .5..1. */
   speedMultiplier?: number;
   transit?: TransitLayer;
   vehicleControls?: Readonly<Record<string,Readonly<SimInput>>>;
@@ -337,7 +337,7 @@ function observationSet(world:World,sim:Readonly<SimState>,actor:RuntimeActor,ot
     if(received.kind!=="robot.broadcast")continue;
     const source=others.find(other=>other.id===received.sourceId);
     if(!source?.brain)continue;
-    for(const known of source.brain.knowledge)broadcasts.push({sourceId:source.numericId,sourcePosition:{x:source.x,z:source.z},sourceSeized:phase(sim,source.id)==="seized",emittedTick:sim.tick,observedTick:known.observedTick,...(sim.version>=24?{expiresTick:known.expiresTick}:{}),playerId:known.playerId,position:{x:known.x,z:known.z}});
+    for(const known of source.brain.knowledge)broadcasts.push({sourceId:source.numericId,sourcePosition:{x:source.x,z:source.z},sourceSeized:phase(sim,source.id)==="seized",emittedTick:sim.tick,observedTick:known.observedTick,...(sim.version>=27?{expiresTick:known.expiresTick}:{}),playerId:known.playerId,position:{x:known.x,z:known.z}});
   }
   return {sight,sounds,scans,watches,broadcasts};
 }
@@ -602,7 +602,7 @@ function propose(world:World,state:AgentsRuntimeState,actor:RuntimeActor,graph:S
     else if(reaction.movement.reason==="reaction"||reaction.movement.reason==="leash"){goal={x:actor.x+reaction.movement.vx,z:actor.z+reaction.movement.vz};speed=Math.sqrt(reaction.movement.vx*reaction.movement.vx+reaction.movement.vz*reaction.movement.vz);}
     }
   }
-  if(sim.version>=24 && actor.firmware!=="none" && actor.model!=="person" && actor.model!=="walker" && !animal(actor.model)) {
+  if(sim.version>=27 && actor.firmware!=="none" && actor.model!=="person" && actor.model!=="walker" && !animal(actor.model)) {
     speed *= Number.isFinite(options.speedMultiplier) ? clamp(options.speedMultiplier!, .5, 1) : 1;
   }
   if(speed<=0||frozen||actor.posted){delete actor.stall;state.proposals.push(proposalOf(actor,actor.legacyId,actor.model==="drone"?"flying":"walker",actor.x,actor.y,actor.z,actor.heading,0));return;}

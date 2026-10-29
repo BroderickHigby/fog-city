@@ -10,7 +10,7 @@ describe("SIM20 saves and replay through consolidated activities",()=>{
   const before=canonicalJson(saved.state),old=saved.state as unknown as SimState;
   expect(hashState(old)).toBe(saved.hash);
   const result=upgradeState(old);
-  expect(SIM_VERSION).toBe(24);
+  expect(SIM_VERSION).toBe(27);
   expect(result).toEqual({...old,version:SIM_VERSION});
   expect(result.ext).toBe(old.ext);expect(result.players).toBe(old.players);
   expect(canonicalJson(saved.state)).toBe(before);

@@ -18,10 +18,10 @@ function context(patch: Patch = {}): GameplayContext {
 /** A stream particle passing through a board at the given height above the ground. */
 const spray = (board: { x: number; z: number }, height = .6): WaterTrace => ({ playerId: "p", ax: board.x - 1, az: board.z, ah: height, bx: board.x + 1, bz: board.z, bh: height });
 function started(): ActivitiesState {
-  return stepActivities(createActivities(), context({ commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: "plain-words" }] }), 1, createMissions(), 7, 24);
+  return stepActivities(createActivities(), context({ commands: [{ playerId: "p", sequence: 1, kind: "activity-start", targetId: "plain-words" }] }), 1, createMissions(), 7, 27);
 }
 function step(state: ActivitiesState, tick: number, patch: Patch = {}): ActivitiesState {
-  return stepActivities(state, context(patch), tick, createMissions(), 7, 24);
+  return stepActivities(state, context(patch), tick, createMissions(), 7, 27);
 }
 const spinner = (state: ActivitiesState, index: number, at: { x: number; z: number }): CombatActor =>
   ({ id: state.players.p!.plainWords!.spinnerIds[index]!, kind: "robot", firmware: "bad", x: at.x, y: 0, z: at.z, heading: 0, speed: 0, radius: .45, height: 1.6 }) as CombatActor;

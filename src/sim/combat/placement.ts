@@ -68,7 +68,7 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
   }
   for(const actor of options.actors??[])if(actor.kind==="person"||actor.kind==="animal"||actor.protected===true){const circle={x:actor.x,z:actor.z,radius:actor.radius};circles.push(circle);effectCircles.push(circle);}
   const allowed=(point:Vec3,clearance:number):boolean=>{
-    if(state.version<24||!finite(point)||!Number.isFinite(clearance)||clearance<.05||clearance>20)return false;
+    if(state.version<27||!finite(point)||!Number.isFinite(clearance)||clearance<.05||clearance>20)return false;
     const r=clearance,b={minX:point.x-r,minZ:point.z-r,maxX:point.x+r,maxZ:point.z+r},fields=fieldsNear(world,b),y=meshGroundHeight(world,point.x,point.z);
     if(!covered(fields,b)||!dry(fields,b,point.x,point.z,r)||world.walls&&onWater(world.walls.shore,point.x,point.z)||Math.abs(point.y-y)>.4)return false;
     if(protectedRings.some(ring=>circleTouchesPolygon(point.x,point.z,r*r,ring)))return false;
@@ -80,7 +80,7 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
   };
   const safeLots:(Vec3&{id:string;radius:number})[]=[];
   const include=options.includeLots??((state.ext.combat?.pauseUntil??0)<=state.tick&&sortedIds(state.ext.progression?.players??{}).some(id=>state.ext.progression!.players[id]!.pendingStreak?.kind==="tensor"));
-  if(state.version>=24&&include){
+  if(state.version>=27&&include){
     const unique=new Map<string,Vec3&{id:string;radius:number}>();
     for(const id of sortedIds(state.players)){
       const pose=poses.get(id)!,candidates:{x:number;z:number;key:string;d:number}[]=[],grid=COMBAT_PLACEMENT.gridM,range=COMBAT_PLACEMENT.lotRange;
@@ -97,7 +97,7 @@ export function createCombatPlacement(world:World,state:Readonly<SimState>,optio
     const hull=hulls.find(body=>sq(body.x-point.x)+sq(body.z-point.z)<.01),radius=hull?Math.max(clearance,hull.hl+hull.hw):clearance;
     return !protectedRings.some(ring=>circleTouchesPolygon(point.x,point.z,radius*radius,ring))&&!effectCircles.some(body=>sq(body.x-point.x)+sq(body.z-point.z)<=sq(body.radius+radius+COMBAT_PLACEMENT.bodyGap));
   },aimPlacement:(player:Readonly<CombatPlayer>,input:Readonly<CombatInput>,range:number)=>{
-    const pose=poses.get(player.id);if(state.version<24||!pose||!Number.isFinite(range)||range<.1||range>200)return null;
+    const pose=poses.get(player.id);if(state.version<27||!pose||!Number.isFinite(range)||range<.1||range>200)return null;
     const yaw=Number.isFinite(input.aimYaw)?input.aimYaw!:pose.heading,pitch=clamp(Number.isFinite(input.aimPitch)?input.aimPitch!:0,-1.2,1.2),fx=dsin(yaw),fz=-dcos(yaw),slope=dsin(pitch)/dcos(pitch);
     let distance=range;
     for(let at=Math.min(1,range);at<range;at+=1){const x=pose.x+fx*at,z=pose.z+fz*at;if(pose.y+1.4+slope*at<=meshGroundHeight(world,x,z)+.1){distance=at;break;}}

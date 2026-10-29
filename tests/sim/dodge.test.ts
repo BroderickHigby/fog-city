@@ -575,7 +575,7 @@ describe("the dodge in step()", () => {
     expect(dodgeExtOf(old).dives).toBe(1);
     expect(dodgeExtOf(at(23)).dives).toBe(0);
     const saved = { ...scene(flat, [], [{ id: 1, x: 0, z: 0 }]), version: 22 };
-    expect(upgradeState(saved)).toEqual({ ...saved, version: 24 });
+    expect(upgradeState(saved)).toEqual({ ...saved, version: 27 });
   });
 
   it("nobody runs from a car that will not hit them (owner, 2026-10-27): one passing 3 m or more beside them, or driving away", () => {

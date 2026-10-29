@@ -148,7 +148,7 @@ describe("registered combat system", () => {
   });
 });
 
-describe("SIM24 owned device controls",()=>{
+describe("SIM27 owned device controls",()=>{
   it("maps held gear and a reserved profile grant once, then accepts a consecutive new same-kind reservation",()=>{
     let sequence=1;
     const grantSystem=createCombatSystem(system=>({context:contextFromState(system.world,system.state,{wave:4,loadouts:{p:{gear:"boots"}},streaks:[{playerId:"p",kind:"confidence",sequence}]})}));

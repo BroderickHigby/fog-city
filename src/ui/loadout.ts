@@ -8,7 +8,7 @@ import type { UiCopy } from "./types.ts";
 export interface LoadoutChoiceView {id:string;label:string;description:string;group:string;selected:boolean;enabled:boolean;reason:string;banked?:number;callable?:boolean}
 export interface LoadoutView {rank:number;points:number;perkSlots:number;streakSlots:number;pending:boolean;feedback:string;choices:readonly LoadoutChoiceView[]}
 export function loadoutProjection(state:Readonly<SimState>,id:string,wave:number,copy:UiCopy):LoadoutView|undefined {
-  if(state.version<24||wave<4)return undefined;
+  if(state.version<27||wave<4)return undefined;
   const snapshot=gameplaySnapshot({state}),profile=snapshot.progression.players[id];if(!profile)return undefined;
   const owned=snapshot.economy.players[id]?.ownedItemIds??[],perkSlots=loadoutSlots("perkSlots",profile.rank,wave),streakSlots=loadoutSlots("streakSlots",profile.rank,wave);
   const choices:LoadoutChoiceView[]=[];

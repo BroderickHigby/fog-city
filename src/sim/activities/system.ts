@@ -43,12 +43,12 @@ function matchesMoment(card:DirectorCard,body:GameplayBody,hour:number|undefined
 }
 /** Director schedules are independent per player and persisted in snapshots; omitted versions retain legacy pacing. */
 export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick:number,missions:MissionState,seed:number,simVersion=16):ActivitiesState {
- if(simVersion<24)return stepLegacyActivities(previous,ctx,tick,missions,seed,simVersion);
+ if(simVersion<27)return stepLegacyActivities(previous,ctx,tick,missions,seed,simVersion);
  const state:ActivitiesState={...previous,tick,players:{},factCursors:{...previous.factCursors},events:[]};const incoming=facts(ctx,tick,state.factCursors);
  for(const body of sortedBodies(ctx)){
   let hash=seed;for(const char of body.id)hash=(Math.imul(hash,31)+char.charCodeAt(0))>>>0;
   const old=previous.players[body.id]??createOwn(hash,tick,simVersion);const own:PlayerActivities={...old,directorRng:[...old.directorRng],cardCooldowns:{...old.cardCooldowns},completedIds:[...old.completedIds],cooldowns:{...old.cooldowns},...(old.officeHoursBookings?{officeHoursBookings:{...old.officeHoursBookings}}:{}),...(old.parking?{parking:{...old.parking}}:{}),...(old.recon?{recon:{...old.recon,found:[...old.recon.found],...(old.recon.viewer?{viewer:cloneCoitViewer(old.recon.viewer)}:{})}}:{}),...(old.plainWords?{plainWords:{...old.plainWords,boards:old.plainWords.boards.map(b=>({...b})),spinnerIds:[...old.plainWords.spinnerIds],rusted:[...old.plainWords.rusted]}}:{})};state.players[body.id]=own;
-  const missionActive=simVersion>=24?missionEngaged(missions.players[body.id],ctx):missions.players[body.id]?.status==="active";
+  const missionActive=simVersion>=27?missionEngaged(missions.players[body.id],ctx):missions.players[body.id]?.status==="active";
   // A travel leg of a mission (a goto step) leaves room for a street incident on the way (city life).
   const progress=missions.players[body.id],travelling=missionActive&&ctx.missions.find(m=>m.id===progress?.missionId)?.steps.find(step=>step.id===progress?.stepId)?.type==="goto";
   const busy=missionActive&&!travelling;const observation=ctx.observations.find(o=>o.playerId===body.id);
@@ -65,7 +65,7 @@ export function stepActivities(previous:ActivitiesState,ctx:GameplayContext,tick
    own.commandSequence=command.sequence;
    if(command.kind!=="activity-start"||own.activeActivityId||missionActive)continue;
    const activity=ctx.activities.find(a=>a.id===command.targetId&&canStartActivity(a,own,body,tick,ctx.wave,missions.players[body.id]?.completedIds??[],ctx.gameDay??ctx.day));
-   if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;if(simVersion>=24){own.pausedTicks=0;own.activityUntilTick=activity.timeLimitS===undefined?0:tick+Math.ceil(activity.timeLimitS*60);}own.checkpointIndex=0;own.objectiveCount=0;own.ruleFailed=false;event(state,"activity.started",body.id,activity.id);if(activity.id==="office-hours"){own.officeHoursSequence=(own.officeHoursSequence??0)+1;own.officeHoursBookings={day:ctx.gameDay??ctx.day,count:own.officeHoursBookings?.day===(ctx.gameDay??ctx.day)?own.officeHoursBookings.count+1:1};}if(activity.id===PLAIN_WORDS_ID)own.plainWords=startPlainWords(state,body.id,tick);if(activity.id===RECON_ID)own.recon=startRecon();}
+   if(activity){own.activeActivityId=activity.id;own.activityStartedTick=tick;if(simVersion>=27){own.pausedTicks=0;own.activityUntilTick=activity.timeLimitS===undefined?0:tick+Math.ceil(activity.timeLimitS*60);}own.checkpointIndex=0;own.objectiveCount=0;own.ruleFailed=false;event(state,"activity.started",body.id,activity.id);if(activity.id==="office-hours"){own.officeHoursSequence=(own.officeHoursSequence??0)+1;own.officeHoursBookings={day:ctx.gameDay??ctx.day,count:own.officeHoursBookings?.day===(ctx.gameDay??ctx.day)?own.officeHoursBookings.count+1:1};}if(activity.id===PLAIN_WORDS_ID)own.plainWords=startPlainWords(state,body.id,tick);if(activity.id===RECON_ID)own.recon=startRecon();}
   }
   if(own.activeActivityId){
    const activity=ctx.activities.find(a=>a.id===own.activeActivityId&&activityAvailable(a));const elapsed=tick-own.activityStartedTick-(own.pausedTicks??0);

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { junctionPathHitsHull, shortLinkSignalWindow, stepAgents, ROBOTAXI_BODY } from "../../src/sim/agents.ts";
-import pendingYield from "./fixtures/pending-junction-yield-v24.json";
-import separatingTurn from "./fixtures/separating-turn-v24.json";
-import queueFixture from "./fixtures/junction-queue-v24.json";
+import pendingYield from "./fixtures/pending-junction-yield-v27.json";
+import separatingTurn from "./fixtures/separating-turn-v27.json";
+import queueFixture from "./fixtures/junction-queue-v27.json";
 import { makePath, type RoadGraph } from "../../src/sim/roads.ts";
 import { createInitialState, makeFoot, type AgentState, type SimState } from "../../src/sim/index.ts";
 import { agentVelocity, resolveVehicleContacts } from "../../src/sim/impacts.ts";
@@ -39,7 +39,7 @@ describe("physical junction hull reservations", () => {
     expect(junctionPathHitsHull(path, { ...nose, x: nose.x - 5 }, lead)).toBe(false);
     expect(junctionPathHitsHull(path, { ...nose, y: lead.y + lead.height + .1 }, lead)).toBe(false);
   });
-  it.each([20, 21])("rolls back the complete cursor and reports accepted velocity at version%d", version => {
+  it.each([26, 27])("rolls back the complete cursor and reports accepted velocity at version%d", version => {
     const world = emptyWorld(), base = createInitialState(world, 3, ["p1"], { x: 100, z: 100, heading: 0 });
     const actor = taxi(1375, lead), waiting = taxi(536, nose);
     const before: SimState = { ...base, version, tick: 9000, ext: { ...base.ext, agents: { nextId: 1376, list: [waiting, actor] } } };
@@ -50,7 +50,7 @@ describe("physical junction hull reservations", () => {
     expect(accepted.x).toBe(actor.x); expect(accepted.z).toBe(actor.z); expect(accepted.s).toBe(actor.s);
     expect(accepted.edge).toBe(actor.edge); expect(accepted.node).toBe(actor.node); expect(accepted.conn).toBe(actor.conn);
     expect(accepted.wait).toBe(actor.wait + 1);
-    expect(accepted.speed).toBe(version >= 24 ? 0 : attempted.speed);
+    expect(accepted.speed).toBe(version >= 27 ? 0 : attempted.speed);
     expect(JSON.stringify(after)).toBe(frozen);
   });
 });
@@ -89,7 +89,7 @@ describe("truthful guarded reverse velocity", () => {
     const world = emptyWorld(), base = createInitialState(world, 3, ["p1"], { x: 100, z: 100, heading: 0 });
     const pose: VehicleHull = { key: "a:10", x: 0, y: 0, z: 0, heading: 0, hl: 2.5, hw: 1, height: 1.6 };
     const reversing = { ...taxi(10, pose), s: 12, speed: -.8 }, rear = { ...taxi(20, { ...pose, key: "a:20", z: rearZ }), speed: 0 };
-    const before: SimState = { ...base, version: 24, ext: { ...base.ext, agents: { nextId: 21, list: [reversing, rear] } } };
+    const before: SimState = { ...base, version: 27, ext: { ...base.ext, agents: { nextId: 21, list: [reversing, rear] } } };
     const velocity = agentVelocity(reversing);
     expect(velocity.vx).toBeCloseTo(0, 12); expect(velocity.vz).toBeCloseTo(.8, 10);
     const attempted = { ...reversing, z: reversing.z + velocity.vz / 60, s: reversing.s - .8 / 60 };
@@ -108,7 +108,7 @@ describe("truthful guarded reverse velocity", () => {
 });
 
 describe("the ordinary queue producer emits signed reverse motion", () => {
-  it.each([20, 21])("keeps the measured two-road fixture coherent at SIM%d", version => {
+  it.each([26, 27])("keeps the measured two-road fixture coherent at SIM%d", version => {
     const world = emptyWorld(), nodes = queueFixture.nodes as unknown as RoadGraph["nodes"], edges = queueFixture.edges as unknown as RoadGraph["edges"];
     world.roads = { nodes, edges, nodeIndex: new Map(nodes.map((node, index) => [node.id, index])),
       edgeIndex: new Map(edges.map((edge, index) => [edge.id, index])), areas: [], areaIndex: new Map() };
@@ -118,7 +118,7 @@ describe("the ordinary queue producer emits signed reverse motion", () => {
     const frozen = JSON.stringify(state), before = list.find(actor => actor.id === 536)!;
     const result = stepAgents(world, state, 1)!;
     const after = result.ext.list.find(actor => actor.id === before.id)!;
-    if (version >= 24) {
+    if (version >= 27) {
       expect(after.s).toBeLessThan(before.s); expect(after.speed).toBe(-.8);
       expect(Math.hypot(after.x - before.x, after.z - before.z)).toBeCloseTo(.8 / 60, 9);
       const velocity = agentVelocity(after);
@@ -139,7 +139,7 @@ describe("a tight separating turn keeps the physical sweep and legacy budget", (
     expect(legacy).not.toBeNull(); expect(legacy.gap).toBeGreaterThan(.001);
     expect(sweepHulls(a, b, 128)).toBeNull();
   });
-  it.each([20, 21])("uses the proven motion only at SIM%d while preserving the complete cursor", version => {
+  it.each([26, 27])("uses the proven motion only at SIM%d while preserving the complete cursor", version => {
     const world = emptyWorld(), base = createInitialState(world, 3, ["p1"], { x: 100, z: 100, heading: 0 });
     const beforeRows = structuredClone(separatingTurn.actors.map(row => row.before)) as AgentState[];
     const afterRows = structuredClone(separatingTurn.actors.map(row => row.after)) as AgentState[];
@@ -147,7 +147,7 @@ describe("a tight separating turn keeps the physical sweep and legacy budget", (
     const after: SimState = { ...before, tick: 9001, ext: { ...before.ext, agents: { nextId: 1360, list: afterRows } } };
     const frozen = JSON.stringify(after), result = resolveVehicleContacts(world, before, after);
     const accepted = result.ext.agents!.list.find(actor => actor.id === 1075)!;
-    const expected = (version >= 24 ? afterRows : beforeRows).find(actor => actor.id === accepted.id)!;
+    const expected = (version >= 27 ? afterRows : beforeRows).find(actor => actor.id === accepted.id)!;
     expect(accepted.x).toBe(expected.x); expect(accepted.z).toBe(expected.z); expect(accepted.heading).toBe(expected.heading);
     expect(accepted.s).toBe(expected.s); expect(accepted.conn).toEqual(expected.conn); expect(accepted.node).toBe(expected.node);
     expect(JSON.stringify(after)).toBe(frozen);
@@ -155,7 +155,7 @@ describe("a tight separating turn keeps the physical sweep and legacy budget", (
 });
 
 describe("safe space is yielded before a blocked junction admission", () => {
-  function setup(version = 24): { world: ReturnType<typeof emptyWorld>; state: SimState } {
+  function setup(version = 27): { world: ReturnType<typeof emptyWorld>; state: SimState } {
     const world = emptyWorld(), nodes = pendingYield.nodes as unknown as RoadGraph["nodes"], edges = pendingYield.edges as unknown as RoadGraph["edges"];
     world.roads = { nodes, edges, nodeIndex: new Map(nodes.map((node, index) => [node.id, index])),
       edgeIndex: new Map(edges.map((edge, index) => [edge.id, index])), areas: [], areaIndex: new Map() };

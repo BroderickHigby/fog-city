@@ -13,10 +13,10 @@ export function stepPlayer(previous:PlayerGameplayState,ctx:GameplayContext,tick
   for(const command of commands(ctx,body.id,["startup-define","bridge-accept"],own.commandSequence)){
    own.commandSequence=command.sequence;
    if(command.kind==="startup-define"&&command.kitId&&ctx.validKitIds.includes(command.kitId)){own.startupKitId=command.kitId;event(state,"StartupDefined",body.id,command.kitId);}
-   if(command.kind==="bridge-accept"&&((ctx.simVersion??20)<24||ctx.associatesAnswer!==false)&&own.status==="bridge"&&tick<own.bridgeUntil&&ctx.observations.find(o=>o.playerId===body.id)?.associateWithin200){own.status="active";event(state,"player.bridge",body.id,"",6);}
+   if(command.kind==="bridge-accept"&&((ctx.simVersion??20)<27||ctx.associatesAnswer!==false)&&own.status==="bridge"&&tick<own.bridgeUntil&&ctx.observations.find(o=>o.playerId===body.id)?.associateWithin200){own.status="active";event(state,"player.bridge",body.id,"",6);}
   }
   if(own.status==="down"&&tick>=own.resumeTick)own.status="active";
-  if(own.status==="active"&&(wallet?.runwayMonths??18)<=0&&!((ctx.simVersion??20)>=24&&state.events.some(e=>e.kind==="player.bridge"&&e.playerId===body.id))){
+  if(own.status==="active"&&(wallet?.runwayMonths??18)<=0&&!((ctx.simVersion??20)>=27&&state.events.some(e=>e.kind==="player.bridge"&&e.playerId===body.id))){
    if(ctx.wave>=3){own.status="bridge";own.bridgeUntil=tick+3600;event(state,"player.bridge-offer",body.id,"",60);}
    else down();
   }
