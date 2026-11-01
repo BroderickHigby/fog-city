@@ -22,12 +22,12 @@ import { filterLandmarkHulls } from "./landmark-mask.ts";
 import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
 import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
 import { NightLights } from "./lights.ts";
-import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
+import { createSharedMaterials, fcUniforms, installFog, setFog, tileLayer, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
-import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import { TileStreamer, disposeObject, type StreamerStats } from "./tile-streamer.ts";
 import { StaticScene, type StaticSceneStats } from "./static-scene.ts";
 import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetirementOwner, type WarmupStats } from "./renderer-warmup.ts";
 import type { BuildingDetailStats } from "./building-character.ts";
@@ -382,6 +382,27 @@ export class SceneRenderer {
     const pavement = parks.length || lawns.regions.length ? createPavementMask(world.roads, world.colliders,
       [...parkPavementRegions(parks), ...lawns.regions]) : undefined;
     if(world.manifest.world===PALACE_LAGOON.world) pavement?.addPolygon(PALACE_LAGOON.ring as Array<[number,number]>);
+    const loadNearTile = async (url:string) => {
+      const gltf=await loadTile(url);
+      if(!pavement||!lawns.regions.length)return gltf;
+      try {
+        const root=gltf.scene,grounds:THREE.Mesh[]=[];
+        root.updateMatrixWorld(true);
+        root.traverse(o=>{
+          const mesh=o as THREE.Mesh;if(!mesh.isMesh)return;
+          const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+          if(materials.some(material=>tileLayer(material.name,mesh.name)==="ground"))grounds.push(mesh);
+        });
+        for(const mesh of grounds) {
+          tintParks(mesh.geometry,mesh.matrixWorld,parks,undefined,pavement);
+          await lawns.paintAsync(mesh.geometry,mesh.matrixWorld,pavement,undefined,()=>!this.disposed);
+          if(this.disposed)throw new Error("Renderer disposed during terrain preparation");
+          mesh.geometry.userData.fcGroundPrepared=true;
+        }
+        if(this.disposed)throw new Error("Renderer disposed during tile preparation");
+        return gltf;
+      } catch(error) {disposeObject(gltf.scene);throw error;}
+    };
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
     const landmarkReplacements=landmarkRenderReplacements(opts.landmarks,world.colliders.values(),world.landmarkReplacements);
@@ -391,7 +412,7 @@ export class SceneRenderer {
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain, pavement),
-      lawnTerrain: (geo,m,terrain)=>pavement?lawns.paint(geo,m,pavement,terrain):0,
+      lawnTerrain: (geo,m,terrain,current)=>pavement?lawns.paintAsync(geo,m,pavement,terrain,current):0,
       filterGeometry:landmarkSources.length?(geo,m)=>filterLandmarkHulls(geo,m,landmarkSources):undefined,
       ground: world.ground,
       budget: softwareFarBudget(rendererName),
@@ -412,7 +433,7 @@ export class SceneRenderer {
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
-      loadGltf: assets ? loadTile : undefined,
+      loadGltf: loadNearTile,
       onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); this.foliage.addTile(g); this.staticScene.admit(g); },
       onUnload: (g) => { this.staticScene.remove(g); return this.gpu?.retire(g); },
       onTileVisible: (id, visible) => {
@@ -420,8 +441,10 @@ export class SceneRenderer {
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
       },
       tintGround: (geo, m) => {
+        if(geo.userData.fcGroundPrepared)return;
         tintParks(geo,m,parks,undefined,pavement);
         if(pavement) lawns.paint(geo,m,pavement);
+        geo.userData.fcGroundPrepared=true;
       },
       fallbackCollider: world.fallbackCollider,
     });

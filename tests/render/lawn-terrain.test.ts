@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { describe,expect,it } from "vitest";
+import { describe,expect,it,vi } from "vitest";
 import { LawnTerrain } from "../../src/render/lawn-terrain.ts";
 import { createPavementMask } from "../../src/render/pavement.ts";
 import { onFarLattice } from "../../src/render/far-layer.ts";
@@ -25,6 +25,37 @@ function areas(g:THREE.BufferGeometry):{total:number;green:number} {
   return {total,green};
 }
 describe("persistent mapped lawn terrain",()=>{
+  it("prepares in steps without changing geometry until the final commit",()=>{
+    const g=ground(),position=g.getAttribute("position"),index=g.index;
+    const layer=new LawnTerrain({grass:[lawn([square(10,10,10)])]}),work=layer.paintSteps(g,new THREE.Matrix4(),createPavementMask(null));
+    let steps=0;
+    for(;;){
+      const next=work.next();if(next.done)break;
+      steps++;expect(g.getAttribute("position")).toBe(position);expect(g.index).toBe(index);
+    }
+    expect(steps).toBeGreaterThan(3);expect(areas(g).green).toBeCloseTo(100,3);g.dispose();
+  });
+  it("yields asynchronous preparation to the event loop and matches synchronous geometry",async()=>{
+    const g=ground(),sync=ground(),doc={grass:[lawn([square(10,10,10)])]};
+    const asyncLayer=new LawnTerrain(doc),syncLayer=new LawnTerrain(doc);
+    let clock=0;
+    const now=vi.spyOn(performance,"now").mockImplementation(()=>clock+=3),timer=vi.spyOn(globalThis,"setTimeout");
+    try {
+      await asyncLayer.paintAsync(g,new THREE.Matrix4(),createPavementMask(null));
+      expect(timer).toHaveBeenCalled();
+    } finally {now.mockRestore();timer.mockRestore();}
+    syncLayer.paint(sync,new THREE.Matrix4(),createPavementMask(null));
+    expect(Array.from(g.index!.array)).toEqual(Array.from(sync.index!.array));
+    expect(Array.from(g.getAttribute("position").array)).toEqual(Array.from(sync.getAttribute("position").array));
+    g.dispose();sync.dispose();
+  });
+  it("cancels asynchronous preparation before mutating or replacing any geometry",async()=>{
+    const g=ground(),position=g.getAttribute("position"),index=g.index;
+    let checks=0;
+    const layer=new LawnTerrain({grass:[lawn([square(10,10,10)])]});
+    expect(await layer.paintAsync(g,new THREE.Matrix4(),createPavementMask(null),undefined,()=>++checks<4)).toBe(0);
+    expect(g.getAttribute("position")).toBe(position);expect(g.index).toBe(index);expect(g.userData.fcLawnTerrain).toBeUndefined();g.dispose();
+  });
   it("fills a small lawn entirely between far vertices, retaining exactly one continuous floor",()=>{
     const g=ground(),layer=new LawnTerrain({grass:[lawn([square(10,10,10)])]});
     expect(layer.paint(g,new THREE.Matrix4(),createPavementMask(null),onFarLattice)).toBeGreaterThan(0);

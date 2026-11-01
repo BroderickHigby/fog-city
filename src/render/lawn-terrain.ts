@@ -61,6 +61,21 @@ export class LawnTerrain {
   }
   /** `terrain` identifies original far lattice vertices, so building hulls are never painted. */
   paint(geo: THREE.BufferGeometry, matrix: THREE.Matrix4, pavement: PavementMask, terrain: (x:number,y:number,z:number)=>boolean=()=>true): number {
+    const work=this.paintSteps(geo,matrix,pavement,terrain);
+    for(;;){const next=work.next();if(next.done)return next.value;}
+  }
+  /** Browser admission yields to input/rendering; obsolete work never changes its geometry. */
+  async paintAsync(geo: THREE.BufferGeometry, matrix: THREE.Matrix4, pavement: PavementMask, terrain: (x:number,y:number,z:number)=>boolean=()=>true, current:()=>boolean=()=>true):Promise<number> {
+    const work=this.paintSteps(geo,matrix,pavement,terrain);
+    let deadline=performance.now()+2;
+    for(;;){
+      if(!current()){work.return(0);return 0;}
+      const next=work.next();if(next.done)return next.value;
+      if(performance.now()>=deadline){await new Promise<void>(resolve=>setTimeout(resolve,0));deadline=performance.now()+2;}
+    }
+  }
+  /** Pure, resumable preparation. All attribute/index replacements commit in the last step. */
+  *paintSteps(geo: THREE.BufferGeometry, matrix: THREE.Matrix4, pavement: PavementMask, terrain: (x:number,y:number,z:number)=>boolean=()=>true):Generator<void,number> {
     if(!this.regions.length || geo.userData.fcLawnTerrain) return 0;
     const position=geo.getAttribute("position"), color=geo.getAttribute("color");
     if(!position||!color) return 0;
@@ -74,6 +89,7 @@ export class LawnTerrain {
     const inverse=matrix.clone().invert(), local=new THREE.Vector3();
     let vertices=position.count;
     for(let i=first;i+2<end;i+=3) {
+      yield;
       const ids=[0,1,2].map(n=>originalIndex?originalIndex.getX(i+n):i+n);
       vectors.forEach((v,n)=>v.fromBufferAttribute(position,ids[n]!).applyMatrix4(matrix));
       if(!vectors.every(v=>Number.isFinite(v.y)&&terrain(v.x,v.y,v.z))) continue;
@@ -95,6 +111,7 @@ export class LawnTerrain {
       if(landTriangle.length<3)continue;
       const patchesOnLand: LawnMultiPolygon=[];
       for(const patch of patches) {
+        yield;
         const cover=this.cover(patch,pavement);
         if(cover.length)patchesOnLand.push(...intersectLawns([[landTriangle]],cover));
       }
@@ -129,32 +146,62 @@ export class LawnTerrain {
       }
     }
     if(!indices.length) return 0;
+    const preparedAttributes:Array<[string,THREE.BufferAttribute]>=[];
     for(const [name,attribute] of attributes) {
       const data=new Float32Array(attribute.count*attribute.itemSize+added[name]!.length);
-      for(let i=0;i<attribute.count;i++) for(let c=0;c<attribute.itemSize;c++) data[i*attribute.itemSize+c]=attribute.getComponent(i,c);
-      data.set(added[name]!,attribute.count*attribute.itemSize);
-      geo.setAttribute(name,new THREE.BufferAttribute(data,attribute.itemSize));
+      for(let i=0;i<attribute.count;i++){
+        if(i%8192===0)yield;
+        for(let c=0;c<attribute.itemSize;c++) data[i*attribute.itemSize+c]=attribute.getComponent(i,c);
+      }
+      const extra=added[name]!,offset=attribute.count*attribute.itemSize;
+      for(let i=0;i<extra.length;i++) {
+        if(i%32768===0)yield;
+        data[offset+i]=extra[i]!;
+      }
+      preparedAttributes.push([name,new THREE.BufferAttribute(data,attribute.itemSize)]);
     }
     const kept=end-first-replaced.size*3, index=new Uint32Array(kept+indices.length), prefix=new Uint32Array(count+1);
     let at=0;
     for(let i=0;i<count;i++) {
+      if(i%12288===0)yield;
       if(i>=first&&i<end&&!replaced.has(i-(i-first)%3)) index[at++]=originalIndex?originalIndex.getX(i):i;
       prefix[i+1]=at;
     }
-    index.set(indices,kept);geo.setIndex(new THREE.BufferAttribute(index,1));
+    for(let i=0;i<indices.length;i++) {
+      if(i%32768===0)yield;
+      index[kept+i]=indices[i]!;
+    }
+    const preparedGroups:Array<{start:number;count:number;materialIndex:number}>=[];
     if(geo.groups.length) {
-      const groups=[...geo.groups];geo.clearGroups();
       const group=(start:number,count:number,material=0):void=>{
         if(!count)return;
-        const previous=geo.groups.at(-1);
+        const previous=preparedGroups.at(-1);
         if(previous&&previous.materialIndex===material&&previous.start+previous.count===start) previous.count+=count;
-        else geo.addGroup(start,count,material);
+        else preparedGroups.push({start,count,materialIndex:material});
       };
-      for(const g of groups) group(prefix[g.start]!,prefix[g.start+g.count]!-prefix[g.start]!,g.materialIndex);
-      for(const g of appendedGroups) group(kept+g.start,g.count,g.materialIndex);
+      for(const g of geo.groups) group(prefix[g.start]!,prefix[g.start+g.count]!-prefix[g.start]!,g.materialIndex);
+      for(let i=0;i<appendedGroups.length;i++) {
+        if(i%4096===0)yield;
+        const g=appendedGroups[i]!;group(kept+g.start,g.count,g.materialIndex);
+      }
     }
+    const preparedPosition=preparedAttributes.find(([name])=>name==="position")![1];
+    const box=new THREE.Box3(),sphere=new THREE.Sphere(),point=new THREE.Vector3();
+    for(let i=0;i<preparedPosition.count;i++) {
+      if(i%8192===0)yield;
+      box.expandByPoint(point.fromBufferAttribute(preparedPosition,i));
+    }
+    box.getCenter(sphere.center);let radiusSquared=0;
+    for(let i=0;i<preparedPosition.count;i++) {
+      if(i%8192===0)yield;
+      radiusSquared=Math.max(radiusSquared,sphere.center.distanceToSquared(point.fromBufferAttribute(preparedPosition,i)));
+    }
+    sphere.radius=Math.sqrt(radiusSquared);
+    yield;
+    for(const [name,attribute] of preparedAttributes)geo.setAttribute(name,attribute);
+    geo.setIndex(new THREE.BufferAttribute(index,1));geo.groups=preparedGroups;
     geo.setDrawRange(0,Infinity);
-    geo.computeBoundingBox();geo.computeBoundingSphere();
+    geo.boundingBox=box;geo.boundingSphere=sphere;
     geo.userData.fcLawnTerrain=true;
     return (kept+indices.length-count)/3;
   }
