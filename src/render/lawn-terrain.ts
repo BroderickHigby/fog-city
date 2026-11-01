@@ -4,7 +4,7 @@
 // No new draw calls or camera-dependent work: partition terrain faces once per loaded mesh.
 import * as THREE from "three";
 import { grassShapes } from "./grass.ts";
-import polygonClipping, { type MultiPolygon, type Polygon } from "polygon-clipping";
+import { intersectLawns, subtractLawns, unionLawns, type LawnMultiPolygon, type LawnPolygon } from "./lawn-clipping.ts";
 import type { PavementMask } from "./pavement.ts";
 
 type Point = [number, number];
@@ -29,7 +29,7 @@ function triangulate(rings: readonly (readonly (readonly number[])[])[]): Point[
 
 export class LawnTerrain {
   private readonly buckets = new Map<string, Patch[]>();
-  private readonly coverage = new WeakMap<PavementMask, Map<Patch, MultiPolygon>>();
+  private readonly coverage = new WeakMap<PavementMask, Map<Patch, LawnMultiPolygon>>();
   readonly regions: Bounds[] = [];
   constructor(doc: unknown) {
     for(const lawn of grassShapes(doc)) {
@@ -48,13 +48,13 @@ export class LawnTerrain {
     }
     return [...found];
   }
-  private cover(patch:Patch,pavement:PavementMask):MultiPolygon {
+  private cover(patch:Patch,pavement:PavementMask):LawnMultiPolygon {
     let cache=this.coverage.get(pavement);
     if(!cache){cache=new Map();this.coverage.set(pavement,cache);}
     let cover=cache.get(patch);
     if(!cover){
       const obstacles=pavement.polygonsIn(patch.bounds).map(p=>[p.map(v=>[v[0],v[1]] as Point)]);
-      cover=obstacles.length?polygonClipping.difference(patch.rings,...obstacles):[patch.rings];
+      cover=obstacles.length?subtractLawns([patch.rings],obstacles):[patch.rings];
       cache.set(patch,cover);
     }
     return cover;
@@ -93,17 +93,17 @@ export class LawnTerrain {
       };
       const landTriangle=land(triangle);
       if(landTriangle.length<3)continue;
-      const patchesOnLand: MultiPolygon=[];
+      const patchesOnLand: LawnMultiPolygon=[];
       for(const patch of patches) {
         const cover=this.cover(patch,pavement);
-        if(cover.length)patchesOnLand.push(...polygonClipping.intersection([landTriangle],cover));
+        if(cover.length)patchesOnLand.push(...intersectLawns([[landTriangle]],cover));
       }
       if(!patchesOnLand.length)continue;
-      const grass=polygonClipping.union(patchesOnLand);
+      const grass=patchesOnLand.length===1?patchesOnLand:unionLawns(patchesOnLand);
       if(!grass.length)continue;
-      const neutral=polygonClipping.difference([triangle],grass);
+      const neutral=subtractLawns([[triangle]],grass);
       const before=indices.length;
-      const emit=(polygon:Polygon,green:boolean):void=>{
+      const emit=(polygon:LawnPolygon,green:boolean):void=>{
         for(const face of triangulate(polygon)) {
           if(Math.abs(cross(...face as [Point,Point,Point]))<1e-6)continue;
           if(cross(...face as [Point,Point,Point])*determinant<0)face.reverse();
