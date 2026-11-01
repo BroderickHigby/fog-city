@@ -11,6 +11,8 @@ import { GLTFLoader, type GLTF } from "three/addons/loaders/GLTFLoader.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createTileLoader } from "../../src/render/gltf-loader.ts";
 import { makeGroundFn } from "../../src/render/ground.ts";
+import { LawnTerrain } from "../../src/render/lawn-terrain.ts";
+import { createPavementMask } from "../../src/render/pavement.ts";
 import { createSharedMaterials, materialFor, tileLayer } from "../../src/render/materials.ts";
 import { createNightMaterials } from "../../src/render/props.ts";
 import { TileStreamer, dropWaterTriangles } from "../../src/render/tile-streamer.ts";
@@ -73,6 +75,49 @@ const meshes = (root: THREE.Object3D): THREE.Mesh[] => {
   });
   return out;
 };
+
+describe("asynchronous fallback lawn admission",()=>{
+  function fallback(glb:string|null) {
+    const parent=new THREE.Group(),materials=createSharedMaterials();
+    const collider:TileCollider={tileId:"lawn",buildings:[],ground:{x0:0,z0:0,nx:2,nz:2,cellSizeM:100,heights:[3,3,3,3]}};
+    const lawns=new LawnTerrain({grass:[{id:"rpd:test:0@0,0",kind:"lawn",rings:[[10,10,20,10,20,20,10,20]]}]}),pavement=createPavementMask(null);
+    let release!:()=>void,prepared:THREE.BufferGeometry|undefined,current:()=>boolean=()=>false,disposed=0,ready=0;
+    const gate=new Promise<void>(resolve=>{release=resolve;});
+    const streamer=new TileStreamer({parent,materials,night:createNightMaterials(),colliders:new Map([["lawn",collider]]),roads:null,ground:()=>3,
+      base:"/fallback/",radius:60,hysteresis:0,glbRetryMs:0,
+      manifest:{version:1,world:"fallback-lawn",spawn:{x:10,z:10,heading:0},tiles:[{id:"lawn",bbox:[0,0,100,100],collider:"unused.json",glb}]},
+      loadGltf:async()=>{throw new Error("fixture failed GLB");},onReady:()=>{ready++;},
+      prepareFallbackGround:async(geo,matrix,isCurrent)=>{
+        prepared=geo;current=isCurrent;geo.addEventListener("dispose",()=>{disposed++;});
+        await gate;
+        await lawns.paintAsync(geo,matrix,pavement,undefined,isCurrent);
+      },
+    });
+    const start=async()=>{await quietly(async()=>{for(let i=0;i<12;i++){streamer.update(10,10,50);await new Promise(resolve=>setTimeout(resolve,0));}});expect(prepared).toBeDefined();};
+    return {streamer,parent,start,release,geo:()=>prepared!,current:()=>current(),disposed:()=>disposed,ready:()=>ready};
+  }
+  it.each([null,"failed.glb"])("keeps %s fallback pending and off-scene until mapped lawn preparation finishes",async glb=>{
+    const f=fallback(glb);
+    try {
+      await f.start();expect(f.streamer.stats()).toMatchObject({ready:0,pending:1});expect(f.parent.getObjectByName("tile:lawn")).toBeUndefined();expect(f.ready()).toBe(0);
+      f.release();await settle(f.streamer,10,10);
+      expect(f.streamer.stats()).toMatchObject({ready:1,pending:0});expect(f.ready()).toBe(1);
+      const geo=f.geo(),color=geo.getAttribute("color");expect(geo.userData.fcLawnTerrain).toBe(true);
+      const green=new THREE.Color(0x426e30);
+      expect(Array.from({length:color.count},(_,i)=>i).some(i=>Math.abs(color.getX(i)-green.r)<1e-6&&Math.abs(color.getY(i)-green.g)<1e-6)).toBe(true);
+    } finally {f.release();f.streamer.dispose();}
+  });
+  it("cancels and disposes fallback ground unloaded during preparation without admitting stale geometry",async()=>{
+    const f=fallback(null);
+    try {
+      await f.start();const geo=f.geo(),position=geo.getAttribute("position"),index=geo.index;
+      f.streamer.update(10000,10000,50);expect(f.current()).toBe(false);expect(f.disposed()).toBe(1);
+      f.release();for(let i=0;i<12;i++)await Promise.resolve();
+      expect(geo.getAttribute("position")).toBe(position);expect(geo.index).toBe(index);expect(geo.userData.fcLawnTerrain).toBeUndefined();
+      expect(f.parent.getObjectByName("tile:lawn")).toBeUndefined();expect(f.ready()).toBe(0);expect(f.disposed()).toBe(1);
+    } finally {f.release();f.streamer.dispose();}
+  });
+});
 
 describe("pavement repair at tile admission", () => {
   it("drapes long fallback roads using distinct packed and fallback copies of terrain", async () => {

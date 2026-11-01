@@ -11,6 +11,7 @@ import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from ".
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
 import { parkShapes, parkPavementRegions, tintParks } from "./parks.ts";
+import { LawnTerrain } from "./lawn-terrain.ts";
 import { createPavementMask } from "./pavement.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
@@ -21,18 +22,18 @@ import { filterLandmarkHulls } from "./landmark-mask.ts";
 import type { LandmarkWorldReplacement } from "../io/landmark-world.ts";
 import type { TrafficSignalControls } from "../sim/traffic-signals.ts";
 import { NightLights } from "./lights.ts";
-import { createSharedMaterials, fcUniforms, installFog, setFog, type SharedMaterials } from "./materials.ts";
+import { createSharedMaterials, fcUniforms, installFog, setFog, tileLayer, type SharedMaterials } from "./materials.ts";
 import { ModelRegistry } from "./model-registry.ts";
 import { createNightMaterials, type NightMaterials } from "./props.ts";
 import { DAY, NIGHT, Sky, applySkyPreset, sunDirection, LIGHTING_PRESETS, type LightingPreset } from "./sky.ts";
 import { createTileLoader } from "./gltf-loader.ts";
-import { TileStreamer, type StreamerStats } from "./tile-streamer.ts";
+import { TileStreamer, disposeObject, type StreamerStats } from "./tile-streamer.ts";
 import { StaticScene, type StaticSceneStats } from "./static-scene.ts";
 import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetirementOwner, type WarmupStats } from "./renderer-warmup.ts";
 import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
-import { createLandmarkWater } from "./landmark-water.ts";
+import { createLandmarkWater, PALACE_LAGOON } from "./landmark-water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
@@ -104,6 +105,8 @@ export interface WorldData {
   assets?: Assets;
   /** districts.json, parsed (its park polygons tint the ground green), or null. */
   districts?: unknown;
+  /** Optional DataSF lawn polygons shared by persistent terrain colour and nearby detail. */
+  lawns?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
   landmarkReplacements?: readonly LandmarkWorldReplacement[];
@@ -373,10 +376,33 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    const lawns = new LawnTerrain(world.lawns);
     // Far terrain triangles span 100 m. Include paving just outside a park too,
     // otherwise a green edge vertex can interpolate across that neighbouring road.
-    const pavement = parks.length ? createPavementMask(world.roads, world.colliders,
-      parkPavementRegions(parks)) : undefined;
+    const pavement = parks.length || lawns.regions.length ? createPavementMask(world.roads, world.colliders,
+      [...parkPavementRegions(parks), ...lawns.regions]) : undefined;
+    if(world.manifest.world===PALACE_LAGOON.world) pavement?.addPolygon(PALACE_LAGOON.ring as Array<[number,number]>);
+    const loadNearTile = async (url:string) => {
+      const gltf=await loadTile(url);
+      if(!pavement||!lawns.regions.length)return gltf;
+      try {
+        const root=gltf.scene,grounds:THREE.Mesh[]=[];
+        root.updateMatrixWorld(true);
+        root.traverse(o=>{
+          const mesh=o as THREE.Mesh;if(!mesh.isMesh)return;
+          const materials=Array.isArray(mesh.material)?mesh.material:[mesh.material];
+          if(materials.some(material=>tileLayer(material.name,mesh.name)==="ground"))grounds.push(mesh);
+        });
+        for(const mesh of grounds) {
+          tintParks(mesh.geometry,mesh.matrixWorld,parks,undefined,pavement);
+          await lawns.paintAsync(mesh.geometry,mesh.matrixWorld,pavement,undefined,()=>!this.disposed);
+          if(this.disposed)throw new Error("Renderer disposed during terrain preparation");
+          mesh.geometry.userData.fcGroundPrepared=true;
+        }
+        if(this.disposed)throw new Error("Renderer disposed during tile preparation");
+        return gltf;
+      } catch(error) {disposeObject(gltf.scene);throw error;}
+    };
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
     const landmarkReplacements=landmarkRenderReplacements(opts.landmarks,world.colliders.values(),world.landmarkReplacements);
@@ -386,6 +412,7 @@ export class SceneRenderer {
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain, pavement),
+      lawnTerrain: (geo,m,terrain,current)=>pavement?lawns.paintAsync(geo,m,pavement,terrain,current):0,
       filterGeometry:landmarkSources.length?(geo,m)=>filterLandmarkHulls(geo,m,landmarkSources):undefined,
       ground: world.ground,
       budget: softwareFarBudget(rendererName),
@@ -406,18 +433,29 @@ export class SceneRenderer {
       materials: this.materials,
       night: this.nightMats,
       radius: opts.radius,
-      loadGltf: assets ? loadTile : undefined,
+      loadGltf: loadNearTile,
       onReady: (g) => { this.prepareShadows(g); this.avatarGround.addTile(g); this.foliage.addTile(g); this.staticScene.admit(g); },
       onUnload: (g) => { this.staticScene.remove(g); return this.gpu?.retire(g); },
       onTileVisible: (id, visible) => {
         this.far.setTileVisible(id, visible);
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
       },
-      tintGround: (geo, m) => tintParks(geo, m, parks, undefined, pavement),
+      tintGround: (geo, m) => {
+        if(geo.userData.fcGroundPrepared)return;
+        tintParks(geo,m,parks,undefined,pavement);
+      },
+      prepareFallbackGround: async(geo,m,current)=>{
+        if(!current())return;
+        tintParks(geo,m,parks,undefined,pavement);
+        if(pavement)await lawns.paintAsync(geo,m,pavement,undefined,()=>current()&&!this.disposed);
+        if(!current()||this.disposed)return;
+        geo.userData.fcGroundPrepared=true;
+      },
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
     this.streetDetail = new StreetDetailLayer({
+      lawns: world.lawns,
       foliage: this.foliage,
       base: world.base,
       json: assets ? (path) => assets.json(path) : fetchJson,

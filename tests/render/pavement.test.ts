@@ -10,6 +10,12 @@ function road(points: Point[], widthM = 10): RoadGraph {
 }
 
 describe("pavement exclusion", () => {
+  it("bounds large region indexing and exposes exact candidate footprints",()=>{
+    const mask=createPavementMask(null,undefined,[[-1e8,-1e8,1e8,1e8]]);
+    mask.addPolygon([[0,0],[10,0],[10,10],[0,10]]);
+    expect(mask.contains(5,5)).toBe(true);expect(mask.polygonsIn([2,2,3,3])).toHaveLength(1);
+    expect(mask.polygonsIn([200,200,210,210])).toHaveLength(0);
+  });
   it("covers the road, sidewalks and padded end caps without masking nearby open land", () => {
     const mask = createPavementMask(road([[0, 0], [0, 30]]));
     expect(mask.contains(0, 15)).toBe(true);

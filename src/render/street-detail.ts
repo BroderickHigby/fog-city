@@ -92,6 +92,8 @@ interface Cell {
 
 export interface StreetDetailOptions {
   base: string;
+  /** Optional document already read for persistent near/far terrain lawns. */
+  lawns?: unknown;
   /** Reads a JSON file under the site root (the asset layer), rejecting when it is absent. */
   json: <T>(path: string) => Promise<T>;
   ground: GroundFn;
@@ -201,7 +203,8 @@ export class StreetDetailLayer {
         if (isPlaced(r) && typeof (r as StorefrontRecord).heading === "number") this.cellAt(r.x, r.z).shops.push(r as StorefrontRecord);
       }
     });
-    await layer("grass", doc => this.grass.setData(doc));
+    if(this.opts.lawns !== undefined) { this.grass.setData(this.opts.lawns); this.layers.push("grass"); }
+    else await layer("grass", doc => this.grass.setData(doc));
     this.lastX = Number.NaN;
   }
 

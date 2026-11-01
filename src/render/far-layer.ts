@@ -56,6 +56,8 @@ export interface FarLayerOptions {
   budget?: FarBudget;
   /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
   tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
+  /** Add exact mapped lawn faces after seams have read the untouched 100 m lattice. */
+  lawnTerrain?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean, current: () => boolean) => number | Promise<number>;
   /** Replace only authored landmark hulls once at load. Returned geometry is owned here. */
   filterGeometry?: (geo:THREE.BufferGeometry,matrixWorld:THREE.Matrix4)=>THREE.BufferGeometry|null;
 }
@@ -505,20 +507,18 @@ export class FarLayer {
     for (const cell of queue) {
       if (this.loading.size >= (this.opts.maxConcurrent ?? 4)) break;
       this.loading.add(cell.id);
-      this.opts.load(this.opts.base + cell.glb).then(
-        (gltf) => {
-          this.loading.delete(cell.id);
-          this.add(cell, gltf);
-          this.pump();
-        },
-        (err: unknown) => {
-          this.loading.delete(cell.id);
+      void this.opts.load(this.opts.base + cell.glb)
+        .then(gltf=>this.add(cell,gltf))
+        .catch((err:unknown)=>{
+          if(this.disposed)return;
           this.failedIds.add(cell.id);
           this.failed++;
           console.warn(`[fog-city] far cell ${cell.id}: ${err instanceof Error ? err.message : String(err)}`);
+        })
+        .finally(()=>{
+          this.loading.delete(cell.id);
           this.pump();
-        },
-      );
+        });
     }
   }
 
@@ -539,41 +539,59 @@ export class FarLayer {
     this.pump();
   }
 
-  private add(cell: FarCell, gltf: GLTF): void {
+  private async add(cell: FarCell, gltf: GLTF): Promise<void> {
     const root = gltf.scene;
-    if (this.disposed || this.opts.budget && !this.wanted(true).some(wanted => wanted.id === cell.id)) {
-      disposeObject(root);
-      return;
-    }
+    const current=():boolean=>!this.disposed&&(!this.opts.budget||this.wanted(true).some(wanted=>wanted.id===cell.id));
+    if(!current()){disposeObject(root);return;}
     root.name = `far:${cell.id}`;
-    const beforeTriangles = this.triangles, beforeSeams = this.seamEdges;
     root.updateMatrixWorld(true);
-    root.traverse((o) => {
-      o.matrixAutoUpdate = false;
-      const mesh = o as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const filtered=this.opts.filterGeometry?.(mesh.geometry,mesh.matrixWorld);
-      if(filtered){const previous=mesh.geometry;mesh.geometry=filtered;previous.dispose();}
-      const old = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
-      for (const m of old) m.dispose();
-      mesh.material = this.material;
-      this.opts.tint?.(mesh.geometry, mesh.matrixWorld, onFarLattice);
-      mesh.castShadow = false;
-      mesh.receiveShadow = false;
-      const index = mesh.geometry.getIndex();
-      this.triangles += (index ? index.count : mesh.geometry.getAttribute("position").count) / 3;
-      mesh.onBeforeRender = () => {
-        this.drawnThisFrame++;
-      };
-    });
-    this.addSeams(root);
-    this.roots.set(cell.id, { root, triangles: this.triangles - beforeTriangles, seams: this.seamEdges - beforeSeams });
-    this.group.add(root);
-    this.loaded++;
+    const meshes:THREE.Mesh[]=[];
+    try {
+      root.traverse((o) => {
+        o.matrixAutoUpdate = false;
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        meshes.push(mesh);
+        const filtered=this.opts.filterGeometry?.(mesh.geometry,mesh.matrixWorld);
+        if(filtered){const previous=mesh.geometry;mesh.geometry=filtered;previous.dispose();}
+        const old = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        for (const m of old) m.dispose();
+        mesh.material = this.material;
+        this.opts.tint?.(mesh.geometry, mesh.matrixWorld, onFarLattice);
+        mesh.castShadow = false;
+        mesh.receiveShadow = false;
+        mesh.onBeforeRender = () => { this.drawnThisFrame++; };
+      });
+      // Seams inspect the original lattice, before lawn partitioning adds vertices.
+      const seams=this.addSeams(root);
+      if(this.opts.lawnTerrain)for(const mesh of meshes) {
+        await this.opts.lawnTerrain(mesh.geometry,mesh.matrixWorld,onFarLattice,current);
+        if(!current()){this.drop(root);return;}
+      }
+      if(!current()){this.drop(root);return;}
+      // Preparation can interleave across cells. Derive counts from this root only,
+      // and publish them together when it becomes visible (never before an await).
+      let triangles=0;
+      root.traverse(o=>{
+        const mesh=o as THREE.Mesh;
+        if(mesh.isMesh)triangles+=(mesh.geometry.index?.count??mesh.geometry.getAttribute("position").count)/3;
+      });
+      this.roots.set(cell.id,{root,triangles,seams});
+      this.triangles+=triangles;this.seamEdges+=seams;
+      this.group.add(root);
+      this.loaded=this.roots.size;
+    } catch(error) {
+      root.traverse(o=>{
+        const mesh=o as THREE.Mesh;if(!mesh.isMesh)return;
+        for(const material of Array.isArray(mesh.material)?mesh.material:[mesh.material])if(material!==this.material)material.dispose();
+      });
+      this.drop(root);throw error;
+    }
   }
 
   /** The cell's stitches at the city's outer edge (outerSeams) and its apron (farApron), under its root. */
-  private addSeams(root: THREE.Object3D): void {
+  private addSeams(root: THREE.Object3D): number {
+    let seamEdges=0;
     const meshes: THREE.Mesh[] = [];
     root.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) meshes.push(o as THREE.Mesh);
@@ -590,7 +608,7 @@ export class FarLayer {
       m.receiveShadow = false;
       m.matrixAutoUpdate = false;
       root.add(m);
-      this.triangles += data.positions.length / 9;
+
     };
     for (const mesh of meshes) {
       const terrain = farTerrain(mesh.geometry, mesh.matrixWorld);
@@ -601,11 +619,12 @@ export class FarLayer {
         if (seams.length > 0) {
           hideTriangles(mesh.geometry, seams.flatMap((q) => q.tris));
           part("far-stitch", stitchStrip(seams, ground, terrain.colorSize), terrain.colorSize);
-          this.seamEdges += seams.length;
+          seamEdges += seams.length;
         }
       }
       part("far-apron", farApron(terrain, this.ends.northZ, this.ends.southZ), terrain.colorSize);
     }
+    return seamEdges;
   }
 
   /** A streamed tile entered (true) or left (false) the scene: the far layer hides under it. */
@@ -625,14 +644,14 @@ export class FarLayer {
   }
 
   info(): FarInfo {
-    const queued = (this.opts.budget ? this.wanted() : this.cells).filter(cell => !this.roots.has(cell.id) && !this.loading.has(cell.id) && !this.failedIds.has(cell.id)).length;
+    const queued = this.disposed?0:(this.opts.budget ? this.wanted() : this.cells).filter(cell => !this.roots.has(cell.id) && !this.loading.has(cell.id) && !this.failedIds.has(cell.id)).length;
     return { total: this.cells.length, loaded: this.loaded, failed: this.failed, drawn: this.drawnLast, triangles: this.triangles, seamEdges: this.seamEdges,
       queued, loading: this.loading.size, radius: this.opts.budget?.radius ?? null };
   }
 
   /** True once the current region (the whole skyline on native GPUs) has loaded or failed. */
   settled(): boolean {
-    return !this.started || (this.opts.budget ? this.wanted() : this.cells).every(cell => this.roots.has(cell.id) || this.failedIds.has(cell.id));
+    return this.disposed || !this.started || (this.opts.budget ? this.wanted() : this.cells).every(cell => this.roots.has(cell.id) || this.failedIds.has(cell.id));
   }
 
   private drop(root: THREE.Object3D): void {
@@ -645,6 +664,7 @@ export class FarLayer {
     this.disposed = true;
     for (const { root } of this.roots.values()) this.drop(root);
     this.roots.clear();
+    this.loading.clear();this.loaded=0;this.triangles=0;this.seamEdges=0;
     this.material.dispose();
     this.mask.dispose();
   }

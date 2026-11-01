@@ -1,0 +1,1636 @@
+{
+  "baseline": "f1147ea1823e2d9221b08a04ef236e269e016911",
+  "gameCode": "c88c96ca78a03667525fb7783b10527aa3c58d15",
+  "environment": {
+    "node": "24.22.1",
+    "pnpm": "9.12.0",
+    "vcpus": 4,
+    "memoryMiB": 8192,
+    "renderer": "Chromium SwiftShader; FPS is not hardware evidence"
+  },
+  "geometryWithoutBrowsers": {
+    "setupMs": 332.5834810000001,
+    "admittedFar": {
+      "total": 33,
+      "loaded": 33,
+      "failed": 0,
+      "drawn": 0,
+      "triangles": 577484,
+      "seamEdges": 106,
+      "queued": 0,
+      "loading": 0,
+      "radius": null
+    },
+    "meshes": 235,
+    "farBefore": 467343,
+    "farAfter": 573220,
+    "nearAdded": 176254,
+    "maxPaintMs": 1610.526858000001,
+    "maxEventLoopGapMs": 80.03850000000011,
+    "totalPaintMs": 30804.886253999983,
+    "peakRssBytes": 842354688
+  },
+  "advisories": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 0,
+      "moderate": 0,
+      "high": 0,
+      "critical": 0
+    },
+    "dependencies": 97,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 97
+  },
+  "renderIO": {
+    "filesPassed": 88,
+    "testsPassed": 738
+  },
+  "selectedBrowserSuite": {
+    "passed": 15,
+    "failed": 2,
+    "notRun": 8,
+    "minutes": 17.6
+  },
+  "captures": {
+    "grass-visuals": {
+      "results": [
+        {
+          "id": "sf-ferry-building-embarcadero",
+          "camera": {
+            "x": -103.92,
+            "y": 6.06,
+            "z": 60,
+            "yawDeg": 60,
+            "pitchDeg": 6.96
+          },
+          "info": {
+            "drawCalls": 120,
+            "triangles": 345494,
+            "tilesLoaded": 8,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 31,
+              "far": 1049,
+              "draws": 6
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 0.5263157894736841,
+            "pixelRatio": 0.75,
+            "shadows": false,
+            "agents": 289,
+            "agentsNear": 2,
+            "agentsTotal": 330,
+            "agentDrawCalls": 20,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:utility-suv",
+              "civilian:sedan",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 19,
+            "farCellsDrawn": 5,
+            "farTriangles": 319952,
+            "farSeamEdges": 0,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 8,
+              "frozenObjects": 90,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 18,
+              "patches": 45,
+              "crosswalks": 168,
+              "stopBars": 99,
+              "signals": 95,
+              "stopSigns": 8,
+              "signPosts": 98,
+              "blades": 89,
+              "curbSigns": 166,
+              "trees": 2798,
+              "palms": 31,
+              "storefronts": 151
+            },
+            "buildingDetail": {
+              "buildings": 10,
+              "triangles": 34032,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 926,
+              "styles": {
+                "masonry": 0,
+                "deco": 6,
+                "brick": 0,
+                "residential": 0,
+                "modern": 4
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 34,
+              "blades": 4384,
+              "surfaceTriangles": 8037,
+              "bladeTriangles": 8768,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 42
+            }
+          },
+          "resources": {
+            "geometries": 204,
+            "textures": 20,
+            "programs": 33,
+            "textureBytesEst": 14098432,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.75,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-marina-green",
+          "camera": {
+            "x": -4200,
+            "y": 70,
+            "z": -1080,
+            "yawDeg": 0,
+            "pitchDeg": -32
+          },
+          "info": {
+            "drawCalls": 62,
+            "triangles": 253000,
+            "tilesLoaded": 6,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 40,
+              "far": 561,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 0.5310110450297334,
+            "pixelRatio": 0.75,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:utility-suv",
+              "civilian:sedan",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 22,
+            "farCellsDrawn": 4,
+            "farTriangles": 354752,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 6,
+              "frozenObjects": 73,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 18,
+              "patches": 55,
+              "crosswalks": 204,
+              "stopBars": 131,
+              "signals": 11,
+              "stopSigns": 123,
+              "signPosts": 56,
+              "blades": 105,
+              "curbSigns": 397,
+              "trees": 2116,
+              "palms": 87,
+              "storefronts": 7
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 38040,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 1648,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 35,
+              "blades": 3647,
+              "surfaceTriangles": 6979,
+              "bladeTriangles": 7294,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 35
+            }
+          },
+          "resources": {
+            "geometries": 200,
+            "textures": 22,
+            "programs": 33,
+            "textureBytesEst": 14316885,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.75,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-downtown-aerial",
+          "camera": {
+            "x": 900,
+            "y": 450,
+            "z": -700,
+            "yawDeg": 228.81,
+            "pitchDeg": -11.7
+          },
+          "info": {
+            "drawCalls": 142,
+            "triangles": 477265,
+            "tilesLoaded": 2,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 0,
+              "far": 0,
+              "draws": 0
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 0.28847540747151307,
+            "pixelRatio": 0.75,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:utility-suv",
+              "civilian:sedan",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 19,
+            "farCellsDrawn": 13,
+            "farTriangles": 315412,
+            "farSeamEdges": 0,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 2,
+              "frozenObjects": 9,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 0,
+              "patches": 0,
+              "crosswalks": 0,
+              "stopBars": 0,
+              "signals": 0,
+              "stopSigns": 0,
+              "signPosts": 0,
+              "blades": 0,
+              "curbSigns": 0,
+              "trees": 317,
+              "palms": 16,
+              "storefronts": 0
+            },
+            "buildingDetail": {
+              "buildings": 0,
+              "triangles": 0,
+              "drawCalls": 0,
+              "pending": false,
+              "registered": 6,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 0,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 0,
+              "blades": 0,
+              "surfaceTriangles": 0,
+              "bladeTriangles": 0,
+              "drawCalls": 0,
+              "pending": false,
+              "cachedLawns": 0
+            }
+          },
+          "resources": {
+            "geometries": 236,
+            "textures": 23,
+            "programs": 34,
+            "textureBytesEst": 2651477,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.75,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-palace-aerial",
+          "camera": {
+            "x": -4628.559999999654,
+            "y": 149.93644932000032,
+            "z": -633.9325000003195,
+            "yawDeg": -45,
+            "pitchDeg": -26.687858982794136
+          },
+          "info": {
+            "drawCalls": 133,
+            "triangles": 361492,
+            "tilesLoaded": 8,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 34,
+              "far": 674,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 0.382175342046926,
+            "pixelRatio": 0.75,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:utility-suv",
+              "civilian:sedan",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 22,
+            "farCellsDrawn": 4,
+            "farTriangles": 354752,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 8,
+              "frozenObjects": 98,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 28,
+              "patches": 90,
+              "crosswalks": 322,
+              "stopBars": 184,
+              "signals": 33,
+              "stopSigns": 162,
+              "signPosts": 95,
+              "blades": 180,
+              "curbSigns": 498,
+              "trees": 2473,
+              "palms": 86,
+              "storefronts": 110
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 28752,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 1914,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 20,
+              "blades": 1633,
+              "surfaceTriangles": 5958,
+              "bladeTriangles": 3266,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 20
+            }
+          },
+          "resources": {
+            "geometries": 300,
+            "textures": 24,
+            "programs": 35,
+            "textureBytesEst": 24103595,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.75,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        }
+      ],
+      "errors": []
+    },
+    "grass-warmed": {
+      "warmup": "Paused cloud capture invokes the existing budgeted streetDetail.update at 20 ms between render frames; no game source changes; timing is not hardware FPS",
+      "results": [
+        {
+          "id": "sf-palace-golden",
+          "light": "golden",
+          "camera": {
+            "x": -4628.559999999654,
+            "y": 149.93644932000032,
+            "z": -633.9325000003195,
+            "yawDeg": -45,
+            "pitchDeg": -26.687858982794136
+          },
+          "info": {
+            "drawCalls": 131,
+            "triangles": 361492,
+            "tilesLoaded": 8,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "golden",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 34,
+              "far": 674,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 3.217323245499607,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 19,
+            "farCellsDrawn": 4,
+            "farTriangles": 311888,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 8,
+              "frozenObjects": 98,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 28,
+              "patches": 90,
+              "crosswalks": 322,
+              "stopBars": 184,
+              "signals": 33,
+              "stopSigns": 162,
+              "signPosts": 95,
+              "blades": 180,
+              "curbSigns": 498,
+              "trees": 2473,
+              "palms": 86,
+              "storefronts": 110
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 28752,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 1914,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 20,
+              "blades": 1633,
+              "surfaceTriangles": 5958,
+              "bladeTriangles": 3266,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 20
+            }
+          },
+          "resources": {
+            "geometries": 220,
+            "textures": 24,
+            "programs": 34,
+            "textureBytesEst": 23994368,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-marina-green",
+          "camera": {
+            "x": -4200,
+            "y": 70,
+            "z": -1080,
+            "yawDeg": 0,
+            "pitchDeg": -32
+          },
+          "info": {
+            "drawCalls": 63,
+            "triangles": 253008,
+            "tilesLoaded": 8,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 40,
+              "far": 561,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 1.2245897624295774,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 20,
+            "farCellsDrawn": 4,
+            "farTriangles": 316050,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 8,
+              "frozenObjects": 97,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 22,
+              "patches": 67,
+              "crosswalks": 251,
+              "stopBars": 166,
+              "signals": 22,
+              "stopSigns": 152,
+              "signPosts": 76,
+              "blades": 135,
+              "curbSigns": 480,
+              "trees": 2203,
+              "palms": 87,
+              "storefronts": 90
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 38040,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 2424,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 35,
+              "blades": 3647,
+              "surfaceTriangles": 6979,
+              "bladeTriangles": 7294,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 46
+            }
+          },
+          "resources": {
+            "geometries": 206,
+            "textures": 25,
+            "programs": 34,
+            "textureBytesEst": 24103595,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-palace-return",
+          "camera": {
+            "x": -4628.559999999654,
+            "y": 149.93644932000032,
+            "z": -633.9325000003195,
+            "yawDeg": -45,
+            "pitchDeg": -26.687858982794136
+          },
+          "info": {
+            "drawCalls": 131,
+            "triangles": 361492,
+            "tilesLoaded": 9,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 34,
+              "far": 674,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 1.363698349924991,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 20,
+            "farCellsDrawn": 4,
+            "farTriangles": 316050,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 9,
+              "frozenObjects": 110,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 30,
+              "patches": 99,
+              "crosswalks": 357,
+              "stopBars": 208,
+              "signals": 33,
+              "stopSigns": 182,
+              "signPosts": 104,
+              "blades": 197,
+              "curbSigns": 550,
+              "trees": 2500,
+              "palms": 86,
+              "storefronts": 111
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 28752,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 2337,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 20,
+              "blades": 1633,
+              "surfaceTriangles": 5958,
+              "bladeTriangles": 3266,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 36
+            }
+          },
+          "resources": {
+            "geometries": 232,
+            "textures": 25,
+            "programs": 34,
+            "textureBytesEst": 24103595,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-palace-distant",
+          "camera": {
+            "x": -4400,
+            "y": 250,
+            "z": 300,
+            "yawDeg": -20,
+            "pitchDeg": -12
+          },
+          "info": {
+            "drawCalls": 135,
+            "triangles": 537335,
+            "tilesLoaded": 9,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 88,
+              "far": 1386,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 1.000100010001006,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 23,
+            "farCellsDrawn": 7,
+            "farTriangles": 434548,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 9,
+              "frozenObjects": 108,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 29,
+              "patches": 80,
+              "crosswalks": 295,
+              "stopBars": 242,
+              "signals": 10,
+              "stopSigns": 230,
+              "signPosts": 86,
+              "blades": 157,
+              "curbSigns": 804,
+              "trees": 4757,
+              "palms": 91,
+              "storefronts": 59
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 58632,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 3324,
+              "styles": {
+                "masonry": 1,
+                "deco": 0,
+                "brick": 0,
+                "residential": 35,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 35,
+              "blades": 0,
+              "surfaceTriangles": 7772,
+              "bladeTriangles": 0,
+              "drawCalls": 1,
+              "pending": false,
+              "cachedLawns": 35
+            }
+          },
+          "resources": {
+            "geometries": 223,
+            "textures": 27,
+            "programs": 36,
+            "textureBytesEst": 24103595,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        }
+      ],
+      "errors": []
+    },
+    "grass-before-warmed": {
+      "warmup": "Paused cloud capture invokes the existing budgeted streetDetail.update at 20 ms between render frames; no game source changes; timing is not hardware FPS",
+      "results": [
+        {
+          "id": "sf-palace-distant",
+          "camera": {
+            "x": -4400,
+            "y": 250,
+            "z": 300,
+            "yawDeg": -20,
+            "pitchDeg": -12
+          },
+          "info": {
+            "drawCalls": 101,
+            "triangles": 476661,
+            "tilesLoaded": 8,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 88,
+              "far": 1386,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 3.056612318840571,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 23,
+            "farCellsDrawn": 7,
+            "farTriangles": 339317,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 8,
+              "frozenObjects": 96,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 26,
+              "patches": 70,
+              "crosswalks": 252,
+              "stopBars": 211,
+              "signals": 4,
+              "stopSigns": 207,
+              "signPosts": 76,
+              "blades": 137,
+              "curbSigns": 718,
+              "trees": 4622,
+              "palms": 81,
+              "storefronts": 41
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 58632,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 3272,
+              "styles": {
+                "masonry": 1,
+                "deco": 0,
+                "brick": 0,
+                "residential": 35,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 35,
+              "blades": 0,
+              "surfaceTriangles": 7772,
+              "bladeTriangles": 0,
+              "drawCalls": 1,
+              "pending": false,
+              "cachedLawns": 35
+            }
+          },
+          "resources": {
+            "geometries": 195,
+            "textures": 21,
+            "programs": 32,
+            "textureBytesEst": 19101013,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        },
+        {
+          "id": "sf-palace-aerial",
+          "camera": {
+            "x": -4628.559999999654,
+            "y": 149.93644932000032,
+            "z": -633.9325000003195,
+            "yawDeg": -45,
+            "pitchDeg": -26.687858982794136
+          },
+          "info": {
+            "drawCalls": 134,
+            "triangles": 354132,
+            "tilesLoaded": 10,
+            "cameraMode": "fly",
+            "presentation": false,
+            "lightingPreset": "noon",
+            "followsClock": false,
+            "weather": {
+              "fog": 0,
+              "wetness": 0,
+              "rain": false,
+              "puddles": 0,
+              "tideM": 0
+            },
+            "streetLightsLit": 0,
+            "carLightsLit": 0,
+            "crowdDrawn": 0,
+            "crowdLoaded": 12,
+            "foliage": {
+              "near": 34,
+              "far": 674,
+              "draws": 8
+            },
+            "surfaceTextures": [
+              "asphalt",
+              "concrete"
+            ],
+            "night": false,
+            "tilesPending": 0,
+            "tilesTotal": 583,
+            "tilesFailed": 0,
+            "landmarks": 15,
+            "fps": 3.083250000000007,
+            "pixelRatio": 0.5,
+            "shadows": false,
+            "agents": 0,
+            "agentsNear": 0,
+            "agentsTotal": 330,
+            "agentDrawCalls": 0,
+            "agentModels": [
+              "robotaxi",
+              "errandRobot",
+              "sidewalkBot",
+              "civilian:compact-hatch",
+              "civilian:sedan",
+              "civilian:utility-suv",
+              "civilian:short-pickup",
+              "civilian:cargo-van"
+            ],
+            "playerCarsFromFile": 1,
+            "walkers": 0,
+            "walkersFromFile": 0,
+            "farCellsTotal": 33,
+            "farCells": 23,
+            "farCellsDrawn": 4,
+            "farTriangles": 339317,
+            "farSeamEdges": 3,
+            "cameraFar": 20000,
+            "backend": "webgl-legacy",
+            "staticScene": {
+              "roots": 10,
+              "frozenObjects": 122,
+              "proxies": 0,
+              "triangles": 0,
+              "sourceAttributeBytes": 0,
+              "proxyAttributeBytes": 0,
+              "ownedBufferBytes": 0,
+              "indexUpdates": 0
+            },
+            "shadowCascades": 0,
+            "shadowAtlas": null,
+            "graphicsError": null,
+            "gfx": {
+              "tier": "low",
+              "pixelBudget": null,
+              "steps": []
+            },
+            "farBudget": {
+              "radius": 6000,
+              "queued": 0,
+              "loading": 0,
+              "failed": 0
+            },
+            "streetDetail": {
+              "layers": [
+                "markings",
+                "furniture",
+                "signs",
+                "trees",
+                "storefronts",
+                "grass"
+              ],
+              "junctions": 7439,
+              "cellsBuilt": 29,
+              "patches": 92,
+              "crosswalks": 330,
+              "stopBars": 192,
+              "signals": 33,
+              "stopSigns": 170,
+              "signPosts": 97,
+              "blades": 184,
+              "curbSigns": 526,
+              "trees": 2738,
+              "palms": 86,
+              "storefronts": 110
+            },
+            "buildingDetail": {
+              "buildings": 36,
+              "triangles": 28752,
+              "drawCalls": 1,
+              "pending": false,
+              "registered": 2554,
+              "styles": {
+                "masonry": 0,
+                "deco": 0,
+                "brick": 0,
+                "residential": 36,
+                "modern": 0
+              }
+            },
+            "grass": {
+              "loaded": true,
+              "areas": 2844,
+              "patches": 20,
+              "blades": 1633,
+              "surfaceTriangles": 5958,
+              "bladeTriangles": 3266,
+              "drawCalls": 2,
+              "pending": false,
+              "cachedLawns": 20
+            }
+          },
+          "resources": {
+            "geometries": 243,
+            "textures": 21,
+            "programs": 34,
+            "textureBytesEst": 24103595,
+            "gpu": null,
+            "fov": 62,
+            "width": 1280,
+            "height": 720,
+            "pixelRatio": 0.5,
+            "backend": "webgl-legacy",
+            "trackedBytes": null
+          }
+        }
+      ],
+      "errors": []
+    }
+  }
+}
