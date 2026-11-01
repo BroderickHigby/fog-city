@@ -11,6 +11,7 @@ import { Actors, CAR_COLORS, makeBoxCar, type CarPose, type WalkerPose } from ".
 import { AgentLayer, type AgentRenderInfo } from "./agent-layer.ts";
 import { FarLayer } from "./far-layer.ts";
 import { parkShapes, parkPavementRegions, tintParks } from "./parks.ts";
+import { LawnTerrain } from "./lawn-terrain.ts";
 import { createPavementMask } from "./pavement.ts";
 import type { Viewer } from "./agent-lod.ts";
 import { CameraRig, type CameraMode, type CameraTarget, type FlyInput } from "./cameras.ts";
@@ -32,7 +33,7 @@ import { clearRenderRetirementOwner, setRenderRetirementOwner, type RenderRetire
 import type { BuildingDetailStats } from "./building-character.ts";
 import type { GroundFn, Manifest, RoadGraph } from "./types.ts";
 import { Water } from "./water.ts";
-import { createLandmarkWater } from "./landmark-water.ts";
+import { createLandmarkWater, PALACE_LAGOON } from "./landmark-water.ts";
 import { softwareFarBudget } from "./far-selection.ts";
 import { AvatarGround } from "./avatar-ground.ts";
 import { FoliageLayer } from "./foliage.ts";
@@ -104,6 +105,8 @@ export interface WorldData {
   assets?: Assets;
   /** districts.json, parsed (its park polygons tint the ground green), or null. */
   districts?: unknown;
+  /** Optional DataSF lawn polygons shared by persistent terrain colour and nearby detail. */
+  lawns?: unknown;
   /** A tile's own collider (with building meta) for a tile whose glb failed; see StreamerOptions. */
   fallbackCollider?: (id: string) => Promise<TileCollider | null>;
   landmarkReplacements?: readonly LandmarkWorldReplacement[];
@@ -373,10 +376,12 @@ export class SceneRenderer {
     const tileLoader = createTileLoader();
     const loadTile = assets ? async (url: string) => tileLoader.parseAsync(bufferOf(await assets.bytes(url)), "") : (url: string) => tileLoader.loadAsync(url);
     const parks = parkShapes(world.districts ?? null);
+    const lawns = new LawnTerrain(world.lawns);
     // Far terrain triangles span 100 m. Include paving just outside a park too,
     // otherwise a green edge vertex can interpolate across that neighbouring road.
-    const pavement = parks.length ? createPavementMask(world.roads, world.colliders,
-      parkPavementRegions(parks)) : undefined;
+    const pavement = parks.length || lawns.regions.length ? createPavementMask(world.roads, world.colliders,
+      [...parkPavementRegions(parks), ...lawns.regions]) : undefined;
+    if(world.manifest.world===PALACE_LAGOON.world) pavement?.addPolygon(PALACE_LAGOON.ring as Array<[number,number]>);
     this.foliage = new FoliageLayer(this.shadows);
     this.scene.add(this.foliage.group);
     const landmarkReplacements=landmarkRenderReplacements(opts.landmarks,world.colliders.values(),world.landmarkReplacements);
@@ -386,6 +391,7 @@ export class SceneRenderer {
       base: world.base,
       load: loadTile,
       tint: (geo, m, terrain) => tintParks(geo, m, parks, terrain, pavement),
+      lawnTerrain: (geo,m,terrain)=>pavement?lawns.paint(geo,m,pavement,terrain):0,
       filterGeometry:landmarkSources.length?(geo,m)=>filterLandmarkHulls(geo,m,landmarkSources):undefined,
       ground: world.ground,
       budget: softwareFarBudget(rendererName),
@@ -413,11 +419,15 @@ export class SceneRenderer {
         this.far.setTileVisible(id, visible);
         if (!visible) { this.avatarGround.removeTile(id); this.foliage.removeTile(id); }
       },
-      tintGround: (geo, m) => tintParks(geo, m, parks, undefined, pavement),
+      tintGround: (geo, m) => {
+        tintParks(geo,m,parks,undefined,pavement);
+        if(pavement) lawns.paint(geo,m,pavement);
+      },
       fallbackCollider: world.fallbackCollider,
     });
     this.far.start();
     this.streetDetail = new StreetDetailLayer({
+      lawns: world.lawns,
       foliage: this.foliage,
       base: world.base,
       json: assets ? (path) => assets.json(path) : fetchJson,

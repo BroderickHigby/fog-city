@@ -32,6 +32,7 @@ import { TacticalEffectsLayer } from "./render/tactical-effects.ts";
 import { landmarks as landmarksDoc, models } from "virtual:fogcity-assets";
 import * as THREE from "three";
 import { installDebugHandle } from "./debug.ts";
+import { loadLawnData } from "./io/lawn-data.ts";
 import { FramePacer } from "./frame-pacer.ts";
 import { bootAssets, openAssets } from "./io/assets.ts";
 import { buildLoadedWorld, loadWorldFiles } from "./io/world-load.ts";
@@ -210,6 +211,7 @@ async function boot(): Promise<void> {
   const loadMs = performance.now() - tLoad;
   // Render-only data: the districts' park polygons tint the ground green. Never fatal.
   const districtsFile = files.manifest.layers?.districts;
+  const lawns = await loadLawnData(assets, base);
   const districts: unknown = districtsFile
     ? await assets.json<unknown>(base + districtsFile).catch((err: unknown) => {
         console.warn(`[fog-city] districts ${districtsFile}: ${err instanceof Error ? err.message : String(err)}`);
@@ -281,7 +283,7 @@ async function boot(): Promise<void> {
   const tierSettings = TIER_SETTINGS[gfx.tier];
   const view = await SceneRenderer.create(
     container,
-    { manifest, base, colliders, roads, ground, occluded, assets, districts, fallbackCollider, landmarkReplacements:files.landmarkReplacements, signals:world.signals },
+    { manifest, base, colliders, roads, ground, occluded, assets, districts, lawns, fallbackCollider, landmarkReplacements:files.landmarkReplacements, signals:world.signals },
     {
       backend: ["webgpu", "webgl", "legacy"].includes(rendererRequest ?? "")
         ? rendererRequest as "webgpu" | "webgl" | "legacy" : safeMode ? "legacy" : "auto",

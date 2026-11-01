@@ -21,6 +21,7 @@
     "relay:load": "node server/load/load-test.ts"
   },
   "dependencies": {
+    "polygon-clipping": "0.15.7",
     "three": "0.186.1",
     "ws": "8.22.0"
   },

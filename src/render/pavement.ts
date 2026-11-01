@@ -12,6 +12,7 @@ export interface PavementMask {
   contains(x: number, z: number): boolean;
   intersectsTriangle(a: Point, b: Point, c: Point): boolean;
   addPolygon(points: ReadonlyArray<Point>): void;
+  polygonsIn(bounds: Bounds): ReadonlyArray<readonly Point[]>;
 }
 
 const CELL_M = 100;
@@ -64,10 +65,20 @@ class IndexedPavement implements PavementMask {
   private readonly polygons: Polygon[] = [];
   private readonly large: Polygon[] = [];
   private readonly regions: readonly Bounds[] | undefined;
+  private readonly regionBuckets = new Map<string, Bounds[]>();
+  private readonly largeRegions: Bounds[] = [];
 
   constructor(regions?: readonly Bounds[]) {
     this.regions = regions?.filter(b => b.every(Number.isFinite) && b[0] <= b[2] && b[1] <= b[3])
       .map(b => [b[0], b[1], b[2], b[3]] as const);
+    for (const b of this.regions ?? []) {
+      const [x0,z0,x1,z1] = this.cellBounds(b);
+      if((x1-x0+1)*(z1-z0+1)>MAX_BUCKETS){this.largeRegions.push(b);continue;}
+      for (let x=x0; x<=x1; x++) for (let z=z0; z<=z1; z++) {
+        const k=key(x,z), list=this.regionBuckets.get(k);
+        if(list) list.push(b); else this.regionBuckets.set(k,[b]);
+      }
+    }
   }
 
   addPolygon(input: ReadonlyArray<Point>): void {
@@ -75,7 +86,7 @@ class IndexedPavement implements PavementMask {
     const box = bounds(input);
     // Park tint only needs nearby pavement. Reject whole-city roads/buildings before
     // copying their vertices or allocating buckets; late junctions obey the same limit.
-    if (this.regions && !this.regions.some(region => overlaps(region, box))) return;
+    if (this.regions && !this.inRegion(box)) return;
     const points: Point[] = [];
     for (const p of input) if (!points.length || !same(points.at(-1)!, p)) points.push([p[0], p[1]]);
     if (points.length > 1 && same(points[0]!, points.at(-1)!)) points.pop();
@@ -102,6 +113,21 @@ class IndexedPavement implements PavementMask {
       if (inPolygon(p, polygon.points)) return true;
     }
     for (const polygon of this.large) if (inPolygon(p, polygon.points)) return true;
+    return false;
+  }
+
+  /** Read-only candidates for exact lawn clipping; holes and concave buildings stay intact. */
+  polygonsIn(box: Bounds): ReadonlyArray<readonly Point[]> {
+    return this.candidates(box).map(p => p.points);
+  }
+
+  private inRegion(box: Bounds): boolean {
+    if(this.largeRegions.some(r=>overlaps(r,box))) return true;
+    const [x0,z0,x1,z1]=this.cellBounds(box);
+    if((x1-x0+1)*(z1-z0+1)>MAX_BUCKETS) return this.regions!.some(r=>overlaps(r,box));
+    for(let x=x0;x<=x1;x++) for(let z=z0;z<=z1;z++) {
+      if(this.regionBuckets.get(key(x,z))?.some(r=>overlaps(r,box))) return true;
+    }
     return false;
   }
 

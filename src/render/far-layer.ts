@@ -56,6 +56,8 @@ export interface FarLayerOptions {
   budget?: FarBudget;
   /** Adjusts a cell's vertex colours once when it loads; `terrain` tells lattice vertices from hulls. */
   tint?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => void;
+  /** Add exact mapped lawn faces after seams have read the untouched 100 m lattice. */
+  lawnTerrain?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, terrain: (x: number, y: number, z: number) => boolean) => number;
   /** Replace only authored landmark hulls once at load. Returned geometry is owned here. */
   filterGeometry?: (geo:THREE.BufferGeometry,matrixWorld:THREE.Matrix4)=>THREE.BufferGeometry|null;
 }
@@ -567,6 +569,10 @@ export class FarLayer {
       };
     });
     this.addSeams(root);
+    root.traverse(o=>{
+      const mesh=o as THREE.Mesh;
+      if(mesh.isMesh&&mesh.name!=="far-stitch"&&mesh.name!=="far-apron") this.triangles+=this.opts.lawnTerrain?.(mesh.geometry,mesh.matrixWorld,onFarLattice)??0;
+    });
     this.roots.set(cell.id, { root, triangles: this.triangles - beforeTriangles, seams: this.seamEdges - beforeSeams });
     this.group.add(root);
     this.loaded++;
