@@ -30,7 +30,10 @@ function operation(type: ClipperLib.ClipType, subject: LawnMultiPolygon, clip: L
   if (!subjects.length) return [];
   const clips = paths(clip);
   if (type === ClipperLib.ClipType.ctIntersection && !clips.length) return [];
-  const engine = new ClipperLib.Clipper(ClipperLib.InitOptions.ioStrictlySimple);
+  // The 6.4.2 runtime exposes this setting on the instance; its separate types also
+  // describe an InitOptions namespace that the published JavaScript does not export.
+  const engine = new ClipperLib.Clipper();
+  engine.StrictlySimple = true;
   engine.AddPaths(subjects, ClipperLib.PolyType.ptSubject, true);
   if (clips.length) engine.AddPaths(clips, ClipperLib.PolyType.ptClip, true);
   const tree = new ClipperLib.PolyTree();
