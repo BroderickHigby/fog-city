@@ -68,6 +68,8 @@ export interface StreamerOptions {
   onTileVisible?: (id: string, visible: boolean) => void;
   /** Adjusts a ground mesh's vertex colours once when its tile loads (parks.ts). */
   tintGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4) => void;
+  /** Prepare collider-built ground off-scene; cancellation must leave dropped geometry untouched. */
+  prepareFallbackGround?: (geo: THREE.BufferGeometry, matrixWorld: THREE.Matrix4, current: () => boolean) => Promise<void>;
   /**
    * When a tile's glb fails for good: that tile's own collider, fetched lazily, with the
    * building meta (use, year, stories) the fallback look reads; null when there is none (the
@@ -464,6 +466,7 @@ export class TileStreamer {
   private finish(rec: TileRecord, meshes: TileMeshes | null): void {
     if (rec.dropped) return;
     const m = this.opts.materials;
+    const ground:THREE.BufferGeometry[]=[];
     if (meshes) {
       const add = (data: TileMeshes["ground"], mat: THREE.Material, name: string): void => {
         if (!data) return;
@@ -477,7 +480,10 @@ export class TileStreamer {
           rec.characters.push(...characterizeBuildings(g,IDENTITY,colliders));
         }
         rec.geometries.push(g);
-        if (name === "ground") this.opts.tintGround?.(g, IDENTITY);
+        if (name === "ground") {
+          if(this.opts.prepareFallbackGround)ground.push(g);
+          else this.opts.tintGround?.(g, IDENTITY);
+        }
         const mesh = new THREE.Mesh(g, mat);
         mesh.name = name;
         mesh.matrixAutoUpdate = false;
@@ -488,6 +494,27 @@ export class TileStreamer {
       add(meshes.buildings, m.building, "buildings");
       add(meshes.roads, m.road, "roads");
     }
+    if(ground.length) {
+      const current=():boolean=>!rec.dropped&&this.records.get(rec.id)===rec;
+      // Start outside update's synchronous build pump and retain pending state until
+      // every ground mesh is ready. Unload already owns all geometry in this record.
+      void new Promise<void>(resolve=>setTimeout(resolve,0)).then(async()=>{
+        for(const geo of ground) {
+          if(!current())return;
+          await this.opts.prepareFallbackGround!(geo,IDENTITY,current);
+        }
+        if(current())this.admit(rec);
+      }).catch((error:unknown)=>{
+        if(current())this.fail(rec,error instanceof Error?error.message:String(error));
+      });
+      return;
+    }
+    this.admit(rec);
+  }
+
+  private admit(rec:TileRecord):void {
+    if(rec.dropped)return;
+    const m=this.opts.materials;
     // Street props from the road graph.
     const edges = this.roadsByTile.get(rec.id) ?? [];
     if (edges.length > 0) {

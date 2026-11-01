@@ -443,7 +443,12 @@ export class SceneRenderer {
       tintGround: (geo, m) => {
         if(geo.userData.fcGroundPrepared)return;
         tintParks(geo,m,parks,undefined,pavement);
-        if(pavement) lawns.paint(geo,m,pavement);
+      },
+      prepareFallbackGround: async(geo,m,current)=>{
+        if(!current())return;
+        tintParks(geo,m,parks,undefined,pavement);
+        if(pavement)await lawns.paintAsync(geo,m,pavement,undefined,()=>current()&&!this.disposed);
+        if(!current()||this.disposed)return;
         geo.userData.fcGroundPrepared=true;
       },
       fallbackCollider: world.fallbackCollider,
