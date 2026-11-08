@@ -1,0 +1,99 @@
+{
+  "$comment": "Written by scripts/planner/optimize-lombard.ts. Optimized fixed-time plans for US-101 on Lombard St (signals east to west).",
+  "pm": {
+    "cycleS": 100,
+    "mainGreenS": [
+      54,
+      66,
+      52,
+      57,
+      60,
+      76,
+      68,
+      58,
+      68,
+      75,
+      43,
+      66,
+      76
+    ],
+    "offsetS": [
+      48,
+      20,
+      20,
+      40,
+      32,
+      56,
+      72,
+      72,
+      72,
+      12,
+      28,
+      24,
+      24
+    ],
+    "signals": [
+      "Van Ness Ave",
+      "Franklin St",
+      "Gough St",
+      "Octavia St",
+      "Laguna St",
+      "Buchanan St",
+      "Webster St",
+      "Fillmore St",
+      "Steiner St",
+      "Pierce St",
+      "Scott St",
+      "Divisadero St",
+      "Broderick St"
+    ]
+  },
+  "am": {
+    "cycleS": 80,
+    "mainGreenS": [
+      39,
+      53,
+      45,
+      35,
+      51,
+      56,
+      47,
+      42,
+      47,
+      56,
+      35,
+      54,
+      56
+    ],
+    "offsetS": [
+      77,
+      60,
+      40,
+      40,
+      36,
+      14,
+      0,
+      68,
+      56,
+      32,
+      30,
+      17,
+      64
+    ],
+    "signals": [
+      "Van Ness Ave",
+      "Franklin St",
+      "Gough St",
+      "Octavia St",
+      "Laguna St",
+      "Buchanan St",
+      "Webster St",
+      "Fillmore St",
+      "Steiner St",
+      "Pierce St",
+      "Scott St",
+      "Divisadero St",
+      "Broderick St"
+    ]
+  }
+}
