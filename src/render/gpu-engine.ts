@@ -5,9 +5,12 @@ import * as THREE from "three";
 import { WebGPURenderer, RenderPipeline, PMREMGenerator, MeshBasicNodeMaterial, MeshPhysicalNodeMaterial, BlendMode, MaterialBlending, type RenderTarget, type Node } from "three/webgpu";
 import { Fn, uniform, float, vec2, vec3, vec4, dot, mix, min, max, pow, smoothstep, length, screenUV, screenSize,
   pass, mrt, output, normalView, positionWorld, cameraPosition,
-  normalize, exp, abs, select, fog, pmremTexture, sin, cos, transformNormalToView } from "three/tsl";
+  normalize, exp, abs, select, fog, pmremTexture, sin, cos, transformNormalToView,
+  renderOutput } from "three/tsl";
 import { bloom } from "three/addons/tsl/display/BloomNode.js";
 import { ssr } from "three/addons/tsl/display/SSRNode.js";
+import { ao } from "three/addons/tsl/display/GTAONode.js";
+import { smaa } from "three/addons/tsl/display/SMAANode.js";
 import { SkyMesh } from "three/addons/objects/SkyMesh.js";
 import { SunLight } from "three/addons/lights/SunLight.js";
 import { SunLightNode } from "three/addons/lights/SunLightNode.js";
@@ -16,10 +19,15 @@ import { skyHaze, sunDirection, type LightingPreset } from "./sky.ts";
 import { gpuMaterialUniforms, sceneMetalRough } from "./node-materials.ts";
 import { presentationLook, type PresentationLook } from "./quality.ts";
 import { RendererWarmup, compileForTarget, type WarmupStats } from "./renderer-warmup.ts";
+import type { GfxDetail } from "./gfx.ts";
 
 export type RendererBackendRequest = "auto" | "webgpu" | "webgl" | "legacy";
-export interface GpuEngineOptions { backend?: RendererBackendRequest; shadows: boolean; quality: boolean; high: boolean }
-export interface PostProcessingInfo { enabled: boolean; ssr: boolean; bloom: boolean; framesRendered: number }
+export interface GpuEngineOptions { backend?: RendererBackendRequest; shadows: boolean; quality: boolean; detail: Readonly<GfxDetail> }
+export interface PostProcessingInfo { enabled: boolean; ssr: boolean; bloom: boolean; ao: boolean; antialias: "msaa" | "smaa"; framesRendered: number }
+/** Ambient occlusion fades out between these view distances (m): far texels are too coarse for it. */
+export const AO_FADE_NEAR = 90, AO_FADE_FAR = 260;
+/** How dark full occlusion gets (0 none, 1 black). Kept gentle: the city already has contact shadows. */
+export const AO_STRENGTH = .6;
 type ThreeConsole = (type: "log" | "warn" | "error", message: string, ...parameters: unknown[]) => void;
 const normalThreeConsole: ThreeConsole = (type, message, ...parameters) => console[type](message, ...parameters);
 
@@ -89,7 +97,9 @@ export class GpuEngine {
   private bloomPass: ReturnType<typeof bloom> | null = null;
   private scenePass: ReturnType<typeof pass> | null = null;
   private reflections: ReturnType<typeof ssr> | null = null;
-  private readonly postInfo: PostProcessingInfo = { enabled: false, ssr: false, bloom: false, framesRendered: 0 };
+  private occlusion: ReturnType<typeof ao> | null = null;
+  private edges: ReturnType<typeof smaa> | null = null;
+  private readonly postInfo: PostProcessingInfo = { enabled: false, ssr: false, bloom: false, ao: false, antialias: "msaa", framesRendered: 0 };
   private error: string | null = null;
   private failureMessage: string | null = null;
   private readonly loggedErrors = new Set<string>();
@@ -123,8 +133,9 @@ export class GpuEngine {
     THREE.setConsoleFunction(this.reportConsole);
     this.sun.name = "slop-sun-cascades";
     this.sun.castShadow = options.shadows;
-    // Two 2048px cascades at high tier; avoid the reference's 3072 atlas on smaller GPUs.
-    const size = options.high ? 2048 : 1024;
+    // Two cascades side by side: 3072 px each at the high tier (the reference's size), 1536 at
+    // standard (gfx.ts TIER_DETAIL).
+    const size = options.detail.cascadeMapSize;
     this.sun.shadow.mapSize.set(size, size);
     this.sun.shadow.camera.near = .5;
     this.sun.shadow.camera.far = 300;
@@ -229,11 +240,29 @@ export class GpuEngine {
     const normals = scenePass.getTextureNode("normal");
     const reflections = ssr(color, scenePass.getTextureNode("depth"), normals as unknown as Node<"vec3">, { metalnessNode: packed.r, roughnessNode: packed.g, camera });
     this.reflections = reflections;
-    reflections.resolutionScale = .5; reflections.blurQuality = 1; reflections.maxDistance.value = 42;
-    reflections.thickness.value = .85; reflections.quality.value = .25; reflections.binaryRefine = true;
+    const detail = this.options.detail;
+    reflections.resolutionScale = detail.reflectionScale; reflections.blurQuality = 1; reflections.maxDistance.value = 42;
+    reflections.thickness.value = .85; reflections.quality.value = detail.reflectionQuality; reflections.binaryRefine = true;
     reflections.intensity.value = .5; reflections.screenEdgeFadeBlack = true;
     const reflectionMask = packed.r.greaterThan(0).select(smoothstep(.75, .55, packed.g), 0);
-    const exposed = max(color.rgb.add(reflections.rgb.mul(reflectionMask)), vec3(0)).mul(this.exposure).mul(this.balance);
+    // Ambient occlusion darkens the creases the sun's shadows miss: where walls meet pavement,
+    // under cars and awnings, between kerb and road. It fades out with distance; the sky and the
+    // far city (at or near the far plane, whichever depth convention) get none. `select`, not
+    // mix: a sky texel's AO can be NaN, and NaN * 0 is still NaN.
+    let lit: Node<"vec3"> = color.rgb;
+    if (detail.ambientOcclusion > 0) {
+      const depth = scenePass.getTextureNode("depth");
+      const occlusion = ao(depth, normals, camera); this.occlusion = occlusion;
+      occlusion.resolutionScale = detail.ambientOcclusion;
+      occlusion.radius.value = 1.4; occlusion.thickness.value = 1.5; occlusion.distanceExponent.value = 1.2;
+      occlusion.samples.value = 12;
+      // The scene camera's view depth: cameraNear/cameraFar here would be the post quad's camera.
+      const distance = scenePass.getViewZNode().negate();
+      const fade = float(1).sub(smoothstep(AO_FADE_NEAR, AO_FADE_FAR, distance));
+      const term = fade.greaterThan(0).select(mix(float(1), occlusion.getTextureNode().r.clamp(0, 1), fade.mul(AO_STRENGTH)), float(1));
+      lit = color.rgb.mul(term);
+    }
+    const exposed = max(lit.add(reflections.rgb.mul(reflectionMask)), vec3(0)).mul(this.exposure).mul(this.balance);
     const peak = max(max(exposed.r, exposed.g), exposed.b);
     const bloomPass = bloom(vec4(exposed.mul(float(8).div(max(peak, 8))), 1), .24, .4, 1.2);
     bloomPass.smoothWidth.value = .3; bloomPass.setResolutionScale(.5); this.bloomPass = bloomPass;
@@ -251,7 +280,13 @@ export class GpuEngine {
       const radius = length(screenUV.sub(.5).mul(vec2(aspect, 1))).div(length(vec2(aspect, 1).mul(.5)));
       return vec4(rgb.mul(float(1).sub(smoothstep(.35, 1, radius).mul(.12))), 1);
     })();
-    this.pipeline = new RenderPipeline(this.renderer, graded);
+    // WebGPU draws the scene pass with 4x MSAA. The WebGL node backend cannot (createGpuScenePass),
+    // so its edges would be raw stair-steps: tone-map first, then SMAA in display space.
+    if (this.backend === "webgl-node" && detail.antialias === "smaa") {
+      const edges = smaa(renderOutput(graded)); this.edges = edges;
+      this.pipeline = new RenderPipeline(this.renderer, edges);
+      this.pipeline.outputColorTransform = false;
+    } else this.pipeline = new RenderPipeline(this.renderer, graded);
   }
 
   setPreset(preset: LightingPreset, look: PresentationLook = presentationLook(preset.name), key: string = preset.name): void {
@@ -280,7 +315,7 @@ export class GpuEngine {
     if (key !== this.envKey && this.scene) {
       this.envKey = key;
       this.sky.showSunDisc.value = 0; this.envScene.add(this.sky);
-      this.environment = this.pmrem.fromScene(this.envScene, 0, .1, 100, { size: 128, renderTarget: this.environment });
+      this.environment = this.pmrem.fromScene(this.envScene, 0, .1, 100, { size: this.options.detail.environmentSize, renderTarget: this.environment });
       this.scene.environment = this.environment.texture;
       this.sky.showSunDisc.value = 1; this.scene.add(this.sky);
       this.scene.environmentIntensity = preset.envIntensity;
@@ -323,6 +358,8 @@ export class GpuEngine {
         this.postInfo.enabled = true;
         this.postInfo.ssr = this.reflections !== null;
         this.postInfo.bloom = this.bloomPass !== null;
+        this.postInfo.ao = this.occlusion !== null;
+        this.postInfo.antialias = this.edges ? "smaa" : "msaa";
         this.postInfo.framesRendered++;
       } else this.renderer.render(scene, camera);
     }
@@ -335,11 +372,11 @@ export class GpuEngine {
     if (!enabled) { this.sun.shadow.map?.dispose(); this.sun.shadow.map = null; }
   }
   private disposePipeline(): void {
-    const pipeline=this.pipeline,pass=this.scenePass,bloom=this.bloomPass,reflections=this.reflections;
-    this.pipeline = null; this.scenePass = null; this.bloomPass = null; this.reflections = null;
-    const release=():void=>{pipeline?.dispose();pass?.dispose();bloom?.dispose();reflections?.dispose();};
+    const pipeline=this.pipeline,pass=this.scenePass,bloom=this.bloomPass,reflections=this.reflections,occlusion=this.occlusion,edges=this.edges;
+    this.pipeline = null; this.scenePass = null; this.bloomPass = null; this.reflections = null; this.occlusion = null; this.edges = null;
+    const release=():void=>{pipeline?.dispose();pass?.dispose();bloom?.dispose();reflections?.dispose();occlusion?.dispose();edges?.dispose();};
     if(this.warmupQueue?.info().active)void this.warmupQueue.idle().then(release,release);else release();
-    this.postInfo.enabled = false; this.postInfo.ssr = false; this.postInfo.bloom = false;
+    this.postInfo.enabled = false; this.postInfo.ssr = false; this.postInfo.bloom = false; this.postInfo.ao = false;
   }
   disablePost(): void { this.postEnabled = false; this.warmupQueue?.invalidate(); this.disposePipeline(); this.renderer.toneMappingExposure = this.exposure.value; }
   get presentation(): boolean { return this.postEnabled && this.pipeline !== null; }

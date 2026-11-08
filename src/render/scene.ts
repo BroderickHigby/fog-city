@@ -41,7 +41,7 @@ import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
-import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
+import { GfxGovernor, PIXEL_STEP, renderPixelRatio, tierDetail, type GfxDetail, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
 import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
@@ -179,9 +179,6 @@ export interface RenderInfo {
   streetDetail?: StreetDetailInfo;
 }
 
-const SHADOW_HALF = 96;
-const SHADOW_MAP_SIZE = 2048;
-const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -239,6 +236,10 @@ export class SceneRenderer {
   private readonly maxPixelRatio: number;
   private pixelBudget: number;
   private readonly tier: GfxTier | "unknown";
+  /** The tier's shadow, reflection, AO and anti-aliasing figures (gfx.ts TIER_DETAIL). */
+  private readonly detail: Readonly<GfxDetail>;
+  /** Legacy renderer: metres per sun-shadow texel; the shadow box moves in steps of one. */
+  private readonly shadowTexel: number;
   private governor: GfxGovernor | null = null;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
@@ -287,7 +288,7 @@ export class SceneRenderer {
       let gpu: GpuEngine | null = null;
       let candidate: SceneRenderer | null = null;
       try {
-        gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, high: opts.tier === "high" });
+        gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, detail: tierDetail(opts.tier) });
         setGpuMaterialsEnabled(true);
         candidate = new SceneRenderer(container, world, opts, gpu);
         await gpu.prewarm(candidate.scene, candidate.camera);
@@ -325,6 +326,8 @@ export class SceneRenderer {
     this.maxPixelRatio = opts.maxPixelRatio;
     this.pixelBudget = opts.pixelBudget ?? Infinity;
     this.tier = opts.tier ?? "unknown";
+    this.detail = tierDetail(this.tier);
+    this.shadowTexel = (this.detail.shadowHalf * 2) / this.detail.shadowMapSize;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = this.shadows;
@@ -337,12 +340,13 @@ export class SceneRenderer {
     if (!gpu) { this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target); this.envScene.add(new Sky(900).mesh); }
     if (this.shadows && !gpu) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+      const { shadowMapSize: size, shadowHalf: half } = this.detail;
+      this.sun.shadow.mapSize.set(size, size);
       const c = this.sun.shadow.camera;
-      c.left = -SHADOW_HALF;
-      c.right = SHADOW_HALF;
-      c.top = SHADOW_HALF;
-      c.bottom = -SHADOW_HALF;
+      c.left = -half;
+      c.right = half;
+      c.top = half;
+      c.bottom = -half;
       c.near = 1;
       c.far = 1600;
       this.sun.shadow.bias = -0.00008;
@@ -480,7 +484,7 @@ export class SceneRenderer {
 
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if (!gpu && (opts.quality ?? !software) && (this.renderer as THREE.WebGLRenderer).extensions.has("EXT_color_buffer_float")) {
-      this.quality = new VisualQuality(this.renderer as THREE.WebGLRenderer, this.scene, this.camera);
+      this.quality = new VisualQuality(this.renderer as THREE.WebGLRenderer, this.scene, this.camera, this.detail.antialias);
       this.streetLights = new StreetLightRig();
       this.scene.add(this.streetLights.group);
     }
@@ -922,8 +926,8 @@ export class SceneRenderer {
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
     // Move in texel-sized steps, rather than visibly jumping twenty metres.
-    const sx = Math.round(cam.x / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
-    const sz = Math.round(cam.z / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
+    const sx = Math.round(cam.x / this.shadowTexel) * this.shadowTexel;
+    const sz = Math.round(cam.z / this.shadowTexel) * this.shadowTexel;
     const groundY = this.ground(sx, sz);
     this.sun.target.position.set(sx, groundY, sz);
     this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);

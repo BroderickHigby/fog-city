@@ -25,6 +25,7 @@ export interface PlannerHost {
 }
 
 const MAX_CARS = 900;
+const LIGHT_MINUTE = 13 * 60 + 30;
 const LANE_W = 3.3;
 const MEDIAN = 1.2;
 const RIBBON_STEP = 20;
@@ -60,6 +61,7 @@ export class PlannerScene {
   private readonly bodies: THREE.InstancedMesh;
   private readonly cabins: THREE.InstancedMesh;
   private readonly lamps: THREE.InstancedMesh;
+  private readonly pillars: THREE.InstancedMesh;
   private readonly ribbon: THREE.InstancedMesh;
   private readonly ribbonSpeed: [Float32Array, Float32Array];
   private readonly lampSlots: { idx: number; dir: 0 | 1 }[] = [];
@@ -78,29 +80,39 @@ export class PlannerScene {
     };
     const lit = new THREE.MeshLambertMaterial({ color: 0xffffff }); lit.userData.skipGpuAdapter = true;
     this.bodies = new THREE.InstancedMesh(new THREE.BoxGeometry(1.85, 0.8, 4.5).translate(0, 0.62, 0), lit, MAX_CARS);
-    const cabinMat = new THREE.MeshLambertMaterial({ color: 0x1d2733 }); cabinMat.userData.skipGpuAdapter = true;
+    const cabinMat = new THREE.MeshLambertMaterial({ color: 0x55697a }); cabinMat.userData.skipGpuAdapter = true;
     this.cabins = new THREE.InstancedMesh(new THREE.BoxGeometry(1.6, 0.62, 2.3).translate(0, 1.33, 0.2), cabinMat, MAX_CARS);
     for (const mesh of [this.bodies, this.cabins]) { mesh.count = 0; mesh.frustumCulled = false; mesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage); }
     this.bodies.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_CARS * 3).fill(1), 3);
     this.bodies.instanceColor.setUsage(THREE.DynamicDrawUsage);
-    // A glowing lamp over each stop line, one per direction a signal controls.
-    const n = corridor.signals.length;
+    // A glowing stop bar across the lanes at each stop line, one per direction a signal controls.
+    const n = corridor.signals.length, lanes = corridor.lanesPerDirection;
     for (let i = 1; i < n; i++) this.lampSlots.push({ idx: i, dir: 0 });
     for (let i = 0; i < n; i++) this.lampSlots.push({ idx: i, dir: 1 });
-    this.lamps = new THREE.InstancedMesh(new THREE.SphereGeometry(0.9, 16, 10), unlit({ color: 0xffffff }), this.lampSlots.length);
+    this.lamps = new THREE.InstancedMesh(new THREE.BoxGeometry(LANE_W * lanes, 0.12, 1.4), unlit({ color: 0xffffff }), this.lampSlots.length);
     this.lamps.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(this.lampSlots.length * 3).fill(1), 3);
     this.lamps.frustumCulled = false;
     this.lampSlots.forEach((slot, k) => {
-      const at = slot.dir === 0 ? corridor.signals[slot.idx]!.s - STOP_BACK_M : corridor.signals[slot.idx]!.s + STOP_BACK_M;
-      const pose = this.place(at, slot.dir, corridor.lanesPerDirection + 0.6);
-      this.p.set(pose.x, pose.y + 6.2, pose.z);
-      this.m.compose(this.p, this.q.identity(), this.sc.set(1, 1, 1));
+      const along = slot.dir === 0 ? corridor.signals[slot.idx]!.s - STOP_BACK_M : corridor.length - corridor.signals[slot.idx]!.s - STOP_BACK_M;
+      const pose = this.place(along, slot.dir, (lanes - 1) / 2);
+      this.q.setFromAxisAngle(this.up, -pose.heading);
+      this.p.set(pose.x, pose.y + 0.3, pose.z);
+      this.m.compose(this.p, this.q, this.sc.set(1, 1, 1));
       this.lamps.setMatrixAt(k, this.m);
+    });
+    // A tall light column at each signal, seen from the high cameras only.
+    this.pillars = new THREE.InstancedMesh(new THREE.CylinderGeometry(1.6, 1.6, 34, 12).translate(0, 17, 0), unlit({ color: 0xffffff, transparent: true, opacity: 0.8 }), n);
+    this.pillars.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3);
+    this.pillars.frustumCulled = false;
+    corridor.signals.forEach((sig, k) => {
+      this.p.set(sig.x, ground(sig.x, sig.z) + 4, sig.z);
+      this.m.compose(this.p, this.q.identity(), this.sc.set(1, 1, 1));
+      this.pillars.setMatrixAt(k, this.m);
     });
     // Congestion ribbon: a strip under each direction's lanes, coloured by recent speed.
     const segs = Math.ceil(corridor.length / RIBBON_STEP);
     this.ribbonSpeed = [new Float32Array(segs).fill(IDM.v0), new Float32Array(segs).fill(IDM.v0)];
-    const ribbonMat = unlit({ color: 0xffffff, transparent: true, opacity: 0.55, depthWrite: false });
+    const ribbonMat = unlit({ color: 0xffffff, transparent: true, opacity: 0.42, depthWrite: false });
     this.ribbon = new THREE.InstancedMesh(new THREE.PlaneGeometry(LANE_W * corridor.lanesPerDirection, RIBBON_STEP * 1.02).rotateX(-Math.PI / 2), ribbonMat, segs * 2);
     this.ribbon.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(segs * 2 * 3).fill(1), 3);
     this.ribbon.frustumCulled = false; this.ribbon.renderOrder = 2;
@@ -114,7 +126,7 @@ export class PlannerScene {
         this.ribbon.setMatrixAt(dir * segs + k, this.m);
       }
     }
-    this.group.add(this.ribbon, this.bodies, this.cabins, this.lamps);
+    this.group.add(this.ribbon, this.bodies, this.cabins, this.lamps, this.pillars);
   }
 
   /** World pose of a point `s` along direction `dir`, in lane `lane` (0 = next to the median). */
@@ -126,6 +138,9 @@ export class PlannerScene {
     const x = c.x + Math.cos(heading) * off, z = c.z + Math.sin(heading) * off;
     return { x, y: this.ground(x, z), z, heading };
   }
+
+  /** Light columns and the congestion ribbon read from above; at street level the cars say it. */
+  setHigh(high: boolean): void { this.pillars.visible = high; this.ribbon.visible = high; }
 
   update(cars: readonly Car[], main: readonly Aspect[], dt: number): void {
     let k = 0;
@@ -158,25 +173,27 @@ export class PlannerScene {
     if (this.ribbon.instanceColor) this.ribbon.instanceColor.needsUpdate = true;
     this.lampSlots.forEach((slot, j) => this.lamps.setColorAt(j, ASPECT_COLOR[main[slot.idx]!]));
     if (this.lamps.instanceColor) this.lamps.instanceColor.needsUpdate = true;
+    main.forEach((a, i) => this.pillars.setColorAt(i, ASPECT_COLOR[a]));
+    if (this.pillars.instanceColor) this.pillars.instanceColor.needsUpdate = true;
   }
 
   dispose(): void {
-    for (const mesh of [this.bodies, this.cabins, this.lamps, this.ribbon]) { mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); mesh.dispose(); }
+    for (const mesh of [this.bodies, this.cabins, this.lamps, this.ribbon, this.pillars]) { mesh.geometry.dispose(); (mesh.material as THREE.Material).dispose(); mesh.dispose(); }
     this.group.removeFromParent();
   }
 }
 
 /** Camera poses over the corridor. */
 export function cameraPoses(c: Corridor, ground: (x: number, z: number) => number): Record<Exclude<CameraId, "tour" | "follow">, Pose> & { bridge: Pose; vanNess: Pose } {
+  const at = (s: number, up: number): THREE.Vector3 => { const p = pointAt(c, s); return new THREE.Vector3(p.x, ground(p.x, p.z) + up, p.z); };
   const mid = pointAt(c, c.length * 0.5), gy = ground(mid.x, mid.z);
-  const target = new THREE.Vector3(mid.x, gy, mid.z);
   const fillmore = c.signals.find((s) => s.street.startsWith("Fillmore")) ?? c.signals[6]!;
   const west = pointAt(c, c.length * 0.92), east = pointAt(c, c.length * 0.05);
   return {
-    // From above Pacific Heights, looking north over the corridor to the Bay.
-    overview: lookPose(new THREE.Vector3(mid.x + 260, gy + 340, mid.z + 720), target, 52),
-    // Street level at Fillmore, looking west toward the bridge.
-    street: lookPose(new THREE.Vector3(fillmore.x + 70, ground(fillmore.x, fillmore.z) + 14, fillmore.z + 26), new THREE.Vector3(fillmore.x - 180, ground(fillmore.x, fillmore.z) + 2, fillmore.z - 30), 55),
+    // Above Van Ness and a little south, looking west along the whole corridor to the bridge.
+    overview: lookPose(new THREE.Vector3(c.points[0]!.x + 330, gy + 300, c.points[0]!.z + 330), new THREE.Vector3(mid.x - 150, gy, mid.z - 190), 50),
+    // Over the median east of Fillmore, looking west toward the bridge.
+    street: lookPose(at(fillmore.s - 70, 10), at(fillmore.s + 220, 2), 55),
     bridge: lookPose(new THREE.Vector3(west.x + 120, ground(west.x, west.z) + 110, west.z + 160), new THREE.Vector3(west.x - 260, ground(west.x, west.z), west.z - 80), 50),
     vanNess: lookPose(new THREE.Vector3(east.x + 150, ground(east.x, east.z) + 90, east.z + 140), new THREE.Vector3(east.x - 120, ground(east.x, east.z), east.z - 20), 52),
   };
@@ -269,7 +286,9 @@ export async function runPlanner(host: PlannerHost): Promise<PlannerHandle> {
     return u < hold ? tour[i]! : lerpPose(tour[i]!, tour[(i + 1) % tour.length]!, (u - hold) / move);
   };
 
-  const minute = state.period === "pm" ? 16 * 60 + 40 : 8 * 60 + 15;
+  // The light is early afternoon whichever peak is modelled: a low evening sun looks straight into
+  // the westbound cameras and washes the corridor out.
+  const minute = LIGHT_MINUTE;
   view.setObservationPose(currentPose(0));
   await host.prepare(() => { scene.update(sim.snapshot().cars, sim.main, 1); view.frame(0, null, NO_FLY_INPUT, minute); view.render(); });
   host.reveal();
@@ -288,11 +307,12 @@ export async function runPlanner(host: PlannerHost): Promise<PlannerHandle> {
   const frame = (now: number): void => {
     const dt = Math.min(0.1, (now - last) / 1000); last = now;
     const steps = Math.min(40, Math.round(dt * state.speed / sim.dt) || (state.speed > 0 ? 1 : 0));
+    scene.setHigh(view.camera.position.y - ground(view.camera.position.x, view.camera.position.z) > 40);
     for (let i = 0; i < steps; i++) sim.step();
     const snap = sim.snapshot();
     scene.update(snap.cars, snap.main, dt * state.speed);
     view.setObservationPose(currentPose(dt));
-    view.frame(dt, null, NO_FLY_INPUT, state.period === "pm" ? 16 * 60 + 40 : 8 * 60 + 15);
+    view.frame(dt, null, NO_FLY_INPUT, LIGHT_MINUTE);
     view.render();
     if (now >= nextPanel) { nextPanel = now + 250; panel.update(state, snap); }
     requestAnimationFrame(frame);

@@ -14,7 +14,7 @@ export interface RenderInfo {
   shadowCascades?: number;
   shadowAtlas?: { width:number; height:number }|null;
   graphicsError?: string|null;
-  postProcessing?: { enabled:boolean; ssr:boolean; bloom:boolean; framesRendered:number };
+  postProcessing?: { enabled:boolean; ssr:boolean; bloom:boolean; ao:boolean; antialias:"msaa"|"smaa"; framesRendered:number };
   /** Bounded nearby architectural geometry and its style mix. */
   buildingDetail?: BuildingDetailStats;
   /** Terrain-following lawn surfaces and bounded nearby blade detail. */

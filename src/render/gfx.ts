@@ -1,10 +1,13 @@
 // Graphics tiers, the render-size budget and the step-down governor.
 //
 // Tiers, chosen once at boot from the GPU (chooseTier) unless ?gfx= names one:
-//   high      known desktop discrete GPUs: the presentation chain, sun shadows, up to 3.7 MP
-//   standard  Apple, Intel, laptop and unknown GPUs: the same look at up to 2.1 MP (a 1080p frame)
+//   high      known desktop discrete GPUs: the presentation chain with ambient occlusion and
+//             full-resolution reflections, 3072 px shadow cascades, up to 3.7 MP
+//   standard  Apple, Intel, laptop and unknown GPUs: the presentation chain without AO, 1536 px
+//             cascades, up to 2.1 MP (a 1080p frame)
 //   low       software rasterisers (every CI and e2e run), phones, and safe mode after the GPU
 //             was lost: no post-processing, no shadows, 1.2 MP
+// TIER_DETAIL holds the per-tier shadow, reflection, AO and anti-aliasing figures.
 // The pixel budget caps the drawing buffer whatever the screen: a 5K display at device pixel
 // ratio 2 asks for 14.7 MP, and with a half-float post chain and MSAA that alone can exhaust a
 // laptop GPU and kill the tab.
@@ -44,6 +47,42 @@ export const TIER_SETTINGS: Readonly<Record<GfxTier, Readonly<GfxSettings>>> = O
   standard: { post: true, shadows: true, pixelBudget: 2_100_000, maxPixelRatio: 1.5 },
   low: { post: false, shadows: false, pixelBudget: 1_200_000, maxPixelRatio: 1 },
 });
+
+/**
+ * What each tier draws inside its shadows and its presentation chain (scene.ts, gpu-engine.ts,
+ * quality.ts). Low draws neither, so its row only matters when a link forces ?shadows=1 or
+ * ?quality=1; it keeps the values every tier used before this table existed.
+ */
+export interface GfxDetail {
+  /** Node renderer: pixels per side of each of the sun's two shadow cascades. */
+  cascadeMapSize: number;
+  /** Legacy renderer: pixels per side of the one sun shadow map, and the half-width of the box it covers (m). */
+  shadowMapSize: number;
+  shadowHalf: number;
+  /** Screen-space reflections on the wet road: buffer scale and ray-march quality (0..1). */
+  reflectionScale: number;
+  reflectionQuality: number;
+  /** Ambient occlusion (GTAO, node renderer): its buffer scale, or 0 for none. */
+  ambientOcclusion: number;
+  /** Edge smoothing wherever the scene is drawn without MSAA (legacy chain; WebGL node backend). */
+  antialias: "fxaa" | "smaa";
+  /** Pixels per side of the sky's environment cube (reflections and the fog's colour). */
+  environmentSize: number;
+}
+
+export const TIER_DETAIL: Readonly<Record<GfxTier, Readonly<GfxDetail>>> = Object.freeze({
+  // Discrete desktop GPUs: the reference's 3072 px cascades (two of them: a 6144 x 3072 atlas,
+  // about 75 MB), full-resolution reflections and half-resolution ambient occlusion.
+  high: { cascadeMapSize: 3072, shadowMapSize: 4096, shadowHalf: 128, reflectionScale: 1, reflectionQuality: .5, ambientOcclusion: .5, antialias: "smaa", environmentSize: 256 },
+  // Laptops and Apple GPUs: sharper shadows (a 3072 x 1536 atlas, about 19 MB) and SMAA, no AO.
+  standard: { cascadeMapSize: 1536, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "smaa", environmentSize: 256 },
+  low: { cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128 },
+});
+
+/** The detail row for a tier; an unnamed tier (tests, tools) gets the low row. */
+export function tierDetail(tier: GfxTier | "unknown" | undefined): Readonly<GfxDetail> {
+  return tier === "high" || tier === "standard" ? TIER_DETAIL[tier] : TIER_DETAIL.low;
+}
 
 export interface GfxChoice {
   tier: GfxTier;

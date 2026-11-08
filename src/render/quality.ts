@@ -7,6 +7,7 @@ import { ShaderPass } from "three/addons/postprocessing/ShaderPass.js";
 import { UnrealBloomPass } from "three/addons/postprocessing/UnrealBloomPass.js";
 import { OutputPass } from "three/addons/postprocessing/OutputPass.js";
 import { FXAAShader } from "three/addons/shaders/FXAAShader.js";
+import { SMAAPass } from "three/addons/postprocessing/SMAAPass.js";
 import { fcUniforms } from "./materials.ts";
 import type { LightingPreset } from "./sky.ts";
 
@@ -63,7 +64,8 @@ const GRADE = {
 
 /**
  * Render the scene to a linear target, grade and bloom it, then apply ACES/output transfer
- * exactly once through OutputPass. FXAA runs after output because it expects display RGB.
+ * exactly once through OutputPass. The edge filter (SMAA at the standard and high tiers, FXAA
+ * otherwise) runs after output because both expect display RGB.
  * The normal direct renderer remains valid when this class is not instantiated.
  */
 export class VisualQuality {
@@ -73,10 +75,11 @@ export class VisualQuality {
   private readonly grade: ShaderPass;
   private readonly bloom: UnrealBloomPass;
   private readonly output: OutputPass;
-  private readonly fxaa: ShaderPass;
+  private readonly fxaa: ShaderPass | null;
+  private readonly smaa: SMAAPass | null;
   private disposed = false;
 
-  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera) {
+  constructor(renderer: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, antialias: "fxaa" | "smaa" = "fxaa") {
     this.renderer = renderer;
     const floatColor = renderer.extensions.has("EXT_color_buffer_float");
     const target = new THREE.WebGLRenderTarget(1, 1, { type: floatColor ? THREE.HalfFloatType : THREE.UnsignedByteType });
@@ -87,12 +90,13 @@ export class VisualQuality {
     this.bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.15, 0.35, 1.3);
     this.bloom.enabled = floatColor;
     this.output = new OutputPass();
-    this.fxaa = new ShaderPass(FXAAShader);
+    this.fxaa = antialias === "fxaa" ? new ShaderPass(FXAAShader) : null;
+    this.smaa = antialias === "smaa" ? new SMAAPass() : null;
     this.composer.addPass(this.scenePass);
     this.composer.addPass(this.grade);
     this.composer.addPass(this.bloom);
     this.composer.addPass(this.output);
-    this.composer.addPass(this.fxaa);
+    this.composer.addPass((this.smaa ?? this.fxaa)!);
     const size = renderer.getSize(new THREE.Vector2());
     this.resize(size.x, size.y);
   }
@@ -112,7 +116,7 @@ export class VisualQuality {
     this.composer.setPixelRatio(ratio);
     this.composer.setSize(w, h);
     this.grade.uniforms.aspect!.value = w / h;
-    (this.fxaa.uniforms.resolution!.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
+    if (this.fxaa) (this.fxaa.uniforms.resolution!.value as THREE.Vector2).set(1 / (w * ratio), 1 / (h * ratio));
   }
 
   render(deltaSeconds: number): void {
@@ -136,7 +140,8 @@ export class VisualQuality {
     this.grade.dispose();
     this.bloom.dispose();
     this.output.dispose();
-    this.fxaa.dispose();
+    this.fxaa?.dispose();
+    this.smaa?.dispose();
     this.composer.dispose();
   }
 }

@@ -59,6 +59,7 @@ render split are in [`docs/roadmap.md`](docs/roadmap.md#ownership).
 | Harness | `tests/e2e/`, `tests/helpers.ts`, `tests/helpers/`, `tests/golden/`, `playwright.config.ts`, `vitest.config.ts`, `.github/`, `scripts/bench/`, `scripts/golden/` |
 | Server-Net (from wave 4) | `server/net/`, `server/main.ts`, `server/deploy/`, `src/net/`, `tests/net/`, `tests/server/net/` |
 | Server-AI (from wave 6) | `server/ai/`, `tests/server/ai/` |
+| Planner (city-planning demo, `?mode=planner`) | `src/planner/`, `scripts/planner/`, `tests/planner/`, `docs/planner.md` |
 
 Adding a dependency: pin an exact version that is at least two weeks old (`pnpm add --save-exact`).
 
