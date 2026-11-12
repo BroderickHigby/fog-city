@@ -87,16 +87,6 @@ the live PRs before making any merge or supersession decision.
 
 ![Owner context: historical open-PR list](images/reference-historical-pr-list.png)
 
-## Additional current audit image: phone settings
-
-This last image was captured by the assistant during the handoff audit, not
-uploaded as an original bug example. It shows the existing large phone modal
-and Audio settings. The live UI also has saved-progress controls; a Graphics
-selector is absent. This is the starting point for the requested phone redesign
-and Auto/Low/Standard/High selector.
-
-![Current audit: phone and settings before the requested redesign](current-settings.png)
-
 ## Other reported issues without a corresponding supplied screenshot here
 
 - Cars starting in water or absorbing into one another.
