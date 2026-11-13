@@ -1,6 +1,6 @@
 // Scanned surface detail for the node renderer: CC0 material scans (public/textures/detail/,
 // sources.json there) that add brightness variation, roughness and fine relief to building walls
-// and to everything that moves (robots, robotaxis, cars). Colour stays the game's own: a scan only
+// and to everything that moves (robots, robotaxis, cars), and grain to roads and sidewalks. Colour stays the game's own: a scan only
 // modulates brightness relative to its measured mean, so palettes and liveries do not shift.
 //
 // The scans load before any city material is built (SceneRenderer.create), because the node
@@ -10,8 +10,8 @@ import * as THREE from "three";
 import { abs, dot, float, max, pow, texture, vec3 } from "three/tsl";
 import type Node from "three/src/nodes/core/Node.js";
 
-export type DetailName = "metal" | "grain" | "stucco" | "concrete";
-export const DETAIL_NAMES: readonly DetailName[] = ["metal", "grain", "stucco", "concrete"];
+export type DetailName = "metal" | "grain" | "stucco" | "concrete" | "asphalt";
+export const DETAIL_NAMES: readonly DetailName[] = ["metal", "grain", "stucco", "concrete", "asphalt"];
 export const DETAIL_ROOT = "textures/detail/";
 export const DETAIL_SIZE_PX = 1024;
 
@@ -21,6 +21,7 @@ export const DETAIL_SCANS: Readonly<Record<DetailName, { sizeM: number; lum: num
   grain: { sizeM: 2, lum: lum([0.17494, 0.04693, 0.03662]), rough: 0.9243, height: 0.3973 },
   stucco: { sizeM: 1.8, lum: lum([0.42506, 0.41993, 0.40122]), rough: 0.8876, height: 0.7726 },
   concrete: { sizeM: 2.7, lum: lum([0.26637, 0.23707, 0.16183]), rough: 0.7369, height: 0.7788 },
+  asphalt: { sizeM: 3, lum: lum([0.11198, 0.11036, 0.09824]), rough: 0.7703, height: 0.6547 },
 });
 
 function lum(rgb: readonly [number, number, number]): number { return 0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]; }

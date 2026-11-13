@@ -16,6 +16,7 @@ import { interleaveAttributes } from "three/addons/utils/BufferGeometryUtils.js"
 import { fcUniforms } from "./materials.ts";
 import { WINDOW_PROFILES } from "./building-window-profile.ts";
 import { DETAIL_SCANS, detailTextures, luma, triplanar } from "./detail-textures.ts";
+import { pavingOrientation } from "./paving-orientation.ts";
 import {
   DAMP_ALBEDO, DAMP_BELOW, DAMP_WETNESS, FILM_ALBEDO, FILM_WETNESS, PAINT_FILM_ALBEDO, PAINT_POOL_ALBEDO, PAINT_ROUGHNESS, POOL_ALBEDO, POOL_EDGE, POOL_WETNESS, PUDDLE_FINE_FADE, PUDDLE_MID_FADE,
   PUDDLE_SCALES, REFLECT_CUTOFF, REFLECT_FILM, REFLECT_GAIN, REFLECT_MAX, ROUGHNESS_DAMP_SHARE, ROUGHNESS_FILM_SHARE,
@@ -290,8 +291,8 @@ function buildingMaterial(source: THREE.Material): CityNodeMaterial {
     const scanL = clamp(mix(luma(stucco.rgb).div(DETAIL_SCANS.stucco.lum), luma(concrete.rgb).div(DETAIL_SCANS.concrete.lum), modern), .55, 1.45);
     const scanR = mix(stuccoRH.r.sub(DETAIL_SCANS.stucco.rough), concreteRH.r.sub(DETAIL_SCANS.concrete.rough), modern);
     const scanH = mix(stuccoRH.g.sub(DETAIL_SCANS.stucco.height), concreteRH.g.sub(DETAIL_SCANS.concrete.height), modern);
-    const wallFade = float(1).sub(smoothstep(25, 160, length(positionWorld.sub(cameraPosition)))).mul(float(1).sub(roof)).mul(scans.level);
-    const amount = mix(.5, .22, brick).mul(wallFade);
+    const wallFade = float(1).sub(smoothstep(40, 320, length(positionWorld.sub(cameraPosition)))).mul(float(1).sub(roof)).mul(scans.level);
+    const amount = mix(.85, .35, brick).mul(wallFade);
     wallCol = wallCol.mul(mix(float(1), scanL, amount));
     wallRough = clamp(float(.82).add(scanR.mul(.35).mul(wallFade)), .5, .98);
     wallRelief = scanH.mul(.006).mul(mix(1, .4, brick)).mul(wallFade);
@@ -344,7 +345,17 @@ function buildingMaterial(source: THREE.Material): CityNodeMaterial {
 
 /** World-metre scored concrete, shared by sidewalk ribbons and neutral land. */
 function pavingSurface(p: V2, source: V3): { color: V3; height: F; roughness: F } {
-  const grid = p.div(1.5), footprint = max(fwidth(grid), .00001);
+  // Slabs run along and across the nearest street (paving-orientation.ts), not the compass:
+  // the slab grid is turned to that street's direction, read from the city's orientation map.
+  let q: V2 = p;
+  const orient = pavingOrientation();
+  if (orient) {
+    const at = vec2(p.x.sub(orient.originX).div(orient.sizeX), p.y.sub(orient.originZ).div(orient.sizeZ));
+    const a = texture(orient.texture, at).r.mul(255 * Math.PI / 180);
+    const c = cos(a), sn = sin(a);
+    q = vec2(p.x.mul(c).add(p.y.mul(sn)), p.y.mul(c).sub(p.x.mul(sn)));
+  }
+  const grid = q.div(1.5), footprint = max(fwidth(grid), .00001);
   const distance = length(positionWorld.sub(cameraPosition));
   const detail = float(1).sub(smoothstep(30, 180, distance));
   // Integrate the periodic band from an unwrapped coordinate, so a joint has
@@ -358,7 +369,20 @@ function pavingSurface(p: V2, source: V3): { color: V3; height: F; roughness: F 
   const grainVisible = float(1).sub(smoothstep(.02, .07, pixel));
   const grain = noise2(p.mul(14)).sub(.5).mul(grainVisible);
   const concrete = mix(color(0x85837b), color(0xa19c90), tone);
-  const base = mix(source, concrete, .74).mul(panel.sub(.5).mul(.16).add(1));
+  let base: V3 = mix(source, concrete, .74).mul(panel.sub(.5).mul(.16).add(1));
+  // Scanned concrete (detail-textures.ts) for real surface variation, and the odd dark stain
+  // (gum, drips, old patches) per slab, both fading out with distance.
+  let scanRough: F = float(0), scanHeight: F = float(0);
+  const scans = detailTextures();
+  if (scans) {
+    const near = float(1).sub(smoothstep(15, 140, distance)).mul(scans.level);
+    const s = texture(scans.maps.concrete.albedo, q.div(DETAIL_SCANS.concrete.sizeM)), sRH = texture(scans.maps.concrete.rh, q.div(DETAIL_SCANS.concrete.sizeM));
+    base = base.mul(mix(float(1), clamp(luma(s.rgb).div(DETAIL_SCANS.concrete.lum), .6, 1.4), near.mul(.6)));
+    const stain = smoothstep(.62, .78, noise2(q.mul(2.3).add(hash2(floor(grid)).mul(40)))).mul(step(.55, hash2(floor(grid).add(17.3))));
+    base = base.mul(float(1).sub(stain.mul(.16).mul(near)));
+    scanRough = sRH.r.sub(DETAIL_SCANS.concrete.rough).mul(.3).mul(near);
+    scanHeight = sRH.g.sub(DETAIL_SCANS.concrete.height).mul(.004).mul(near);
+  }
   const wet = clamp(gpuMaterialUniforms.wet, 0, 1);
   const damp = noise2(p.mul(.18).add(vec2(7.4, -13.1))).mul(wet);
   const albedo = base.mul(float(1).sub(joints.mul(.38))).add(grain.mul(.025))
@@ -367,9 +391,9 @@ function pavingSurface(p: V2, source: V3): { color: V3; height: F; roughness: F 
   const ramp = max(footprint.mul(2), .012);
   const reliefJoint = max(pulse(grid.x, float(0), float(.022), ramp.x), pulse(grid.y, float(0), float(.022), ramp.y));
   const reliefFade = float(1).sub(smoothstep(18, 100, distance));
-  const height = noise2(p.mul(4.5)).sub(.5).mul(.002).mul(grainVisible)
+  const height = noise2(p.mul(4.5)).sub(.5).mul(.002).mul(grainVisible).add(scanHeight)
     .sub(reliefJoint.mul(.009)).mul(reliefFade).mul(float(1).sub(wet.mul(.6)));
-  return { color: albedo, height, roughness: mix(float(.92).sub(panel.mul(.055)), .48, damp) };
+  return { color: albedo, height, roughness: mix(clamp(float(.92).sub(panel.mul(.055)).add(scanRough), .55, 1), .48, damp) };
 }
 
 /**
@@ -424,6 +448,16 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
   const tar = float(1).sub(smoothstep(0, .04, abs(patch.sub(.52)))).mul(.28);
   let marking: F = float(0);
   let asphalt: V3 = mix(color(0x2b2e33), color(0x464a51), fine.mul(.36).add(grain.mul(.22)).add(patch.mul(.26))).mul(float(1).sub(oil.mul(.3))).mul(float(1).sub(tar));
+  // Scanned asphalt (detail-textures.ts): aggregate, cracks and wear, brightness relative to the scan.
+  let asphaltRough: F = float(0), asphaltHeight: F = float(0);
+  const scans = detailTextures();
+  if (scans) {
+    const near = float(1).sub(smoothstep(12, 120, dist)).mul(scans.level);
+    const s = texture(scans.maps.asphalt.albedo, p.div(DETAIL_SCANS.asphalt.sizeM)), sRH = texture(scans.maps.asphalt.rh, p.div(DETAIL_SCANS.asphalt.sizeM));
+    asphalt = asphalt.mul(mix(float(1), clamp(luma(s.rgb).div(DETAIL_SCANS.asphalt.lum), .55, 1.6), near.mul(.7)));
+    asphaltRough = sRH.r.sub(DETAIL_SCANS.asphalt.rough).mul(.35).mul(near);
+    asphaltHeight = sRH.g.sub(DETAIL_SCANS.asphalt.height).mul(.004).mul(near);
+  }
   if (ribbons) {
     const ruv = uv(), dx = positionWorld.dFdx(), dy = positionWorld.dFdy(), ux = ruv.dFdx(), uy = ruv.dFdy();
     const det = ux.x.mul(uy.y).sub(uy.x.mul(ux.y));
@@ -442,7 +476,7 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
   const water = roadWater(p, pixel, wetness), damp = water.x, puddle = water.y, film = water.z;
   const wetDark = mix(mix(float(1), DAMP_ALBEDO, damp), POOL_ALBEDO, puddle).mul(mix(1, FILM_ALBEDO, film));
   m.colorNode = mix(concrete, asphalt.mul(wetDark), asphaltMask);
-  const dryRoughness = mix(.82, paving.roughness, neutral.mul(float(1).sub(asphaltMask)));
+  const dryRoughness = mix(clamp(float(.82).add(asphaltRough), .5, 1), paving.roughness, neutral.mul(float(1).sub(asphaltMask)));
   m.roughnessNode = mix(mix(dryRoughness, ROUGHNESS_WET, max(film.mul(ROUGHNESS_FILM_SHARE), damp.mul(ROUGHNESS_DAMP_SHARE))), ROUGHNESS_POOL, puddle);
   // Water's Fresnel weights only the reflection pass (road-water.ts waterReflection): pools mirror the
   // street at grazing angles and only darken seen from above. The lit surface stays dielectric, so
@@ -463,7 +497,7 @@ function roadMaterial(source: THREE.Material, ribbons: boolean, freeway: boolean
     m.mrtNode = builder.renderer.getMRT()?.has("metalRough") ? waterMrt : null;
     try { return setup(builder); } finally { m.mrtNode = null; }
   };
-  const height = noise2(p.mul(8.5)).sub(.5).mul(.0032).mul(float(1).sub(smoothstep(.025, .08, pixel)));
+  const height = noise2(p.mul(8.5)).sub(.5).mul(.0032).mul(float(1).sub(smoothstep(.025, .08, pixel))).add(asphaltHeight);
   m.normalNode = bumpNormal(mix(paving.height.mul(neutral), height, asphaltMask).mul(float(1).sub(puddle)));
   return m;
 }
@@ -567,11 +601,11 @@ export function createGpuPackedMaterial(slots: boolean, vehicles: boolean, light
     const metalW = smoothstep(.45, .7, pbr.y).mul(float(1).sub(glass));
     const rubberW = smoothstep(.72, .86, pbr.x).mul(float(1).sub(metalW)).mul(float(1).sub(glass));
     const paintW = clamp(float(1).sub(metalW).sub(rubberW).sub(glass), 0, 1);
-    const fade = float(1).sub(smoothstep(12, 45, length(positionWorld.sub(cameraPosition)))).mul(level);
+    const fade = float(1).sub(smoothstep(20, 80, length(positionWorld.sub(cameraPosition)))).mul(level);
     const plateL = clamp(luma(plate.rgb).div(DETAIL_SCANS.metal.lum), .55, 1.5), grainL = clamp(luma(grain.rgb).div(DETAIL_SCANS.grain.lum), .6, 1.4);
     const grime = float(1).sub(smoothstep(.05, .6, local.y)).mul(float(1).sub(glass)).mul(.16).mul(level);
-    albedo = albedo.mul(mix(float(1), plateL, metalW.mul(.55).add(paintW.mul(.16)).mul(fade)))
-      .mul(mix(float(1), grainL, rubberW.mul(.5).mul(fade))).mul(float(1).sub(grime));
+    albedo = albedo.mul(mix(float(1), plateL, metalW.mul(.8).add(paintW.mul(.3)).mul(fade)))
+      .mul(mix(float(1), grainL, rubberW.mul(.7).mul(fade))).mul(float(1).sub(grime));
     baseRough = clamp(pbr.x.add(plateRH.r.sub(DETAIL_SCANS.metal.rough).mul(metalW.mul(.5).add(paintW.mul(.14))).mul(fade))
       .add(grainRH.r.sub(DETAIL_SCANS.grain.rough).mul(rubberW.mul(.3)).mul(fade)).add(grime.mul(.5)), .04, 1);
     const height = plateRH.g.mul(metalW.mul(.0012).add(paintW.mul(.0003))).add(grainRH.g.mul(rubberW.mul(.0016))).mul(fade);

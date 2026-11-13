@@ -41,6 +41,7 @@ import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
+import { buildPavingOrientation, pavingOrientation, setPavingOrientation, type PavingOrientation } from "./paving-orientation.ts";
 import { disposeDetailTextures, detailTextures, detailTexturesLoaded, loadDetailTextures, setDetailTextures, type DetailTextures } from "./detail-textures.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, tierDetail, type GfxDetail, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
@@ -245,6 +246,8 @@ export class SceneRenderer {
   private readonly detail: Readonly<GfxDetail>;
   /** The scanned surface detail this renderer's materials were built with; it releases them. */
   private readonly detailScans: DetailTextures | null;
+  /** The street-direction map the pavement's joints follow (node renderer); released on dispose. */
+  private readonly pavingMap: PavingOrientation | null;
   /** Legacy renderer: metres per sun-shadow texel; the shadow box moves in steps of one. */
   private readonly shadowTexel: number;
   private governor: GfxGovernor | null = null;
@@ -368,6 +371,9 @@ export class SceneRenderer {
       this.sun.shadow.normalBias = 0.035;
     }
 
+    // Before any tile's ground or road material is built: their slab grid reads it (node-materials.ts).
+    this.pavingMap = gpu && world.roads ? buildPavingOrientation(world.roads as never) : null;
+    setPavingOrientation(this.pavingMap);
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
 
@@ -1068,6 +1074,7 @@ export class SceneRenderer {
     const release=():void=>{
       this.surfaceTextures.dispose();
       disposeDetailTextures(this.detailScans);
+      if (this.pavingMap) { this.pavingMap.texture.dispose(); if (pavingOrientation() === this.pavingMap) setPavingOrientation(null); }
       this.streamer.dispose();
       this.staticScene.dispose();
       this.avatarGround.clear();

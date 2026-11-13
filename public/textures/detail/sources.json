@@ -5,31 +5,73 @@
   "textures": {
     "metal": {
       "sizeM": 0.5,
-      "albedoMeanLinear": [0.04941, 0.03394, 0.01247], "roughMean": 0.5892, "heightMean": 0.4681,
-      "source": "https://polyhaven.com/a/metal_plate", "author": "Rob Tuytel",
+      "albedoMeanLinear": [
+        0.04941,
+        0.03394,
+        0.01247
+      ],
+      "roughMean": 0.5892,
+      "heightMean": 0.4681,
+      "source": "https://polyhaven.com/a/metal_plate",
+      "author": "Rob Tuytel",
       "licence": "CC0 1.0 (https://polyhaven.com/license)",
       "use": "bare metal on robots and vehicles; a light touch on paint"
     },
     "grain": {
       "sizeM": 2.0,
-      "albedoMeanLinear": [0.17494, 0.04693, 0.03662], "roughMean": 0.9243, "heightMean": 0.3973,
-      "source": "https://polyhaven.com/a/rubberized_track", "author": "Charlotte Baglioni",
+      "albedoMeanLinear": [
+        0.17494,
+        0.04693,
+        0.03662
+      ],
+      "roughMean": 0.9243,
+      "heightMean": 0.3973,
+      "source": "https://polyhaven.com/a/rubberized_track",
+      "author": "Charlotte Baglioni",
       "licence": "CC0 1.0 (https://polyhaven.com/license)",
       "use": "tyres, bumpers and rough plastics, sampled at 0.6 m tiles"
     },
     "stucco": {
       "sizeM": 1.8,
-      "albedoMeanLinear": [0.42506, 0.41993, 0.40122], "roughMean": 0.8876, "heightMean": 0.7726,
-      "source": "https://polyhaven.com/a/white_stucco_02", "author": "Dimitrios Savva",
+      "albedoMeanLinear": [
+        0.42506,
+        0.41993,
+        0.40122
+      ],
+      "roughMean": 0.8876,
+      "heightMean": 0.7726,
+      "source": "https://polyhaven.com/a/white_stucco_02",
+      "author": "Dimitrios Savva",
       "licence": "CC0 1.0 (https://polyhaven.com/license)",
       "use": "walls of homes and older buildings"
     },
     "concrete": {
       "sizeM": 2.7,
-      "albedoMeanLinear": [0.26637, 0.23707, 0.16183], "roughMean": 0.7369, "heightMean": 0.7788,
-      "source": "https://polyhaven.com/a/concrete_wall_008", "author": "Dario Barresi (processing), Charlotte Baglioni (photography)",
+      "albedoMeanLinear": [
+        0.26637,
+        0.23707,
+        0.16183
+      ],
+      "roughMean": 0.7369,
+      "heightMean": 0.7788,
+      "source": "https://polyhaven.com/a/concrete_wall_008",
+      "author": "Dario Barresi (processing), Charlotte Baglioni (photography)",
       "licence": "CC0 1.0 (https://polyhaven.com/license)",
-      "use": "walls of modern buildings"
+      "use": "walls of modern buildings; sidewalks and plazas"
+    },
+    "asphalt": {
+      "sizeM": 3.0,
+      "albedoMeanLinear": [
+        0.11198,
+        0.11036,
+        0.09824
+      ],
+      "roughMean": 0.7703,
+      "heightMean": 0.6547,
+      "source": "https://polyhaven.com/a/asphalt_02",
+      "author": "Rob Tuytel",
+      "licence": "CC0 1.0 (https://polyhaven.com/license)",
+      "use": "road asphalt"
     }
   }
 }
