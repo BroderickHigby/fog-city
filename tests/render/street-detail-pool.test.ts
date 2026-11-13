@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import { describe, expect, it, vi } from "vitest";
 import { createSharedMaterials } from "../../src/render/materials.ts";
-import { StreetDetailLayer } from "../../src/render/street-detail.ts";
+import { GRASS_MIN_BUDGET_MS, STREET_DETAIL_BUDGET_MS, StreetDetailLayer } from "../../src/render/street-detail.ts";
 import { BladeAtlas, MAX_PAGES, PAGE_ROWS, SignCell } from "../../src/render/street-signs.ts";
 
 /** Six cells in a row along x (200 m cells), each with signals, stop signs, signs, shops and a palm. */
@@ -72,6 +72,19 @@ describe("street detail shared draws", () => {
     expect(l.info()).toMatchObject({ cellsBuilt: 1, signals: 1, palms: 1 });
     settle(l, 1500);
     expect(l.info()).toMatchObject({ cellsBuilt: 0, palms: 1 });
+    l.dispose();
+  });
+
+  it("keeps a share of the frame for the grass when building cells spends the whole budget", async () => {
+    const l = layer();
+    await l.load();
+    const grass = vi.spyOn(l.grass, "update");
+    // A clock that jumps 10 ms per read: the first cell part alone spends the layer's budget.
+    let t = 0;
+    const now = vi.spyOn(performance, "now").mockImplementation(() => (t += 10));
+    try { l.update(100, 100, 0, STREET_DETAIL_BUDGET_MS); } finally { now.mockRestore(); }
+    expect(grass).toHaveBeenCalledTimes(1);
+    expect(grass.mock.calls[0]![2]).toBe(GRASS_MIN_BUDGET_MS);
     l.dispose();
   });
 
