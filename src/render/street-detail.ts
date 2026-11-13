@@ -38,11 +38,18 @@ const HYSTERESIS_M = 120;
 const TREES_NEAR_M = 1300;
 /**
  * Main-thread time per frame for the whole layer: building cells (a part at a time), placing
- * trees, then the grass with what is left. Each starts at most one piece of work after the
- * budget is spent (one cell part, one tree cell, one grass step), so a slow device still makes
- * progress and no frame does more than the budget plus those pieces.
+ * trees, then the grass with what is left, but never less than GRASS_MIN_BUDGET_MS. Each starts
+ * at most one piece of work after the budget is spent (one cell part, one tree cell, one grass
+ * step), so a slow device still makes progress and no frame does more than the budget, the grass
+ * floor and those pieces.
  */
 export const STREET_DETAIL_BUDGET_MS = 4;
+/**
+ * The grass's own share of each frame. Its citywide obstacle index is about 1,200 small steps;
+ * with only the cells' leftovers (none while streets stream in) it got one step a frame and the
+ * lawns took twenty seconds or more to appear. 1.5 ms brings that to about 150 frames.
+ */
+export const GRASS_MIN_BUDGET_MS = 1.5;
 
 export interface StreetDetailInfo {
   /** Layers loaded from street-detail.json. */
@@ -246,7 +253,7 @@ export class StreetDetailLayer {
       if (this.job.steps.next().done) this.job = null;
     }
     for (let k = 0; this.treeQueue.length && (k === 0 || performance.now() - start < budgetMs); k++) this.placeTrees(this.treeQueue.shift()!);
-    this.grass.update(x, z, Math.max(0, budgetMs - (performance.now() - start)));
+    this.grass.update(x, z, Math.max(Math.min(GRASS_MIN_BUDGET_MS, budgetMs), budgetMs - (performance.now() - start)));
     for (const cell of this.builtCells) cell.built?.furniture?.update(tick);
     this.pool.flush(this.view);
   }

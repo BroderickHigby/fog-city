@@ -1,6 +1,6 @@
 // Graphics tiers, the pixel budget and the governor (src/render/gfx.ts).
 import { describe, expect, it } from "vitest";
-import { GOVERNOR_GRACE_S, GOVERNOR_HOLD_S, GfxGovernor, MIN_PIXEL_RATIO, TIER_SETTINGS, chooseTier, parseGfxRequest, renderPixelRatio, type GfxCaps } from "../../src/render/gfx.ts";
+import { GOVERNOR_GRACE_S, GOVERNOR_HOLD_S, GfxGovernor, MIN_PIXEL_RATIO, TIER_DETAIL, TIER_SETTINGS, chooseTier, parseGfxRequest, renderPixelRatio, tierDetail, type GfxCaps } from "../../src/render/gfx.ts";
 
 const caps = (renderer: string, over: Partial<GfxCaps> = {}): GfxCaps => ({ webgl2: true, renderer, maxTextureSize: 16384, mobile: false, ...over });
 
@@ -26,6 +26,42 @@ describe("chooseTier", () => {
     expect(chooseTier("high", caps("SwiftShader")).tier).toBe("high");
     expect(parseGfxRequest("standard")).toBe("standard");
     expect(parseGfxRequest("ultra")).toBe("auto");
+  });
+});
+
+describe("TIER_DETAIL", () => {
+  it("never gives a lower tier more detail than a higher one", () => {
+    const { high, standard, low } = TIER_DETAIL;
+    for (const key of ["cascadeMapSize", "shadowMapSize", "reflectionScale", "reflectionQuality", "ambientOcclusion", "environmentSize", "surfaceDetail"] as const) {
+      expect(high[key], key).toBeGreaterThanOrEqual(standard[key]);
+      expect(standard[key], key).toBeGreaterThanOrEqual(low[key]);
+    }
+  });
+
+  it("keeps ambient occlusion on the high tier only, and SMAA wherever the post chain runs by default", () => {
+    expect(TIER_DETAIL.high.ambientOcclusion).toBeGreaterThan(0);
+    expect(TIER_DETAIL.standard.ambientOcclusion).toBe(0);
+    expect(TIER_DETAIL.low.ambientOcclusion).toBe(0);
+    expect(TIER_DETAIL.high.antialias).toBe("smaa");
+    expect(TIER_DETAIL.standard.antialias).toBe("smaa");
+  });
+
+  it("keeps the shadow atlases within a tier's memory: about 80 MB high, 20 MB standard", () => {
+    // Two cascades side by side, 32-bit depth.
+    const atlasBytes = (size: number): number => 2 * size * size * 4;
+    expect(atlasBytes(TIER_DETAIL.high.cascadeMapSize)).toBeLessThanOrEqual(80e6);
+    expect(atlasBytes(TIER_DETAIL.standard.cascadeMapSize)).toBeLessThanOrEqual(20e6);
+    // Legacy shadow texels get finer (or stay put) as the tier rises.
+    const texel = (t: keyof typeof TIER_DETAIL): number => TIER_DETAIL[t].shadowHalf * 2 / TIER_DETAIL[t].shadowMapSize;
+    expect(texel("high")).toBeLessThan(texel("standard"));
+    expect(texel("standard")).toBeLessThanOrEqual(texel("low"));
+  });
+
+  it("gives an unnamed tier the low row, which keeps the figures from before tiers had detail", () => {
+    expect(tierDetail(undefined)).toBe(TIER_DETAIL.low);
+    expect(tierDetail("unknown")).toBe(TIER_DETAIL.low);
+    expect(tierDetail("high")).toBe(TIER_DETAIL.high);
+    expect(TIER_DETAIL.low).toEqual({ cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128, surfaceDetail: 0 });
   });
 });
 

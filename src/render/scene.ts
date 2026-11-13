@@ -41,7 +41,9 @@ import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
-import { GfxGovernor, PIXEL_STEP, renderPixelRatio, type GfxStep, type GfxTier } from "./gfx.ts";
+import { buildPavingOrientation, pavingOrientation, setPavingOrientation, type PavingOrientation } from "./paving-orientation.ts";
+import { disposeDetailTextures, detailTextures, detailTexturesLoaded, loadDetailTextures, setDetailTextures, type DetailTextures } from "./detail-textures.ts";
+import { GfxGovernor, PIXEL_STEP, renderPixelRatio, tierDetail, type GfxDetail, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
 import { BLASTER_FILE, type SprayCue } from "./held-blaster.ts";
@@ -73,6 +75,8 @@ export interface RenderOptions {
   pixelBudget?: number;
   /** The graphics tier (gfx.ts), for reports; and whether the governor may step it down. */
   tier?: GfxTier;
+  /** Scanned surface detail strength, 0 to 1; the tier's (TIER_DETAIL.surfaceDetail) when omitted (?detail=). */
+  surfaceDetail?: number;
   governed?: boolean;
   /** Keep the drawing buffer between frames (software renderers: tests read the canvas). */
   preserveDrawingBuffer?: boolean;
@@ -138,6 +142,8 @@ export interface RenderInfo {
   crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
+  /** Scanned surface detail in use (detail-textures.ts): empty at the low tier or on the legacy renderer. */
+  detailTextures?: readonly string[];
   night: boolean;
   tilesPending: number;
   tilesTotal: number;
@@ -179,9 +185,6 @@ export interface RenderInfo {
   streetDetail?: StreetDetailInfo;
 }
 
-const SHADOW_HALF = 96;
-const SHADOW_MAP_SIZE = 2048;
-const SHADOW_TEXEL_M = (SHADOW_HALF * 2) / SHADOW_MAP_SIZE;
 /** The camera sees this far: the far skyline reaches across the city and the Bay. */
 export const CAMERA_FAR_M = 20000;
 /** The sea plane's side (it follows the camera): beyond the far plane in every direction. */
@@ -239,6 +242,14 @@ export class SceneRenderer {
   private readonly maxPixelRatio: number;
   private pixelBudget: number;
   private readonly tier: GfxTier | "unknown";
+  /** The tier's shadow, reflection, AO and anti-aliasing figures (gfx.ts TIER_DETAIL). */
+  private readonly detail: Readonly<GfxDetail>;
+  /** The scanned surface detail this renderer's materials were built with; it releases them. */
+  private readonly detailScans: DetailTextures | null;
+  /** The street-direction map the pavement's joints follow (node renderer); released on dispose. */
+  private readonly pavingMap: PavingOrientation | null;
+  /** Legacy renderer: metres per sun-shadow texel; the shadow box moves in steps of one. */
+  private readonly shadowTexel: number;
   private governor: GfxGovernor | null = null;
   private readonly sun = new THREE.DirectionalLight(0xffffff, 1);
   private readonly hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 1);
@@ -287,18 +298,25 @@ export class SceneRenderer {
       let gpu: GpuEngine | null = null;
       let candidate: SceneRenderer | null = null;
       try {
-        gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, high: opts.tier === "high" });
+        gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, detail: tierDetail(opts.tier) });
         setGpuMaterialsEnabled(true);
+        // Scanned surface detail must exist before the city's node materials are built: the engine
+        // stops compiling after boot. A missing scan only means no detail (detail-textures.ts).
+        setDetailTextures(await loadDetailTextures(path => world.assets ? world.assets.bytes(path)
+          : fetch(path).then(r => { if (!r.ok) throw new Error(`${r.status} ${path}`); return r.arrayBuffer(); }).then(b => new Uint8Array(b)),
+        opts.surfaceDetail ?? tierDetail(opts.tier).surfaceDetail, gpu.renderer.getMaxAnisotropy()));
         candidate = new SceneRenderer(container, world, opts, gpu);
         await gpu.prewarm(candidate.scene, candidate.camera);
         return candidate;
       } catch (error) {
         candidate?.dispose();
+        disposeDetailTextures(detailTextures());
         if (gpu) { gpu.renderer.domElement.remove(); await gpu.dispose(); }
         console.warn("[fog-city] Node renderer unavailable; using compatible WebGL renderer.", error);
       }
     }
     setGpuMaterialsEnabled(false);
+    setDetailTextures(null);
     return new SceneRenderer(container, world, opts);
   }
 
@@ -325,6 +343,9 @@ export class SceneRenderer {
     this.maxPixelRatio = opts.maxPixelRatio;
     this.pixelBudget = opts.pixelBudget ?? Infinity;
     this.tier = opts.tier ?? "unknown";
+    this.detail = tierDetail(this.tier);
+    this.detailScans = gpu ? detailTextures() : null;
+    this.shadowTexel = (this.detail.shadowHalf * 2) / this.detail.shadowMapSize;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.shadowMap.enabled = this.shadows;
@@ -337,18 +358,22 @@ export class SceneRenderer {
     if (!gpu) { this.scene.add(this.sky.mesh, this.water.mesh, this.sun, this.sun.target); this.envScene.add(new Sky(900).mesh); }
     if (this.shadows && !gpu) {
       this.sun.castShadow = true;
-      this.sun.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+      const { shadowMapSize: size, shadowHalf: half } = this.detail;
+      this.sun.shadow.mapSize.set(size, size);
       const c = this.sun.shadow.camera;
-      c.left = -SHADOW_HALF;
-      c.right = SHADOW_HALF;
-      c.top = SHADOW_HALF;
-      c.bottom = -SHADOW_HALF;
+      c.left = -half;
+      c.right = half;
+      c.top = half;
+      c.bottom = -half;
       c.near = 1;
       c.far = 1600;
       this.sun.shadow.bias = -0.00008;
       this.sun.shadow.normalBias = 0.035;
     }
 
+    // Before any tile's ground or road material is built: their slab grid reads it (node-materials.ts).
+    this.pavingMap = gpu && world.roads ? buildPavingOrientation(world.roads as never) : null;
+    setPavingOrientation(this.pavingMap);
     this.materials = createSharedMaterials();
     this.nightMats = createNightMaterials();
 
@@ -480,7 +505,7 @@ export class SceneRenderer {
 
     // Keep unclipped direct rendering on devices without floating-point color targets.
     if (!gpu && (opts.quality ?? !software) && (this.renderer as THREE.WebGLRenderer).extensions.has("EXT_color_buffer_float")) {
-      this.quality = new VisualQuality(this.renderer as THREE.WebGLRenderer, this.scene, this.camera);
+      this.quality = new VisualQuality(this.renderer as THREE.WebGLRenderer, this.scene, this.camera, this.detail.antialias);
       this.streetLights = new StreetLightRig();
       this.scene.add(this.streetLights.group);
     }
@@ -922,8 +947,8 @@ export class SceneRenderer {
     this.water.follow(this.camera);
     // Keep the sun light (and its shadow box) centred near the camera.
     // Move in texel-sized steps, rather than visibly jumping twenty metres.
-    const sx = Math.round(cam.x / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
-    const sz = Math.round(cam.z / SHADOW_TEXEL_M) * SHADOW_TEXEL_M;
+    const sx = Math.round(cam.x / this.shadowTexel) * this.shadowTexel;
+    const sz = Math.round(cam.z / this.shadowTexel) * this.shadowTexel;
     const groundY = this.ground(sx, sz);
     this.sun.target.position.set(sx, groundY, sz);
     this.sun.position.set(sx + this.sunDir.x * 800, groundY + this.sunDir.y * 800, sz + this.sunDir.z * 800);
@@ -993,6 +1018,7 @@ export class SceneRenderer {
     out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
+    out.detailTextures = this.detailScans ? detailTexturesLoaded() : [];
     out.night = this.nightOn;
     out.tilesPending = s.pending;
     out.tilesTotal = s.total;
@@ -1047,6 +1073,8 @@ export class SceneRenderer {
     const retirement=this.gpu?.retireAll();
     const release=():void=>{
       this.surfaceTextures.dispose();
+      disposeDetailTextures(this.detailScans);
+      if (this.pavingMap) { this.pavingMap.texture.dispose(); if (pavingOrientation() === this.pavingMap) setPavingOrientation(null); }
       this.streamer.dispose();
       this.staticScene.dispose();
       this.avatarGround.clear();

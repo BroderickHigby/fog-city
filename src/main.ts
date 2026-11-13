@@ -21,6 +21,7 @@ import { TacticalEffectsLayer } from "./render/tactical-effects.ts";
 //   &night=1                     start at night (KeyN toggles the look; the clock starts at 22:40)
 //   &shadows=1                   sun shadows (off by default for performance)
 //   &pr=1.5                      cap on devicePixelRatio
+//   &detail=0..1                 scanned surface detail strength (default: the graphics tier's; 0 = none)
 //   &cam=chase|first-person|fly  starting camera
 //
 // Keys: WASD/arrows drive (or walk), Space brake; on foot W jogs, Shift (or Space, pad LT) sprints, F beside an empty robotaxi hops in
@@ -296,6 +297,7 @@ async function boot(): Promise<void> {
       maxPixelRatio: (!safeMode?numParam(params, "pr"):null) ?? tierSettings.maxPixelRatio,
       pixelBudget: !safeMode && params.has("pr") ? undefined : tierSettings.pixelBudget,
       tier: gfx.tier,
+      surfaceDetail: numParam(params, "detail") ?? undefined,
       governed: gfxRequest === "auto" && !params.has("pr") && !params.has("quality") && !params.has("shadows"),
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
@@ -307,6 +309,25 @@ async function boot(): Promise<void> {
   );
   // ?debug=1 exposes the renderer for diagnostics and graphics-recovery browser checks.
   if (params.get("debug") === "1") (window as unknown as { __fogcityView?: SceneRenderer }).__fogcityView = view;
+  // ?mode=planner: the city-planning demo (src/planner/). It draws its own traffic model over the
+  // city and never starts the game's simulation, saves or UI.
+  if (params.get("mode") === "planner" && files.roads && files.signals) {
+    const { runPlanner } = await import("./planner/view.ts");
+    status("loading US-101 on Lombard St…");
+    await runPlanner({
+      view, container, ground, params,
+      roads: files.roads as unknown as import("./planner/corridor.ts").RoadsFile,
+      signals: files.signals,
+      prepare: (render) => prepareStartingStreets({ nextFrame: paint, render, ready: () => view.startupSurfaceReady() }),
+      reveal: () => {
+        container.setAttribute("aria-busy", "false");
+        if (loading) { loading.classList.remove("loading-screen"); loading.removeAttribute("role"); loading.hidden = true; }
+        document.getElementById("compass")?.remove();
+        if (splash) { if (navigator.webdriver) splash.remove(); else { splash.classList.add("gone"); setTimeout(() => splash.remove(), 700); } }
+      },
+    });
+    return;
+  }
   const startCam = params.get("cam") as CameraMode | null;
   if (startCam && CAMERA_MODES.includes(startCam)) view.setCameraMode(startCam);
   // Reproducible render-only views for local visual QA. The player's pose is untouched.
