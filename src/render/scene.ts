@@ -74,6 +74,8 @@ export interface RenderOptions {
   pixelBudget?: number;
   /** The graphics tier (gfx.ts), for reports; and whether the governor may step it down. */
   tier?: GfxTier;
+  /** Scanned surface detail strength, 0 to 1; the tier's (TIER_DETAIL.surfaceDetail) when omitted (?detail=). */
+  surfaceDetail?: number;
   governed?: boolean;
   /** Keep the drawing buffer between frames (software renderers: tests read the canvas). */
   preserveDrawingBuffer?: boolean;
@@ -299,7 +301,7 @@ export class SceneRenderer {
         // stops compiling after boot. A missing scan only means no detail (detail-textures.ts).
         setDetailTextures(await loadDetailTextures(path => world.assets ? world.assets.bytes(path)
           : fetch(path).then(r => { if (!r.ok) throw new Error(`${r.status} ${path}`); return r.arrayBuffer(); }).then(b => new Uint8Array(b)),
-        tierDetail(opts.tier).surfaceDetail, gpu.renderer.getMaxAnisotropy()));
+        opts.surfaceDetail ?? tierDetail(opts.tier).surfaceDetail, gpu.renderer.getMaxAnisotropy()));
         candidate = new SceneRenderer(container, world, opts, gpu);
         await gpu.prewarm(candidate.scene, candidate.camera);
         return candidate;

@@ -21,6 +21,7 @@ import { TacticalEffectsLayer } from "./render/tactical-effects.ts";
 //   &night=1                     start at night (KeyN toggles the look; the clock starts at 22:40)
 //   &shadows=1                   sun shadows (off by default for performance)
 //   &pr=1.5                      cap on devicePixelRatio
+//   &detail=0..1                 scanned surface detail strength (default: the graphics tier's; 0 = none)
 //   &cam=chase|first-person|fly  starting camera
 //
 // Keys: WASD/arrows drive (or walk), Space brake; on foot W jogs, Shift (or Space, pad LT) sprints, F beside an empty robotaxi hops in
@@ -296,6 +297,7 @@ async function boot(): Promise<void> {
       maxPixelRatio: (!safeMode?numParam(params, "pr"):null) ?? tierSettings.maxPixelRatio,
       pixelBudget: !safeMode && params.has("pr") ? undefined : tierSettings.pixelBudget,
       tier: gfx.tier,
+      surfaceDetail: numParam(params, "detail") ?? undefined,
       governed: gfxRequest === "auto" && !params.has("pr") && !params.has("quality") && !params.has("shadows"),
       preserveDrawingBuffer: SOFTWARE_GPU.test(gpu.renderer),
       models: new Set(models),
