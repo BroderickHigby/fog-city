@@ -62,7 +62,44 @@ export async function createGpuEngine(options: GpuEngineOptions): Promise<GpuEng
   const renderer = new WebGPURenderer({ antialias: true, samples: 4, powerPreference: "high-performance", reversedDepthBuffer: true, forceWebGL: options.backend === "webgl" });
   try { await renderer.init(); }
   catch (error) { await renderer.dispose(); throw error; }
+  flipDepthBiasForReversedDepth(renderer);
   return new GpuEngine(renderer, options);
+}
+
+type BiasMaterial = { polygonOffset: boolean; polygonOffsetFactor: number; polygonOffsetUnits: number };
+interface BiasBackend {
+  state?: { setPolygonOffset?: (on: boolean, factor: number, units: number) => void } | null;
+  pipelineUtils?: { createRenderPipeline?: (renderObject: { material: BiasMaterial }, promises: unknown) => unknown } | null;
+}
+
+/**
+ * Makes polygonOffset mean the same under the reversed depth buffer as it does in the classic
+ * renderer: negative values pull a surface toward the camera. three.js r186's node backends pass
+ * the material's values through unchanged, so with reversed depth (near = 1) a decal, the turf
+ * or a contact shadow at -1/-1 was pushed *behind* the ground it lies on and lost the depth test
+ * (lawns showed bare paving under their blades). The WebGL2 fallback reads the offsets at draw
+ * time; WebGPU bakes them into each pipeline when it is built. Both are flipped once, here.
+ */
+export function flipDepthBiasForReversedDepth(renderer: { reversedDepthBuffer: boolean; backend: unknown }): void {
+  const backend = renderer.backend as BiasBackend & { fcDepthBiasFlipped?: boolean };
+  if (!renderer.reversedDepthBuffer || backend.fcDepthBiasFlipped) return;
+  backend.fcDepthBiasFlipped = true;
+  const state = backend.state;
+  if (state?.setPolygonOffset) {
+    const set = state.setPolygonOffset.bind(state);
+    state.setPolygonOffset = (on, factor, units) => set(on, -factor, -units);
+  }
+  const utils = backend.pipelineUtils;
+  if (utils?.createRenderPipeline) {
+    const create = utils.createRenderPipeline.bind(utils);
+    utils.createRenderPipeline = (renderObject, promises) => {
+      const m = renderObject.material;
+      if (!m?.polygonOffset) return create(renderObject, promises);
+      const factor = m.polygonOffsetFactor, units = m.polygonOffsetUnits;
+      m.polygonOffsetFactor = -factor; m.polygonOffsetUnits = -units;
+      try { return create(renderObject, promises); } finally { m.polygonOffsetFactor = factor; m.polygonOffsetUnits = units; }
+    };
+  }
 }
 
 export class GpuEngine {
