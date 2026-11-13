@@ -542,16 +542,17 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     if (existsSync(join(pub, motions))) single(motions, new Uint8Array(readFileSync(join(pub, motions))));
   }
 
-  // Optional licensed surface scans use the same relative byte provider as models.
-  const surfaceDir = join(pub, "textures", "surfaces");
-  if (existsSync(surfaceDir)) {
-    for (const f of walk(surfaceDir).filter(p => p.endsWith(".webp"))) {
+  // Optional licensed surface and detail scans use the same relative byte provider as models.
+  for (const kind of ["surfaces", "detail"]) {
+    const scanDir = join(pub, "textures", kind);
+    if (!existsSync(scanDir)) continue;
+    for (const f of walk(scanDir).filter(p => p.endsWith(".webp"))) {
       single(relative(pub, f).split("\\").join("/"), new Uint8Array(readFileSync(f)));
     }
-    const sources = join(surfaceDir, "sources.json");
+    const sources = join(scanDir, "sources.json");
     if (existsSync(sources)) {
       const bytes = readFileSync(sources);
-      write(join(out, "textures", "surfaces", "sources.json"), bytes);
+      write(join(out, "textures", kind, "sources.json"), bytes);
       jsonBytes += bytes.byteLength;
     }
   }
@@ -592,7 +593,7 @@ export async function buildWeb(opts: BuildOptions): Promise<BuildReport> {
     ["Fog City civilian car", "assets/imports/civilian-car/LICENSE.txt"],
   ].map(([label, path]) => `${label}\n${readFileSync(join(ROOT, path!), "utf8")}`).join("\n\n");
   write(join(out, "third-party-notices.txt"), notices +
-    "\n\nSurface scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json for sources.\n" +
+    "\n\nSurface and detail scans: Poly Haven CC0 1.0. See textures/surfaces/sources.json and textures/detail/sources.json for sources.\n" +
     "\nPlayer movement: supplied Mixamo animations, retargeted to the existing Rocketbox rig. Adobe Mixamo terms apply. https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html\n" +
     "\nMusic: CC0 1.0 tracks from OpenGameArt.org. See audio/music/manifest.json for each title, author and source page.\n");
 

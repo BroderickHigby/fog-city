@@ -68,15 +68,17 @@ export interface GfxDetail {
   antialias: "fxaa" | "smaa";
   /** Pixels per side of the sky's environment cube (reflections and the fog's colour). */
   environmentSize: number;
+  /** Strength of the scanned surface detail on walls, robots and vehicles (detail-textures.ts), 0 for none. */
+  surfaceDetail: number;
 }
 
 export const TIER_DETAIL: Readonly<Record<GfxTier, Readonly<GfxDetail>>> = Object.freeze({
   // Discrete desktop GPUs: the reference's 3072 px cascades (two of them: a 6144 x 3072 atlas,
   // about 75 MB), full-resolution reflections and half-resolution ambient occlusion.
-  high: { cascadeMapSize: 3072, shadowMapSize: 4096, shadowHalf: 128, reflectionScale: 1, reflectionQuality: .5, ambientOcclusion: .5, antialias: "smaa", environmentSize: 256 },
+  high: { cascadeMapSize: 3072, shadowMapSize: 4096, shadowHalf: 128, reflectionScale: 1, reflectionQuality: .5, ambientOcclusion: .5, antialias: "smaa", environmentSize: 256, surfaceDetail: 1 },
   // Laptops and Apple GPUs: sharper shadows (a 3072 x 1536 atlas, about 19 MB) and SMAA, no AO.
-  standard: { cascadeMapSize: 1536, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "smaa", environmentSize: 256 },
-  low: { cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128 },
+  standard: { cascadeMapSize: 1536, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "smaa", environmentSize: 256, surfaceDetail: .85 },
+  low: { cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128, surfaceDetail: 0 },
 });
 
 /** The detail row for a tier; an unnamed tier (tests, tools) gets the low row. */

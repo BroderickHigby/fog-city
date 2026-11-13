@@ -41,6 +41,7 @@ import { daylightAt } from "./daylight.ts";
 import { CLEAR_WEATHER, WeatherLayer, weatherKey, weatherLight, type TideStrip, type WeatherLook } from "./weather.ts";
 import { StreetLightRig } from "./street-lights.ts";
 import { CAR_LIGHT_POOL, LAMP_LIGHT_POOL, VEHICLE_STRIDE, CarLightPool, LampLightPool, poolSize } from "./night-light-pools.ts";
+import { disposeDetailTextures, detailTextures, detailTexturesLoaded, loadDetailTextures, setDetailTextures, type DetailTextures } from "./detail-textures.ts";
 import { GfxGovernor, PIXEL_STEP, renderPixelRatio, tierDetail, type GfxDetail, type GfxStep, type GfxTier } from "./gfx.ts";
 import { PLAYER_BODY_FILE } from "./player-body.ts";
 import { CROWD_FILES, CrowdHumans } from "./crowd-humans.ts";
@@ -138,6 +139,8 @@ export interface RenderInfo {
   crowdLoaded: number;
   foliage: { near: number; far: number; draws: number };
   surfaceTextures: readonly string[];
+  /** Scanned surface detail in use (detail-textures.ts): empty at the low tier or on the legacy renderer. */
+  detailTextures?: readonly string[];
   night: boolean;
   tilesPending: number;
   tilesTotal: number;
@@ -238,6 +241,8 @@ export class SceneRenderer {
   private readonly tier: GfxTier | "unknown";
   /** The tier's shadow, reflection, AO and anti-aliasing figures (gfx.ts TIER_DETAIL). */
   private readonly detail: Readonly<GfxDetail>;
+  /** The scanned surface detail this renderer's materials were built with; it releases them. */
+  private readonly detailScans: DetailTextures | null;
   /** Legacy renderer: metres per sun-shadow texel; the shadow box moves in steps of one. */
   private readonly shadowTexel: number;
   private governor: GfxGovernor | null = null;
@@ -290,16 +295,23 @@ export class SceneRenderer {
       try {
         gpu = await createGpuEngine({ backend: opts.backend, shadows: opts.shadows ?? true, quality: opts.quality ?? true, detail: tierDetail(opts.tier) });
         setGpuMaterialsEnabled(true);
+        // Scanned surface detail must exist before the city's node materials are built: the engine
+        // stops compiling after boot. A missing scan only means no detail (detail-textures.ts).
+        setDetailTextures(await loadDetailTextures(path => world.assets ? world.assets.bytes(path)
+          : fetch(path).then(r => { if (!r.ok) throw new Error(`${r.status} ${path}`); return r.arrayBuffer(); }).then(b => new Uint8Array(b)),
+        tierDetail(opts.tier).surfaceDetail, gpu.renderer.getMaxAnisotropy()));
         candidate = new SceneRenderer(container, world, opts, gpu);
         await gpu.prewarm(candidate.scene, candidate.camera);
         return candidate;
       } catch (error) {
         candidate?.dispose();
+        disposeDetailTextures(detailTextures());
         if (gpu) { gpu.renderer.domElement.remove(); await gpu.dispose(); }
         console.warn("[fog-city] Node renderer unavailable; using compatible WebGL renderer.", error);
       }
     }
     setGpuMaterialsEnabled(false);
+    setDetailTextures(null);
     return new SceneRenderer(container, world, opts);
   }
 
@@ -327,6 +339,7 @@ export class SceneRenderer {
     this.pixelBudget = opts.pixelBudget ?? Infinity;
     this.tier = opts.tier ?? "unknown";
     this.detail = tierDetail(this.tier);
+    this.detailScans = gpu ? detailTextures() : null;
     this.shadowTexel = (this.detail.shadowHalf * 2) / this.detail.shadowMapSize;
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -997,6 +1010,7 @@ export class SceneRenderer {
     out.crowdLoaded = this.crowd?.loaded ?? 0;
     out.foliage = this.foliage.info;
     out.surfaceTextures = this.surfaceTextures.loaded;
+    out.detailTextures = this.detailScans ? detailTexturesLoaded() : [];
     out.night = this.nightOn;
     out.tilesPending = s.pending;
     out.tilesTotal = s.total;
@@ -1051,6 +1065,7 @@ export class SceneRenderer {
     const retirement=this.gpu?.retireAll();
     const release=():void=>{
       this.surfaceTextures.dispose();
+      disposeDetailTextures(this.detailScans);
       this.streamer.dispose();
       this.staticScene.dispose();
       this.avatarGround.clear();

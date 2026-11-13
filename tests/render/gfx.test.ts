@@ -32,7 +32,7 @@ describe("chooseTier", () => {
 describe("TIER_DETAIL", () => {
   it("never gives a lower tier more detail than a higher one", () => {
     const { high, standard, low } = TIER_DETAIL;
-    for (const key of ["cascadeMapSize", "shadowMapSize", "reflectionScale", "reflectionQuality", "ambientOcclusion", "environmentSize"] as const) {
+    for (const key of ["cascadeMapSize", "shadowMapSize", "reflectionScale", "reflectionQuality", "ambientOcclusion", "environmentSize", "surfaceDetail"] as const) {
       expect(high[key], key).toBeGreaterThanOrEqual(standard[key]);
       expect(standard[key], key).toBeGreaterThanOrEqual(low[key]);
     }
@@ -61,7 +61,7 @@ describe("TIER_DETAIL", () => {
     expect(tierDetail(undefined)).toBe(TIER_DETAIL.low);
     expect(tierDetail("unknown")).toBe(TIER_DETAIL.low);
     expect(tierDetail("high")).toBe(TIER_DETAIL.high);
-    expect(TIER_DETAIL.low).toEqual({ cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128 });
+    expect(TIER_DETAIL.low).toEqual({ cascadeMapSize: 1024, shadowMapSize: 2048, shadowHalf: 96, reflectionScale: .5, reflectionQuality: .25, ambientOcclusion: 0, antialias: "fxaa", environmentSize: 128, surfaceDetail: 0 });
   });
 });
 
